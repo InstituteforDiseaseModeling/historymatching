@@ -20,9 +20,9 @@ class HistoryMatching():
 
     def step(self, samples, results,
             training_fraction = 0.75,
-            implausibility_threshold = 3,
             force_optimize_glm = False,
             force_optimize_gpr = False,
+            implausibility_threshold = 3,
             discrepancy_var = 30**2
         ):
 
@@ -39,7 +39,9 @@ class HistoryMatching():
 
         pass
 
-    def gpr(self, method = 'CrossValidation'):
+    def gpr(self,
+        method = 'CrossValidation'
+    ):
         pass
 
     def joint(self):
