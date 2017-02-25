@@ -155,10 +155,6 @@ class HistoryMatching():
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
             test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
 
-            #print train_mean[self.Ycol].head()
-            print self.training_data.head()
-            exit()
-
             if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
                 print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
                 glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
