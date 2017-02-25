@@ -88,7 +88,7 @@ class GLM(object):
                     fitted_model = fitted_model
                 )
         except EnvironmentError:
-            print "Unable to load GLM from_config file", config_fn
+            print "Unable to load GLM from_config file", meta_fn, fitted_fn
             raise
 
     def save(self, save_meta_to, save_fitted_to):
