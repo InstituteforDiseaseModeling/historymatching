@@ -276,21 +276,31 @@ class HistoryMatching():
 
         if True:
             print('Plotting')
-            fig = gpr_model.plot_errors(train.reset_index(), test.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent');
-            fig.savefig( os.path.join(gprdir, 'errors.pdf') );             plt.close(fig)
+            fig = gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent');
+            fig.savefig( os.path.join(self.gprdir, 'errors.pdf') );             plt.close(fig)
 
             #circle_samples = train.sort_values(by='Yerr').iloc[[0, -1]].reset_index()['Sample'].values
             circle_samples = pd.DataFrame()
-            fig = gpr_model.plot_data(samples_to_circle=circle_samples);    fig.savefig( os.path.join(gprdir, 'data.pdf') );    plt.close(fig)
+            #fig = gpr_model.plot_data(samples_to_circle=circle_samples);    fig.savefig( os.path.join(self.gprdir, 'data.pdf') );    plt.close(fig)
+            if False:
+                #cp = pd.DataFrame()
+                print test_mean.loc[[2110]]
+                cp = test_mean.loc[[2110]]
+                figs = gpr_model.plot_data(samples_to_circle=circle_samples)
+                pairdir = os.path.join(self.gprdir, 'PairwiseResults')
+                if not os.path.exists( pairdir):
+                    os.mkdir( pairdir )
+                for fn,fig in figs.iteritems():
+                    fig.savefig( os.path.join(pairdir, fn) ); plt.close(fig)
 
-            mu = train[Xcols].mean()
+            mu = self.training_data[self.Xcols].mean()
             #mu = train.loc[146][Xcols].mean(); print mu
             (fig_mean, fig_std_latent) = gpr_model.plot(mu, res=25);
-            fig_mean.savefig( os.path.join(gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
-            fig_std_latent.savefig( os.path.join(gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW
+            fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
+            fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW
 
             fig = gpr_model.plot_histogram();
-            fig.savefig( os.path.join(gprdir, 'histogram.pdf') );
+            fig.savefig( os.path.join(self.gprdir, 'histogram.pdf') );
             plt.close(fig)
 
 
