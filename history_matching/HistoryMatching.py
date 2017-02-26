@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os, errno
 from glm import GLM
+from gpr import GPR
 
 import matplotlib.pyplot as plt
 
@@ -218,9 +219,80 @@ class HistoryMatching():
 
 
     def gpr(self,
-        method = 'CrossValidation'
+        force_optimize_gpr = True,
+        K_folds = 5,
+        eps = 1e-2,
+        method = 'CrossValidation',
+        verbose = False
     ):
-        pass
+
+        assert( method in ['CrossValidation'] ) # Supporint only CV for now
+
+        gpr_model_fn = os.path.join(self.gprdir, 'model.json')
+
+        if not force_optimize_gpr and os.path.isfile(gpr_model_fn):
+            print "Loading GPR from", gpr_model_fn
+            gpr_model = GPR.from_config(gpr_model_fn)
+        else:
+            gpr_model = GPR(    Xcols = self.Xcols,
+                                Ycol = 'Yerr',
+                                training_data = self.training_data,
+                                param_info = self.param_info,
+                                kernel_mode = 'RBF',
+                                kernel_params = None,
+                                verbose = verbose,
+                                debug = False   )
+
+            print "Fitting the GPR"
+            gpr_model.optimize_hyperparameters(
+                x0 = np.array([2, 0.10] + len(self.Xcols)*[0.1]),
+                bounds = ((0.005,10),)+((0.01,10),) + len(self.Xcols)*((0.01,1),),
+                eps = eps,
+                K = K_folds
+            )
+            gpr_model.save(gpr_model_fn)
+
+
+        train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
+        test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
+
+        print 'GPR evaluating training data'
+        ret = gpr_model.evaluate(train_mean)
+        train_mean['Mean_Err'] = ret['Mean']
+        train_mean['Mean_Estimate'] = train_mean['Yglm'] + train_mean['Mean_Err']
+        train_mean['Var_Err_Predictive'] = ret['Var_Predictive']
+        train_mean['Var_Err_Latent'] = ret['Var_Latent']
+        self.training_data = self.training_data.reset_index().join(train_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample')
+        self.training_data.set_index(['Sample', 'Sim_Id'], inplace=True)
+
+        print 'GPR evaluating test data'
+        ret = gpr_model.evaluate(test_mean)
+        test_mean['Mean_Err'] = ret['Mean']
+        test_mean['Mean_Estimate'] = test_mean['Yglm'] + test_mean['Mean_Err']
+        test_mean['Var_Err_Predictive'] = ret['Var_Predictive']
+        test_mean['Var_Err_Latent'] = ret['Var_Latent']
+        self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample')
+        self.test_data.set_index(['Sample', 'Sim_Id'], inplace=True)
+
+        if True:
+            print('Plotting')
+            fig = gpr_model.plot_errors(train.reset_index(), test.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent');
+            fig.savefig( os.path.join(gprdir, 'errors.pdf') );             plt.close(fig)
+
+            #circle_samples = train.sort_values(by='Yerr').iloc[[0, -1]].reset_index()['Sample'].values
+            circle_samples = pd.DataFrame()
+            fig = gpr_model.plot_data(samples_to_circle=circle_samples);    fig.savefig( os.path.join(gprdir, 'data.pdf') );    plt.close(fig)
+
+            mu = train[Xcols].mean()
+            #mu = train.loc[146][Xcols].mean(); print mu
+            (fig_mean, fig_std_latent) = gpr_model.plot(mu, res=25);
+            fig_mean.savefig( os.path.join(gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
+            fig_std_latent.savefig( os.path.join(gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW
+
+            fig = gpr_model.plot_histogram();
+            fig.savefig( os.path.join(gprdir, 'histogram.pdf') );
+            plt.close(fig)
+
 
     def joint(self):
         pass

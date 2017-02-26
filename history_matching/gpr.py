@@ -386,7 +386,7 @@ class GPR():
         return sample
 
 
-    def optimize_hyperparameters(self, x0, bounds, K=-1, eps=1e-2, disp=True):
+    def optimize_hyperparameters(self, x0, bounds, K=-1, eps=1e-2, disp=True, maxiter=15000):
         # x0 like np.array([2, 0.10, 0.14641288665436947, 0.12166006573919039, 0.05, 0.05, 0.08055223671416605, 7.026854485434267 ])
         # bounds like ((0.005,10),)+((0.01,10),) + tuple((5e-5,10) for i in range(self.D))
         # K=None is leave one out cross validation, otherwise make K groups
@@ -415,15 +415,13 @@ class GPR():
         ret = spo.minimize(
             self.cross_validation,
             args=(X,Y,P),
-            #TODO: Pass in guess!
-            x0 = x0, #np.random.rand(num_params),
+            x0 = x0,
             method='L-BFGS-B',
-            #TODO: Pass in bounds!
             bounds = bounds, # Constrain values
-            #bounds = tuple((5e-6,None) for i in range(self.D+2)), # Constrain values
             jac=None, hess=None, hessp=None,
             constraints=(), tol=None, callback=None,
             options= {
+                'maxiter':maxiter,
                 'disp':disp,
                 'eps':eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
             }
