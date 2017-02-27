@@ -48,7 +48,7 @@ class HistoryMatching():
         self.training_fraction = training_fraction
         self.iteration = iteration
 
-        Xcols_all = self.param_info.index.unique()
+        Xcols_all = self.param_info.index.unique().values.tolist()
 
         self.results.name = 'Sim_Result'
         self.data = pd.merge(inputs.reset_index(), self.results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
@@ -423,7 +423,7 @@ class HistoryMatching():
                 }
 
                 glm_all[(it, cut_name)] = GLM.from_config(os.path.join(cuts_dir, cut_name, 'GLM', 'model.json'), os.path.join(cuts_dir, cut_name, 'GLM', 'params.p'))
-                gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model.json'))
+                gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
                 cuts.append((it, cut_name))
 
         cuts.sort()
