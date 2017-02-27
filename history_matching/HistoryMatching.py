@@ -8,7 +8,7 @@ from pyDOE import lhs
 
 from glm import GLM
 from gpr import GPR
-from plotting import joint_plot, plot_errors # <-- TODO: Fix names
+from plotting import joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
 
 # TODO: Error plot
 # TODO: Reference plot
@@ -95,7 +95,7 @@ class HistoryMatching():
         print "--> Testing  with %d unique parameter configurations (%d simulations including replicates)" % (nTest, nTest*nRep)
 
         # Dir prep
-        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('Cuts',cut_name) )
+        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name) )
         self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
         self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
         self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
@@ -126,7 +126,7 @@ class HistoryMatching():
             iteration = iteration,
             implausibility_threshold = implausibility_threshold,
             discrepancy_var = discrepancy_var,
-            training_fraction   = training_fraction
+            training_fraction   = training_fraction,
         )
 
 
@@ -395,101 +395,9 @@ class HistoryMatching():
         self.gpr_model.set_training_data(pd.concat([self.training_data, self.test_data]))
         self.gpr_model.save(gpr_model_with_test_fn)
 
-        def plot_implausibility(data, column, thresh, save_fn=None):
-            scaled = data[column] / data[column].max()
-            good = data[column] < thresh
-            D = len(self.Xcols)
-            fig = plt.figure(figsize=(128,128))
-            for row in range(D):
-                for col in range(D):
-                    if col > row:
-                        gs = gridspec.GridSpec(D-1, D-1)
-                        ax = fig.add_subplot(gs[col-1,row])
-                        #x = data[ Xcols[row] ]; y = data[ Xcols[col] ]
-                #plt.scatter(x, y, s=np.maximum(5, 50*scaled), c=scaled, cmap='jet', lw=0) #, s=area, c=colors, alpha=0.5)
-                xg = data.loc[good, self.Xcols[row]]; yg = data.loc[good, self.Xcols[col]]; sg = scaled[good]
-                plt.scatter(xg, yg, s=np.maximum(3, 20*sg), lw=0, c='g', alpha=0.5) #, facecolors='none', edgecolors='g'
-                xb = data.loc[good==False, self.Xcols[row]]; yb = data.loc[good==False, self.Xcols[col]]; sb = scaled[good==False]
-                plt.scatter(xb, yb, s=np.maximum(3, 20*sb), lw=0, c='r', alpha=0.5) #, facecolors='none', edgecolors='r'
-                plt.autoscale(tight=True)
-                if col == D-1:
-                    plt.xlabel( self.Xcols[row] )
-                if row == 0:
-                    plt.ylabel( self.Xcols[col] )
-            plt.tight_layout()
-            if save_fn is not None:
-                print 'Saving figure to %s' % save_fn
-                plt.savefig(save_fn)
-            return fig
-
-        def plot_implausibility_by_iter(data, save_fn=None):
-            fig = plt.figure(figsize=(20,20))
-
-            for it in range(iteration+2):
-                col_first_only = 'c'
-                col_second_only = 'y'
-                col_neither = 'r'
-                col_both = 'g'
-
-                first_only = ~data['Implausible_0'] & data['Implausible_1']
-                second_only = data['Implausible_0'] & ~data['Implausible_1']
-                neither = data['Implausible_0'] & data['Implausible_1']
-                both = ~data['Implausible_0'] & ~data['Implausible_1']
-
-                size = 10
-
-                D = len(self.Xcols)
-                for row in range(D):
-                    for col in range(D):
-                        if col > row:
-                            gs = gridspec.GridSpec(D-1, D-1)
-                            ax = fig.add_subplot(gs[col-1,row])
-
-                            x = data.loc[first_only, self.Xcols[row]]; y = data.loc[first_only, self.Xcols[col]];
-                            h1 = plt.scatter(x, y, s=size, lw=0, c=col_first_only, alpha=0.5) #, facecolors='none', edgecolors='g'
-
-                            x = data.loc[second_only, self.Xcols[row]]; y = data.loc[second_only, self.Xcols[col]];
-                            h2 = plt.scatter(x, y, s=size, lw=0, c=col_second_only, alpha=0.5) #, facecolors='none', edgecolors='g'
-
-                            x = data.loc[neither, self.Xcols[row]]; y = data.loc[neither, self.Xcols[col]];
-                            h3 = plt.scatter(x, y, s=size, lw=0, c=col_neither, alpha=0.5) #, facecolors='none', edgecolors='g'
-
-                            x = data.loc[both, self.Xcols[row]]; y = data.loc[both, self.Xcols[col]];
-                            h4 = plt.scatter(x, y, s=size, lw=0, c=col_both, alpha=0.5) #, facecolors='none', edgecolors='g'
-
-                            plt.autoscale(tight=True)
-                            if col == D-1:
-                                plt.xlabel( self.Xcols[row] )
-                            if row == 0:
-                                plt.ylabel( self.Xcols[col] )
-
-            plt.figlegend((h1,h2,h3,h4), ('first only', 'second only', 'neither', 'both'), 'upper right', fontsize=16)
-
-            plt.tight_layout()
-
-            if save_fn is not None:
-                print 'Saving figure to %s' % save_fn
-                plt.savefig(save_fn)
-            return fig
-
-
-        def histogram_implausibility(data, column, thresh=None, save_fn=None):
-            fig, ax = plt.subplots()
-            sns.distplot( data[column], rug=True, ax = ax)
-            yl = ax.get_ylim()
-            if thresh is not None:
-                plt.plot([thresh,thresh], yl, 'r-')
-            if save_fn is not None:
-                print 'Saving figure to %s' % save_fn
-                plt.savefig(save_fn)
-
-
         print "Looking for ", self.desired_result
 
-        num_good_candidates = 0
         candidates = pd.DataFrame( columns=self.Xcols )
-
-        search_step = 0
 
         hm_params = {(self.iteration, self.cut_name): {
             'desired_result':self.desired_result,
@@ -518,12 +426,18 @@ class HistoryMatching():
                 gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model.json'))
                 cuts.append((it, cut_name))
 
-        print 'Looking for candidates, step', search_step; search_step+=1
-        while num_good_candidates < num_desired_candidates:
+        cuts.sort()
+        stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in cuts}
+        stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
+
+        while stats['num_plausible_candidates'] < num_desired_candidates:
             print '-'*80
-            # Likeliy need to over-sample, this could take a long time if p is low
             # Min here to avoid running out of GPU ram!
-            lhs_sample = lhs( len(self.Xcols_all), samples=min(2500, num_desired_candidates-num_good_candidates))
+            if stats['num_candidates'] == 0:
+                nSamples = min(2500, num_desired_candidates)
+            else:
+                nSamples = min(2500, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
+            lhs_sample = lhs( len(self.Xcols_all), samples=nSamples)
 
             for i, xc in enumerate(self.Xcols_all):
                 v = self.param_info.loc[xc]
@@ -532,36 +446,45 @@ class HistoryMatching():
             new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all) # Note _orig :)
             new_candidates['Implausible'] = False
 
-            for (it, cut_name) in cuts:
-                print('Processing iteration %d, cut %s'%(it, cut_name))
-                new_candidates['Yglm'] = glm_all[(it,cut_name)].evaluate(new_candidates)
-                ret = gpr_all[(it,cut_name)].evaluate(new_candidates)
+            for cut in cuts:
+                (it, cut_name) = cut
+                new_candidates['Yglm'] = glm_all[cut].evaluate(new_candidates)
+                ret = gpr_all[cut].evaluate(new_candidates)
                 new_candidates['Mean_Estimate'] = new_candidates['Yglm'] + ret['Mean']
                 new_candidates['Var_Predictive'] = ret['Var_Predictive']
 
                 new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
-                    abs( new_candidates['Mean_Estimate'] - hm_params[(it, cut_name)]['desired_result'] ) / \
-                    np.sqrt(new_candidates['Var_Predictive'] + hm_params[(it, cut_name)]['discrepancy_var'] )
+                    abs( new_candidates['Mean_Estimate'] - hm_params[cut]['desired_result'] ) / \
+                    np.sqrt(new_candidates['Var_Predictive'] + hm_params[cut]['discrepancy_var'] )
 
-                new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > hm_params[(it, cut_name)]['implausibility_threshold']
+                new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > hm_params[cut]['implausibility_threshold']
+
+                stats[cut]['cut_implausible'] += new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ].sum()
+                stats[cut]['newly_implausible'] += sum(new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] & ~new_candidates['Implausible'])
+                stats[cut]['num'] += new_candidates.shape[0]
+                print('Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name, 
+                    100.*stats[cut]['cut_implausible']/float(stats[cut]['num']),
+                    100.*stats[cut]['newly_implausible']/float(stats[cut]['num'])))
+
                 new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
 
+                #rejected_percent = (100 * sum(new_candidates['Implausible']) / float(new_candidates.shape[0]))
+
             candidates = candidates.append(new_candidates)
-            num_new_good_candidates = sum(new_candidates['Implausible'] == False)
-            num_good_candidates += num_new_good_candidates
+            stats['num_new_plausible_candidates'] = sum(new_candidates['Implausible'] == False)
+            stats['num_plausible_candidates'] += stats['num_new_plausible_candidates']
+            stats['num_candidates'] += new_candidates.shape[0]
 
             #print new_candidates
             del new_candidates
 
-            print 'Candidates: New = %d, Tot = %d' % (num_new_good_candidates, num_good_candidates)
+            print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
 
 # Put back orig parameter names
         candidates.rename(columns={new:orig for (new,orig) in zip(self.Xcols_all, self.Xcols_all_orig)}, inplace=True)
 
         rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
         print 'Rejected %.1f%%' % rejected_percent
-
-        return (candidates, rejected_percent)
 
         non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
         writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
@@ -570,6 +493,4 @@ class HistoryMatching():
         candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
         writer.save()
 
-        store = pd.HDFStore('candidates_for_iter%d.h5'%(self.iteration+1))
-        store['candidates'] = candidates
-        store.close()
+        return (candidates, rejected_percent)

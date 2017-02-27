@@ -1,3 +1,81 @@
+def plot_implausibility(data, column, thresh, save_fn=None):
+    scaled = data[column] / data[column].max()
+    good = data[column] < thresh
+    D = len(self.Xcols)
+    fig = plt.figure(figsize=(128,128))
+    for row in range(D):
+        for col in range(D):
+            if col > row:
+                gs = gridspec.GridSpec(D-1, D-1)
+                ax = fig.add_subplot(gs[col-1,row])
+                #x = data[ Xcols[row] ]; y = data[ Xcols[col] ]
+        #plt.scatter(x, y, s=np.maximum(5, 50*scaled), c=scaled, cmap='jet', lw=0) #, s=area, c=colors, alpha=0.5)
+        xg = data.loc[good, self.Xcols[row]]; yg = data.loc[good, self.Xcols[col]]; sg = scaled[good]
+        plt.scatter(xg, yg, s=np.maximum(3, 20*sg), lw=0, c='g', alpha=0.5) #, facecolors='none', edgecolors='g'
+        xb = data.loc[good==False, self.Xcols[row]]; yb = data.loc[good==False, self.Xcols[col]]; sb = scaled[good==False]
+        plt.scatter(xb, yb, s=np.maximum(3, 20*sb), lw=0, c='r', alpha=0.5) #, facecolors='none', edgecolors='r'
+        plt.autoscale(tight=True)
+        if col == D-1:
+            plt.xlabel( self.Xcols[row] )
+        if row == 0:
+            plt.ylabel( self.Xcols[col] )
+    plt.tight_layout()
+    if save_fn is not None:
+        print 'Saving figure to %s' % save_fn
+        plt.savefig(save_fn)
+    return fig
+
+def plot_implausibility_by_iter(data, save_fn=None):
+    fig = plt.figure(figsize=(20,20))
+
+    for it in range(iteration+2):
+        col_first_only = 'c'
+        col_second_only = 'y'
+        col_neither = 'r'
+        col_both = 'g'
+
+        first_only = ~data['Implausible_0'] & data['Implausible_1']
+        second_only = data['Implausible_0'] & ~data['Implausible_1']
+        neither = data['Implausible_0'] & data['Implausible_1']
+        both = ~data['Implausible_0'] & ~data['Implausible_1']
+
+        size = 10
+
+        D = len(self.Xcols)
+        for row in range(D):
+            for col in range(D):
+                if col > row:
+                    gs = gridspec.GridSpec(D-1, D-1)
+                    ax = fig.add_subplot(gs[col-1,row])
+
+                    x = data.loc[first_only, self.Xcols[row]]; y = data.loc[first_only, self.Xcols[col]];
+                    h1 = plt.scatter(x, y, s=size, lw=0, c=col_first_only, alpha=0.5) #, facecolors='none', edgecolors='g'
+
+                    x = data.loc[second_only, self.Xcols[row]]; y = data.loc[second_only, self.Xcols[col]];
+                    h2 = plt.scatter(x, y, s=size, lw=0, c=col_second_only, alpha=0.5) #, facecolors='none', edgecolors='g'
+
+                    x = data.loc[neither, self.Xcols[row]]; y = data.loc[neither, self.Xcols[col]];
+                    h3 = plt.scatter(x, y, s=size, lw=0, c=col_neither, alpha=0.5) #, facecolors='none', edgecolors='g'
+
+                    x = data.loc[both, self.Xcols[row]]; y = data.loc[both, self.Xcols[col]];
+                    h4 = plt.scatter(x, y, s=size, lw=0, c=col_both, alpha=0.5) #, facecolors='none', edgecolors='g'
+
+                    plt.autoscale(tight=True)
+                    if col == D-1:
+                        plt.xlabel( self.Xcols[row] )
+                    if row == 0:
+                        plt.ylabel( self.Xcols[col] )
+
+            plt.figlegend((h1,h2,h3,h4), ('first only', 'second only', 'neither', 'both'), 'upper right', fontsize=16)
+
+            plt.tight_layout()
+
+            if save_fn is not None:
+                print 'Saving figure to %s' % save_fn
+                plt.savefig(save_fn)
+            return fig
+
+
 def joint_plot(data, data_mean, log_x = False):
     fig = plt.figure(figsize=(16,32))
 
@@ -122,4 +200,14 @@ def plot_errors(train, test):
 
     return fig
 
+
+def histogram_implausibility(data, column, thresh=None, save_fn=None):
+    fig, ax = plt.subplots()
+    sns.distplot( data[column], rug=True, ax = ax)
+    yl = ax.get_ylim()
+    if thresh is not None:
+        plt.plot([thresh,thresh], yl, 'r-')
+    if save_fn is not None:
+        print 'Saving figure to %s' % save_fn
+        plt.savefig(save_fn)
 
