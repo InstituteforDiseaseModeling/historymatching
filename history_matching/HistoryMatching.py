@@ -16,12 +16,15 @@ from plotting import joint_plot, plot_errors # <-- TODO: Fix names
 class HistoryMatching():
 
     def __init__(self,
+        cut_name,           # Name for this cut
         param_info,         # Parameter definitions
         inputs,
         results,
         desired_result,
-        training_fraction = 0.75,
-        iteration = 0  # Current iteration, needed?
+        iteration,  # Current iteration, needed?
+        implausibility_threshold = 3,
+        discrepancy_var = 0,
+        training_fraction = 0.75
     ):
         """
         :param DataFrame param_info: Parameter info with index named 'Name' containing parameter name, and columns of 'Min' and 'Max'
@@ -35,16 +38,21 @@ class HistoryMatching():
 
         sns.set_style('whitegrid')
 
+        self.cut_name = cut_name
         self.param_info = param_info.copy()
+        self.inputs = inputs.copy()
+        self.results = results.copy()
+        self.implausibility_threshold = implausibility_threshold
+        self.discrepancy_var = discrepancy_var
         self.desired_result = desired_result
         self.training_fraction = training_fraction
         self.iteration = iteration
 
         Xcols_all = self.param_info.index.unique()
 
-        results.name = 'Sim_Result'
-        self.data = pd.merge(inputs.reset_index(), results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
-        self.Ycol = results.name
+        self.results.name = 'Sim_Result'
+        self.data = pd.merge(inputs.reset_index(), self.results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
+        self.Ycol = self.results.name
 
         # TODO: Verify that all Xcols are columns of data
 
@@ -87,17 +95,60 @@ class HistoryMatching():
         print "--> Testing  with %d unique parameter configurations (%d simulations including replicates)" % (nTest, nTest*nRep)
 
         # Dir prep
-        self.glmdir = HistoryMatching.mkdir_if_needed('GLM')
-        self.gprdir = HistoryMatching.mkdir_if_needed('GPR')
-        self.combineddir = HistoryMatching.mkdir_if_needed('Implausibility')
+        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('Cuts',cut_name) )
+        self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
+        self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
+        self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
 
 
     @classmethod
-    def from_file():
-        pass
+    def from_file(cls, cut_dir, cut_name):
+        config_fn = os.path.join(cut_dir, cut_name, 'history_matching_config.xlsx')
+        with pd.ExcelFile(config_fn) as xls:
+            hm_params = pd.read_excel(xls, 'History_Matching_Params', index_col=0, na_values=['NA'])
+            cut_name = hm_params.loc['cut_name'].values[0]
+            implausibility_threshold = hm_params.loc['implausibility_threshold'].values[0]
+            discrepancy_var = hm_params.loc['discrepancy_var'].values[0]
+            training_fraction = hm_params.loc['training_fraction'].values[0]
+            desired_result = hm_params.loc['desired_result'].values[0]
+            iteration = hm_params.loc['iteration'].values[0]
+
+            inputs = pd.read_excel(xls, 'Inputs', index_col=0)
+            results = pd.read_excel(xls, 'Results', index_col=[0,1]) # NOTE: was series, now DF
+            param_info = pd.read_excel(xls, 'Param_Info', index_col=0)
+
+        return cls(
+            cut_name = cut_name,
+            param_info = param_info,
+            inputs = inputs,
+            results = results,
+            desired_result = desired_result,
+            iteration = iteration,
+            implausibility_threshold = implausibility_threshold,
+            discrepancy_var = discrepancy_var,
+            training_fraction   = training_fraction
+        )
+
 
     def save(self):
-        pass
+        config_fn = os.path.join(self.cutdir, 'history_matching_config.xlsx')
+        hm_params = pd.Series({
+            'cut_name'                  : self.cut_name,
+            'implausibility_threshold'  : self.implausibility_threshold,
+            'discrepancy_var'           : self.discrepancy_var,
+            'training_fraction'         : self.training_fraction,
+            'desired_result'            : self.desired_result,
+            'iteration'                 : self.iteration
+        }, name='Value')
+        hm_params.index.name = 'Parameter'
+
+        with pd.ExcelWriter(config_fn) as writer:
+            hm_params.to_frame().to_excel(writer, sheet_name='History_Matching_Params')
+            self.inputs.to_excel(writer, sheet_name='Inputs')
+            self.results.to_frame().to_excel(writer, sheet_name='Results', merge_cells=False)
+            self.param_info.to_excel(writer, sheet_name='Param_Info')
+            #writer.save()
+
 
     @staticmethod
     def mkdir_if_needed(path):
@@ -310,20 +361,18 @@ class HistoryMatching():
 
 
     def calc_and_plot_implausibility(self,
-        implausibility_threshold = 3,
-        discrepancy_var = 0,
         plot = False
     ):
 
         self.training_data['Implausibility'] = \
                     abs( self.training_data['Mean_Estimate'] - self.desired_result ) / \
-                    np.sqrt(self.training_data['Var_Err_Predictive'] + discrepancy_var)
-        self.training_data['Implausible'] = self.training_data[ 'Implausibility' ] > implausibility_threshold
+                    np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var)
+        self.training_data['Implausible'] = self.training_data[ 'Implausibility' ] > self.implausibility_threshold
 
         self.test_data['Implausibility'] = \
                     abs( self.test_data['Mean_Estimate'] - self.desired_result ) / \
-                    np.sqrt(self.test_data['Var_Err_Predictive'] + discrepancy_var)
-        self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > implausibility_threshold
+                    np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var)
+        self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > self.implausibility_threshold
 
         if plot:
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
@@ -442,14 +491,32 @@ class HistoryMatching():
 
         search_step = 0
 
-        # TODO: Multi-cut per iteration
-
-        glm_all = {self.iteration: self.glm_model}
-        gpr_all = {self.iteration: self.gpr_model}
+        hm_params = {(self.iteration, self.cut_name): {
+            'desired_result':self.desired_result,
+            'discrepancy_var':self.discrepancy_var,
+            'implausibility_threshold':self.implausibility_threshold,
+        }}
+        glm_all = {(self.iteration, self.cut_name): self.glm_model}
+        gpr_all = {(self.iteration, self.cut_name): self.gpr_model}
+        cuts = [(self.iteration, self.cut_name)]
         for it in range(self.iteration): # Loop over previous iterations
-            iterdir = os.path.join('..', 'iter%d'%it)
-            glm_all[it] = GLM.from_config(os.path.join(iterdir, 'GLM', 'model.json'), os.path.join(iterdir, 'GLM', 'params.p'))
-            gpr_all[it] = GPR.from_config(os.path.join(iterdir, 'GPR', 'model.json'))
+            cuts_dir = os.path.join('..', 'iter%d'%it, 'Cuts')
+
+            for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
+                print('Reading cut from %s' % cut_name)
+                hm = HistoryMatching.from_file(cuts_dir, cut_name)
+                print '\t Discrepancy Var:', hm.discrepancy_var
+                print '\t Desired Result:', hm.desired_result
+                print '\t Imp Thresh:', hm.implausibility_threshold
+                hm_params[(it, cut_name)] = {
+                    'desired_result':hm.desired_result,
+                    'discrepancy_var':hm.discrepancy_var,
+                    'implausibility_threshold':hm.implausibility_threshold,
+                }
+
+                glm_all[(it, cut_name)] = GLM.from_config(os.path.join(cuts_dir, cut_name, 'GLM', 'model.json'), os.path.join(cuts_dir, cut_name, 'GLM', 'params.p'))
+                gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model.json'))
+                cuts.append((it, cut_name))
 
         print 'Looking for candidates, step', search_step; search_step+=1
         while num_good_candidates < num_desired_candidates:
@@ -458,31 +525,26 @@ class HistoryMatching():
             # Min here to avoid running out of GPU ram!
             lhs_sample = lhs( len(self.Xcols_all), samples=min(2500, num_desired_candidates-num_good_candidates))
 
-            print 'XCA:', self.Xcols_all
             for i, xc in enumerate(self.Xcols_all):
-                print 'PI:\n', self.param_info
-                print 'xc',xc
                 v = self.param_info.loc[xc]
                 lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
 
             new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all) # Note _orig :)
             new_candidates['Implausible'] = False
 
-            print('BIG FAT WARNING: Using desired_result and discrepancy_var from CURRENT iteration on previous iter!!!')
-
-            for it in range(self.iteration+1):
-                print('Processing iteration %d'%it)
-                new_candidates['Yglm'] = self.glm_model.evaluate(new_candidates)
-                ret = gpr_all[it].evaluate(new_candidates)
+            for (it, cut_name) in cuts:
+                print('Processing iteration %d, cut %s'%(it, cut_name))
+                new_candidates['Yglm'] = glm_all[(it,cut_name)].evaluate(new_candidates)
+                ret = gpr_all[(it,cut_name)].evaluate(new_candidates)
                 new_candidates['Mean_Estimate'] = new_candidates['Yglm'] + ret['Mean']
                 new_candidates['Var_Predictive'] = ret['Var_Predictive']
 
-                new_candidates[ 'Implausibility_%d'%it ] = \
-                    abs( new_candidates['Mean_Estimate'] - self.desired_result ) / \
-                    np.sqrt(new_candidates['Var_Predictive'] + discrepancy_var)
+                new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
+                    abs( new_candidates['Mean_Estimate'] - hm_params[(it, cut_name)]['desired_result'] ) / \
+                    np.sqrt(new_candidates['Var_Predictive'] + hm_params[(it, cut_name)]['discrepancy_var'] )
 
-                new_candidates[ 'Implausible_%d'%it ] = new_candidates[ 'Implausibility_%d'%it ] > implausibility_threshold
-                new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d'%it ]
+                new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > hm_params[(it, cut_name)]['implausibility_threshold']
+                new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
 
             candidates = candidates.append(new_candidates)
             num_new_good_candidates = sum(new_candidates['Implausible'] == False)
@@ -506,6 +568,7 @@ class HistoryMatching():
         non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
         non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
         candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
+        writer.save()
 
         store = pd.HDFStore('candidates_for_iter%d.h5'%(self.iteration+1))
         store['candidates'] = candidates
