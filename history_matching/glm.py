@@ -25,7 +25,8 @@ class GLM(object):
             fourth_order_basis_terms = True,
             fifth_order_basis_terms = False,
             higher_order_basis_terms = False,
-            fitted_model = None
+            fitted_model = None,
+            verbose = True
         ):
 
         self.training_data = training_data
@@ -39,6 +40,8 @@ class GLM(object):
         self.fourth_order_basis_terms = fourth_order_basis_terms
         self.fifth_order_basis_terms = fifth_order_basis_terms
         self.higher_order_basis_terms = higher_order_basis_terms
+
+        self.verbose = verbose
 
         self.fitted_model = fitted_model
 
@@ -199,6 +202,47 @@ class GLM(object):
             self.model_terms += [Term([EvalFactor('%s*%s**6'%x)]) for x in itertools.combinations(Xcols, 2)] # X*Y^6
 
 
+    def stepwise_selection(self, Xcols_all):
+        from itertools import combinations
+
+        Xcols = self.Xcols # Save for later?
+        verbose = self.verbose
+
+        print self.training_data.columns
+        self.verbose = False
+
+        selected_X = []
+        maxVars = 15
+        bic = np.zeros(maxVars)
+
+        for i in range(maxVars):
+            best_new_X = None
+            lowest_bic = np.NaN
+            for X in Xcols_all:
+                self.Xcols = selected_X + [X]
+                self.build_basis()
+                self.fit()
+                #print self.fitted_model.bic, ':', self.Xcols
+                if best_new_X is None or np.isnan(lowest_bic) or self.fitted_model.bic < lowest_bic:
+                    best_new_X = X
+                    lowest_bic = self.fitted_model.bic
+
+            bic[i] = lowest_bic
+            #print 'BEST_X:', best_new_X, ' with BIC =', lowest_bic
+            selected_X.append(best_new_X)
+            Xcols_all.remove(best_new_X)
+            print 'Selected:', selected_X, 'BIC =',lowest_bic
+
+        plt.figure()
+        plt.plot(range(maxVars), bic, 'ko-')
+        plt.xlabel('Number of Parameters')
+        plt.ylabel('BIC')
+        plt.show()
+        exit()
+
+        self.verbose = verbose
+
+
     def fit(self, maxiter=100):
         #self.model = smf.glm(formula=self.formula, data=self.training_data.reset_index(), family=self.glmfam)
 
@@ -208,33 +252,15 @@ class GLM(object):
 
         self.model = sm.GLM(response_matrix, data_matrix, family=self.glmfam)
 
-        '''
-        print 'DIR\n', dir(model)
-        #print 'DI\n', model.data.orig_exog.design_info
-        import pickle
-        pickle.dump( model.data, open("model_data.p", "wb") )
-        print 'BUILDER\n', model.data.orig_exog.design_info.builder
-        '''
-
-        print 'Fitting the model, please wait ...'
+        if self.verbose:
+            print 'Fitting the model, please wait ...'
         self.fitted_model = self.model.fit(maxiter=maxiter)
 
-        #print 'MODEL.DATA.orig_exog.design_info', fitted_model.model.data.orig_exog.design_info
-        #store = pd.HDFStore('design_info.h5')
-        #store.put('design_info', fitted_model.model.data.orig_exog.design_info)
-        #store['design_info'] = fitted_model.model.data.orig_exog.design_info
-        #print 'STORE\n', store
-        #store.close()
-
-        #import shelve
-        #s = shelve.open('design_info.s')
-        #s['design_info'] = fitted_model.model.data.orig_exog.design_info
-        #s.close()
-
-        print self.fitted_model.summary()
-        print 'AIC:', self.fitted_model.aic
-        print 'BIC:', self.fitted_model.bic
-        print 'ITERATION:', self.fitted_model.fit_history['iteration']
+        if self.verbose:
+            print self.fitted_model.summary()
+            print 'AIC:', self.fitted_model.aic
+            print 'BIC:', self.fitted_model.bic
+            print 'ITERATION:', self.fitted_model.fit_history['iteration']
 
     def plot_fitted_vs_observed(self):
         fig, ax = plt.subplots()

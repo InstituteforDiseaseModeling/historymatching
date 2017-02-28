@@ -99,6 +99,8 @@ class HistoryMatching():
         self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
         self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
 
+        self.save()
+
 
     @classmethod
     def from_file(cls, cut_dir, cut_name):
@@ -198,6 +200,7 @@ class HistoryMatching():
             fifth_order_basis_terms = False,
             higher_order_basis_terms = False,
             family = 'Poisson', # e.g. Poisson, Gaussian
+            stepwise_selection = False,
             plot = True
         ):
 
@@ -224,6 +227,11 @@ class HistoryMatching():
                                     fourth_order_basis_terms = fourth_order_basis_terms,
                                     fifth_order_basis_terms = fifth_order_basis_terms,
                                     higher_order_basis_terms = higher_order_basis_terms)
+
+                #if stepwise_selection:
+                #    self.glm_model.stepwise_selection(self.Xcols_all)
+                #    exit()
+
                 print "Fitting the GLM"
                 self.glm_model.fit(maxiter=glm_fit_maxiter)
                 self.glm_model.save(glm_model_fn, mean_params_fn)
