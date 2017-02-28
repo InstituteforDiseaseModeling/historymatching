@@ -162,23 +162,21 @@ class HistoryMatching():
         return path
 
 
-    def filter_data(self, source='Train', lower=np.NaN, upper=np.NaN):
+    def filter_data(self, train=False, test=False, lower=np.NaN, upper=np.NaN):
         print 'Filtering data:'
-        assert( source in ['Train', 'Test', 'Both'] )
-
         if not np.isnan(lower):
-            if source in ['Train', 'Both']:
+            if train:
                 self.training_data = self.training_data.loc[ self.training_data[self.Ycol] > lower, :]
                 print '\tFilter keeping training data > %f.' % lower
-            if source in ['Test', 'Both']:
+            if test:
                 self.test_data = self.test_data.loc[ self.test_data[self.Ycol] > lower, :]
                 print '\tFilter keeping test data > %f.' % lower
 
         if not np.isnan(upper):
-            if source in ['Train', 'Both']:
-                self.training_data = self.training_data.loc[ self.training_data[self.Ycol] < uppser, :]
+            if train:
+                self.training_data = self.training_data.loc[ self.training_data[self.Ycol] < upper, :]
                 print '\tFilter keeping only training data < %f.' % upper
-            if source in ['Test', 'Both']:
+            if test:
                 self.test_data = self.test_data.loc[ self.test_data[self.Ycol] < upper, :]
                 print '\tFilter keeping only test data < %f.' % upper
 
