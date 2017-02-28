@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import os, errno
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import seaborn as sns
 from pyDOE import lhs
 
@@ -378,13 +377,14 @@ class HistoryMatching():
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
             test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
 
-            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index()); fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
+            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
+            fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
 
-            fig = joint_plot(self.training_data, train_mean);    fig.savefig( os.path.join(self.combineddir, 'train.pdf') ); plt.close(fig)
-            fig = joint_plot(self.test_data, test_mean);      fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
+            fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result);    fig.savefig( os.path.join(self.combineddir, 'train.pdf') ); plt.close(fig)
+            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result);      fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
 
-            fig = joint_plot(self.training_data, train_mean, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
-            fig = joint_plot(self.test_data, test_mean, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)
+            fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
+            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)
 
 
 

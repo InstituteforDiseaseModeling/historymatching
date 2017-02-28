@@ -1,7 +1,12 @@
-def plot_implausibility(data, column, thresh, save_fn=None):
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import seaborn as sns
+
+def plot_implausibility(data, Xcols, column, thresh):
     scaled = data[column] / data[column].max()
     good = data[column] < thresh
-    D = len(self.Xcols)
+    D = len(Xcols)
     fig = plt.figure(figsize=(128,128))
     for row in range(D):
         for col in range(D):
@@ -10,22 +15,19 @@ def plot_implausibility(data, column, thresh, save_fn=None):
                 ax = fig.add_subplot(gs[col-1,row])
                 #x = data[ Xcols[row] ]; y = data[ Xcols[col] ]
         #plt.scatter(x, y, s=np.maximum(5, 50*scaled), c=scaled, cmap='jet', lw=0) #, s=area, c=colors, alpha=0.5)
-        xg = data.loc[good, self.Xcols[row]]; yg = data.loc[good, self.Xcols[col]]; sg = scaled[good]
+        xg = data.loc[good, Xcols[row]]; yg = data.loc[good, Xcols[col]]; sg = scaled[good]
         plt.scatter(xg, yg, s=np.maximum(3, 20*sg), lw=0, c='g', alpha=0.5) #, facecolors='none', edgecolors='g'
-        xb = data.loc[good==False, self.Xcols[row]]; yb = data.loc[good==False, self.Xcols[col]]; sb = scaled[good==False]
+        xb = data.loc[good==False, Xcols[row]]; yb = data.loc[good==False, Xcols[col]]; sb = scaled[good==False]
         plt.scatter(xb, yb, s=np.maximum(3, 20*sb), lw=0, c='r', alpha=0.5) #, facecolors='none', edgecolors='r'
         plt.autoscale(tight=True)
         if col == D-1:
-            plt.xlabel( self.Xcols[row] )
+            plt.xlabel( Xcols[row] )
         if row == 0:
-            plt.ylabel( self.Xcols[col] )
+            plt.ylabel( Xcols[col] )
     plt.tight_layout()
-    if save_fn is not None:
-        print 'Saving figure to %s' % save_fn
-        plt.savefig(save_fn)
     return fig
 
-def plot_implausibility_by_iter(data, save_fn=None):
+def plot_implausibility_by_iter(data, Xcols):
     fig = plt.figure(figsize=(20,20))
 
     for it in range(iteration+2):
@@ -41,42 +43,39 @@ def plot_implausibility_by_iter(data, save_fn=None):
 
         size = 10
 
-        D = len(self.Xcols)
+        D = len(Xcols)
         for row in range(D):
             for col in range(D):
                 if col > row:
                     gs = gridspec.GridSpec(D-1, D-1)
                     ax = fig.add_subplot(gs[col-1,row])
 
-                    x = data.loc[first_only, self.Xcols[row]]; y = data.loc[first_only, self.Xcols[col]];
+                    x = data.loc[first_only, Xcols[row]]; y = data.loc[first_only, Xcols[col]];
                     h1 = plt.scatter(x, y, s=size, lw=0, c=col_first_only, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[second_only, self.Xcols[row]]; y = data.loc[second_only, self.Xcols[col]];
+                    x = data.loc[second_only, Xcols[row]]; y = data.loc[second_only, Xcols[col]];
                     h2 = plt.scatter(x, y, s=size, lw=0, c=col_second_only, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[neither, self.Xcols[row]]; y = data.loc[neither, self.Xcols[col]];
+                    x = data.loc[neither, Xcols[row]]; y = data.loc[neither, Xcols[col]];
                     h3 = plt.scatter(x, y, s=size, lw=0, c=col_neither, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[both, self.Xcols[row]]; y = data.loc[both, self.Xcols[col]];
+                    x = data.loc[both, Xcols[row]]; y = data.loc[both, Xcols[col]];
                     h4 = plt.scatter(x, y, s=size, lw=0, c=col_both, alpha=0.5) #, facecolors='none', edgecolors='g'
 
                     plt.autoscale(tight=True)
                     if col == D-1:
-                        plt.xlabel( self.Xcols[row] )
+                        plt.xlabel( Xcols[row] )
                     if row == 0:
-                        plt.ylabel( self.Xcols[col] )
+                        plt.ylabel( Xcols[col] )
 
             plt.figlegend((h1,h2,h3,h4), ('first only', 'second only', 'neither', 'both'), 'upper right', fontsize=16)
 
             plt.tight_layout()
 
-            if save_fn is not None:
-                print 'Saving figure to %s' % save_fn
-                plt.savefig(save_fn)
             return fig
 
 
-def joint_plot(data, data_mean, log_x = False):
+def joint_plot(data, data_mean, Ycol, desired_result, log_x = False):
     fig = plt.figure(figsize=(16,32))
 
     data_mean_reset = data_mean.reset_index()
@@ -84,9 +83,9 @@ def joint_plot(data, data_mean, log_x = False):
     first_sample = data.reset_index('Sim_Id').index.unique().min()
     last_sample = data.reset_index('Sim_Id').index.unique().max()
 
-    plt.plot( 2 * [self.desired_result], [first_sample, last_sample], 'y-', linewidth=0.1) # , axes=axes[0,0]
+    plt.plot( 2 * [desired_result], [first_sample, last_sample], 'y-', linewidth=0.1) # , axes=axes[0,0]
 
-    sim_cases_range = data.reset_index().groupby('Sample')[self.Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
+    sim_cases_range = data.reset_index().groupby('Sample')[Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
     sim_cases_range = sim_cases_range.join(data_mean['Yglm'])
     for idx,s in sim_cases_range.iterrows():
         plt.plot( [s['Min'], s['Max']], [idx,idx], 'b-', linewidth=0.5 )
@@ -115,8 +114,8 @@ def joint_plot(data, data_mean, log_x = False):
         'c-', linewidth=0.5
     )
 
-    plt.scatter(data_reset.query('Implausible==False')[self.Ycol], data_reset.query('Implausible==False')['Sample'], c='k', s=10, marker='|', alpha=1, linewidth=0.1, zorder=100)
-    plt.scatter(data_reset.query('Implausible==True')[self.Ycol], data_reset.query('Implausible==True')['Sample'], c='r', s=10, marker='|', alpha=1, linewidth=0.2, zorder=100)
+    plt.scatter(data_reset.query('Implausible==False')[Ycol], data_reset.query('Implausible==False')['Sample'], c='k', s=10, marker='|', alpha=1, linewidth=0.1, zorder=100)
+    plt.scatter(data_reset.query('Implausible==True')[Ycol], data_reset.query('Implausible==True')['Sample'], c='r', s=10, marker='|', alpha=1, linewidth=0.2, zorder=100)
 
     plt.scatter(data_mean_reset['Yglm'], data_mean_reset['Sample'], c='g', s=13, marker='|', alpha=1, linewidth=0.1, zorder=90)
     plt.scatter(data_mean_reset['Mean_Estimate'], data_mean_reset['Sample'], c='m', s=13, marker='|', alpha=0.2, linewidth=0.5, zorder=91)
@@ -132,18 +131,18 @@ def joint_plot(data, data_mean, log_x = False):
     return fig
 
 
-def plot_errors(train, test):
+def plot_errors(train, test, Ycol, desired_result):
 
-    train['Z_Noisy'] = (train[self.Ycol] - train['Mean_Estimate']) / np.sqrt(train['Var_Err_Predictive'])
-    train['Z_Noiseless'] = (train[self.Ycol] - train['Mean_Estimate']) / np.sqrt(train['Var_Err_Latent'])
-    test['Z_Noisy'] = (test[self.Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Predictive'])
-    test['Z_Noiseless'] = (test[self.Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Latent'])
+    train['Z_Noisy'] = (train[Ycol] - train['Mean_Estimate']) / np.sqrt(train['Var_Err_Predictive'])
+    train['Z_Noiseless'] = (train[Ycol] - train['Mean_Estimate']) / np.sqrt(train['Var_Err_Latent'])
+    test['Z_Noisy'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Predictive'])
+    test['Z_Noiseless'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Latent'])
 
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
     ax = ax1
-    ax.errorbar(x=test[self.Ycol], y=test['Mean_Estimate'], yerr=2*np.sqrt(test['Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
-    ax.errorbar(x=train[self.Ycol], y=train['Mean_Estimate'], yerr=2*np.sqrt(train['Var_Err_Predictive']), fmt='o', ms=3, c='c', lw=0.5)
+    ax.errorbar(x=test[Ycol], y=test['Mean_Estimate'], yerr=2*np.sqrt(test['Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
+    ax.errorbar(x=train[Ycol], y=train['Mean_Estimate'], yerr=2*np.sqrt(train['Var_Err_Predictive']), fmt='o', ms=3, c='c', lw=0.5)
     ax.margins(x=0,y=0.05)
     xlim = ax.get_xlim()
     ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
@@ -151,17 +150,17 @@ def plot_errors(train, test):
     ax.set_xscale("log", nonposx='clip')
     ax.set_yscale("log", nonposy='clip')
 
-    ax.set_xlabel(self.Ycol)
+    ax.set_xlabel(Ycol)
     ax.set_ylabel('Predicted (Noisy)')
 
     ax = ax2
-    ax.scatter(x=train['Sample'], y=train[self.Ycol], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-    ax.scatter(x=test['Sample'], y=test[self.Ycol], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+    ax.scatter(x=train['Sample'], y=train[Ycol], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+    ax.scatter(x=test['Sample'], y=test[Ycol], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
     ax.errorbar(x=train['Sample'], y=train['Mean_Estimate'], yerr=2*np.sqrt(train['Var_Err_Predictive']), fmt='.', ms=5, linewidth=0.25, c='k')
     ax.errorbar(x=test['Sample'], y=test['Mean_Estimate'], yerr=2*np.sqrt(test['Var_Err_Predictive']), fmt='.', ms=5, linewidth=0.25, c='k')
     ax.margins(x=0,y=0.05)
     ax.set_xlabel('Sample Index')
-    ax.set_ylabel(self.Ycol)
+    ax.set_ylabel(Ycol)
     ax.set_yscale("log", nonposy='clip')
 
     a=0.05
@@ -181,9 +180,9 @@ def plot_errors(train, test):
     ax.set_ylabel('Z-Score')
 
     ax = ax3
-    ax.scatter(x=train[self.Ycol], y=train['Z_Noisy'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
-    ax.scatter(x=test[self.Ycol], y=test['Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
-    ax.set_xlabel(self.Ycol)
+    ax.scatter(x=train[Ycol], y=train['Z_Noisy'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
+    ax.scatter(x=test[Ycol], y=test['Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
+    ax.set_xlabel(Ycol)
     ax.set_ylabel('Z-Score')
     ax.margins(x=0,y=0.05)
     xlim = ax.get_xlim()
@@ -194,20 +193,17 @@ def plot_errors(train, test):
     ax.add_patch( patches.Rectangle( (0, ylim[0]), xlim[1], abs(ylim[0])-3, alpha=a, color='r' ) )
     ax.add_patch( patches.Rectangle( (0, 3), xlim[1], abs(ylim[1])-3, alpha=a, color='r' ) )
 
-    ax.plot( [self.desired_result, self.desired_result], ylim, 'r-', lw=2)
+    ax.plot( [desired_result, desired_result], ylim, 'r-', lw=2)
 
     plt.tight_layout()
 
     return fig
 
 
-def histogram_implausibility(data, column, thresh=None, save_fn=None):
+def histogram_implausibility(data, column, thresh=None):
     fig, ax = plt.subplots()
     sns.distplot( data[column], rug=True, ax = ax)
     yl = ax.get_ylim()
     if thresh is not None:
         plt.plot([thresh,thresh], yl, 'r-')
-    if save_fn is not None:
-        print 'Saving figure to %s' % save_fn
-        plt.savefig(save_fn)
-
+    return fig
