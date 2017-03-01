@@ -113,8 +113,12 @@ class GLM(object):
                 }, fout, indent=4)
 
     def evaluate(self, data):
-        data = data.copy().rename(columns={s:s.replace(' ', '_') for s in self.Xcols})
+        print data.iloc[0]
+        exit()
+        data = data.copy().rename(columns={s:s.replace(':','').replace('&',' ').replace(' ', '_') for s in self.Xcols})
         md = ModelDesc([], self.model_terms)
+        print md
+        print self.Xcols
         dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
 
         mean = self.fitted_model.predict( dmat, transform=False )

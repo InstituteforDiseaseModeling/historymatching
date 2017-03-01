@@ -59,11 +59,11 @@ class HistoryMatching():
         Xcols = inputs.columns
         newXcols = []
         newXcols_all = []
-        rename_dict = {}
+        self.rename_dict = {}
         for i,xc in enumerate(Xcols_all):
             if ':' in xc or '&' in xc:
                 new_xc = xc.replace(':', '').replace('&',' ')
-                rename_dict[xc] = new_xc
+                self.rename_dict[xc] = new_xc
                 newXcols_all.append(new_xc)
                 if xc in Xcols:
                     newXcols.append(new_xc)
@@ -72,8 +72,8 @@ class HistoryMatching():
                 if xc in Xcols:
                     newXcols.append(xc)
 
-        self.data.rename(columns=rename_dict, inplace=True)
-        self.param_info.rename(index=rename_dict, inplace=True)
+        self.data.rename(columns=self.rename_dict, inplace=True)
+        #self.param_info.rename(index=rename_dict, inplace=True)
 
         self.Xcols_all_orig = Xcols_all
         self.Xcols_all = newXcols_all
@@ -98,8 +98,6 @@ class HistoryMatching():
         self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
         self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
         self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
-
-        self.save()
 
 
     @classmethod
@@ -299,7 +297,7 @@ class HistoryMatching():
             self.gpr_model = GPR(    Xcols = self.Xcols,
                                 Ycol = 'Yerr',
                                 training_data = self.training_data,
-                                param_info = self.param_info,
+                                param_info = self.param_info.rename(index=rename_dict), # Rename to match cols of training_data
                                 kernel_mode = 'RBF',
                                 kernel_params = None,
                                 verbose = verbose,
@@ -335,6 +333,11 @@ class HistoryMatching():
         test_mean['Var_Err_Latent'] = ret['Var_Latent']
         self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample')
         self.test_data.set_index(['Sample', 'Sim_Id'], inplace=True)
+
+        # Add test data to gpr training
+        gpr_model_with_test_fn = os.path.join(self.gprdir, 'model_with_test_data.json')
+        self.gpr_model.set_training_data(pd.concat([self.training_data, self.test_data]))
+        self.gpr_model.save(gpr_model_with_test_fn)
 
         if plot:
             print('Plotting')
@@ -394,111 +397,3 @@ class HistoryMatching():
             fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
             fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)
 
-
-
-    def cut(self, num_desired_candidates = 5000):
-        gpr_model_with_test_fn = os.path.join(self.gprdir, 'model_with_test_data.json')
-
-        # Add test data to gpr training
-        self.gpr_model.set_training_data(pd.concat([self.training_data, self.test_data]))
-        self.gpr_model.save(gpr_model_with_test_fn)
-
-        print "Looking for ", self.desired_result
-
-        candidates = pd.DataFrame( columns=self.Xcols )
-
-        hm_params = {(self.iteration, self.cut_name): {
-            'desired_result':self.desired_result,
-            'discrepancy_var':self.discrepancy_var,
-            'implausibility_threshold':self.implausibility_threshold,
-        }}
-        glm_all = {(self.iteration, self.cut_name): self.glm_model}
-        gpr_all = {(self.iteration, self.cut_name): self.gpr_model}
-        cuts = [(self.iteration, self.cut_name)]
-        for it in range(self.iteration): # Loop over previous iterations
-            cuts_dir = os.path.join('..', 'iter%d'%it, 'Cuts')
-
-            for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading cut from %s' % cut_name)
-                hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print '\t Discrepancy Var:', hm.discrepancy_var
-                print '\t Desired Result:', hm.desired_result
-                print '\t Imp Thresh:', hm.implausibility_threshold
-                hm_params[(it, cut_name)] = {
-                    'desired_result':hm.desired_result,
-                    'discrepancy_var':hm.discrepancy_var,
-                    'implausibility_threshold':hm.implausibility_threshold,
-                }
-
-                glm_all[(it, cut_name)] = GLM.from_config(os.path.join(cuts_dir, cut_name, 'GLM', 'model.json'), os.path.join(cuts_dir, cut_name, 'GLM', 'params.p'))
-                gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
-                cuts.append((it, cut_name))
-
-        cuts.sort()
-        stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in cuts}
-        stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
-
-        while stats['num_plausible_candidates'] < num_desired_candidates:
-            print '-'*80
-            # Min here to avoid running out of GPU ram!
-            if stats['num_candidates'] == 0:
-                nSamples = min(2500, num_desired_candidates)
-            else:
-                nSamples = min(2500, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
-            lhs_sample = lhs( len(self.Xcols_all), samples=nSamples)
-
-            for i, xc in enumerate(self.Xcols_all):
-                v = self.param_info.loc[xc]
-                lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
-
-            new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all) # Note _orig :)
-            new_candidates['Implausible'] = False
-
-            for cut in cuts:
-                (it, cut_name) = cut
-                new_candidates['Yglm'] = glm_all[cut].evaluate(new_candidates)
-                ret = gpr_all[cut].evaluate(new_candidates)
-                new_candidates['Mean_Estimate'] = new_candidates['Yglm'] + ret['Mean']
-                new_candidates['Var_Predictive'] = ret['Var_Predictive']
-
-                new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
-                    abs( new_candidates['Mean_Estimate'] - hm_params[cut]['desired_result'] ) / \
-                    np.sqrt(new_candidates['Var_Predictive'] + hm_params[cut]['discrepancy_var'] )
-
-                new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > hm_params[cut]['implausibility_threshold']
-
-                stats[cut]['cut_implausible'] += new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ].sum()
-                stats[cut]['newly_implausible'] += sum(new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] & ~new_candidates['Implausible'])
-                stats[cut]['num'] += new_candidates.shape[0]
-                print('Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name, 
-                    100.*stats[cut]['cut_implausible']/float(stats[cut]['num']),
-                    100.*stats[cut]['newly_implausible']/float(stats[cut]['num'])))
-
-                new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
-
-                #rejected_percent = (100 * sum(new_candidates['Implausible']) / float(new_candidates.shape[0]))
-
-            candidates = candidates.append(new_candidates)
-            stats['num_new_plausible_candidates'] = sum(new_candidates['Implausible'] == False)
-            stats['num_plausible_candidates'] += stats['num_new_plausible_candidates']
-            stats['num_candidates'] += new_candidates.shape[0]
-
-            #print new_candidates
-            del new_candidates
-
-            print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
-
-# Put back orig parameter names
-        candidates.rename(columns={new:orig for (new,orig) in zip(self.Xcols_all, self.Xcols_all_orig)}, inplace=True)
-
-        rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
-        print 'Rejected %.1f%%' % rejected_percent
-
-        non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
-        writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
-        non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
-        non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
-        candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
-        writer.save()
-
-        return (candidates, rejected_percent)
