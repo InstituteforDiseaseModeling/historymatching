@@ -20,9 +20,10 @@ class GLM(object):
             training_data = None,
             reference_value = 0,
             family = 'Poisson', # 'Poisson', 'NegativeBinomial', 'Gaussian'
+            first_order_basis_terms = True,
             second_order_basis_terms = True,
-            third_order_basis_terms = True,
-            fourth_order_basis_terms = True,
+            third_order_basis_terms = False,
+            fourth_order_basis_terms = False,
             fifth_order_basis_terms = False,
             higher_order_basis_terms = False,
             fitted_model = None,
@@ -35,6 +36,7 @@ class GLM(object):
         self.Ycol = Ycol
         self.D = len(self.Xcols)
         self.family = family
+        self.first_order_basis_terms = first_order_basis_terms
         self.second_order_basis_terms = second_order_basis_terms
         self.third_order_basis_terms = third_order_basis_terms
         self.fourth_order_basis_terms = fourth_order_basis_terms
@@ -82,6 +84,7 @@ class GLM(object):
                     reference_value = config['Reference_Value'],
                     family = config['Family'],
 
+                    first_order_basis_terms = config['First_Order_Basis_Terms'],
                     second_order_basis_terms = config['Second_Order_Basis_Terms'],
                     third_order_basis_terms = config['Third_Order_Basis_Terms'],
                     fourth_order_basis_terms = config['Fourth_Order_Basis_Terms'],
@@ -105,6 +108,7 @@ class GLM(object):
                     'Reference_Value': self.reference_value,
                     'D'             : self.D,
                     'Family'        : self.family,
+                    'First_Order_Basis_Terms' : self.first_order_basis_terms,
                     'Second_Order_Basis_Terms' : self.second_order_basis_terms,
                     'Third_Order_Basis_Terms' : self.third_order_basis_terms,
                     'Fourth_Order_Basis_Terms' : self.fourth_order_basis_terms,
@@ -129,7 +133,8 @@ class GLM(object):
         self.model_terms = [Term([])] # Intercept
 
         # First order
-        self.model_terms += [Term([LookupFactor(x)]) for x in Xcols] # X
+        if self.first_order_basis_terms:
+            self.model_terms += [Term([LookupFactor(x)]) for x in Xcols] # X
 
         # Second order
         if self.second_order_basis_terms:

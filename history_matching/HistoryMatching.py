@@ -47,7 +47,7 @@ class HistoryMatching():
         self.training_fraction = training_fraction
         self.iteration = iteration
 
-        Xcols_all = self.param_info.index.unique().values.tolist()
+        #Xcols_all = self.param_info.index.unique().values.tolist()
 
         self.results.name = 'Sim_Result'
         self.data = pd.merge(inputs.reset_index(), self.results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
@@ -56,7 +56,7 @@ class HistoryMatching():
         # TODO: Verify that all Xcols are columns of data
 
 
-        self.Xcols = inputs.columns
+        self.Xcols = inputs.columns.tolist()
 
         '''
         # Fix names for picky statsmodels patsy, statsmodels var names can't have space in formula
@@ -195,7 +195,8 @@ class HistoryMatching():
     def glm(self,
             force_optimize_glm = False,
             glm_fit_maxiter = 100000,
-            second_order_basis_terms = True,
+            first_order_basis_terms = True,
+            second_order_basis_terms = False,
             third_order_basis_terms = False,
             fourth_order_basis_terms = False,
             fifth_order_basis_terms = False,
@@ -223,6 +224,7 @@ class HistoryMatching():
                                     family = family,
                                     #family = sm.genmod.families.links.Logit,
                                     #family = sm.genmod.families.Binomial(link=sm.genmod.families.links.logit),
+                                    first_order_basis_terms = first_order_basis_terms,
                                     second_order_basis_terms = second_order_basis_terms,
                                     third_order_basis_terms = third_order_basis_terms,
                                     fourth_order_basis_terms = fourth_order_basis_terms,
