@@ -113,12 +113,8 @@ class GLM(object):
                 }, fout, indent=4)
 
     def evaluate(self, data):
-        print data.iloc[0]
-        exit()
         data = data.copy().rename(columns={s:s.replace(':','').replace('&',' ').replace(' ', '_') for s in self.Xcols})
         md = ModelDesc([], self.model_terms)
-        print md
-        print self.Xcols
         dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
 
         mean = self.fitted_model.predict( dmat, transform=False )
@@ -127,7 +123,7 @@ class GLM(object):
 
 
     def build_basis(self):
-        Xcols = [s.replace(' ', '_') for s in self.Xcols]
+        Xcols = [s.replace(':','').replace('&',' ').replace(' ', '_') for s in self.Xcols]
 
         self.response_terms = [Term([LookupFactor(self.Ycol)])]
         self.model_terms = [Term([])] # Intercept
@@ -250,7 +246,7 @@ class GLM(object):
     def fit(self, maxiter=100):
         #self.model = smf.glm(formula=self.formula, data=self.training_data.reset_index(), family=self.glmfam)
 
-        data = self.training_data.copy().rename(columns={s:s.replace(' ', '_') for s in self.Xcols})
+        data = self.training_data.copy().rename(columns={s:s.replace(':','').replace('&',' ').replace(' ', '_') for s in self.Xcols})
         md = ModelDesc(self.response_terms, self.model_terms)
         (response_matrix, data_matrix) = dmatrices(md, data=data, return_type='dataframe')
 

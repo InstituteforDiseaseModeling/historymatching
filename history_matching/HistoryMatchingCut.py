@@ -76,6 +76,7 @@ class HistoryMatchingCut():
 
             for cut in cuts:
                 (it, cut_name) = cut
+                print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
                 new_candidates['Yglm'] = glm_all[cut].evaluate(new_candidates)
                 ret = gpr_all[cut].evaluate(new_candidates)
                 new_candidates['Mean_Estimate'] = new_candidates['Yglm'] + ret['Mean']
@@ -109,7 +110,7 @@ class HistoryMatchingCut():
             print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
 
         # Put back orig parameter names
-        candidates.rename(columns={new:orig for (new,orig) in zip(self.Xcols_all, self.Xcols_all_orig)}, inplace=True)
+        #candidates.rename(columns={new:orig for (new,orig) in zip(self.Xcols_all, self.Xcols_all_orig)}, inplace=True)
 
         rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
         print 'Rejected %.1f%%' % rejected_percent
@@ -117,11 +118,6 @@ class HistoryMatchingCut():
         non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
         writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
         non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
-
-        print non_implausible_candidates.head()
-        print self.Xcols_all_orig
-        print non_implausible_candidates.set_index(['Base Infectivity'])
-        print non_implausible_candidates.set_index(self.Xcols_all_orig)
 
         non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
         candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')

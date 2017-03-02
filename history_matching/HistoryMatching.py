@@ -55,6 +55,10 @@ class HistoryMatching():
 
         # TODO: Verify that all Xcols are columns of data
 
+
+        self.Xcols = inputs.columns
+
+        '''
         # Fix names for picky statsmodels patsy, statsmodels var names can't have space in formula
         Xcols = inputs.columns
         newXcols = []
@@ -79,6 +83,7 @@ class HistoryMatching():
         self.Xcols_all = newXcols_all
         self.Xcols_orig = Xcols
         self.Xcols = newXcols
+        '''
 
         # Train/test split
         nSamp = len( self.data.index.levels[0] )
