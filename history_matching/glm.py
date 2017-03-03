@@ -207,47 +207,6 @@ class GLM(object):
             self.model_terms += [Term([EvalFactor('%s*%s**6'%x)]) for x in itertools.combinations(Xcols, 2)] # X*Y^6
 
 
-    def stepwise_selection(self, Xcols_all):
-        from itertools import combinations
-
-        Xcols = self.Xcols # Save for later?
-        verbose = self.verbose
-
-        print self.training_data.columns
-        self.verbose = False
-
-        selected_X = []
-        maxVars = 15
-        bic = np.zeros(maxVars)
-
-        for i in range(maxVars):
-            best_new_X = None
-            lowest_bic = np.NaN
-            for X in Xcols_all:
-                self.Xcols = selected_X + [X]
-                self.build_basis()
-                self.fit()
-                #print self.fitted_model.bic, ':', self.Xcols
-                if best_new_X is None or np.isnan(lowest_bic) or self.fitted_model.bic < lowest_bic:
-                    best_new_X = X
-                    lowest_bic = self.fitted_model.bic
-
-            bic[i] = lowest_bic
-            #print 'BEST_X:', best_new_X, ' with BIC =', lowest_bic
-            selected_X.append(best_new_X)
-            Xcols_all.remove(best_new_X)
-            print 'Selected:', selected_X, 'BIC =',lowest_bic
-
-        plt.figure()
-        plt.plot(range(maxVars), bic, 'ko-')
-        plt.xlabel('Number of Parameters')
-        plt.ylabel('BIC')
-        plt.show()
-        exit()
-
-        self.verbose = verbose
-
-
     def fit(self, maxiter=100):
         #self.model = smf.glm(formula=self.formula, data=self.training_data.reset_index(), family=self.glmfam)
 

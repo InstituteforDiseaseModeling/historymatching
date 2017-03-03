@@ -50,40 +50,13 @@ class HistoryMatching():
         #Xcols_all = self.param_info.index.unique().values.tolist()
 
         self.results.name = 'Sim_Result'
-        self.data = pd.merge(inputs.reset_index(), self.results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
+        self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
         self.Ycol = self.results.name
 
         # TODO: Verify that all Xcols are columns of data
 
 
         self.Xcols = inputs.columns.tolist()
-
-        '''
-        # Fix names for picky statsmodels patsy, statsmodels var names can't have space in formula
-        Xcols = inputs.columns
-        newXcols = []
-        newXcols_all = []
-        self.rename_dict = {}
-        for i,xc in enumerate(Xcols_all):
-            if ':' in xc or '&' in xc:
-                new_xc = xc.replace(':', '').replace('&',' ')
-                self.rename_dict[xc] = new_xc
-                newXcols_all.append(new_xc)
-                if xc in Xcols:
-                    newXcols.append(new_xc)
-            else:
-                newXcols_all.append(xc)
-                if xc in Xcols:
-                    newXcols.append(xc)
-
-        self.data.rename(columns=self.rename_dict, inplace=True)
-        #self.param_info.rename(index=rename_dict, inplace=True)
-
-        self.Xcols_all_orig = Xcols_all
-        self.Xcols_all = newXcols_all
-        self.Xcols_orig = Xcols
-        self.Xcols = newXcols
-        '''
 
         # Train/test split
         nSamp = len( self.data.index.levels[0] )
@@ -202,7 +175,6 @@ class HistoryMatching():
             fifth_order_basis_terms = False,
             higher_order_basis_terms = False,
             family = 'Poisson', # e.g. Poisson, Gaussian
-            stepwise_selection = False,
             plot = True
         ):
 
@@ -230,10 +202,6 @@ class HistoryMatching():
                                     fourth_order_basis_terms = fourth_order_basis_terms,
                                     fifth_order_basis_terms = fifth_order_basis_terms,
                                     higher_order_basis_terms = higher_order_basis_terms)
-
-                #if stepwise_selection:
-                #    self.glm_model.stepwise_selection(self.Xcols_all)
-                #    exit()
 
                 print "Fitting the GLM"
                 self.glm_model.fit(maxiter=glm_fit_maxiter)
@@ -288,7 +256,13 @@ class HistoryMatching():
         eps = 1e-2,
         method = 'CrossValidation',
         verbose = False,
-        plot = True
+        plot = True,
+        sigma2_f_guess = 2,
+        sigma2_f_bounds = (0.005,10),
+        sigma2_n_guess = 0.10,
+        sigma2_n_bounds = (0.01,10),
+        lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
+        lengthscale_bounds = (0.01,1)
     ):
 
         assert( method in ['CrossValidation'] ) # Supporint only CV for now
@@ -302,16 +276,24 @@ class HistoryMatching():
             self.gpr_model = GPR(    Xcols = self.Xcols,
                                 Ycol = 'Yerr',
                                 training_data = self.training_data,
-                                param_info = self.param_info.rename(index=rename_dict), # Rename to match cols of training_data
+                                param_info = self.param_info,
                                 kernel_mode = 'RBF',
                                 kernel_params = None,
                                 verbose = verbose,
                                 debug = False   )
 
+            if isinstance(lengthscale_guess, int) or isinstance(lengthscale_guess, float):
+                lengthscale_guess = len(self.Xcols)*[lengthscale_guess]
+            else:
+                assert( isinstance(lengthscale_guess, list) )
+                assert( len(lengthscale_guess) == len(self.Xcols) )
+
+            #TODO: Check guess within bounds
+
             print "Fitting the GPR"
             self.gpr_model.optimize_hyperparameters(
-                x0 = np.array([2, 0.10] + len(self.Xcols)*[0.1]),
-                bounds = ((0.005,10),)+((0.01,10),) + len(self.Xcols)*((0.01,1),),
+                x0 = np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess),
+                bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + len(self.Xcols)*(lengthscale_bounds,),
                 eps = eps,
                 K = K_folds
             )
