@@ -23,7 +23,8 @@ class HistoryMatching():
         iteration,  # Current iteration, needed?
         implausibility_threshold = 3,
         discrepancy_var = 0,
-        training_fraction = 0.75
+        training_fraction = 0.75,
+        use_glm = True      # Disable the glm by setting to False
     ):
         """
         :param DataFrame param_info: Parameter info with index named 'Name' containing parameter name, and columns of 'Min' and 'Max'
@@ -46,6 +47,7 @@ class HistoryMatching():
         self.desired_result = desired_result
         self.training_fraction = training_fraction
         self.iteration = iteration
+        self.use_glm = use_glm
 
         #Xcols_all = self.param_info.index.unique().values.tolist()
 
@@ -178,6 +180,10 @@ class HistoryMatching():
             plot = True
         ):
 
+            if not self.use_glm:
+                print 'use_glm is False, why are you calling glm?'
+                return
+
             glm_model_fn = os.path.join(self.glmdir, 'model.json')
             mean_params_fn = os.path.join(self.glmdir, 'params.p')
 
@@ -273,8 +279,12 @@ class HistoryMatching():
             print "Loading GPR from", gpr_model_fn
             self.gpr_model = GPR.from_config(gpr_model_fn)
         else:
+            if self.use_glm:
+                Ycol = 'Yerr'
+            else:
+                Ycol = 'Sim_Result'
             self.gpr_model = GPR(    Xcols = self.Xcols,
-                                Ycol = 'Yerr',
+                                Ycol = Ycol,
                                 training_data = self.training_data,
                                 param_info = self.param_info,
                                 kernel_mode = 'RBF',
@@ -306,7 +316,9 @@ class HistoryMatching():
         print 'GPR evaluating training data'
         ret = self.gpr_model.evaluate(train_mean)
         train_mean['Mean_Err'] = ret['Mean']
-        train_mean['Mean_Estimate'] = train_mean['Yglm'] + train_mean['Mean_Err']
+        train_mean['Mean_Estimate'] = train_mean['Mean_Err']
+        if self.use_glm:
+            train_mean['Mean_Estimate'] += train_mean['Yglm']
         train_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         train_mean['Var_Err_Latent'] = ret['Var_Latent']
         self.training_data = self.training_data.reset_index().join(train_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample')
@@ -315,7 +327,9 @@ class HistoryMatching():
         print 'GPR evaluating test data'
         ret = self.gpr_model.evaluate(test_mean)
         test_mean['Mean_Err'] = ret['Mean']
-        test_mean['Mean_Estimate'] = test_mean['Yglm'] + test_mean['Mean_Err']
+        test_mean['Mean_Estimate'] = test_mean['Mean_Err']
+        if self.use_glm:
+            test_mean['Mean_Estimate'] += test_mean['Yglm']
         test_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         test_mean['Var_Err_Latent'] = ret['Var_Latent']
         self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample')
@@ -375,11 +389,12 @@ class HistoryMatching():
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
             test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
 
-            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
-            fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
+            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
 
             fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result);    fig.savefig( os.path.join(self.combineddir, 'train.pdf') ); plt.close(fig)
-            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result);      fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
+
+            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
+            fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
 
             fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
             fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)

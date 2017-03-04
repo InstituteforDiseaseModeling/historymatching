@@ -77,13 +77,12 @@ class VariableSelection():
             Xcols_all.remove(best_new_X)
             print 'Selected:', selected_X, 'BIC =',lowest_bic
 
-        '''
-        plt.figure()
+
+        fig = plt.figure()
         plt.plot(range(max_vars), bic, 'ko-')
         plt.xlabel('Number of Parameters')
         plt.ylabel('BIC')
         plt.show()
-        '''
 
         self.glm_model.verbose = verbose
 

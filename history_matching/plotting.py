@@ -76,7 +76,7 @@ def plot_implausibility_by_iter(data, Xcols):
 
 
 def joint_plot(data, data_mean, Ycol, desired_result, log_x = False):
-    fig = plt.figure(figsize=(16,32))
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,10), dpi=150)
 
     data_mean_reset = data_mean.reset_index()
     data_reset = data.reset_index()
@@ -86,11 +86,13 @@ def joint_plot(data, data_mean, Ycol, desired_result, log_x = False):
     plt.plot( 2 * [desired_result], [first_sample, last_sample], 'y-', linewidth=0.1) # , axes=axes[0,0]
 
     sim_cases_range = data.reset_index().groupby('Sample')[Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
-    sim_cases_range = sim_cases_range.join(data_mean['Yglm'])
+    if 'Yglm' in data_mean.columns:
+        sim_cases_range = sim_cases_range.join(data_mean['Yglm'])
     for idx,s in sim_cases_range.iterrows():
         plt.plot( [s['Min'], s['Max']], [idx,idx], 'b-', linewidth=0.5 )
         #plt.plot( [s['Mean'], s['Fitted_Model_Mean']], [idx,idx], 'g-', linewidth=0.25 )
-        plt.plot( [s['Mean'], s['Yglm']], [idx,idx], 'g:', linewidth=0.25 )
+        if 'Yglm' in s:
+            plt.plot( [s['Mean'], s['Yglm']], [idx,idx], 'g:', linewidth=0.25 )
     plt.plot(
         [
             data_mean_reset['Mean_Estimate'] - 2*np.sqrt(data_mean_reset['Var_Err_Latent']),
@@ -117,7 +119,8 @@ def joint_plot(data, data_mean, Ycol, desired_result, log_x = False):
     plt.scatter(data_reset.query('Implausible==False')[Ycol], data_reset.query('Implausible==False')['Sample'], c='k', s=10, marker='|', alpha=1, linewidth=0.1, zorder=100)
     plt.scatter(data_reset.query('Implausible==True')[Ycol], data_reset.query('Implausible==True')['Sample'], c='r', s=10, marker='|', alpha=1, linewidth=0.2, zorder=100)
 
-    plt.scatter(data_mean_reset['Yglm'], data_mean_reset['Sample'], c='g', s=13, marker='|', alpha=1, linewidth=0.1, zorder=90)
+    if 'Yglm' in data_mean_reset:
+        plt.scatter(data_mean_reset['Yglm'], data_mean_reset['Sample'], c='g', s=13, marker='|', alpha=1, linewidth=0.1, zorder=90)
     plt.scatter(data_mean_reset['Mean_Estimate'], data_mean_reset['Sample'], c='m', s=13, marker='|', alpha=0.2, linewidth=0.5, zorder=91)
     plt.scatter(data_mean_reset['Mean_Estimate'], data_mean_reset['Sample'], c='c', s=15, marker='|', alpha=1, linewidth=0.1, zorder=101)
 

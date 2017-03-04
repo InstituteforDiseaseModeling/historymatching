@@ -133,12 +133,18 @@ class GPR():
 
     def normalize(self, data):
         return (data - self.normalizer_mean)/self.normalizer_std
+        ###print 'WARNING: NOT NORMALIZING!!!'
+        ###return data
 
     def inverse_normalize_mean(self, data):
         return data*self.normalizer_std + self.normalizer_mean
+        ###print 'WARNING: NOT INVERSE NORMALIZING!!!'
+        ###return data
 
     def inverse_normalize_var(self, data):
         return data * (self.normalizer_std**2)
+        ###print 'WARNING: NOT INVERSE NORMALIZING VAR!!!'
+        ###return data
 
     def define_kernel(self, params):
         if self.kernel_mode == 'RBF':
