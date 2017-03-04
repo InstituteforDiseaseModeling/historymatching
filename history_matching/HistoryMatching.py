@@ -24,6 +24,7 @@ class HistoryMatching():
         implausibility_threshold = 3,
         discrepancy_var = 0,
         training_fraction = 0.75,
+        normalize_gpr_y = True,
         use_glm = True      # Disable the glm by setting to False
     ):
         """

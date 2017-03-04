@@ -31,6 +31,7 @@ class GPR():
             kernel_mode = 'RBF',
             kernel_params = None,
             #is_poisson = False,
+            normalize_y = True,
             verbose = False,
             debug = False,
             **kwargs
@@ -57,6 +58,7 @@ class GPR():
             self.normalizer_std  = Y.std(0).view(np.ndarray)
 
         # Normalize training data, change Ycol
+        self.normalize_y = normalize_y
         self.training_data[self.Ycol+'_normalized'] = self.normalize(self.training_data[self.Ycol])
         self.Ycol_orig = self.Ycol
         self.Ycol = self.Ycol+'_normalized'
@@ -96,7 +98,8 @@ class GPR():
                     kernel_mode = config['Kernel_Mode'],
                     kernel_params = np.array(config['Kernel_Params']),
                     normalizer_mean = config['Normalizer_Mean'],
-                    normalizer_std = config['Normalizer_Std']
+                    normalizer_std = config['Normalizer_Std'],
+                    normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
                 )
         except EnvironmentError:
             print "Unable to load GPR from_config file", config_fn
@@ -127,24 +130,28 @@ class GPR():
                     'Kernel_Params' : self.theta.tolist(),
                     'Normalizer_Mean': self.normalizer_mean,
                     'Normalizer_Std': self.normalizer_std,
+                    'Normalize_Y'   : self.normalize_y,
                     'Training_Data' : self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
                     'Param_Info'        : self.param_info.reset_index().to_json(orient='split')
                 }, fout, indent=4)
 
     def normalize(self, data):
-        return (data - self.normalizer_mean)/self.normalizer_std
-        ###print 'WARNING: NOT NORMALIZING!!!'
-        ###return data
+        if self.normalize_y:
+            return (data - self.normalizer_mean)/self.normalizer_std
+        else:
+            return data
 
     def inverse_normalize_mean(self, data):
-        return data*self.normalizer_std + self.normalizer_mean
-        ###print 'WARNING: NOT INVERSE NORMALIZING!!!'
-        ###return data
+        if self.normalize_y:
+            return data*self.normalizer_std + self.normalizer_mean
+        else:
+            return data
 
     def inverse_normalize_var(self, data):
-        return data * (self.normalizer_std**2)
-        ###print 'WARNING: NOT INVERSE NORMALIZING VAR!!!'
-        ###return data
+        if self.normalize_y:
+            return data * (self.normalizer_std**2)
+        else:
+            return data
 
     def define_kernel(self, params):
         if self.kernel_mode == 'RBF':
