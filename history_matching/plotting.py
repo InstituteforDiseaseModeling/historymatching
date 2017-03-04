@@ -76,7 +76,7 @@ def plot_implausibility_by_iter(data, Xcols):
 
 
 def joint_plot(data, data_mean, Ycol, desired_result, log_x = False):
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,10), dpi=150)
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,10), dpi=300)
 
     data_mean_reset = data_mean.reset_index()
     data_reset = data.reset_index()

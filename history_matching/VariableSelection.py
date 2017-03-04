@@ -59,7 +59,7 @@ class VariableSelection():
         selected_X = []
         bic = np.zeros(max_vars)
 
-        for i in range(max_vars):
+        for i in range(max_vars+1):
             best_new_X = None
             lowest_bic = np.NaN
             for X in Xcols_all:
