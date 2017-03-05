@@ -121,11 +121,11 @@ class VariableSelection():
 
     def OLS_regularized_selection(self, param_info,
             alpha=0,
-            first_order_basis_terms = True
-            second_order_basis_terms = True
-            third_order_basis_terms = False
-            fourth_order_basis_terms = False
-            fifth_order_basis_terms = False
+            first_order_basis_terms = True,
+            second_order_basis_terms = True,
+            third_order_basis_terms = False,
+            fourth_order_basis_terms = False,
+            fifth_order_basis_terms = False,
             higher_order_basis_terms = False
         ):
 
