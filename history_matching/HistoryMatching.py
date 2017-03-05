@@ -56,10 +56,9 @@ class HistoryMatching():
         self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
         self.Ycol = self.results.name
 
-        # TODO: Verify that all Xcols are columns of data
-
-
-        self.Xcols = inputs.columns.tolist()
+        #self.Xcols = inputs.columns.tolist()
+        self.Xcols_GLM = []
+        self.Xcols_GPR = []
 
         # Train/test split
         nSamp = len( self.data.index.levels[0] )
@@ -168,7 +167,7 @@ class HistoryMatching():
         pass
 
 
-    def glm(self,
+    def glm(self, Xcols,
             force_optimize_glm = False,
             glm_fit_maxiter = 100000,
             first_order_basis_terms = True,
@@ -180,6 +179,8 @@ class HistoryMatching():
             family = 'Poisson', # e.g. Poisson, Gaussian
             plot = True
         ):
+
+            self.Xcols_GLM = Xcols
 
             if not self.use_glm:
                 print 'use_glm is False, why are you calling glm?'
@@ -196,7 +197,7 @@ class HistoryMatching():
                 print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
                 self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
             else:
-                self.glm_model = GLM(    Xcols = self.Xcols,
+                self.glm_model = GLM(    Xcols = self.Xcols_GLM,
                                     Ycol = self.Ycol,
                                     training_data = train_mean,
                                     reference_value = self.desired_result,
@@ -257,7 +258,7 @@ class HistoryMatching():
             #print 'Best and worst test errors:\n', test.sort_values(by='Yerr')
 
 
-    def gpr(self,
+    def gpr(self, Xcols,
         force_optimize_gpr = True,
         K_folds = 5,
         eps = 1e-2,
@@ -271,8 +272,9 @@ class HistoryMatching():
         lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
         lengthscale_bounds = (0.01,1)
     ):
-
         assert( method in ['CrossValidation'] ) # Supporint only CV for now
+
+        self.Xcols_GPR = Xcols
 
         gpr_model_fn = os.path.join(self.gprdir, 'model.json')
 
@@ -284,7 +286,7 @@ class HistoryMatching():
                 Ycol = 'Yerr'
             else:
                 Ycol = 'Sim_Result'
-            self.gpr_model = GPR(    Xcols = self.Xcols,
+            self.gpr_model = GPR(    Xcols = self.Xcols_GPR,
                                 Ycol = Ycol,
                                 training_data = self.training_data,
                                 param_info = self.param_info,
@@ -294,17 +296,17 @@ class HistoryMatching():
                                 debug = False   )
 
             if isinstance(lengthscale_guess, int) or isinstance(lengthscale_guess, float):
-                lengthscale_guess = len(self.Xcols)*[lengthscale_guess]
+                lengthscale_guess = len(self.Xcols_GPR)*[lengthscale_guess]
             else:
                 assert( isinstance(lengthscale_guess, list) )
-                assert( len(lengthscale_guess) == len(self.Xcols) )
+                assert( len(lengthscale_guess) == len(self.Xcols_GPR) )
 
             #TODO: Check guess within bounds
 
             print "Fitting the GPR"
             self.gpr_model.optimize_hyperparameters(
                 x0 = np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess),
-                bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + len(self.Xcols)*(lengthscale_bounds,),
+                bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + len(self.Xcols_GPR)*(lengthscale_bounds,),
                 eps = eps,
                 K = K_folds
             )
@@ -361,8 +363,8 @@ class HistoryMatching():
                     fig.savefig( os.path.join(pairdir, fn) ); plt.close(fig)
 
             if False:
-                mu = self.training_data[self.Xcols].mean()
-                #mu = train.loc[146][Xcols].mean(); print mu
+                mu = self.training_data[self.Xcols_GPR].mean()
+                #mu = train.loc[146][Xcols_GPR].mean(); print mu
                 (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25);
                 fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
                 fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW
