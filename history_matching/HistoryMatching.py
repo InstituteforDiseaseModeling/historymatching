@@ -240,8 +240,8 @@ class HistoryMatching():
                 fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals.pdf') );  plt.close(fig)
                 fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals.pdf') ); plt.close(fig)
                 fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ.pdf') );                 plt.close(fig)
-                fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram.pdf') );          plt.close(fig)
-                fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit.pdf') );                plt.close(fig)
+                #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram.pdf') );          plt.close(fig)
+                #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit.pdf') );                plt.close(fig)
 
             self.training_data = self.training_data.join(train_mean['Yglm'])
             self.training_data['Yerr'] = self.training_data[self.Ycol] - self.training_data['Yglm']
@@ -390,7 +390,9 @@ class HistoryMatching():
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
             test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
 
-            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
+            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); 
+            #plt.show()
+            fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
 
             fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result);    fig.savefig( os.path.join(self.combineddir, 'train.pdf') ); plt.close(fig)
 
