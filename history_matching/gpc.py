@@ -510,61 +510,8 @@ class GPC():
         print 'OPTIMIZATION RETURNED:\n', ret
         self.theta = ret.x # Length scales now on 0-1 range
 
-
-        # PREDICT:
-        if False:
-            f_hat, log_q_y_given_X_theta = self.find_posterior_mode(theta)
-            np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
-        else:
-            f_hat = np.genfromtxt('f_hat.csv', delimiter=',')
-
-        #P = self.training_data.loc[[0,8], self.Xcols]
-        outbreak = self.training_data.loc[ self.training_data['BurnOut'] == -1, self.Xcols_scaled]
-        burnout = self.training_data.loc[ self.training_data['BurnOut'] == 1, self.Xcols_scaled]
-        P = pd.concat( [outbreak.iloc[0:10], burnout.iloc[0:10]] )
-
-        P = self.laplace_predict(theta, f_hat, P)
-
-        with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
-            print P
-
-        exit()
-        # =============================================================================
-
-
-        samples = self.training_data['Sample'].unique()
-        for i,s in enumerate(samples):
-            self.training_data.loc[ self.training_data['Sample']==s, 'Sample_Index'] = i
-
-        if K <=1:
-            # Identity partition (LOO)
-            self.training_data['Partition'] = self.training_data['Sample_Index']
-        else:
-            assert(K<=len(samples))
-            self.training_data['Partition'] = np.floor(self.training_data['Sample_Index']%K).astype(int)
-
-        num_params = 2 + self.D # sigma_n, sigma_f, lengthscale 1, lengthscale_2, ..., lengthscale_D
-
-        train_mean = self.training_data.reset_index().groupby('Sample').mean()
-        X = train_mean[self.Xcols_scaled].values
-        P = train_mean['Partition'].values
-        Y = self.training_data.reset_index().groupby('Sample').apply(self.assign_rep).pivot('Sample', 'Replicate', self.Ycol).values
-
-        # Maximize LOO cross-validation error
-        ret = spo.minimize(
-            self.cross_validation,
-            args=(X,Y,P),
-            x0 = x0,
-            method='L-BFGS-B',
-            bounds = bounds, # Constrain values
-            jac=None, hess=None, hessp=None,
-            constraints=(), tol=None, callback=None,
-            options= {
-                'maxiter':maxiter,
-                'disp':disp,
-                'eps':eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
-            }
-        )
+        f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
+        np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
 
         print 'OPTIMIZATION RETURNED:\n', ret
 
@@ -581,6 +528,33 @@ class GPC():
         for xc in self.Xcols:
             xc_new = xc+' (scaled)'
             data[xc+' (scaled)'] = (data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
+
+        # PREDICT:
+        if True:
+            self.theta = np.array([ 1.1573295, 0.1, 1., 1., 0.30402957, 1., 1., 1.])
+            f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
+            #np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
+
+            self.theta = np.array([ 1.0, 0.1, 0.15, 1., 1., 0.01, 0.1, 0.1])
+            f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
+        else:
+            f_hat = np.genfromtxt('f_hat.csv', delimiter=',')
+
+        data = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
+
+        with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
+            print data
+
+        exit()
+
+        return {    'Mean': f,
+                    'Var_Latent': np.diag(covf),
+                    'Var_Predictive': np.diag(covf) + self.theta[1]*np.ones(P.shape[0]),
+                    'Fig': fig      }
+        # =============================================================================
+
+
+
 
         X = self.training_data[self.Xcols_scaled].values
         Y = self.training_data[self.Ycol].values
