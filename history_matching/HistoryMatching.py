@@ -142,30 +142,11 @@ class HistoryMatching():
         return path
 
 
-    def filter_data(self, train=False, test=False, lower=np.NaN, upper=np.NaN):
-        print 'Filtering data:'
-        if not np.isnan(lower):
-            if train:
-                self.training_data = self.training_data.loc[ self.training_data[self.Ycol] > lower, :]
-                print '\tFilter keeping training data > %f.' % lower
-            if test:
-                self.test_data = self.test_data.loc[ self.test_data[self.Ycol] > lower, :]
-                print '\tFilter keeping test data > %f.' % lower
-
-        if not np.isnan(upper):
-            if train:
-                self.training_data = self.training_data.loc[ self.training_data[self.Ycol] < upper, :]
-                print '\tFilter keeping only training data < %f.' % upper
-            if test:
-                self.test_data = self.test_data.loc[ self.test_data[self.Ycol] < upper, :]
-                print '\tFilter keeping only test data < %f.' % upper
-
-        print 'Done filtering data'
-
-
-    def get_initial_samples(self, Nsamples):
-        pass
-
+    def filter(self, func, train=False, test=False):
+        if train:
+            self.training_data = func(self.training_data)
+        if test:
+            self.test_data = func(self.test_data)
 
     def glm(self, Xcols,
             force_optimize_glm = False,
