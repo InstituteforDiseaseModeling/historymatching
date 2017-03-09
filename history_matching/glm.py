@@ -9,7 +9,7 @@ import statsmodels.formula.api as smf
 
 from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
 
-import numpy as np, GPy, itertools, pandas as pd, seaborn as sns
+import numpy as np, GPy, pandas as pd, seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
@@ -97,6 +97,7 @@ class GLM(object):
             print "Unable to load GLM from_config file", meta_fn, fitted_fn
             raise
 
+
     def save(self, save_meta_to, save_fitted_to):
         self.fitted_model.save(save_fitted_to)
         with open(save_meta_to, 'w') as fout:
@@ -126,92 +127,11 @@ class GLM(object):
         return mean
 
 
-    def build_basis(self):
-        Xcols = [s.replace(':','').replace('&',' ').replace(' ', '_') for s in self.Xcols]
-
-        self.response_terms = [Term([LookupFactor(self.Ycol)])]
-        self.model_terms = [Term([])] # Intercept
-
-        # First order
-        if self.first_order_basis_terms:
-            self.model_terms += [Term([LookupFactor(x)]) for x in Xcols] # X
-
-        # Second order
-        if self.second_order_basis_terms:
-            self.model_terms += [Term([EvalFactor('%s**2'%x)]) for x in Xcols] # X^2
-            self.model_terms += [Term([EvalFactor('%s*%s'%x)]) for x in itertools.combinations(Xcols, 2)] # X*Y
-
-        if self.third_order_basis_terms:
-            # Third order
-            self.model_terms += [Term([EvalFactor('%s**3'%x)]) for x in Xcols] # X^3
-
-            self.model_terms += [Term([EvalFactor('%s*%s**2'%x)]) for x in itertools.combinations(Xcols, 2)] # X*Y^2
-            self.model_terms += [Term([EvalFactor('%s**2*%s'%x)]) for x in itertools.combinations(Xcols, 2)] # X^2*Y
-
-            self.model_terms += [Term([EvalFactor('%s*%s*%s'%x)]) for x in itertools.combinations(Xcols, 3)] # X*Y*Z
-
-        if self.fourth_order_basis_terms:
-            # Fourth order
-            self.model_terms += [Term([EvalFactor('%s**4'%x)]) for x in Xcols] # X^4
-            self.model_terms += [Term([EvalFactor('%s**3*%s'%x)]) for x in itertools.combinations(Xcols, 2)] # X^3*Y
-            self.model_terms += [Term([EvalFactor('%s*%s**3'%x)]) for x in itertools.combinations(Xcols, 2)] # X*Y^3
-
-            self.model_terms += [Term([EvalFactor('%s**2*%s**2'%x)]) for x in itertools.combinations(Xcols, 2)] # X^2*Y^2
-
-            self.model_terms += [Term([EvalFactor('%s**2*%s*%s'%x)]) for x in itertools.combinations(Xcols, 3)] # X^2*Y*Z
-            self.model_terms += [Term([EvalFactor('%s*%s**2*%s'%x)]) for x in itertools.combinations(Xcols, 3)] # X*Y^2*Z
-            self.model_terms += [Term([EvalFactor('%s*%s*%s**2'%x)]) for x in itertools.combinations(Xcols, 3)] # X*Y*Z^2
-
-            self.model_terms += [Term([EvalFactor('%s*%s*%s*%s'%x)]) for x in itertools.combinations(Xcols, 4)] # W*X*Y*Z
-
-        if self.fifth_order_basis_terms:
-            # Fifth order
-            self.model_terms += [Term([EvalFactor('%s**5'%x)]) for x in Xcols] # X^5
-            self.model_terms += [Term([EvalFactor('%s**4*%s'%x)]) for x in itertools.combinations(Xcols, 2)] # X^4*Y
-            self.model_terms += [Term([EvalFactor('%s*%s**4'%x)]) for x in itertools.combinations(Xcols, 2)] # X*Y^4
-
-            self.model_terms += [Term([EvalFactor('%s**3*%s**2'%x)]) for x in itertools.combinations(Xcols, 2)] # X^3*Y^2
-            self.model_terms += [Term([EvalFactor('%s**2*%s**3'%x)]) for x in itertools.combinations(Xcols, 2)] # X^2*Y^3
-
-            self.model_terms += [Term([EvalFactor('%s**3*%s*%s'%x)]) for x in itertools.combinations(Xcols, 3)] # X^3*Y*Z
-            self.model_terms += [Term([EvalFactor('%s*%s**3*%s'%x)]) for x in itertools.combinations(Xcols, 3)] # X*Y^3*Z
-            self.model_terms += [Term([EvalFactor('%s*%s*%s**3'%x)]) for x in itertools.combinations(Xcols, 3)] # X*Y*Z^3
-
-            self.model_terms += [Term([EvalFactor('%s**2*%s*%s*%s'%x)]) for x in itertools.combinations(Xcols, 4)] # W^2*X*Y*Z
-            self.model_terms += [Term([EvalFactor('%s*%s**2*%s*%s'%x)]) for x in itertools.combinations(Xcols, 4)] # W*X^2*Y*Z
-            self.model_terms += [Term([EvalFactor('%s*%s*%s**2*%s'%x)]) for x in itertools.combinations(Xcols, 4)] # W*X*Y^2*Z
-            self.model_terms += [Term([EvalFactor('%s*%s*%s*%s**2'%x)]) for x in itertools.combinations(Xcols, 4)] # W*X*Y*Z^2
-
-            self.model_terms += [Term([EvalFactor('%s**2*%s**2*%s'%x)]) for x in itertools.combinations(Xcols, 3)] # X^2*Y^2*Z
-            self.model_terms += [Term([EvalFactor('%s**2*%s*%s**2'%x)]) for x in itertools.combinations(Xcols, 3)] # X^2*Y*Z^2
-            self.model_terms += [Term([EvalFactor('%s*%s**2*%s**2'%x)]) for x in itertools.combinations(Xcols, 3)] # X*Y^2*Z^2
-
-            self.model_terms += [Term([EvalFactor('%s*%s*%s*%s*%s'%x)]) for x in itertools.combinations(Xcols, 5)] # V*W*X*Y*Z
-
-        if self.higher_order_basis_terms:
-            # Some sixth order
-            self.model_terms += [Term([EvalFactor('%s**6'%x)]) for x in Xcols] # X^6
-
-            self.model_terms += [Term([EvalFactor('%s**5*%s'%x)]) for x in itertools.combinations(Xcols, 2)] # X^5*Y
-            self.model_terms += [Term([EvalFactor('%s*%s**5'%x)]) for x in itertools.combinations(Xcols, 2)] # X*Y^5
-
-            self.model_terms += [Term([EvalFactor('%s**3*%s*%s*%s'%x)]) for x in itertools.combinations(Xcols, 4)] # W^3*X*Y*Z
-            self.model_terms += [Term([EvalFactor('%s*%s**3*%s*%s'%x)]) for x in itertools.combinations(Xcols, 4)] # W*X^3*Y*Z
-            self.model_terms += [Term([EvalFactor('%s*%s*%s**3*%s'%x)]) for x in itertools.combinations(Xcols, 4)] # W*X*Y^3*Z
-            self.model_terms += [Term([EvalFactor('%s*%s*%s*%s**3'%x)]) for x in itertools.combinations(Xcols, 4)] # W*X*Y*Z^3
-
-            # Some seventh?! order
-            self.model_terms += [Term([EvalFactor('%s**7'%x)]) for x in Xcols] # X^7
-
-            self.model_terms += [Term([EvalFactor('%s**6*%s'%x)]) for x in itertools.combinations(Xcols, 2)] # X^6*Y
-            self.model_terms += [Term([EvalFactor('%s*%s**6'%x)]) for x in itertools.combinations(Xcols, 2)] # X*Y^6
-
-
     def fit(self, maxiter=100):
-        #self.model = smf.glm(formula=self.formula, data=self.training_data.reset_index(), family=self.glmfam)
+        response_terms = [Term([LookupFactor(self.Ycol)])]
 
         data = self.training_data.copy().rename(columns={s:s.replace(':','').replace('&',' ').replace(' ', '_') for s in self.Xcols})
-        md = ModelDesc(self.response_terms, self.model_terms)
+        md = ModelDesc(response_terms, self.model_terms)
         (response_matrix, data_matrix) = dmatrices(md, data=data, return_type='dataframe')
 
         self.model = sm.GLM(response_matrix, data_matrix, family=self.glmfam)
@@ -233,12 +153,12 @@ class GLM(object):
         #line_fit = sm.OLS(y, sm.add_constant(yhat, prepend=True)).fit()
         #abline_plot(model_results=line_fit, ax=ax)
 
-
         ax.set_title('Model Fit Plot')
         ax.set_xlabel('Observed values')
         ax.set_ylabel('Fitted values');
 
         return fig
+
 
     def plot_pearson_residuals(self):
         fig, ax = plt.subplots()
@@ -250,6 +170,7 @@ class GLM(object):
         ax.set_xlabel('Fitted values')
 
         return fig
+
 
     def plot_deviance_redisuals(self):
         from scipy import stats
