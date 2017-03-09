@@ -1,11 +1,16 @@
 import patsy # TODO: Cleanup
 from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
 import itertools
+# For regularized selection:
+import pandas as pd
+import statsmodels.api as sm
 
 class Basis():
-    def __init__(self, model_terms, param_dict):
+    def __init__(self, model_terms, param_dict, param_info = None):
         self.model_terms = model_terms
         self.param_dict = param_dict
+        self.D = len(self.model_terms)
+        self.param_info = param_info # To normalize data to [0,1].  Should be here?
 
 
     @staticmethod
@@ -15,11 +20,11 @@ class Basis():
 
 
     @classmethod
-    def identity_basis(cls, params):
+    def identity_basis(cls, params, param_info=None):
         param_dict = Basis.make_param_dict(params)
         params_patsy = param_dict.values()
         model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X
-        return cls(model_terms, param_dict)
+        return cls(model_terms, param_dict, param_info)
 
 
     @classmethod
@@ -31,7 +36,8 @@ class Basis():
             third_order = False,
             fourth_order = False,
             fifth_order = False,
-            higher_order = False
+            higher_order = False,
+            param_info = None
     ):
         param_dict = Basis.make_param_dict(params)
         params_patsy = param_dict.values()
@@ -116,15 +122,66 @@ class Basis():
             model_terms += [Term([EvalFactor('%s**6*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^6*Y
             model_terms += [Term([EvalFactor('%s*%s**6'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^6
 
-        return cls(model_terms, param_dict)
+        return cls(model_terms, param_dict, param_info)
 
 
-    def apply(self, data):
-        # Return data matrix as numpy array
-        data = data.copy().rename(columns=self.param_dict)
+    @classmethod
+    def deserialize(cls, state):
+        terms = state['Terms']
+        if 'Intercept' in terms:
+            intercept_term = [Term([])]
+            terms.remove('Intercept')
+        else:
+            intercept_term = []
+
+        model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms]
+        param_dict = state['Param_Dict']
+        param_info = pd.read_json( state['Param_Info'], orient='split' ).set_index('Name'),
+        return cls(model_terms, param_dict, param_info)
+
+
+    def serialize(self):
+        return {
+            'Terms' : self.get_terms(),
+            'Param_Dict' : self.param_dict,
+            'Param_Info' : self.param_info.reset_index().to_json(orient='split')
+        }
+
+
+    def scale_data(self, data):
+        for col in data.columns.tolist():
+            if col in self.param_info.index:
+                data[col] = (data[col] - self.param_info.loc[col,'Min'])/(self.param_info.loc[col,'Max']-self.param_info.loc[col,'Min'])
+            else:
+                print('Basis: Unable to scale %s'%col)
+        return data
+
+
+    def generate_dmatrix(self, data, scaleX = False):
+
+        data = data.copy()
+        if scaleX:
+            assert(self.param_info is not None)
+            data = self.scale_data(data)
+        data = data.rename(columns=self.param_dict)
+
         md = ModelDesc([], self.model_terms)
         dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
         return dmat
+
+    def generate_dmatrices(self, data, Ycol, scaleX = False):
+        response_terms = [Term([LookupFactor(Ycol)])]
+
+        data = data.copy()
+        if scaleX:
+            assert(self.param_info is not None)
+            data = self.scale_data(data)
+
+        data = data.rename(columns=self.param_dict)
+
+        md = ModelDesc(response_terms, self.model_terms)
+        (response_matrix, data_matrix) = dmatrices(md, data=data, return_type='dataframe')
+        return response_matrix, data_matrix
 
     def get_terms(self):
         md = ModelDesc([], self.model_terms)
@@ -137,3 +194,40 @@ class Basis():
             terms = ['Intercept'] + terms
 
         return terms
+
+
+    def regularize(self, inputs, results, alpha, scaleX = False):
+
+        if scaleX:
+            assert(self.param_info is not None)
+            inputs = self.scale_data(inputs.copy())
+
+        Ycol = 'Sim_Result'
+        my_results = results.copy()
+        my_results.name = Ycol
+        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
+
+        response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
+        model = sm.OLS(response_matrix, data_matrix)
+        #fit = model.fit_regularized(alpha=alpha)
+        #for alpha in np.logspace(5,1,10):
+        fit = model.fit_regularized(alpha=alpha, refit=True)
+        print 'SUMMARY:\n', fit.summary()
+        print 'AIC:', fit.aic
+        print 'BIC:', fit.bic
+        params = pd.Series(fit.params, index=data_matrix.columns)
+        params = params[params>0]
+        #print 'FV:\n', fit.fittedvalues
+        print 'Non-Zero:', len(params), 'of', self.D
+        #print alpha, len(params), fit.bic
+
+        terms = params.index.values.tolist()
+        if 'Intercept' in terms:
+            intercept_term = [Term([])]
+            terms.remove('Intercept')
+        else:
+            intercept_term = []
+
+        self.model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms]
+        self.param_dict = Basis.make_param_dict(inputs.columns.tolist())
+        self.D = len(self.model_terms)

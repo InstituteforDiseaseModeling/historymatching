@@ -148,20 +148,12 @@ class HistoryMatching():
         if test:
             self.test_data = func(self.test_data)
 
-    def glm(self, Xcols,
+    def glm(self, basis,
             force_optimize_glm = False,
             glm_fit_maxiter = 100000,
-            first_order_basis_terms = True,
-            second_order_basis_terms = False,
-            third_order_basis_terms = False,
-            fourth_order_basis_terms = False,
-            fifth_order_basis_terms = False,
-            higher_order_basis_terms = False,
             family = 'Poisson', # e.g. Poisson, Gaussian
             plot = True
         ):
-
-            self.Xcols_GLM = Xcols
 
             if not self.use_glm:
                 print 'use_glm is False, why are you calling glm?'
@@ -178,19 +170,20 @@ class HistoryMatching():
                 print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
                 self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
             else:
-                self.glm_model = GLM(    Xcols = self.Xcols_GLM,
-                                    Ycol = self.Ycol,
-                                    training_data = train_mean,
-                                    reference_value = self.desired_result,
-                                    family = family,
-                                    #family = sm.genmod.families.links.Logit,
-                                    #family = sm.genmod.families.Binomial(link=sm.genmod.families.links.logit),
-                                    first_order_basis_terms = first_order_basis_terms,
-                                    second_order_basis_terms = second_order_basis_terms,
-                                    third_order_basis_terms = third_order_basis_terms,
-                                    fourth_order_basis_terms = fourth_order_basis_terms,
-                                    fifth_order_basis_terms = fifth_order_basis_terms,
-                                    higher_order_basis_terms = higher_order_basis_terms)
+                self.glm_model = GLM(
+                    basis = basis,
+                    Ycol = self.Ycol,
+                    training_data = train_mean,
+                    reference_value = self.desired_result,
+                    family = family)
+                    #family = sm.genmod.families.links.Logit,
+                    #family = sm.genmod.families.Binomial(link=sm.genmod.families.links.logit),
+                    #first_order_basis_terms = first_order_basis_terms,
+                    #second_order_basis_terms = second_order_basis_terms,
+                    #third_order_basis_terms = third_order_basis_terms,
+                    #fourth_order_basis_terms = fourth_order_basis_terms,
+                    #fifth_order_basis_terms = fifth_order_basis_terms,
+                    #higher_order_basis_terms = higher_order_basis_terms)
 
                 print "Fitting the GLM"
                 self.glm_model.fit(maxiter=glm_fit_maxiter)

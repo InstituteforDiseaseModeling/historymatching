@@ -7,7 +7,7 @@ import os, StringIO
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
+from basis import Basis
 
 import numpy as np, GPy, pandas as pd, seaborn as sns
 from matplotlib import pyplot as plt
@@ -16,32 +16,27 @@ import matplotlib.gridspec as gridspec
 
 class GLM(object):
 
-    def __init__(self, Xcols, Ycol,
+    def __init__(self, basis, Ycol,
             training_data = None,
             reference_value = 0,
             family = 'Poisson', # 'Poisson', 'NegativeBinomial', 'Gaussian'
-            first_order_basis_terms = True,
-            second_order_basis_terms = True,
-            third_order_basis_terms = False,
-            fourth_order_basis_terms = False,
-            fifth_order_basis_terms = False,
-            higher_order_basis_terms = False,
+            #first_order_basis_terms = True,
+            #second_order_basis_terms = True,
+            #third_order_basis_terms = False,
+            #fourth_order_basis_terms = False,
+            #fifth_order_basis_terms = False,
+            #higher_order_basis_terms = False,
             fitted_model = None,
             verbose = True
         ):
 
         self.training_data = training_data
         self.reference_value = reference_value
-        self.Xcols = Xcols
+        #self.Xcols = Xcols
+        self.basis = basis
         self.Ycol = Ycol
-        self.D = len(self.Xcols)
+        self.D = self.basis.D
         self.family = family
-        self.first_order_basis_terms = first_order_basis_terms
-        self.second_order_basis_terms = second_order_basis_terms
-        self.third_order_basis_terms = third_order_basis_terms
-        self.fourth_order_basis_terms = fourth_order_basis_terms
-        self.fifth_order_basis_terms = fifth_order_basis_terms
-        self.higher_order_basis_terms = higher_order_basis_terms
 
         self.verbose = verbose
 
@@ -60,8 +55,6 @@ class GLM(object):
             self.glmfam = sm.families.Gaussian()
             print 'Using Gaussian family'
 
-        self.build_basis()
-
         if self.fitted_model is not None:
             print self.fitted_model.summary()
             print 'AIC:', self.fitted_model.aic
@@ -78,18 +71,19 @@ class GLM(object):
                 config = json.load( data_file )
 
                 return cls(
-                    config['Xcols'],
-                    config['Ycol'],
+                    #config['Xcols'], # TODO: DESERIALIZE BASIS!
+                    basis = Basis.deserialize(config['Basis']),
+                    Ycol = config['Ycol'],
                     training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample'),
                     reference_value = config['Reference_Value'],
                     family = config['Family'],
 
-                    first_order_basis_terms = config['First_Order_Basis_Terms'],
-                    second_order_basis_terms = config['Second_Order_Basis_Terms'],
-                    third_order_basis_terms = config['Third_Order_Basis_Terms'],
-                    fourth_order_basis_terms = config['Fourth_Order_Basis_Terms'],
-                    fifth_order_basis_terms = config['Fifth_Order_Basis_Terms'],
-                    higher_order_basis_terms = config['Higher_Order_Basis_Terms'],
+                    #first_order_basis_terms = config['First_Order_Basis_Terms'],
+                    #second_order_basis_terms = config['Second_Order_Basis_Terms'],
+                    #third_order_basis_terms = config['Third_Order_Basis_Terms'],
+                    #fourth_order_basis_terms = config['Fourth_Order_Basis_Terms'],
+                    #fifth_order_basis_terms = config['Fifth_Order_Basis_Terms'],
+                    #higher_order_basis_terms = config['Higher_Order_Basis_Terms'],
 
                     fitted_model = fitted_model
                 )
@@ -103,36 +97,23 @@ class GLM(object):
         with open(save_meta_to, 'w') as fout:
             json.dump(
                 {
-                    'Xcols'         : self.Xcols,
+                    'Basis'         : self.basis.serialize(),
                     'Ycol'          : self.Ycol,
                     'Training_Data' : self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
                     'Reference_Value': self.reference_value,
                     'D'             : self.D,
                     'Family'        : self.family,
-                    'First_Order_Basis_Terms' : self.first_order_basis_terms,
-                    'Second_Order_Basis_Terms' : self.second_order_basis_terms,
-                    'Third_Order_Basis_Terms' : self.third_order_basis_terms,
-                    'Fourth_Order_Basis_Terms' : self.fourth_order_basis_terms,
-                    'Fifth_Order_Basis_Terms' : self.fifth_order_basis_terms,
-                    'Higher_Order_Basis_Terms' : self.higher_order_basis_terms
                 }, fout, indent=4)
 
     def evaluate(self, data):
-        data = data.copy().rename(columns={s:s.replace(':','').replace('&',' ').replace(' ', '_') for s in self.Xcols})
-        md = ModelDesc([], self.model_terms)
-        dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
-
+        dmat = self.basis.generate_dmatrix(data, scaleX=True)
         mean = self.fitted_model.predict( dmat, transform=False )
 
         return mean
 
 
     def fit(self, maxiter=100):
-        response_terms = [Term([LookupFactor(self.Ycol)])]
-
-        data = self.training_data.copy().rename(columns={s:s.replace(':','').replace('&',' ').replace(' ', '_') for s in self.Xcols})
-        md = ModelDesc(response_terms, self.model_terms)
-        (response_matrix, data_matrix) = dmatrices(md, data=data, return_type='dataframe')
+        (response_matrix, data_matrix) = self.basis.generate_dmatrices(self.training_data, self.Ycol, scaleX=True)
 
         self.model = sm.GLM(response_matrix, data_matrix, family=self.glmfam)
 
@@ -196,27 +177,26 @@ class GLM(object):
 
         figs = {}
 
+        Xcols = basis.get_terms()
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
-                    #gs = gridspec.GridSpec(self.D-1, self.D-1)
-                    #ax = fig.add_subplot(gs[col-1,row])
-                    fn = '%s-%s.pdf' % (self.Xcols[row], self.Xcols[col])
+                    fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
                     figs[fn] = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
-                    x = self.training_data[ self.Xcols[row] ]
-                    y = self.training_data[ self.Xcols[col] ]
+                    x = self.training_data[ Xcols[row] ]
+                    y = self.training_data[ Xcols[col] ]
 
                     plt.scatter(x, y, s=np.maximum(1, 5*scaled), c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
                     for idx, pt in circle_points.iterrows():
-                        plt.scatter(pt[ self.Xcols[row] ], pt[ self.Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+                        plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
                         #scl = np.log(1+pt[self.Ycol])# / self.training_data[self.Ycol].max()
-                        #plt.scatter(pt[ self.Xcols[row] ], pt[ self.Xcols[col] ], s=10*scl, alpha=1, linewidths=2.0, facecolors="None", edgecolors='k') #, s=area, c=colors, alpha=0.5)
+                        #plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=10*scl, alpha=1, linewidths=2.0, facecolors="None", edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
                     plt.autoscale(tight=True)
-                    plt.xlabel( self.Xcols[row] )
-                    plt.ylabel( self.Xcols[col] )
+                    plt.xlabel( Xcols[row] )
+                    plt.ylabel( Xcols[col] )
                     plt.tight_layout()
 
         return figs
@@ -225,21 +205,22 @@ class GLM(object):
     def plot_data_1D(self, circle_points=[]):
         scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
 
+        Xcols = basis.get_terms()[0] # Not tested!
         fig = plt.figure(figsize=(6,8)) #GPy.plotting.plotting_library().figure()
-        x = self.training_data[ self.Xcols[0] ]
+        x = self.training_data[ Xcols ]
         y = self.training_data[self.Ycol]
 
         plt.scatter(x, y, s=15, c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
         for idx, pt in circle_points.iterrows():
-            plt.scatter(pt[ self.Xcols[0] ], pt[ self.Ycol ], s=25, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+            plt.scatter(pt[ Xcols ], pt[ self.Ycol ], s=25, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
         plt.autoscale(tight=True)
-        plt.xlabel( self.Xcols[0] )
+        plt.xlabel( Xcols )
         plt.ylabel( self.Ycol )
         plt.tight_layout()
 
-        return {self.Xcols[0]: fig}
+        return {Xcols: fig}
 
 
     def plot_data(self, **kwargs):
