@@ -279,73 +279,6 @@ class GPC():
         return Kxp_gpu.get()
 
 
-    def cross_validation(self, theta, X, Y, P):
-        num_partitions = int(max(P)+1)
-        num_points = len(P)
-
-        Y_mean = np.nanmean(Y, axis=1)
-
-        KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution
-        if self.debug:
-            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-            if not np.allclose(KXX_cpu, KXX):
-                print 'loo_cross_validation(CPU XX):\n', KXX_cpu
-                print 'loo_cross_validation(GPU XX):\n', KXX
-                raise
-
-        ll = 0
-        for partition in range(num_partitions):
-            train_inds = [k for k in range(num_points) if P[k]!=partition]
-            train_array = np.array(train_inds, dtype=np.intp)
-
-            test_inds = [k for k in range(num_points) if P[k]==partition]
-            test_array = np.array(test_inds, dtype=np.intp)
-
-            Kxx = KXX[train_array[:,np.newaxis], train_array] # kernel_xx(x, theta)
-
-            #y = Y[train_inds, :]
-            y_mean = Y_mean[train_inds]
-            yp = Y[test_inds, :]
-
-            Kxp = KXX[train_array[:,np.newaxis], test_inds] # kernel_xp(x, xp, theta)
-            if self.debug:
-                x_cpu = X[train_inds,]
-                xp_cpu = X[test_inds,:][np.newaxis,:]
-                Kxp_cpu = self.kernel_xp(x_cpu, xp_cpu, theta)
-                if not np.allclose(Kxp_cpu, Kxp):
-                    print 'loo_cross_validation(CPU Xp):\n', Kxp_cpu
-                    print 'loo_cross_validation(GPU Xp):\n', Kxp
-                    raise
-
-            Kpp = KXX[test_array[:,np.newaxis], test_inds] #kernel_xx(xp, theta)
-            if self.debug:
-                Kpp_cpu = self.kernel_xx(xp_cpu, theta, add_sigma2_n = True) # PREDICTIVE
-                if not np.allclose(Kpp_cpu, Kpp):
-                    print 'loo_cross_validation(CPU pp):\n', Kpp_cpu
-                    print 'loo_cross_validation(GPU pp):\n', Kpp
-                    raise
-
-            f = np.dot(Kxp.T, np.linalg.solve(Kxx, y_mean)) # NOTE: Using mean here
-            covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
-
-            err = yp-np.repeat(f[:,np.newaxis], yp.shape[1], axis=1)
-            for row in range(yp.shape[0]):
-                err_row = err[row,:]
-                err_row = err_row[~np.isnan(err_row)]
-                ll += np.sum(-0.5*err_row**2/covf[row,row]) -0.5*np.log(2*np.pi*covf[row,row]) * len(err_row)
-
-            #UNIVARIATE:
-            #ll += -0.5*np.dot((yp-f).T, (yp-f))/covf -0.5*np.log(2*np.pi*covf)
-
-            #(_, logdet) = np.linalg.slogdet(covf)
-            #ll += -self.D/2.0*np.log(2*np.pi) - 0.5 * logdet -0.5*np.dot(yp-f, np.linalg.solve(covf, yp-f))
-
-        if self.verbose:
-            print theta, '-->', -ll
-
-        return np.array([-ll])
-
-
     def assign_rep(self, sample):
         sample = sample.drop('index', axis=1).reset_index()
         sample.index.name='Replicate'
@@ -355,6 +288,7 @@ class GPC():
 
     def find_posterior_mode(self, theta):
         # TODO: f_hat guess, or 0 if none
+        # TODO: stopping criteria
 
         # Mode finding for Laplace GPC.  Algorithm 3.1 from "Gaussian Process for Machine Learning"
         y = self.training_data[self.Ycol].values
@@ -414,8 +348,8 @@ class GPC():
             if self.verbose: print 'Computing f ...'
             f = np.dot(K, a)
 
-        log_p_y_given_x = -np.log(1 + np.exp(-np.dot(y,f)))
-        log_q_y_given_X_theta = -0.5 * np.dot(a,f) + log_p_y_given_x - sum( np.log(np.diag(L)) )
+        log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y,f)))
+        log_q_y_given_X_theta = -0.5 * np.dot(np.transpose(a),f) + log_p_y_given_f - sum( np.log(np.diag(L)) )
         print theta, '--> log_q_y_given_X_theta:', log_q_y_given_X_theta
 
         return f, log_q_y_given_X_theta
@@ -423,22 +357,22 @@ class GPC():
 
     def laplace_predict(self, theta, f_hat, P):
         y = self.training_data[self.Ycol].values
-        print 'y:', y
+        if self.verbose: print 'y:', y
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
         KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = False)  # This is for f
 
-        print '---[ PREDICT ]------------------------------------'
-        print 'f_hat:', f_hat
+        if self.verbose: print '---[ PREDICT ]------------------------------------'
+        if self.verbose: print 'f_hat:', f_hat
         pi = 1.0/(1.0+np.exp(-f_hat))
-        print 'pi:', pi
+        if self.verbose: print 'pi:', pi
         t = (y+1)/2.0
-        print 't:', t
+        if self.verbose: print 't:', t
 
         d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
         sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
-        print 'Computing B ...'
+        if self.verbose: print 'Computing B ...'
         #B = np.eye(N) + np.dot(sqrtW, np.dot(K, sqrtW))
         ### Dan's method for B:
         w = np.sqrt( -d2_df2_log_p_y_given_f )
@@ -450,8 +384,9 @@ class GPC():
         grad_log_p_y_given_f = t-pi
 
         # p-specific code begins here:
+        ret = pd.DataFrame(columns = ['Sample', 'Mean', 'Var', 'Logistic', 'Trapz'])
         for sample, p_series in P.iterrows():
-            print 'Y:', sample, self.training_data.loc[sample, self.Ycol]
+            if self.verbose: print 'Y:', sample, self.training_data.loc[sample, self.Ycol]
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), grad_log_p_y_given_f)
@@ -470,15 +405,20 @@ class GPC():
             sigma2 = V[0,0]
             fstar = np.linspace(mu - 3*np.sqrt(sigma2), mu + 3*np.sqrt(sigma2), 100)
             integrand = np.multiply(logistic(fstar), np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
-            P.loc[sample,'LOGIS'] = logistic(mu)
-            P.loc[sample,'TRAPZ'] = np.trapz(integrand, x=fstar)
 
-            print 'MEAN:', f_bar_star
-            print 'VAR:', V
-            print 'LOGIS:', P.loc[sample,'LOGIS']
-            print 'TRAPZ:', P.loc[sample,'TRAPZ']
+            logi = logistic(mu)
+            trapz = np.trapz(integrand, x=fstar)
+            #P.loc[sample,'LOGIS'] = logi
+            #P.loc[sample,'TRAPZ'] = trapz
 
-        return P
+            if self.verbose: print 'MEAN:', f_bar_star
+            if self.verbose: print 'VAR:', V
+            if self.verbose: print 'LOGIS:', logi
+            if self.verbose: print 'TRAPZ:', trapz
+
+            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean':[f_bar_star], 'Var':[V], 'Logistic':logi, 'Trapz':trapz})])
+
+        return ret
 
     def negative_log_marginal_likelihood(self, theta):
         f_hat, log_q_y_given_X_theta = self.find_posterior_mode(theta)
@@ -540,10 +480,10 @@ class GPC():
         else:
             f_hat = np.genfromtxt('f_hat.csv', delimiter=',')
 
-        data = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
+        ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
 
         with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
-            print data
+            print ret
 
         exit()
 

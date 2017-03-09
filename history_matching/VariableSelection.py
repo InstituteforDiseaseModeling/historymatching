@@ -151,6 +151,7 @@ class VariableSelection():
 
         model = sm.OLS(response_matrix, data_matrix)
         #fit = model.fit_regularized(alpha=alpha)
+        #for alpha in np.logspace(5,1,10):
         fit = model.fit_regularized(alpha=alpha, refit=True)
         print 'SUMMARY:\n', fit.summary()
         print 'AIC:', fit.aic
@@ -158,15 +159,17 @@ class VariableSelection():
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[params>0]
         #print 'FV:\n', fit.fittedvalues
-        print 'Non-Zero:', sum(params>0), 'of', len(self.Xcols)
+        print 'Non-Zero:', len(params), 'of', len(self.Xcols)
+        #print alpha, len(params), fit.bic
 
         # Dang you patsy!
         invdict = {s.replace(':','').replace('&',' ').replace(' ', '_'):s for s in self.Xcols}
         param_list = []
 
         for p,_ in params.iteritems():
+            print p
             if '*' in p:
-                p_orig = [invdict[t] for t in map(str.strip, p.split('*'))]
+                p_orig = [invdict[t] if t in invdict else t for t in map(str.strip, p.split('*'))]
             else:
                 p_orig = invdict[p]
             param_list.append(p_orig)
