@@ -56,10 +56,6 @@ class HistoryMatching():
         self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
         self.Ycol = self.results.name
 
-        #self.Xcols = inputs.columns.tolist()
-        self.Xcols_GLM = []
-        self.Xcols_GPR = []
-
         # Train/test split
         nSamp = len( self.data.index.levels[0] )
         nTrain = int(round(self.training_fraction * nSamp))
@@ -232,7 +228,7 @@ class HistoryMatching():
             #print 'Best and worst test errors:\n', test.sort_values(by='Yerr')
 
 
-    def gpr(self, Xcols,
+    def gpr(self, basis,
         force_optimize_gpr = True,
         K_folds = 5,
         eps = 1e-2,
@@ -248,8 +244,6 @@ class HistoryMatching():
     ):
         assert( method in ['CrossValidation'] ) # Supporint only CV for now
 
-        self.Xcols_GPR = Xcols
-
         gpr_model_fn = os.path.join(self.gprdir, 'model.json')
 
         if not force_optimize_gpr and os.path.isfile(gpr_model_fn):
@@ -260,27 +254,27 @@ class HistoryMatching():
                 Ycol = 'Yerr'
             else:
                 Ycol = 'Sim_Result'
-            self.gpr_model = GPR(    Xcols = self.Xcols_GPR,
-                                Ycol = Ycol,
-                                training_data = self.training_data,
-                                param_info = self.param_info,
-                                kernel_mode = 'RBF',
-                                kernel_params = None,
-                                verbose = verbose,
-                                debug = False   )
+            self.gpr_model = GPR(basis = basis,
+                Ycol = Ycol,
+                training_data = self.training_data,
+                param_info = self.param_info,
+                kernel_mode = 'RBF',
+                kernel_params = None,
+                verbose = verbose,
+                debug = False   )
 
             if isinstance(lengthscale_guess, int) or isinstance(lengthscale_guess, float):
-                lengthscale_guess = len(self.Xcols_GPR)*[lengthscale_guess]
+                lengthscale_guess = basis.D*[lengthscale_guess]
             else:
                 assert( isinstance(lengthscale_guess, list) )
-                assert( len(lengthscale_guess) == len(self.Xcols_GPR) )
+                assert( len(lengthscale_guess) == basis.D )
 
             #TODO: Check guess within bounds
 
             print "Fitting the GPR"
             self.gpr_model.optimize_hyperparameters(
                 x0 = np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess),
-                bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + len(self.Xcols_GPR)*(lengthscale_bounds,),
+                bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
                 eps = eps,
                 K = K_folds
             )
@@ -336,12 +330,14 @@ class HistoryMatching():
                 for fn,fig in figs.iteritems():
                     fig.savefig( os.path.join(pairdir, fn) ); plt.close(fig)
 
+            ''''
             if False:
                 mu = self.training_data[self.Xcols_GPR].mean()
                 #mu = train.loc[146][Xcols_GPR].mean(); print mu
                 (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25);
                 fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
                 fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW
+            '''
 
             fig = self.gpr_model.plot_histogram();
             fig.savefig( os.path.join(self.gprdir, 'histogram.pdf') );

@@ -144,7 +144,11 @@ def plot_errors(train, test, Ycol, desired_result):
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
     ax = ax1
-    ax.errorbar(x=test[Ycol], y=test['Mean_Estimate'], yerr=2*np.sqrt(test['Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
+    test_impl = test.set_index('Implausible')
+    print test_impl.head()
+    print test_impl.tail()
+    ax.errorbar(x=test_impl.loc[True, Ycol], y=test_impl.loc[True, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[True, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5, edgecolor='r')
+    ax.errorbar(x=test_impl.loc[False, Ycol], y=test_impl.loc[False, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[False, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5, edgecolor='k')
     ax.errorbar(x=train[Ycol], y=train['Mean_Estimate'], yerr=2*np.sqrt(train['Var_Err_Predictive']), fmt='o', ms=3, c='c', lw=0.5)
     ax.margins(x=0,y=0.05)
     xlim = ax.get_xlim()

@@ -20,19 +20,12 @@ class GLM(object):
             training_data = None,
             reference_value = 0,
             family = 'Poisson', # 'Poisson', 'NegativeBinomial', 'Gaussian'
-            #first_order_basis_terms = True,
-            #second_order_basis_terms = True,
-            #third_order_basis_terms = False,
-            #fourth_order_basis_terms = False,
-            #fifth_order_basis_terms = False,
-            #higher_order_basis_terms = False,
             fitted_model = None,
             verbose = True
         ):
 
         self.training_data = training_data
         self.reference_value = reference_value
-        #self.Xcols = Xcols
         self.basis = basis
         self.Ycol = Ycol
         self.D = self.basis.D
@@ -71,20 +64,11 @@ class GLM(object):
                 config = json.load( data_file )
 
                 return cls(
-                    #config['Xcols'], # TODO: DESERIALIZE BASIS!
                     basis = Basis.deserialize(config['Basis']),
                     Ycol = config['Ycol'],
                     training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample'),
                     reference_value = config['Reference_Value'],
                     family = config['Family'],
-
-                    #first_order_basis_terms = config['First_Order_Basis_Terms'],
-                    #second_order_basis_terms = config['Second_Order_Basis_Terms'],
-                    #third_order_basis_terms = config['Third_Order_Basis_Terms'],
-                    #fourth_order_basis_terms = config['Fourth_Order_Basis_Terms'],
-                    #fifth_order_basis_terms = config['Fifth_Order_Basis_Terms'],
-                    #higher_order_basis_terms = config['Higher_Order_Basis_Terms'],
-
                     fitted_model = fitted_model
                 )
         except EnvironmentError:

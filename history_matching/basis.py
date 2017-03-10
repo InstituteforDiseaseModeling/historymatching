@@ -23,7 +23,7 @@ class Basis():
     def identity_basis(cls, params, param_info=None):
         param_dict = Basis.make_param_dict(params)
         params_patsy = param_dict.values()
-        model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X
+        model_terms = [Term([LookupFactor(x)]) for x in params_patsy] # X
         return cls(model_terms, param_dict, param_info)
 
 
@@ -134,10 +134,11 @@ class Basis():
         else:
             intercept_term = []
 
-        model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms]
-        param_dict = state['Param_Dict']
-        param_info = pd.read_json( state['Param_Info'], orient='split' ).set_index('Name'),
-        return cls(model_terms, param_dict, param_info)
+        return cls(
+            model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms],
+            param_dict = state['Param_Dict'],
+            param_info = pd.read_json( state['Param_Info'], orient='split' ).set_index('Name')
+        )
 
 
     def serialize(self):
@@ -209,8 +210,7 @@ class Basis():
 
         response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
         model = sm.OLS(response_matrix, data_matrix)
-        #fit = model.fit_regularized(alpha=alpha)
-        #for alpha in np.logspace(5,1,10):
+
         fit = model.fit_regularized(alpha=alpha, refit=True)
         print 'SUMMARY:\n', fit.summary()
         print 'AIC:', fit.aic
@@ -231,3 +231,5 @@ class Basis():
         self.model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms]
         self.param_dict = Basis.make_param_dict(inputs.columns.tolist())
         self.D = len(self.model_terms)
+
+        return fit.predict(data_matrix)

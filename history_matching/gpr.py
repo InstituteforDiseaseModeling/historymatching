@@ -19,6 +19,7 @@ import pycuda.driver as drv
 from pycuda.compiler import SourceModule
 from string import Template
 import skcuda.misc as misc
+from basis import Basis
 
 plt.rcParams['image.cmap'] = 'jet'
 
@@ -27,7 +28,7 @@ plt.rcParams['image.cmap'] = 'jet'
 
 class GPR():
 
-    def __init__(self, Xcols, Ycol, training_data, param_info,
+    def __init__(self, basis, Ycol, training_data, param_info,
             kernel_mode = 'RBF',
             kernel_params = None,
             #is_poisson = False,
@@ -44,7 +45,8 @@ class GPR():
 
         self.training_data = training_data.copy()
         self.param_info = param_info.copy()
-        self.Xcols = Xcols
+        self.basis = basis
+        self.D = self.basis.D
         self.Ycol = Ycol
 
         self.kernel_mode = kernel_mode
@@ -63,17 +65,16 @@ class GPR():
         self.Ycol_orig = self.Ycol
         self.Ycol = self.Ycol+'_normalized'
 
-        self.Xcols_scaled = []
-        for xc in self.Xcols:
-            xc_new = xc+' (scaled)'
-            self.Xcols_scaled.append(xc_new)
-            self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
+        #self.Xcols_scaled = []
+        #for xc in self.Xcols:
+        #    xc_new = xc+' (scaled)'
+        #    self.Xcols_scaled.append(xc_new)
+        #    self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
         self.normalizer = True #UserStandardize(mean=self.normalizer_mean, std=self.normalizer_std)
         self.poisson = False #is_poisson
         self.verbose = verbose
         self.debug = debug
-        self.D = len(self.Xcols)
 
         self.theta = None # Kernel/model hyperparameters
         self.kernel_xx_gpu = None
@@ -90,8 +91,8 @@ class GPR():
                 config = json.load( data_file )
 
                 return cls(
-                    config['Xcols'],
-                    config['Ycol'],
+                    basis = Basis.deserialize(config['Basis']),
+                    Ycol = config['Ycol'],
                     training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample'),
                     param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
                     kernel_mode = config['Kernel_Mode'],
@@ -111,9 +112,9 @@ class GPR():
         # Normalize training data as in __init__
         self.training_data[self.Ycol] = self.normalize(self.training_data[self.Ycol_orig])
 
-        for xc in self.Xcols:
-            xc_new = xc+' (scaled)'
-            self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
+        #for xc in self.Xcols:
+        #    xc_new = xc+' (scaled)'
+        #    self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
 
     def save(self, save_to):
@@ -123,7 +124,7 @@ class GPR():
 
             json.dump(
                 {
-                    'Xcols'         : self.Xcols,
+                    'Basis'         : self.basis.serialize(),
                     'Ycol'          : self.Ycol_orig,
                     'Kernel_Mode'   : self.kernel_mode,
                     'Kernel_Params' : self.theta.tolist(),
@@ -418,8 +419,10 @@ class GPR():
 
         num_params = 2 + self.D # sigma_n, sigma_f, lengthscale 1, lengthscale_2, ..., lengthscale_D
 
+        print 'WHY TRAINING WITH MEAN?'
         train_mean = self.training_data.reset_index().groupby('Sample').mean()
-        X = train_mean[self.Xcols_scaled].values
+        #X = train_mean[self.Xcols_scaled].values
+        X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         P = train_mean['Partition'].values
         Y = self.training_data.reset_index().groupby('Sample').apply(self.assign_rep).pivot('Sample', 'Replicate', self.Ycol).values
 
@@ -451,13 +454,17 @@ class GPR():
         # Predict at test and training points, store mean and variance in self.data
 
         # Normalize data
-        for xc in self.Xcols:
-            xc_new = xc+' (scaled)'
-            data[xc+' (scaled)'] = (data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
+        #for xc in self.Xcols:
+        #    xc_new = xc+' (scaled)'
+        #    data[xc+' (scaled)'] = (data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
-        X = self.training_data[self.Xcols_scaled].values
+        #X = self.training_data[self.Xcols_scaled].values
+        print 'MEAN AGAIN!'
+        train_mean = self.training_data.reset_index().groupby('Sample').mean()
+        X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         Y = self.training_data[self.Ycol].values
-        P = data[self.Xcols_scaled].values
+        #P = data[self.Xcols_scaled].values
+        P = self.basis.generate_dmatrix( data, scaleX = True).values
 
         if self.debug:
             print 'X',X.shape,' flags:\n', X.flags
