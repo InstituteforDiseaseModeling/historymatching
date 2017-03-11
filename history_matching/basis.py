@@ -212,7 +212,7 @@ class Basis():
         model = sm.OLS(response_matrix, data_matrix)
 
         fit = model.fit_regularized(alpha=alpha, refit=True)
-        print 'SUMMARY:\n', fit.summary()
+        #print 'SUMMARY:\n', fit.summary()
         print 'AIC:', fit.aic
         print 'BIC:', fit.bic
         params = pd.Series(fit.params, index=data_matrix.columns)

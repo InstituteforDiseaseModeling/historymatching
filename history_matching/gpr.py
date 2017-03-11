@@ -520,32 +520,40 @@ class GPR():
                     'Var_Predictive': self.inverse_normalize_var(np.diag(covf) + self.theta[1]*np.ones(P.shape[0])),
                     'Fig': fig      }
 
-    def plot_data(self, samples_to_circle=[]):
+    def plot_data(self, samples_to_circle=[], saveto_dir = None):
         scaled = 5 + 45*(self.training_data[self.Ycol] - self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max() - self.training_data[self.Ycol].min())
 
         figs = {}
+
+        X = self.basis.generate_dmatrix( self.training_data, scaleX = True)#.values
+        Xcols = X.columns.tolist()
 
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
                     #gs = gridspec.GridSpec(self.D-1, self.D-1)
                     #ax = fig.add_subplot(gs[col-1,row])
-                    fn = '%s-%s.pdf' % (self.Xcols[row], self.Xcols[col])
-                    figs[fn] = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+                    fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
+                    fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
-                    x = self.training_data[ self.Xcols[row] ]
-                    y = self.training_data[ self.Xcols[col] ]
+                    x = X[ Xcols[row] ]
+                    y = X[ Xcols[col] ]
 
                     plt.scatter(x, y, s=scaled, c=self.training_data[self.Ycol], cmap='jet', lw=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
                     # Circle some interesting samples
                     for s in samples_to_circle:
-                        plt.scatter(self.training_data.loc[s][ self.Xcols[row] ], self.training_data.loc[s][ self.Xcols[col] ], s=10+scaled.loc[s], alpha=1, lw=1.0, facecolors="None", edgecolors='k') #, s=area, c=colors, alpha=0.5)
+                        plt.scatter(X[s][ Xcols[row] ], X[s][ Xcols[col] ], s=10+scaled.loc[s], alpha=1, lw=1.0, facecolors="None", edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
                     plt.autoscale(tight=True)
-                    plt.xlabel( self.Xcols[row] )
-                    plt.ylabel( self.Xcols[col] )
+                    plt.xlabel( Xcols[row] )
+                    plt.ylabel( Xcols[col] )
                     plt.tight_layout()
+
+                    if saveto_dir is not None:
+                        fig.savefig( os.path.join(saveto_dir, fn) ); plt.close(fig)
+                    else:
+                        figs[fn] = fig
 
         return figs
 

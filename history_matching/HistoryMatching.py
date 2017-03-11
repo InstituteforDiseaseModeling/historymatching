@@ -317,19 +317,14 @@ class HistoryMatching():
             fig.savefig( os.path.join(self.gprdir, 'errors.pdf') );             plt.close(fig)
 
             #circle_samples = train.sort_values(by='Yerr').iloc[[0, -1]].reset_index()['Sample'].values
-            circle_samples = pd.DataFrame()
             #fig = self.gpr_model.plot_data(samples_to_circle=circle_samples);    fig.savefig( os.path.join(self.gprdir, 'data.pdf') );    plt.close(fig)
-            if False: # TODO: Save plots are they are made in GPR class!
-                cp = pd.DataFrame()
-                #print test_mean.loc[[2110]]
-                #cp = test_mean.loc[[2110]]
-                figs = self.gpr_model.plot_data(samples_to_circle=circle_samples)
+            if True: # TODO: Save plots as they are made in GPR class!
                 pairdir = os.path.join(self.gprdir, 'PairwiseResults')
                 if not os.path.exists( pairdir):
                     os.mkdir( pairdir )
-                for fn,fig in figs.iteritems():
-                    fig.savefig( os.path.join(pairdir, fn) ); plt.close(fig)
+                circle_samples = pd.DataFrame()
 
+                figs = self.gpr_model.plot_data(samples_to_circle=circle_samples, saveto_dir = pairdir)
             ''''
             if False:
                 mu = self.training_data[self.Xcols_GPR].mean()
@@ -362,14 +357,14 @@ class HistoryMatching():
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
             test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
 
+            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
+            fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
+
             fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); 
             #plt.show()
             fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
 
             fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result);    fig.savefig( os.path.join(self.combineddir, 'train.pdf') ); plt.close(fig)
-
-            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
-            fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
 
             fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
             fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)

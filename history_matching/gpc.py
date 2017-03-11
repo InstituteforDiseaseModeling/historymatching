@@ -21,7 +21,7 @@ import skcuda.misc as misc
 
 plt.rcParams['image.cmap'] = 'jet'
 
-# NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
+# NOTE theta = [sigma_f^2, l_1^2, l_2^2, ..., l_D^2] # NOTE: no sigma_n^2
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
 
 class GPC():
@@ -143,14 +143,15 @@ class GPC():
             raise
 
         if params is not None:
-            assert( len(params) == 2+self.D )
+            assert( len(params) == 1+self.D )
+            if isinstance(params,list):
+                params = np.array(params)
             self.theta = params
 
 
-    def kernel_xx(self, X, theta, add_sigma2_n):
+    def kernel_xx(self, X, theta):
         # NOTE: Slow, use GPU acceleration instead.
         sigma2_f = theta[0]
-        sigma2_n = theta[1]
 
         N = X.shape[0]
 
@@ -161,18 +162,12 @@ class GPC():
                 dX = X[i,:]-X[j,:]
                 r2 = 0
                 for d in range(self.D):
-                    r2 += dX[d] * dX[d]/theta[2+d]
+                    r2 += dX[d] * dX[d]/theta[1+d]
                 kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
                 kxx[j,i] = kxx[i,j]
-            # Diagonal:
-            dX = X[i,:]-X[i,:]
-            r2 = 0
-            for d in range(self.D):
-                r2 += dX[d] * dX[d]/theta[2+d]
-            kxx[i,i] = sigma2_f * np.exp( -r2 / 2. )
 
-            if add_sigma2_n:
-                kxx[i,i] += sigma2_n
+            # Diagonal:
+            kxx[i,i] = sigma2_f
 
         return kxx
 
@@ -191,20 +186,21 @@ class GPC():
                 dX = X[i,:]-P[j,:]
                 r2 = 0
                 for d in range(D):
-                    r2 += dX[d] * dX[d]/theta[2+d]
+                    r2 += dX[d] * dX[d]/theta[1+d]
                 kxp[i,j] = sigma2_f * np.exp( -r2 / 2. )
 
         return kxp
 
 
-    def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True):
+    def kxx_gpu_wrapper(self, X, theta):
         Nx = X.shape[0]
         # Use from before...?
         block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
 
         X_gpu = gpuarray.to_gpu(X.astype(np.float32))
 
-        theta_gpu = gpuarray.to_gpu(theta.astype(np.float32))
+        theta_extended = np.concatenate( (np.array(theta[:1]), np.array([0]), np.array(theta[1:])) ) # Kernel code needs sigma2_n
+        theta_gpu = gpuarray.to_gpu(theta_extended.astype(np.float32))
 
         # create empty gpu array for the result
         Kxx_gpu = gpuarray.empty((Nx, Nx), np.float32)
@@ -222,12 +218,8 @@ class GPC():
 
         Kxx = Kxx_gpu.get()
 
-        if add_sigma2_n:
-            # Add sigma_n^2 to the diagonal, observation noise
-            Kxx[np.diag_indices(Nx)] += theta[1]
-
         if self.debug:
-            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
+            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32))
             if not np.allclose(Kxx_cpu, Kxx):
                 print 'kxx_gpu_wrapper(CPU):\n', Kxx_cpu
                 print 'kxx_gpu_wrapper(GPU):\n', Kxx
@@ -253,7 +245,8 @@ class GPC():
         else:
             P_gpu = gpuarray.to_gpu(P.astype(np.float32))
 
-        theta_gpu = gpuarray.to_gpu(theta.astype(np.float32))
+        theta_extended = np.concatenate( (np.array(theta[:1]), np.array([0]), np.array(theta[1:])) ) # Kernel code needs sigma2_n
+        theta_gpu = gpuarray.to_gpu(theta_extended.astype(np.float32))
 
         # create empty gpu array for the result
         Kxp_gpu = gpuarray.empty((Nx, Np), np.float32)
@@ -298,9 +291,9 @@ class GPC():
         f = np.zeros_like( self.training_data[self.Ycol].values )
         X = self.training_data[self.Xcols_scaled].values
 
-        K = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = False)  # This is for f
+        K = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
-        for i in range(5): # 10
+        for i in range(4): # 10
             if self.verbose: print '---[ %d ]------------------------------------'%i
             if self.verbose: print 'f:', f
 
@@ -360,7 +353,7 @@ class GPC():
         if self.verbose: print 'y:', y
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
-        KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = False)  # This is for f
+        KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
         if self.verbose: print '---[ PREDICT ]------------------------------------'
         if self.verbose: print 'f_hat:', f_hat
@@ -390,13 +383,10 @@ class GPC():
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), grad_log_p_y_given_f)
-            P.loc[sample,'MEAN'] = f_bar_star[0]
 
             v = np.linalg.solve(L, np.dot(sqrtW, KXp))
-            Kpp = self.kxx_gpu_wrapper(p, theta, add_sigma2_n = False) # For latent distribution
+            Kpp = self.kxx_gpu_wrapper(p, theta) # For latent distribution
             V = Kpp - np.dot(np.transpose(v),v)
-
-            P.loc[sample,'STD'] = np.sqrt(V[0,0])
 
             def logistic(f):
                 return 1.0 / (1 + np.exp(-f))
@@ -408,19 +398,18 @@ class GPC():
 
             logi = logistic(mu)
             trapz = np.trapz(integrand, x=fstar)
-            #P.loc[sample,'LOGIS'] = logi
-            #P.loc[sample,'TRAPZ'] = trapz
 
             if self.verbose: print 'MEAN:', f_bar_star
             if self.verbose: print 'VAR:', V
             if self.verbose: print 'LOGIS:', logi
             if self.verbose: print 'TRAPZ:', trapz
 
-            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean':[f_bar_star], 'Var':[V], 'Logistic':logi, 'Trapz':trapz})])
+            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean':f_bar_star, 'Var':V[0], 'Logistic':logi, 'Trapz':trapz})])
 
         return ret
 
     def negative_log_marginal_likelihood(self, theta):
+        #theta = np.array([theta[0], np.NaN, theta[1:]]) # UGH
         f_hat, log_q_y_given_X_theta = self.find_posterior_mode(theta)
         return -log_q_y_given_X_theta
 
@@ -430,8 +419,6 @@ class GPC():
         # K=None is leave one out cross validation, otherwise make K groups
         idx = self.training_data.index.names    # Save index
         self.training_data.reset_index(inplace=True)
-
-        theta = np.array([10, 0.1] + 6*[0.05]) # <-- Still need to find these!
 
         ret = spo.minimize(
             self.negative_log_marginal_likelihood,
@@ -456,7 +443,8 @@ class GPC():
         print 'OPTIMIZATION RETURNED:\n', ret
 
         # Restore original index
-        self.training_data.set_index(idx, inplace=True)
+        if idx[0] is not None:
+            self.training_data.set_index(idx, inplace=True)
 
         self.theta = ret.x # Length scales now on 0-1 range
 
@@ -469,89 +457,44 @@ class GPC():
             xc_new = xc+' (scaled)'
             data[xc+' (scaled)'] = (data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
+
         # PREDICT:
         if True:
+            f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
+            np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
+
+            ''' # TEMP STUFF HERE
             self.theta = np.array([ 1.1573295, 0.1, 1., 1., 0.30402957, 1., 1., 1.])
             f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
             #np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
+            ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
+            with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
+                print ret
 
             self.theta = np.array([ 1.0, 0.1, 0.15, 1., 1., 0.01, 0.1, 0.1])
             f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
+            ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
+            with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
+                print ret
+            exit()
+            '''
         else:
             f_hat = np.genfromtxt('f_hat.csv', delimiter=',')
 
         ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
 
-        with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
-            print ret
+        #with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
+        #    print ret
 
-        exit()
+        return ret
 
+        '''
         return {    'Mean': f,
                     'Var_Latent': np.diag(covf),
                     'Var_Predictive': np.diag(covf) + self.theta[1]*np.ones(P.shape[0]),
                     'Fig': fig      }
-        # =============================================================================
+        '''
 
-
-
-
-        X = self.training_data[self.Xcols_scaled].values
-        Y = self.training_data[self.Ycol].values
-        P = data[self.Xcols_scaled].values
-
-        if self.debug:
-            print 'X',X.shape,' flags:\n', X.flags
-            print 'Y',Y.shape,' flags:\n', Y.flags
-            print 'P',P.shape,' flags:\n', P.flags
-
-        # TODO: Save Kxx, just compute Kxp and Kpp!
-        Kxx = self.kxx_gpu_wrapper(X, self.theta, add_sigma2_n = True)  # Y is noisy
-        if self.debug:
-            Kxx_cpu = self.kernel_xx(X, self.theta, add_sigma2_n = True)
-            if not np.allclose(Kxx_cpu, Kxx):
-                print 'evaluate(CPU XX):\n', Kxx_cpu
-                print 'evaluate(GPU XX):\n', Kxx
-                raise
-
-        Kxp = self.kxp_gpu_wrapper(X, P, self.theta)
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(X, P, self.theta)
-            if not np.allclose(Kxp_cpu, Kxp):
-                print 'evaluate(CPU XP):\n', Kxp_cpu
-                print 'evaluate(GPU XP):\n', Kxp
-                raise
-
-        Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
-        if self.debug:
-            Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
-            if not np.allclose(Kpp_cpu, Kpp):
-                print 'evaluate(CPU PP):\n', Kpp_cpu
-                print 'evaluate(GPU PP):\n', Kpp
-                raise
-
-        f = np.dot(Kxp.T, np.linalg.solve(Kxx, Y))
-        # Print, just want diagonal elements!
-        covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
-        stdf = np.sqrt(np.diag(covf))
-
-        fig = None
-        if self.D == 1: # One D
-            print '1D'
-            fig = plt.figure()
-            plt.plot(X[:,0], Y, 'o')
-            #plt.plot(P[:,0], f, '|-')
-            plt.errorbar(P[:,0], f, yerr=2*stdf, lw=1)
-        elif self.D == 2:
-            print '2D'
-            fig = plt.figure()
-            plt.scatter(X[:,0], X[:,1], s=Y, c=Y, edgecolor='k', linewidth=2, cmap='jet')
-            plt.scatter(P[:,0], P[:,1], s=f, c=f, linewidth=0, cmap='jet')
-
-        return {    'Mean': f,
-                    'Var_Latent': np.diag(covf),
-                    'Var_Predictive': np.diag(covf) + self.theta[1]*np.ones(P.shape[0]),
-                    'Fig': fig      }
 
     def plot_data(self, samples_to_circle=[]):
         scaled = 5 + 45*(self.training_data[self.Ycol] - self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max() - self.training_data[self.Ycol].min())

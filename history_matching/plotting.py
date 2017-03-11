@@ -141,14 +141,50 @@ def plot_errors(train, test, Ycol, desired_result):
     test['Z_Noisy'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Predictive'])
     test['Z_Noiseless'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Latent'])
 
+    test_impl = test.set_index('Implausible')
+    train_impl = train.set_index('Implausible')
+
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12,8), sharex='row', sharey='row')
+
+    a=0.05
+    for data, ax, label in zip( [train_impl, test_impl], [ax1,ax2], ['Train', 'Test']):
+        ax.scatter(x=data.loc[True, Ycol], y=data.loc[True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25)
+        ax.scatter(x=data.loc[False, Ycol], y=data.loc[False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25)
+        ax.set_xlabel(Ycol)
+        ax.set_ylabel('Z-Score')
+        ax.margins(x=0,y=0.05)
+        ax.set_title(label)
+
+    fig.tight_layout()
+
+    xlim = ax1.get_xlim()
+    ylim = ax1.get_ylim()
+    for ax in [ax1, ax2]:
+        ax.add_patch( patches.Rectangle( (0, -2), xlim[1], 4, alpha=a, color='g' ) )
+        ax.add_patch( patches.Rectangle( (0, -3), xlim[1], 1, alpha=a, color='#FFA500' ) )
+        ax.add_patch( patches.Rectangle( (0, 2), xlim[1], 1, alpha=a, color='#FFA500' ) )
+        ax.add_patch( patches.Rectangle( (0, ylim[0]), xlim[1], abs(ylim[0])-3, alpha=a, color='r' ) )
+        ax.add_patch( patches.Rectangle( (0, 3), xlim[1], abs(ylim[1])-3, alpha=a, color='r' ) )
+
+        ax.plot( [desired_result, desired_result], ylim, 'y-', lw=2)
+
+    return fig
+
+
+def plot_errors_old(train, test, Ycol, desired_result):
+
+    train['Z_Noisy'] = (train[Ycol] - train['Mean_Estimate']) / np.sqrt(train['Var_Err_Predictive'])
+    train['Z_Noiseless'] = (train[Ycol] - train['Mean_Estimate']) / np.sqrt(train['Var_Err_Latent'])
+    test['Z_Noisy'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Predictive'])
+    test['Z_Noiseless'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Latent'])
+
+    test_impl = test.set_index('Implausible')
+
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
     ax = ax1
-    test_impl = test.set_index('Implausible')
-    print test_impl.head()
-    print test_impl.tail()
-    ax.errorbar(x=test_impl.loc[True, Ycol], y=test_impl.loc[True, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[True, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5, edgecolor='r')
-    ax.errorbar(x=test_impl.loc[False, Ycol], y=test_impl.loc[False, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[False, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5, edgecolor='k')
+    ax.errorbar(x=test_impl.loc[True, Ycol], y=test_impl.loc[True, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[True, 'Var_Err_Predictive']), fmt='o', ms=3, c='r', lw=0.5)
+    ax.errorbar(x=test_impl.loc[False, Ycol], y=test_impl.loc[False, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[False, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
     ax.errorbar(x=train[Ycol], y=train['Mean_Estimate'], yerr=2*np.sqrt(train['Var_Err_Predictive']), fmt='o', ms=3, c='c', lw=0.5)
     ax.margins(x=0,y=0.05)
     xlim = ax.get_xlim()
@@ -188,7 +224,9 @@ def plot_errors(train, test, Ycol, desired_result):
 
     ax = ax3
     ax.scatter(x=train[Ycol], y=train['Z_Noisy'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
-    ax.scatter(x=test[Ycol], y=test['Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
+    #ax.scatter(x=test[Ycol], y=test['Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
+    ax.scatter(x=test_impl.loc[True, Ycol], y=test_impl.loc[True, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='r')
+    ax.scatter(x=test_impl.loc[False, Ycol], y=test_impl.loc[False, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='k')
     ax.set_xlabel(Ycol)
     ax.set_ylabel('Z-Score')
     ax.margins(x=0,y=0.05)
