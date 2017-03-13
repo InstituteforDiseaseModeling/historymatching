@@ -148,8 +148,10 @@ def plot_errors(train, test, Ycol, desired_result):
 
     a=0.05
     for data, ax, label in zip( [train_impl, test_impl], [ax1,ax2], ['Train', 'Test']):
-        ax.scatter(x=data.loc[True, Ycol], y=data.loc[True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25)
-        ax.scatter(x=data.loc[False, Ycol], y=data.loc[False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25)
+        if True in data.index:
+            ax.scatter(x=data.loc[True, Ycol], y=data.loc[True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25)
+        if False in data.index:
+            ax.scatter(x=data.loc[False, Ycol], y=data.loc[False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25)
         ax.set_xlabel(Ycol)
         ax.set_ylabel('Z-Score')
         ax.margins(x=0,y=0.05)
