@@ -61,7 +61,7 @@ class HistoryMatchingCut():
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print '-'*80
             # Min here to avoid running out of GPU ram!
-            if stats['num_candidates'] == 0:
+            if stats['num_candidates'] == 0 or stats['num_plausible_candidates'] == 0:
                 nSamples = min(2500, num_desired_candidates)
             else:
                 nSamples = min(2500, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
@@ -91,7 +91,7 @@ class HistoryMatchingCut():
                 stats[cut]['cut_implausible'] += new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ].sum()
                 stats[cut]['newly_implausible'] += sum(new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] & ~new_candidates['Implausible'])
                 stats[cut]['num'] += new_candidates.shape[0]
-                print('Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name, 
+                print('--> Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name, 
                     100.*stats[cut]['cut_implausible']/float(stats[cut]['num']),
                     100.*stats[cut]['newly_implausible']/float(stats[cut]['num'])))
 

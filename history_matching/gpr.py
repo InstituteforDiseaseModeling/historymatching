@@ -90,8 +90,25 @@ class GPR():
             with open(os.path.join(config_fn)) as data_file:
                 config = json.load( data_file )
 
+                if 'Basis' in config:
+                    basis = Basis.deserialize(config['Basis'])
+                else:
+                    # Backwards compatibility
+                    Xcols = config['Xcols']
+                    basis = Basis.polynomial_basis(
+                        params = Xcols,
+                        intercept = False,
+                        first_order = True,
+                        second_order = False,
+                        third_order = False,
+                        fourth_order = False,
+                        fifth_order = False,
+                        higher_order = False,
+                        param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
+                    )
+
                 return cls(
-                    basis = Basis.deserialize(config['Basis']),
+                    basis = basis,
                     Ycol = config['Ycol'],
                     training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample'),
                     param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
@@ -393,7 +410,10 @@ class GPR():
 
 
     def assign_rep(self, sample):
-        sample = sample.drop('index', axis=1).reset_index()
+        if 'index' in sample.columns:
+            sample = sample.drop('index', axis=1).reset_index()
+        else:
+            sample = sample.reset_index()
         sample.index.name='Replicate'
         sample.reset_index(inplace=True)
         return sample
@@ -419,7 +439,6 @@ class GPR():
 
         num_params = 2 + self.D # sigma_n, sigma_f, lengthscale 1, lengthscale_2, ..., lengthscale_D
 
-        print 'WHY TRAINING WITH MEAN?'
         train_mean = self.training_data.reset_index().groupby('Sample').mean()
         #X = train_mean[self.Xcols_scaled].values
         X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
@@ -459,11 +478,10 @@ class GPR():
         #    data[xc+' (scaled)'] = (data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
         #X = self.training_data[self.Xcols_scaled].values
-        print 'MEAN AGAIN!'
         train_mean = self.training_data.reset_index().groupby('Sample').mean()
         X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
-        Y = self.training_data[self.Ycol].values
-        #P = data[self.Xcols_scaled].values
+        #Y = self.training_data[self.Ycol].values
+        Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
         P = self.basis.generate_dmatrix( data, scaleX = True).values
 
         if self.debug:

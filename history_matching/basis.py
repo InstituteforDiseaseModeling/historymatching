@@ -6,11 +6,12 @@ import pandas as pd
 import statsmodels.api as sm
 
 class Basis():
-    def __init__(self, model_terms, param_dict, param_info = None):
+    def __init__(self, model_terms, param_dict, param_info=None, verbose=False):
         self.model_terms = model_terms
         self.param_dict = param_dict
         self.D = len(self.model_terms)
         self.param_info = param_info # To normalize data to [0,1].  Should be here?
+        self.verbose = verbose
 
 
     @staticmethod
@@ -153,7 +154,7 @@ class Basis():
         for col in data.columns.tolist():
             if col in self.param_info.index:
                 data[col] = (data[col] - self.param_info.loc[col,'Min'])/(self.param_info.loc[col,'Max']-self.param_info.loc[col,'Min'])
-            else:
+            elif self.verbose:
                 print('Basis: Unable to scale %s'%col)
         return data
 
