@@ -278,6 +278,7 @@ class GPR():
             X_gpu, theta_gpu,   # <-- Inputs
             np.uint32(Nx),      # <-- N
             np.uint32(self.D),  # <-- D
+            np.uint32(-1),      # <-- Negative for no derivative
             np.uint8(X.flags.f_contiguous), # FORTRAN (column) contiguous
             block = block_dim,
             grid = grid_dim

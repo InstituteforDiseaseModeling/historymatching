@@ -10,6 +10,7 @@ import json
 
 from multiprocessing import Pool
 from functools import partial
+from collections import deque
 
 import scipy.optimize as spo
 from pycuda import driver, compiler, gpuarray, tools
@@ -192,7 +193,7 @@ class GPC():
         return kxp
 
 
-    def kxx_gpu_wrapper(self, X, theta):
+    def kxx_gpu_wrapper(self, X, theta, deriv=-1):
         Nx = X.shape[0]
         # Use from before...?
         block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
@@ -211,6 +212,7 @@ class GPC():
             X_gpu, theta_gpu,   # <-- Inputs
             np.uint32(Nx),      # <-- N
             np.uint32(self.D),  # <-- D
+            np.uint32(deriv),   # <- for dK/dtheta_i.  Negative for no deriv.
             np.uint8(X.flags.f_contiguous), # FORTRAN (column) contiguous
             block = block_dim,
             grid = grid_dim
@@ -279,7 +281,7 @@ class GPC():
         return sample
 
 
-    def find_posterior_mode(self, theta):
+    def find_posterior_mode(self, theta, f_guess=None, tol_grad=1e-5, maxiter=1000):
         # TODO: f_hat guess, or 0 if none
         # TODO: stopping criteria
 
@@ -288,12 +290,19 @@ class GPC():
         if self.verbose:
             print 'y:', y
         N = len(y)
-        f = np.zeros_like( self.training_data[self.Ycol].values )
+        if f_guess is not None:
+            f = f_guess
+            assert( isinstance(f, numpy.ndarray) )
+            assert(f.shape[0] == y.shape[0])
+            assert(f.shape[1] == y.shape[1])
+        else:
+            f = np.zeros_like( y )
+
         X = self.training_data[self.Xcols_scaled].values
 
         K = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
-        for i in range(4): # 10
+        for i in range(maxiter):
             if self.verbose: print '---[ %d ]------------------------------------'%i
             if self.verbose: print 'f:', f
 
@@ -341,11 +350,101 @@ class GPC():
             if self.verbose: print 'Computing f ...'
             f = np.dot(K, a)
 
-        log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y,f)))
-        log_q_y_given_X_theta = -0.5 * np.dot(np.transpose(a),f) + log_p_y_given_f - sum( np.log(np.diag(L)) )
-        print theta, '--> log_q_y_given_X_theta:', log_q_y_given_X_theta
+            log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y,f)))
+            log_q_y_given_X_theta = -0.5 * np.dot(np.transpose(a),f) + log_p_y_given_f - sum( np.log(np.diag(L)) )
 
-        return f, log_q_y_given_X_theta
+            d_df_log_q_y_given_X_theta = d_df_log_p_y_given_f - np.linalg.solve(K, f)
+            # print '***', log_q_y_given_X_theta, np.linalg.norm(d_df_log_q_y_given_X_theta)
+            norm_grad = np.linalg.norm(d_df_log_q_y_given_X_theta)
+            if norm_grad < tol_grad:
+                break
+
+            if i == maxiter - 1:
+                print 'WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad
+
+        print theta, '--> log_q_y_given_X_theta: %f (%d f-iterations)' % (log_q_y_given_X_theta, i)
+
+        return {
+            'f_hat':f,
+            'log_q_y_given_X_theta': log_q_y_given_X_theta,
+            'L': L,
+            'K': K,
+            'W': W,
+            'sqrtW': sqrtW,
+            'pi': pi,
+            'a': a,
+            'd_df_log_p_y_given_f': d_df_log_p_y_given_f
+        }
+
+
+    def negative_log_marginal_likelihood(self, theta):
+        log_q_y_given_X_theta = self.find_posterior_mode(theta)['log_q_y_given_X_theta']
+        return -log_q_y_given_X_theta
+
+    def negative_log_marginal_likelihood_and_gradient(self, theta, fguess=None):
+        #if np.any(theta < 0):
+        #    theta = np.abs(theta)
+        #theta += 1e-6 # Keep away from 0
+
+        # Rasmussen and Williams GPML p126 algo 5.1
+        mode_results_dict = self.find_posterior_mode(theta)
+
+        f = mode_results_dict['f_hat']
+        logZ = mode_results_dict['log_q_y_given_X_theta']
+        L = mode_results_dict['L']
+        K = mode_results_dict['K']
+        W = mode_results_dict['W']
+        sqrtW = mode_results_dict['sqrtW']
+        pi = mode_results_dict['pi']
+        a = mode_results_dict['a']
+        d_df_log_p_y_given_f = mode_results_dict['d_df_log_p_y_given_f']
+
+        X = self.training_data[self.Xcols_scaled].values
+
+        L_slash_sqrtW = np.linalg.solve(L, sqrtW)
+        R = np.dot(sqrtW, np.linalg.solve(np.transpose(L), L_slash_sqrtW))
+        C = np.linalg.solve(L, np.dot(sqrtW, K))
+
+        s2_part1 = np.diag( np.diag(K) - np.diag(np.dot(np.transpose(C),C)) )
+        d3_df3_log_p_y_given_f = pi * (1-pi) * (2*pi-1)
+
+        s2 = -0.5 * np.dot(s2_part1, d3_df3_log_p_y_given_f)
+
+        d_dtheta_logZ = np.zeros_like(theta)
+        for j in range(len(theta)):
+            # Compute dK/dtheta_j
+            if j == 0:
+                # theta_0 is sigma2_f
+                C = K / theta[0]
+            else:
+                C = self.kxx_gpu_wrapper(X, theta, deriv=j+1) # +1 because no sigma2_n
+
+            s1_part_1 = 0.5 * np.dot(np.transpose(a), np.dot(C, a))
+            s1 = s1_part_1 - 0.5 * np.trace( np.dot(R,C) ) # <-- WARNING, INEFFICIENT!  COMPUTE DIAG OF MATRIX PROD ONLY!
+            b = np.dot(C, d_df_log_p_y_given_f)
+            s3 = b - np.dot(K, np.dot(R,b))
+            d_dtheta_logZ[j] = s1 + np.dot(np.transpose(s2), s3)
+
+        if self.verbose: print 'd_dtheta_logZ:', d_dtheta_logZ
+
+        return -logZ, -d_dtheta_logZ # Careful with sign
+
+    @staticmethod
+    def func_wrapper(f, cache_size=100):
+        # http://stackoverflow.com/questions/10712789/scipy-optimize-fmin-bfgs-single-function-computes-both-f-and-fprime
+        evals = {}
+        last_points = deque()
+
+        def get(pt, which):
+            s = pt.tostring() # get binary string of numpy array, to make it hashable
+            if s not in evals:
+                evals[s] = f(pt)
+                last_points.append(s)
+                if len(last_points) >= cache_size:
+                    del evals[last_points.popleft()]
+            return evals[s][which]
+
+        return partial(get, which=0), partial(get, which=1)
 
 
     def laplace_predict(self, theta, f_hat, P):
@@ -374,7 +473,7 @@ class GPC():
         ###
 
         L = np.linalg.cholesky(B)
-        grad_log_p_y_given_f = t-pi
+        d_df_log_p_y_given_f = t-pi
 
         # p-specific code begins here:
         ret = pd.DataFrame(columns = ['Sample', 'Mean', 'Var', 'Logistic', 'Trapz'])
@@ -382,7 +481,7 @@ class GPC():
             if self.verbose: print 'Y:', sample, self.training_data.loc[sample, self.Ycol]
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
-            f_bar_star = np.dot(np.transpose(KXp), grad_log_p_y_given_f)
+            f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f)
 
             v = np.linalg.solve(L, np.dot(sqrtW, KXp))
             Kpp = self.kxx_gpu_wrapper(p, theta) # For latent distribution
@@ -408,18 +507,54 @@ class GPC():
 
         return ret
 
-    def negative_log_marginal_likelihood(self, theta):
-        #theta = np.array([theta[0], np.NaN, theta[1:]]) # UGH
-        f_hat, log_q_y_given_X_theta = self.find_posterior_mode(theta)
-        return -log_q_y_given_X_theta
 
-    def optimize_hyperparameters(self, x0, bounds, K=-1, eps=1e-2, disp=True, maxiter=15000):
+    def optimize_hyperparameters(self, x0, bounds=(), K=-1, eps=1e-2, disp=True, maxiter=15000):
         # x0 like np.array([2, 0.10, 0.14641288665436947, 0.12166006573919039, 0.05, 0.05, 0.08055223671416605, 7.026854485434267 ])
         # bounds like ((0.005,10),)+((0.01,10),) + tuple((5e-5,10) for i in range(self.D))
         # K=None is leave one out cross validation, otherwise make K groups
         idx = self.training_data.index.names    # Save index
         self.training_data.reset_index(inplace=True)
 
+        f_, fprime = GPC.func_wrapper(self.negative_log_marginal_likelihood_and_gradient)
+        '''
+        ret = spo.minimize(
+            fun = f_,
+            x0 = x0,
+            #args=(X,Y,P),
+            jac = (),#fprime,
+            method='CG',
+            bounds = bounds, # Constrain values
+            hess=None, hessp=None,
+            constraints=(), tol=None, callback=None,
+            options= {
+                'maxiter':maxiter,
+                'disp':disp,
+                'eps': eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
+            }
+        )
+        '''
+
+        ret = spo.minimize(
+            fun = f_,
+            #args=(X,Y,P),
+            x0 = x0,
+            method='L-BFGS-B',
+            bounds = bounds, # Constrain values
+            jac = fprime, 
+            #jac = (), 
+            hess=None, hessp=None,
+            constraints=(), tol=None, callback=None,
+            options= {
+                'maxiter':maxiter,
+                'disp':disp,
+                'ftol': 1e-12,
+                'gtol': 1e-12,
+                'factr': 0.01,
+                'eps':eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
+            }
+        )
+
+        '''
         ret = spo.minimize(
             self.negative_log_marginal_likelihood,
             #args=(X,Y,P),
@@ -434,10 +569,12 @@ class GPC():
                 'eps':eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
             }
         )
+        '''
         print 'OPTIMIZATION RETURNED:\n', ret
         self.theta = ret.x # Length scales now on 0-1 range
+        #self.theta = np.abs(ret.x) + 1e-6 # Length scales now on 0-1 range
 
-        f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
+        f_hat = self.find_posterior_mode(self.theta)['f_hat']
         np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
 
         print 'OPTIMIZATION RETURNED:\n', ret
@@ -445,8 +582,6 @@ class GPC():
         # Restore original index
         if idx[0] is not None:
             self.training_data.set_index(idx, inplace=True)
-
-        self.theta = ret.x # Length scales now on 0-1 range
 
 
     def evaluate(self, data):
@@ -457,27 +592,10 @@ class GPC():
             xc_new = xc+' (scaled)'
             data[xc+' (scaled)'] = (data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
-
         # PREDICT:
         if True:
-            f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
+            f_hat = self.find_posterior_mode(self.theta)['f_hat']
             np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
-
-            ''' # TEMP STUFF HERE
-            self.theta = np.array([ 1.1573295, 0.1, 1., 1., 0.30402957, 1., 1., 1.])
-            f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
-            #np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
-            ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
-            with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
-                print ret
-
-            self.theta = np.array([ 1.0, 0.1, 0.15, 1., 1., 0.01, 0.1, 0.1])
-            f_hat, log_q_y_given_X_theta = self.find_posterior_mode(self.theta)
-            ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
-            with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
-                print ret
-            exit()
-            '''
         else:
             f_hat = np.genfromtxt('f_hat.csv', delimiter=',')
 
