@@ -72,11 +72,12 @@ NormDF = np.zeros_like(S2)
 dS2 = np.zeros_like(S2)
 dL2 = np.zeros_like(S2)
 
+f_hat = None
 for i, s2 in enumerate(sigma2_vec):
     for j, l2 in enumerate(l2_vec):
         S2[i,j] = s2
         L2[i,j] = l2
-        f, df = g.negative_log_marginal_likelihood_and_gradient(np.array([s2, l2]))
+        f, df, f_hat = g.negative_log_marginal_likelihood_and_gradient(np.array([s2, l2]), f_hat)
         NLML[i,j] = f
         dS2[i,j] = df[0] * ((np.max(sigma2_vec) - np.min(sigma2_vec))/(np.max(l2_vec)-np.min(l2_vec)))**2
         dL2[i,j] = df[1]
@@ -92,7 +93,7 @@ print 'L2:', L2[i,j]
 # Plot the surface.
 surf1 = ax1.plot_surface(S2, L2, NLML, cmap=cm.coolwarm, linewidth=0, antialiased=False)
 q1 = ax2.quiver(S2, L2, dS2, dL2, angles='xy', scale_units='xy', units='xy') #, scale=1, units='xy', scale_units='xy', angles='xy')
-ax1.scatter(S2[i,j], L2[i,j], NLML[i,j], c='r', s=50, marker='*')
+ax1.scatter(S2[i,j], L2[i,j], NLML[i,j], c='r', s=200, marker='*')
 ax2.scatter(S2[i,j], L2[i,j], c='r', marker='*', s=50)
 #surf2 = ax2.plot_surface(S2, L2, NormDF, cmap=cm.coolwarm, linewidth=0, antialiased=False)
 

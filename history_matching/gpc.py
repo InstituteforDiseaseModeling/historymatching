@@ -292,9 +292,8 @@ class GPC():
         N = len(y)
         if f_guess is not None:
             f = f_guess
-            assert( isinstance(f, numpy.ndarray) )
+            assert( isinstance(f, np.ndarray) )
             assert(f.shape[0] == y.shape[0])
-            assert(f.shape[1] == y.shape[1])
         else:
             f = np.zeros_like( y )
 
@@ -381,13 +380,13 @@ class GPC():
         log_q_y_given_X_theta = self.find_posterior_mode(theta)['log_q_y_given_X_theta']
         return -log_q_y_given_X_theta
 
-    def negative_log_marginal_likelihood_and_gradient(self, theta, fguess=None):
+    def negative_log_marginal_likelihood_and_gradient(self, theta, f_guess=None):
         #if np.any(theta < 0):
         #    theta = np.abs(theta)
         #theta += 1e-6 # Keep away from 0
 
         # Rasmussen and Williams GPML p126 algo 5.1
-        mode_results_dict = self.find_posterior_mode(theta)
+        mode_results_dict = self.find_posterior_mode(theta, f_guess)
 
         f = mode_results_dict['f_hat']
         logZ = mode_results_dict['log_q_y_given_X_theta']
@@ -427,7 +426,7 @@ class GPC():
 
         if self.verbose: print 'd_dtheta_logZ:', d_dtheta_logZ
 
-        return -logZ, -d_dtheta_logZ # Careful with sign
+        return -logZ, -d_dtheta_logZ, f # Careful with sign
 
     @staticmethod
     def func_wrapper(f, cache_size=100):
