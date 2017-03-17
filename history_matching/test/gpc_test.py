@@ -6,7 +6,7 @@ from history_matching.gpc import GPC
 # WARNING: FIXING RANDOM SEED!
 np.random.seed(0)
 
-N = 250
+N = 1000
 x = np.linspace(0,2*np.pi,N)
 f = (np.sin(x) + 1)/2.
 y = 2 * (np.random.rand(N) < f) - 1
@@ -33,7 +33,7 @@ g = GPC(['x'], 'y', data, param_info,
 
 if True:
     g.optimize_hyperparameters(
-        x0 = [6, 0.1],
+        x0 = [4, 0.1],
         bounds = ((0.01,20),(0.01,0.1)),
         eps=1e-2,
         disp=True,
@@ -54,6 +54,8 @@ ax1.plot(p['x'], prediction['Trapz'], 'b.:')
 
 ax2.errorbar(x=p['x'], y=prediction['Mean'], yerr=np.sqrt(prediction['Var']))
 
+plt.show(); exit()
+
 # THETA PLOT
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -63,8 +65,8 @@ ax1 = fig.add_subplot(1,2,1, projection='3d')
 ax2 = fig.add_subplot(1,2,2) #, projection='3d')
 
 # Make data.
-sigma2_vec = np.linspace(1, 10, 25)
-l2_vec = np.linspace(0.01, 0.1, 25)
+sigma2_vec = np.linspace(1, 15, 5)
+l2_vec = np.linspace(0.01, 0.1, 5)
 S2 = np.zeros( [len(sigma2_vec), len(l2_vec)] )
 L2 = np.zeros_like(S2)
 NLML = np.zeros_like(S2)
@@ -79,8 +81,8 @@ for i, s2 in enumerate(sigma2_vec):
         L2[i,j] = l2
         f, df, f_hat = g.negative_log_marginal_likelihood_and_gradient(np.array([s2, l2]), f_hat)
         NLML[i,j] = f
-        dS2[i,j] = df[0] * ((np.max(sigma2_vec) - np.min(sigma2_vec))/(np.max(l2_vec)-np.min(l2_vec)))**2
-        dL2[i,j] = df[1]
+        dS2[i,j] = df[0] * (np.max(sigma2_vec)-np.min(sigma2_vec))**2 #* ((np.max(sigma2_vec) - np.min(sigma2_vec))/(np.max(l2_vec)-np.min(l2_vec)))**2
+        dL2[i,j] = df[1] * (np.max(l2_vec)-np.min(l2_vec))**2
         NormDF[i,j] = np.linalg.norm(df)
 
 amin = NLML.argmin()
@@ -93,7 +95,7 @@ print 'L2:', L2[i,j]
 # Plot the surface.
 surf1 = ax1.plot_surface(S2, L2, NLML, cmap=cm.coolwarm, linewidth=0, antialiased=False)
 q1 = ax2.quiver(S2, L2, dS2, dL2, angles='xy', scale_units='xy', units='xy') #, scale=1, units='xy', scale_units='xy', angles='xy')
-ax1.scatter(S2[i,j], L2[i,j], NLML[i,j], c='r', s=200, marker='*')
+ax1.scatter(S2[i,j], L2[i,j], NLML[i,j]*1.1, c='r', s=500, marker='*')
 ax2.scatter(S2[i,j], L2[i,j], c='r', marker='*', s=50)
 #surf2 = ax2.plot_surface(S2, L2, NormDF, cmap=cm.coolwarm, linewidth=0, antialiased=False)
 

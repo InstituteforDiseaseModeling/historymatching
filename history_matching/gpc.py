@@ -401,15 +401,32 @@ class GPC():
         X = self.training_data[self.Xcols_scaled].values
 
         L_slash_sqrtW = np.linalg.solve(L, sqrtW)
-        R = np.dot(sqrtW, np.linalg.solve(np.transpose(L), L_slash_sqrtW))
+        R = np.dot(sqrtW, np.linalg.solve(np.transpose(L), L_slash_sqrtW)) # <-- good
+
+
         C = np.linalg.solve(L, np.dot(sqrtW, K))
+
+        #print np.diag(K - np.dot(np.transpose(C),C)) - np.diag(K - np.dot(K,np.linalg.solve(np.linalg.inv(W)+K,K)))
+        #exit()
+
+        N = f.shape[0]
+        # L is good
 
         s2_part1 = np.diag( np.diag(K) - np.diag(np.dot(np.transpose(C),C)) )
         d3_df3_log_p_y_given_f = pi * (1-pi) * (2*pi-1)
-
         s2 = -0.5 * np.dot(s2_part1, d3_df3_log_p_y_given_f)
 
         d_dtheta_logZ = np.zeros_like(theta)
+        '''
+        d_dtheta_logZ_UGH = np.zeros_like(theta)
+        #Kinv_plus_W_all_inv = np.linalg.inv(np.linalg.inv(K)+W)
+        d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
+        Winv = np.diag( -1.0/d2_df2_log_p_y_given_f ) # NOTE: Using logit (3.15)
+        Kinv_plus_W_all_inv = K - np.dot(K, np.dot( np.linalg.inv(Winv+K), K))
+        #print Kinv_plus_W_all_inv - ( K - np.dot(K, np.linalg.solve(np.linalg.inv(W)+K,K)) )
+        I_plus_KW_all_inv = np.linalg.inv(np.eye(N)+np.dot(K,W))
+        '''
+
         for j in range(len(theta)):
             # Compute dK/dtheta_j
             if j == 0:
@@ -422,7 +439,32 @@ class GPC():
             s1 = s1_part_1 - 0.5 * np.trace( np.dot(R,C) ) # <-- WARNING, INEFFICIENT!  COMPUTE DIAG OF MATRIX PROD ONLY!
             b = np.dot(C, d_df_log_p_y_given_f)
             s3 = b - np.dot(K, np.dot(R,b))
-            d_dtheta_logZ[j] = s1 + np.dot(np.transpose(s2), s3)
+            d_dtheta_logZ[j] = s1 + np.dot(np.transpose(s2), s3) #s1 seems good, s2 is good
+
+            '''
+            d_dtheta_logZ_UGH[j] = 0.5*np.dot(np.transpose(f), 
+                                    np.linalg.solve(K, 
+                                        np.dot(C,a) 
+                                    )
+                                ) \
+                      -0.5 * np.trace( np.linalg.solve( np.linalg.inv(W)+K, C ) )
+
+            the_rest = 0
+            d_fhat_dtheta_j = np.dot(I_plus_KW_all_inv, np.dot(C,d_df_log_p_y_given_f))
+            s22 = np.zeros(N)
+            the_rest = 0
+            for i in range(N):
+                part2 = -0.5 * Kinv_plus_W_all_inv[i,i] * d3_df3_log_p_y_given_f[i]
+                s22[i] += part2
+                the_rest += part2 * d_fhat_dtheta_j[i]
+            d_dtheta_logZ_UGH[j] += the_rest
+            #print d_dtheta_logZ[j], d_dtheta_logZ_UGH[j], d_dtheta_logZ_UGH[j]-d_dtheta_logZ[j]
+            #print s22-np.diag(s2_part1)
+            #print s2 - s22
+            #print s3 -d_fhat_dtheta_j
+            #print np.dot(np.transpose(s2), s3) - the_rest
+            print d_dtheta_logZ[j] - d_dtheta_logZ_UGH[j]
+            '''
 
         if self.verbose: print 'd_dtheta_logZ:', d_dtheta_logZ
 
@@ -539,8 +581,8 @@ class GPC():
             x0 = x0,
             method='L-BFGS-B',
             bounds = bounds, # Constrain values
-            jac = fprime, 
-            #jac = (), 
+            #jac = fprime, 
+            jac = (), 
             hess=None, hessp=None,
             constraints=(), tol=None, callback=None,
             options= {
