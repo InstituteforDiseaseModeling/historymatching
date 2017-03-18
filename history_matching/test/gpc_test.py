@@ -6,9 +6,10 @@ from history_matching.gpc import GPC
 # WARNING: FIXING RANDOM SEED!
 np.random.seed(0)
 
-N = 1000
+N = 50
 x = np.linspace(0,2*np.pi,N)
 f = (np.sin(x) + 1)/2.
+#f = 1 / (1 + np.exp(-x))
 y = 2 * (np.random.rand(N) < f) - 1
 
 data = pd.DataFrame({
@@ -54,7 +55,7 @@ ax1.plot(p['x'], prediction['Trapz'], 'b.:')
 
 ax2.errorbar(x=p['x'], y=prediction['Mean'], yerr=np.sqrt(prediction['Var']))
 
-plt.show(); exit()
+#plt.show(); exit()
 
 # THETA PLOT
 from mpl_toolkits.mplot3d import Axes3D
@@ -65,8 +66,8 @@ ax1 = fig.add_subplot(1,2,1, projection='3d')
 ax2 = fig.add_subplot(1,2,2) #, projection='3d')
 
 # Make data.
-sigma2_vec = np.linspace(1, 15, 5)
-l2_vec = np.linspace(0.01, 0.1, 5)
+sigma2_vec = np.linspace(1, 15, 25)
+l2_vec = np.linspace(0.01, 0.1, 25)
 S2 = np.zeros( [len(sigma2_vec), len(l2_vec)] )
 L2 = np.zeros_like(S2)
 NLML = np.zeros_like(S2)

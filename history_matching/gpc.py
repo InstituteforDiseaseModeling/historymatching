@@ -557,12 +557,13 @@ class GPC():
         self.training_data.reset_index(inplace=True)
 
         f_, fprime = GPC.func_wrapper(self.negative_log_marginal_likelihood_and_gradient)
+
         '''
         ret = spo.minimize(
             fun = f_,
             x0 = x0,
             #args=(X,Y,P),
-            jac = (),#fprime,
+            jac = fprime,
             method='CG',
             bounds = bounds, # Constrain values
             hess=None, hessp=None,
@@ -581,8 +582,8 @@ class GPC():
             x0 = x0,
             method='L-BFGS-B',
             bounds = bounds, # Constrain values
-            #jac = fprime, 
-            jac = (), 
+            jac = fprime, 
+            #jac = (), 
             hess=None, hessp=None,
             constraints=(), tol=None, callback=None,
             options= {
