@@ -25,7 +25,8 @@ class HistoryMatching():
         discrepancy_var = 0,
         training_fraction = 0.75,
         normalize_gpr_y = True,
-        use_glm = True      # Disable the glm by setting to False
+        use_glm = True,      # Disable the glm by setting to False
+        verbose = False
     ):
         """
         :param DataFrame param_info: Parameter info with index named 'Name' containing parameter name, and columns of 'Min' and 'Max'
@@ -49,6 +50,7 @@ class HistoryMatching():
         self.training_fraction = training_fraction
         self.iteration = iteration
         self.use_glm = use_glm
+        self.verbose = verbose
 
         #Xcols_all = self.param_info.index.unique().values.tolist()
 
@@ -217,7 +219,8 @@ class HistoryMatching():
             self.training_data = self.training_data.join(train_mean['Yglm'])
             self.training_data['Yerr'] = self.training_data[self.Ycol] - self.training_data['Yglm']
 
-            #print 'Best and worst training errors:\n', train.sort_values(by='Yerr')
+            if self.verbose:
+                print 'Best and worst training errors:\n', self.training_data['Yerr'].sort_values()
 
             self.test_data = self.test_data.join(test_mean['Yglm'])
             self.test_data['Yerr'] = self.test_data[self.Ycol] - self.test_data['Yglm']
@@ -225,13 +228,13 @@ class HistoryMatching():
             #train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
             #test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
 
-            #print 'Best and worst test errors:\n', test.sort_values(by='Yerr')
+            if self.verbose:
+                print 'Best and worst test errors:\n', self.test_data['Yerr'].sort_values()
 
 
     def gpr(self, basis,
         force_optimize_gpr = True,
         K_folds = 5,
-        eps = 1e-2,
         method = 'CrossValidation',
         verbose = False,
         plot = True,
@@ -240,7 +243,8 @@ class HistoryMatching():
         sigma2_n_guess = 0.10,
         sigma2_n_bounds = (0.01,10),
         lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
-        lengthscale_bounds = (0.01,1)
+        lengthscale_bounds = (0.01,1),
+        optimizer_options= {}
     ):
         assert( method in ['CrossValidation'] ) # Supporint only CV for now
 
@@ -275,8 +279,9 @@ class HistoryMatching():
             self.gpr_model.optimize_hyperparameters(
                 x0 = np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess),
                 bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
-                eps = eps,
-                K = K_folds
+                #eps = eps,
+                K = K_folds,
+                optimizer_options = optimizer_options
             )
             self.gpr_model.save(gpr_model_fn)
 
@@ -352,6 +357,16 @@ class HistoryMatching():
                     abs( self.test_data['Mean_Estimate'] - self.desired_result ) / \
                     np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var)
         self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > self.implausibility_threshold
+
+
+        self.training_data['Z_Noisy'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Predictive'])
+        self.training_data['Z_Noiseless'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Latent'])
+        self.test_data['Z_Noisy'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / np.sqrt(self.test_data['Var_Err_Predictive'])
+        self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / np.sqrt(self.test_data['Var_Err_Latent'])
+
+        if self.verbose:
+            print 'Best and worst training Z-scores:\n', self.training_data['Z_Noisy'].sort_values()
+            print 'Best and worst test Z-scores:\n', self.test_data['Z_Noisy'].sort_values()
 
         if plot:
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()

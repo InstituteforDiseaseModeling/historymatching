@@ -16,7 +16,7 @@ class HistoryMatchingCut():
         #self.Xcols_all = None
         self.Xcols_all_orig = None
 
-    def cut(self, num_desired_candidates = 5000):
+    def cut(self, num_desired_candidates = 5000, constraint = None):
 
         hm_params = {}
         glm_all = {}
@@ -72,6 +72,8 @@ class HistoryMatchingCut():
                 lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
 
             new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all_orig)
+            if constraint is not None:
+                new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
             new_candidates['Implausible'] = False
 
             for cut in cuts:

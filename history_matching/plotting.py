@@ -136,11 +136,6 @@ def joint_plot(data, data_mean, Ycol, desired_result, log_x = False):
 
 def plot_errors(train, test, Ycol, desired_result):
 
-    train['Z_Noisy'] = (train[Ycol] - train['Mean_Estimate']) / np.sqrt(train['Var_Err_Predictive'])
-    train['Z_Noiseless'] = (train[Ycol] - train['Mean_Estimate']) / np.sqrt(train['Var_Err_Latent'])
-    test['Z_Noisy'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Predictive'])
-    test['Z_Noiseless'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Latent'])
-
     test_impl = test.set_index('Implausible')
     train_impl = train.set_index('Implausible')
 
