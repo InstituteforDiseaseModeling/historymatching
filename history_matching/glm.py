@@ -178,19 +178,23 @@ class GLM(object):
 
         figs = {}
 
-        Xcols = basis.get_terms()
+        Xcols = self.basis.get_terms()
+        Xcols.remove('Intercept')
+        dmat = self.basis.generate_dmatrix(self.training_data, scaleX=True)
+        cp_dmat = self.basis.generate_dmatrix(circle_points, scaleX=True)
+        print '\n'.join(cp_dmat.columns.tolist())
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
                     fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
                     figs[fn] = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
-                    x = self.training_data[ Xcols[row] ]
-                    y = self.training_data[ Xcols[col] ]
+                    x = dmat[ Xcols[row] ]
+                    y = dmat[ Xcols[col] ]
 
                     plt.scatter(x, y, s=np.maximum(1, 5*scaled), c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
-                    for idx, pt in circle_points.iterrows():
+                    for idx, pt in cp_dmat.iterrows():
                         plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
                         #scl = np.log(1+pt[self.Ycol])# / self.training_data[self.Ycol].max()
                         #plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=10*scl, alpha=1, linewidths=2.0, facecolors="None", edgecolors='k') #, s=area, c=colors, alpha=0.5)

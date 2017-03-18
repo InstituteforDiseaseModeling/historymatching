@@ -546,6 +546,8 @@ class GPR():
         X = self.basis.generate_dmatrix( self.training_data, scaleX = True)#.values
         Xcols = X.columns.tolist()
 
+        samples_to_circle_dmat = self.basis.generate_dmatrix( samples_to_circle, scaleX = True)
+
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
@@ -554,14 +556,14 @@ class GPR():
                     fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
                     fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
-                    x = X[ Xcols[row] ]
-                    y = X[ Xcols[col] ]
+                    x = np.sqrt( X[Xcols[row]] )
+                    y = np.sqrt( X[Xcols[col]] )
 
                     plt.scatter(x, y, s=scaled, c=self.training_data[self.Ycol], cmap='jet', lw=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
                     # Circle some interesting samples
-                    for s in samples_to_circle:
-                        plt.scatter(X[s][ Xcols[row] ], X[s][ Xcols[col] ], s=10+scaled.loc[s], alpha=1, lw=1.0, facecolors="None", edgecolors='k') #, s=area, c=colors, alpha=0.5)
+                    for idx, s in samples_to_circle_dmat.iterrows():
+                        plt.scatter(np.sqrt(s[Xcols[row]]), np.sqrt(s[Xcols[col]]), s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
                     plt.autoscale(tight=True)
                     plt.xlabel( Xcols[row] )
