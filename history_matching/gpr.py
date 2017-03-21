@@ -123,16 +123,9 @@ class GPR():
         # Normalize training data as in __init__
         self.training_data[self.Ycol] = self.normalize(self.training_data[self.Ycol_orig])
 
-        #for xc in self.Xcols:
-        #    xc_new = xc+' (scaled)'
-        #    self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
-
 
     def save(self, save_to):
         with open(save_to, 'w') as fout:
-            print self.normalizer_mean
-            print self.normalizer_std
-
             json.dump(
                 {
                     'Basis'         : self.basis.serialize(),
@@ -573,7 +566,8 @@ class GPR():
         X = self.basis.generate_dmatrix( self.training_data, scaleX = True)#.values
         Xcols = X.columns.tolist()
 
-        samples_to_circle_dmat = self.basis.generate_dmatrix( samples_to_circle, scaleX = True)
+        if samples_to_circle.shape[0] > 0:
+            samples_to_circle_dmat = self.basis.generate_dmatrix( samples_to_circle, scaleX = True)
 
         for row in range(self.D):
             for col in range(self.D):
@@ -589,8 +583,9 @@ class GPR():
                     plt.scatter(x, y, s=scaled, c=self.training_data[self.Ycol], cmap='jet', lw=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
                     # Circle some interesting samples
-                    for idx, s in samples_to_circle_dmat.iterrows():
-                        plt.scatter(np.sqrt(s[Xcols[row]]), np.sqrt(s[Xcols[col]]), s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+                    if samples_to_circle.shape[0] > 0:
+                        for idx, s in samples_to_circle_dmat.iterrows():
+                            plt.scatter(np.sqrt(s[Xcols[row]]), np.sqrt(s[Xcols[col]]), s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
                     plt.autoscale(tight=True)
                     plt.xlabel( Xcols[row] )

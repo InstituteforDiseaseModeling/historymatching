@@ -323,7 +323,7 @@ class HistoryMatching():
 
             #circle_samples = train.sort_values(by='Yerr').iloc[[0, -1]].reset_index()['Sample'].values
             #fig = self.gpr_model.plot_data(samples_to_circle=circle_samples);    fig.savefig( os.path.join(self.gprdir, 'data.pdf') );    plt.close(fig)
-            if True: # TODO: Save plots as they are made in GPR class!
+            if False: # TODO: Save plots as they are made in GPR class!
                 pairdir = os.path.join(self.gprdir, 'PairwiseResults')
                 if not os.path.exists( pairdir):
                     os.mkdir( pairdir )
