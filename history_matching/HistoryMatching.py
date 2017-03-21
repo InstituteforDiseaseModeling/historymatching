@@ -220,7 +220,7 @@ class HistoryMatching():
             self.training_data['Yerr'] = self.training_data[self.Ycol] - self.training_data['Yglm']
 
             if self.verbose:
-                print 'Best and worst training errors:\n', self.training_data['Yerr'].sort_values()
+                print 'Best and worst training errors:\n', self.training_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
 
             self.test_data = self.test_data.join(test_mean['Yglm'])
             self.test_data['Yerr'] = self.test_data[self.Ycol] - self.test_data['Yglm']
@@ -229,7 +229,7 @@ class HistoryMatching():
             #test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
 
             if self.verbose:
-                print 'Best and worst test errors:\n', self.test_data['Yerr'].sort_values()
+                print 'Best and worst test errors:\n', self.test_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
 
 
     def gpr(self, basis,
@@ -328,6 +328,7 @@ class HistoryMatching():
                 if not os.path.exists( pairdir):
                     os.mkdir( pairdir )
                 circle_samples = pd.DataFrame()
+                circle_samples = self.training_data.loc[[1931]]
 
                 figs = self.gpr_model.plot_data(samples_to_circle=circle_samples, saveto_dir = pairdir)
             ''''
@@ -365,8 +366,8 @@ class HistoryMatching():
         self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / np.sqrt(self.test_data['Var_Err_Latent'])
 
         if self.verbose:
-            print 'Best and worst training Z-scores:\n', self.training_data['Z_Noisy'].sort_values()
-            print 'Best and worst test Z-scores:\n', self.test_data['Z_Noisy'].sort_values()
+            print 'Best and worst training Z-scores:\n', self.training_data[['Sim_Result', 'Yerr', 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
+            print 'Best and worst test Z-scores:\n', self.test_data[['Sim_Result', 'Yerr', 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
 
         if plot:
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
