@@ -24,7 +24,6 @@ class HistoryMatching():
         implausibility_threshold = 3,
         discrepancy_var = 0,
         training_fraction = 0.75,
-        normalize_gpr_y = True,
         use_glm = True,      # Disable the glm by setting to False
         verbose = False
     ):
@@ -244,6 +243,7 @@ class HistoryMatching():
         sigma2_n_bounds = (0.01,10),
         lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
         lengthscale_bounds = (0.01,1),
+        normalize_y = True,
         optimizer_options= {}
     ):
         assert( method in ['CrossValidation'] ) # Supporint only CV for now
@@ -264,6 +264,7 @@ class HistoryMatching():
                 param_info = self.param_info,
                 kernel_mode = 'RBF',
                 kernel_params = None,
+                normalize_y = normalize_y,
                 verbose = verbose,
                 debug = False   )
 
@@ -323,12 +324,12 @@ class HistoryMatching():
 
             #circle_samples = train.sort_values(by='Yerr').iloc[[0, -1]].reset_index()['Sample'].values
             #fig = self.gpr_model.plot_data(samples_to_circle=circle_samples);    fig.savefig( os.path.join(self.gprdir, 'data.pdf') );    plt.close(fig)
-            if False: # TODO: Save plots as they are made in GPR class!
+            if True: # TODO: Save plots as they are made in GPR class!
                 pairdir = os.path.join(self.gprdir, 'PairwiseResults')
                 if not os.path.exists( pairdir):
                     os.mkdir( pairdir )
                 circle_samples = pd.DataFrame()
-                circle_samples = self.training_data.loc[[1931]]
+                #circle_samples = self.training_data.loc[[1931]]
 
                 figs = self.gpr_model.plot_data(samples_to_circle=circle_samples, saveto_dir = pairdir)
             ''''
@@ -366,8 +367,12 @@ class HistoryMatching():
         self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / np.sqrt(self.test_data['Var_Err_Latent'])
 
         if self.verbose:
-            print 'Best and worst training Z-scores:\n', self.training_data[['Sim_Result', 'Yerr', 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
-            print 'Best and worst test Z-scores:\n', self.test_data[['Sim_Result', 'Yerr', 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
+            if self.use_glm:
+                Ycol = 'Yerr'
+            else:
+                Ycol = 'Sim_Result'
+            print 'Best and worst training Z-scores:\n', self.training_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
+            print 'Best and worst test Z-scores:\n', self.test_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
 
         if plot:
             train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
