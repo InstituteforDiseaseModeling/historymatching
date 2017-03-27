@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
+import matplotlib as mpl
 import seaborn as sns
 import os
 import copy
@@ -20,8 +21,6 @@ from pycuda.compiler import SourceModule
 from string import Template
 import skcuda.misc as misc
 from basis import Basis
-
-plt.rcParams['image.cmap'] = 'jet'
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
@@ -547,7 +546,6 @@ class GPR():
             #plt.plot(P[:,0], f, '|-')
             plt.errorbar(P[:,0], f, yerr=2*stdf, lw=1)
         elif self.D == 2:
-            print '2D'
             fig = plt.figure()
             plt.scatter(X[:,0], X[:,1], s=Y, c=Y, edgecolor='k', linewidth=2, cmap='jet')
             plt.scatter(P[:,0], P[:,1], s=f, c=f, linewidth=0, cmap='jet')
@@ -558,8 +556,10 @@ class GPR():
                     'Var_Predictive': self.inverse_normalize_var(np.diag(covf) + self.theta[1]*np.ones(P.shape[0])),
                     'Fig': fig      }
 
-    def plot_data(self, samples_to_circle=[], saveto_dir = None):
-        scaled = 5 + 45*(self.training_data[self.Ycol] - self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max() - self.training_data[self.Ycol].min())
+    def plot_data(self, samples_to_circle=pd.DataFrame(), saveto_dir = None, log_scale=False):
+        scaled = (self.training_data[self.Ycol]-self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max()-self.training_data[self.Ycol].min())
+        if log_scale:
+            scaled = np.log( 10*scaled+1 )
 
         figs = {}
 
@@ -572,20 +572,18 @@ class GPR():
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
-                    #gs = gridspec.GridSpec(self.D-1, self.D-1)
-                    #ax = fig.add_subplot(gs[col-1,row])
                     fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
                     fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
-                    x = np.sqrt( X[Xcols[row]] )
-                    y = np.sqrt( X[Xcols[col]] )
+                    x = X[Xcols[row]]
+                    y = X[Xcols[col]]
 
-                    plt.scatter(x, y, s=scaled, c=self.training_data[self.Ycol], cmap='jet', lw=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
+                    plt.scatter(x, y, s=np.maximum(1, 25*scaled), c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
                     # Circle some interesting samples
                     if samples_to_circle.shape[0] > 0:
-                        for idx, s in samples_to_circle_dmat.iterrows():
-                            plt.scatter(np.sqrt(s[Xcols[row]]), np.sqrt(s[Xcols[col]]), s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+                        for idx, pt in samples_to_circle_dmat.iterrows():
+                            plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
                     plt.autoscale(tight=True)
                     plt.xlabel( Xcols[row] )
@@ -653,7 +651,7 @@ class GPR():
                         print 'Unable to plot mean contour'
                         pass
 
-                    ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25)
+                    ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25, cmap='jet')
 
                     try:
                         CS = ax_std_latent.contour(X1, X2, Y_std_latent, zorder=100)

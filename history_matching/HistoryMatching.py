@@ -7,7 +7,7 @@ from pyDOE import lhs
 
 from glm import GLM
 from gpr import GPR
-from plotting import joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
+from plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
 
 # TODO: Error plot
 # TODO: Reference plot
@@ -149,7 +149,8 @@ class HistoryMatching():
             force_optimize_glm = False,
             glm_fit_maxiter = 100000,
             family = 'Poisson', # e.g. Poisson, Gaussian
-            plot = True
+            plot = True,
+            plot_data = False
         ):
 
             if not self.use_glm:
@@ -196,17 +197,15 @@ class HistoryMatching():
             if plot:
                 print('Plotting')
 
-                if False:
-                    # TODO: Save plots as they are made in GLM class
-                    cp = pd.DataFrame()
-                    #print test_mean.loc[[2110]]
-                    #cp = test_mean.loc[[2110]]
-                    figs = self.glm_model.plot_data(circle_points=cp);
+                if plot_data:
+                    # TODO: Save plots as they are made in GPR class
                     pairdir = os.path.join(self.glmdir, 'PairwiseResults')
                     if not os.path.exists( pairdir):
                         os.mkdir( pairdir )
-                    for fn,fig in figs.iteritems():
-                        fig.savefig( os.path.join(pairdir, fn) ); plt.close(fig)
+                    cp = pd.DataFrame()
+                    #print test_mean.loc[[2110]]
+                    #cp = test_mean.loc[[2110]]
+                    figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
 
                 fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed.pdf') ); plt.close(fig)
                 fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals.pdf') );  plt.close(fig)
@@ -237,6 +236,7 @@ class HistoryMatching():
         method = 'CrossValidation',
         verbose = False,
         plot = True,
+        plot_data = False,
         sigma2_f_guess = 2,
         sigma2_f_bounds = (0.005,10),
         sigma2_n_guess = 0.10,
@@ -324,7 +324,7 @@ class HistoryMatching():
 
             #circle_samples = train.sort_values(by='Yerr').iloc[[0, -1]].reset_index()['Sample'].values
             #fig = self.gpr_model.plot_data(samples_to_circle=circle_samples);    fig.savefig( os.path.join(self.gprdir, 'data.pdf') );    plt.close(fig)
-            if True: # TODO: Save plots as they are made in GPR class!
+            if plot_data: # TODO: Save plots as they are made in GPR class!
                 pairdir = os.path.join(self.gprdir, 'PairwiseResults')
                 if not os.path.exists( pairdir):
                     os.mkdir( pairdir )
@@ -346,9 +346,7 @@ class HistoryMatching():
             plt.close(fig)
 
 
-    def calc_and_plot_implausibility(self,
-        plot = False
-    ):
+    def calc_and_plot_implausibility(self, plot=False, do_plot_data=False, plot_data_highlight=pd.DataFrame()):
 
         self.training_data['Implausibility'] = \
                     abs( self.training_data['Mean_Estimate'] - self.desired_result ) / \
@@ -380,6 +378,13 @@ class HistoryMatching():
 
             fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
             fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
+
+            if do_plot_data:
+                pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
+                plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)
+
+                pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
+                plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)
 
             fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); 
             #plt.show()

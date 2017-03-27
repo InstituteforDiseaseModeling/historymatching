@@ -172,42 +172,53 @@ class GLM(object):
         return fig
 
 
-    def plot_data_multiD(self, circle_points=[]):
-        #scaled = self.training_data[self.Ycol] / self.training_data[self.Ycol].max()
-        scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
+    def plot_data_multiD(self, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True):
+        scaled = (self.training_data[self.Ycol]-self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max()-self.training_data[self.Ycol].min())
+        if log_scale:
+            scaled = np.log( 10*scaled+1 )
 
         figs = {}
 
-        Xcols = self.basis.get_terms()
-        Xcols.remove('Intercept')
-        dmat = self.basis.generate_dmatrix(self.training_data, scaleX=True)
-        cp_dmat = self.basis.generate_dmatrix(circle_points, scaleX=True)
-        print '\n'.join(cp_dmat.columns.tolist())
-        for row in range(self.D):
-            for col in range(self.D):
+        basis = Basis.identity_basis(params=self.basis.param_info.index.unique().tolist(), param_info=self.basis.param_info)
+        Xcols = basis.get_terms()
+        dmat = basis.generate_dmatrix(self.training_data, scaleX=True)
+
+        if circle_points.shape[0] > 0:
+            cp_dmat = basis.generate_dmatrix(circle_points, scaleX=True)
+
+        reverse_param_dict = {v:k for k,v in self.basis.param_dict.iteritems()}
+
+        for row in range(len(Xcols)):
+            for col in range(len(Xcols)):
                 if col > row:
                     fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
-                    figs[fn] = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+                    fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
-                    x = dmat[ Xcols[row] ]
-                    y = dmat[ Xcols[col] ]
+                    x_name = reverse_param_dict[ Xcols[row] ]
+                    y_name = reverse_param_dict[ Xcols[col] ]
+                    x = (dmat[ Xcols[row] ] + basis.param_info.loc[x_name]['Min']) * (basis.param_info.loc[x_name]['Max'] - basis.param_info.loc[x_name]['Min'])
+                    y = (dmat[ Xcols[col] ] + basis.param_info.loc[y_name]['Min']) * (basis.param_info.loc[y_name]['Max'] - basis.param_info.loc[y_name]['Min'])
 
-                    plt.scatter(x, y, s=np.maximum(1, 5*scaled), c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
+                    plt.scatter(x, y, s=np.maximum(1, 25*scaled), c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
-                    for idx, pt in cp_dmat.iterrows():
-                        plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
-                        #scl = np.log(1+pt[self.Ycol])# / self.training_data[self.Ycol].max()
-                        #plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=10*scl, alpha=1, linewidths=2.0, facecolors="None", edgecolors='k') #, s=area, c=colors, alpha=0.5)
+                    if circle_points.shape[0] > 0:
+                        for idx, pt in cp_dmat.iterrows():
+                            plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
                     plt.autoscale(tight=True)
-                    plt.xlabel( Xcols[row] )
-                    plt.ylabel( Xcols[col] )
+                    plt.xlabel( x_name )
+                    plt.ylabel( y_name )
                     plt.tight_layout()
+                    if saveto_dir is not None:
+                        fig.savefig( os.path.join(saveto_dir, fn) ); plt.close(fig)
+                    else:
+                        figs[fn] = fig
 
         return figs
 
 
-    def plot_data_1D(self, circle_points=[]):
+    def plot_data_1D(self, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True):
+        # TODO: Save and log scale!
         scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
 
         Xcols = basis.get_terms()[0] # Not tested!

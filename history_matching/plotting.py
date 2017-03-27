@@ -1,7 +1,10 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import seaborn as sns
+from basis import Basis
+import os
 
 def plot_implausibility(data, Xcols, column, thresh):
     scaled = data[column] / data[column].max()
@@ -249,3 +252,60 @@ def histogram_implausibility(data, column, thresh=None):
     if thresh is not None:
         plt.plot([thresh,thresh], yl, 'r-')
     return fig
+
+
+def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True):
+
+    ticks = np.array([0,0.25,0.5,0.75,1])
+
+    td = data.reset_index().set_index('Implausible')
+    scaled = (td[Ycol]-td[Ycol].min()) / (td[Ycol].max()-td[Ycol].min())
+    tick_labels = ticks * (td[Ycol].max()-td[Ycol].min()) + td[Ycol].min()
+    vmin = scaled.min()
+    vmax = scaled.max()
+    if log_scale:
+        scaled = np.log( 10*scaled+1 )
+        tick_labels = (np.exp(ticks)-1)/10.0 * (td[Ycol].max()-td[Ycol].min()) + td[Ycol].min()
+
+    print tick_labels
+
+    figs = {}
+
+
+    basis = Basis.identity_basis(params=param_info.index.unique().tolist(), param_info=param_info)
+    Xcols = basis.get_terms()
+
+    reverse_param_dict = {v:k for k,v in basis.param_dict.iteritems()}
+    Xcols = [reverse_param_dict[xc] for xc in Xcols]
+
+    for row in range(len(Xcols)):
+        for col in range(len(Xcols)):
+            if col > row:
+                fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
+                fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+
+                for implausible, ec in zip([False, True], ['k', 'r']):
+                    x = td.loc[ implausible, Xcols[row] ].values
+                    y = td.loc[ implausible, Xcols[col] ].values
+                    s = scaled.loc[ implausible ].values
+
+                    sc = plt.scatter(x, y, s=np.maximum(1, 25*s), c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
+                    if implausible == False:
+                        cbar = plt.colorbar(sc, ticks=ticks)
+                        cbar.ax.set_yticklabels(tick_labels)  # vertically oriented colorbar
+
+                if circle_points.shape[0] > 0:
+                    for idx, pt in circle_points.iterrows():
+                        plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=65, facecolors='none', edgecolors='k', alpha=1, linewidths=1.0, marker='s')
+
+                plt.autoscale(tight=True)
+                plt.xlabel( Xcols[row] )
+                plt.ylabel( Xcols[col] )
+                plt.tight_layout()
+                if saveto_dir is not None:
+                    fig.savefig( os.path.join(saveto_dir, fn) ); plt.close(fig)
+                else:
+                    figs[fn] = fig
+
+    return figs
+
