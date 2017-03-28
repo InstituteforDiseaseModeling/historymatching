@@ -80,6 +80,7 @@ class HistoryMatchingCut():
 
 
     def cut(self, num_desired_candidates = 5000, constraint = None):
+        candidates = pd.DataFrame()
 
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
@@ -102,13 +103,7 @@ class HistoryMatchingCut():
                 new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
 
             plausibility = self.test_plausibility(new_candidates, constraint)
-
-            print plausibility.head()
-
             new_candidates = new_candidates.merge(plausibility, left_index=True, right_index=True)
-
-            print new_candidates.head()
-            exit()
 
             for cut in self.cuts:
                 (it, cut_name) = cut

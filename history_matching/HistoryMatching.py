@@ -4,6 +4,8 @@ import os, errno
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pyDOE import lhs
+from shutil import copyfile
+import datetime
 
 from glm import GLM
 from gpr import GPR
@@ -275,10 +277,19 @@ class HistoryMatching():
                 assert( len(lengthscale_guess) == basis.D )
 
             #TODO: Check guess within bounds
+            x0 =np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess)
+
+            if os.path.isfile(gpr_model_fn):
+                timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+                backup_fn = os.path.join(self.gprdir, 'model_%s.json'%timestamp)
+                print 'Backing up gpr model to %s'%backup_fn
+                copyfile(gpr_model_fn, backup_fn)
+                self.gpr_model.theta = x0
+                self.gpr_model.save(gpr_model_fn)
 
             print "Fitting the GPR"
             self.gpr_model.optimize_hyperparameters(
-                x0 = np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess),
+                x0 = x0,
                 bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
                 #eps = eps,
                 K = K_folds,
@@ -381,7 +392,7 @@ class HistoryMatching():
 
             if do_plot_data:
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
-                plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)
+                plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True, desired_result=self.desired_result)
 
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
                 plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)

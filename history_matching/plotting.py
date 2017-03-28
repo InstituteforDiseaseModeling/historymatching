@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 import matplotlib.patches as patches
 import seaborn as sns
 from basis import Basis
@@ -254,11 +255,14 @@ def histogram_implausibility(data, column, thresh=None):
     return fig
 
 
-def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True):
-
-    ticks = np.array([0,0.25,0.5,0.75,1])
+def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True, desired_result=None):
 
     td = data.reset_index().set_index('Implausible')
+    ticks = np.array([0,0.25,0.5,0.75,1])
+    if desired_result is not None:
+        desired_tick = (desired_result-td[Ycol].min()) / (td[Ycol].max()-td[Ycol].min())
+        ticks = np.append(ticks, desired_tick)
+
     scaled = (td[Ycol]-td[Ycol].min()) / (td[Ycol].max()-td[Ycol].min())
     tick_labels = ticks * (td[Ycol].max()-td[Ycol].min()) + td[Ycol].min()
     vmin = scaled.min()
@@ -266,8 +270,6 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
     if log_scale:
         scaled = np.log( 10*scaled+1 )
         tick_labels = (np.exp(ticks)-1)/10.0 * (td[Ycol].max()-td[Ycol].min()) + td[Ycol].min()
-
-    print tick_labels
 
     figs = {}
 
@@ -292,6 +294,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                     sc = plt.scatter(x, y, s=np.maximum(1, 25*s), c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
                     if implausible == False:
                         cbar = plt.colorbar(sc, ticks=ticks)
+                        cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
                         cbar.ax.set_yticklabels(tick_labels)  # vertically oriented colorbar
 
                 if circle_points.shape[0] > 0:

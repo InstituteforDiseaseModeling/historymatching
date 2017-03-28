@@ -509,7 +509,12 @@ class GPR():
             print 'P',P.shape,' flags:\n', P.flags
 
         # TODO: Save Kxx, just compute Kxp and Kpp!
-        Kxx = self.kxx_gpu_wrapper(X, self.theta, add_sigma2_n = True)  # Y is noisy
+        try:
+            Kxx = self.kxx_gpu_wrapper(X, self.theta, add_sigma2_n = True)  # Y is noisy
+        except pycuda._driver.MemoryError:
+            print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%X.shape[0]
+            Kxx = self.kernel_xx(X, self.theta, add_sigma2_n = True)
+
         if self.debug:
             Kxx_cpu = self.kernel_xx(X, self.theta, add_sigma2_n = True)
             if not np.allclose(Kxx_cpu, Kxx):
