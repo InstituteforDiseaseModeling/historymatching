@@ -56,17 +56,21 @@ class HistoryMatching():
         #Xcols_all = self.param_info.index.unique().values.tolist()
 
         self.results.name = 'Sim_Result'
-        self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
+        self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Exp_Id', 'Sample']).set_index(['Exp_Id', 'Sample', 'Sim_Id'])#.sort_index()
         self.Ycol = self.results.name
 
         # Train/test split
-        nSamp = len( self.data.index.levels[0] )
+        nSamp = len(self.data.index.get_level_values('Sample'))
         nTrain = int(round(self.training_fraction * nSamp))
         nTest = nSamp - nTrain
-        nRep = self.data.loc[0].shape[0]
 
-        self.training_data = self.data.loc[:nTrain-1]
-        self.test_data = self.data.loc[nTrain:]
+        # TODO: Fix REPLICATES!!!
+        data_tmp = self.data.reset_index()
+        data_tmp.rename(columns={'Sample': 'Sample_Orig'}, inplace=True)
+        data_tmp.index.name='Sample'
+        nRep = data_tmp.iloc[0].shape[0]
+        self.training_data = data_tmp.loc[:nTrain-1]
+        self.test_data = data_tmp.loc[nTrain:]
 
         print "Found %d unique parameter configurations, each of which is repeated %d time(s)." % (nSamp, nRep)
         print "--> Training with %d unique parameter configurations (%d simulations including replicates)"  % (nSamp-nTest, (nSamp-nTest)*nRep)
@@ -252,9 +256,16 @@ class HistoryMatching():
 
         gpr_model_fn = os.path.join(self.gprdir, 'model.json')
 
+        if plot_data:
+            pairdir = os.path.join(self.gprdir, 'PairwiseResults')
+            if not os.path.exists( pairdir):
+                os.mkdir( pairdir )
+
         if not force_optimize_gpr and os.path.isfile(gpr_model_fn):
             print "Loading GPR from", gpr_model_fn
             self.gpr_model = GPR.from_config(gpr_model_fn)
+            if plot_data:
+                figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
         else:
             if self.use_glm:
                 Ycol = 'Yerr'
@@ -286,6 +297,9 @@ class HistoryMatching():
                 copyfile(gpr_model_fn, backup_fn)
                 self.gpr_model.theta = x0
                 self.gpr_model.save(gpr_model_fn)
+
+            if plot_data:
+                figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
 
             print "Fitting the GPR"
             self.gpr_model.optimize_hyperparameters(
@@ -333,16 +347,6 @@ class HistoryMatching():
             fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent');
             fig.savefig( os.path.join(self.gprdir, 'errors.pdf') );             plt.close(fig)
 
-            #circle_samples = train.sort_values(by='Yerr').iloc[[0, -1]].reset_index()['Sample'].values
-            #fig = self.gpr_model.plot_data(samples_to_circle=circle_samples);    fig.savefig( os.path.join(self.gprdir, 'data.pdf') );    plt.close(fig)
-            if plot_data: # TODO: Save plots as they are made in GPR class!
-                pairdir = os.path.join(self.gprdir, 'PairwiseResults')
-                if not os.path.exists( pairdir):
-                    os.mkdir( pairdir )
-                circle_samples = pd.DataFrame()
-                #circle_samples = self.training_data.loc[[1931]]
-
-                figs = self.gpr_model.plot_data(samples_to_circle=circle_samples, saveto_dir = pairdir)
             ''''
             if False:
                 mu = self.training_data[self.Xcols_GPR].mean()
@@ -397,6 +401,7 @@ class HistoryMatching():
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
                 plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)
 
+            '''
             fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); 
             #plt.show()
             fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
@@ -405,4 +410,5 @@ class HistoryMatching():
 
             fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
             fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)
+            '''
 

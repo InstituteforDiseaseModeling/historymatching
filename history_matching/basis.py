@@ -3,6 +3,8 @@ from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
 import itertools
 # For regularized selection:
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
 class Basis():
@@ -38,7 +40,8 @@ class Basis():
             fourth_order = False,
             fifth_order = False,
             higher_order = False,
-            param_info = None
+            param_info = None,
+            verbose = False
     ):
         param_dict = Basis.make_param_dict(params)
         params_patsy = param_dict.values()
@@ -123,7 +126,7 @@ class Basis():
             model_terms += [Term([EvalFactor('%s**6*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^6*Y
             model_terms += [Term([EvalFactor('%s*%s**6'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^6
 
-        return cls(model_terms, param_dict, param_info)
+        return cls(model_terms, param_dict, param_info, verbose)
 
 
     @classmethod
@@ -213,11 +216,12 @@ class Basis():
         model = sm.OLS(response_matrix, data_matrix)
 
         fit = model.fit_regularized(alpha=alpha, refit=True)
-        #print 'SUMMARY:\n', fit.summary()
+        if self.verbose:
+            print 'SUMMARY:\n', fit.summary()
         print 'AIC:', fit.aic
         print 'BIC:', fit.bic
         params = pd.Series(fit.params, index=data_matrix.columns)
-        params = params[params>0]
+        params = params[abs(params)>0]
         #print 'FV:\n', fit.fittedvalues
         print 'Non-Zero:', len(params), 'of', self.D
         #print alpha, len(params), fit.bic
@@ -234,3 +238,41 @@ class Basis():
         self.D = len(self.model_terms)
 
         return fit.predict(data_matrix)
+
+    def plot_regularize(self, inputs, results, alpha, scaleX = False):
+
+        if scaleX:
+            assert(self.param_info is not None)
+            inputs = self.scale_data(inputs.copy())
+
+        Ycol = 'Sim_Result'
+        my_results = results.copy()
+        my_results.name = Ycol
+        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
+
+        response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
+        model = sm.OLS(response_matrix, data_matrix)
+
+        num_params = np.zeros_like(alpha)
+        bic = np.zeros_like(alpha)
+        for i,a in enumerate(alpha):
+            fit = model.fit_regularized(alpha=a, refit=True)
+
+            params = pd.Series(fit.params, index=data_matrix.columns)
+            params = params[abs(params)>0]
+
+            num_params[i] = len(params)
+            bic[i] = fit.bic
+
+        fig, ax1 = plt.subplots()
+        ax1.plot(alpha, bic, 'ro-', label='BIC')
+        ax1.set_xscale('log')
+        ax1.set_xlabel('alpha')
+
+        ax2 = ax1.twinx()
+        ax2.plot(alpha, num_params, 'bo-', label='N')
+        ax2.set_ylabel('N')
+
+        plt.legend()
+        fig.tight_layout()
+        plt.show()
