@@ -186,7 +186,7 @@ class GLM(object):
         if circle_points.shape[0] > 0:
             cp_dmat = basis.generate_dmatrix(circle_points, scaleX=True)
 
-        reverse_param_dict = {v:k for k,v in self.basis.param_dict.iteritems()}
+        reverse_param_dict = {v:k for k,v in basis.param_dict.iteritems()}
 
         for row in range(len(Xcols)):
             for col in range(len(Xcols)):
