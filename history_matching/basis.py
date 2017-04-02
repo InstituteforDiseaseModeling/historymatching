@@ -210,7 +210,7 @@ class Basis():
         Ycol = 'Sim_Result'
         my_results = results.copy()
         my_results.name = Ycol
-        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
+        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on=['Exp_Id', 'Sample']).set_index(['Exp_Id', 'Sample', 'Sim_Id']).sort_index()
 
         response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
         model = sm.OLS(response_matrix, data_matrix)
@@ -248,7 +248,7 @@ class Basis():
         Ycol = 'Sim_Result'
         my_results = results.copy()
         my_results.name = Ycol
-        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on='Sample').set_index(['Sample', 'Sim_Id']).sort_index()
+        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on=['Exp_Id', 'Sample']).set_index(['Exp_Id', 'Sample', 'Sim_Id']).sort_index()
 
         response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
         model = sm.OLS(response_matrix, data_matrix)

@@ -295,8 +295,8 @@ class HistoryMatching():
                 backup_fn = os.path.join(self.gprdir, 'model_%s.json'%timestamp)
                 print 'Backing up gpr model to %s'%backup_fn
                 copyfile(gpr_model_fn, backup_fn)
-                self.gpr_model.theta = x0
-                self.gpr_model.save(gpr_model_fn)
+            self.gpr_model.theta = x0
+            self.gpr_model.save(gpr_model_fn)
 
             if plot_data:
                 figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
