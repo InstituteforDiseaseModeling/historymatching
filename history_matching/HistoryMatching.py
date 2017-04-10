@@ -361,7 +361,7 @@ class HistoryMatching():
             plt.close(fig)
 
 
-    def calc_and_plot_implausibility(self, plot=False, do_plot_data=False, plot_data_highlight=pd.DataFrame()):
+    def calc_and_plot_implausibility(self, plot=False, do_plot_data=False, plot_data_highlight=pd.DataFrame(), log_scale=True):
 
         self.training_data['Implausibility'] = \
                     abs( self.training_data['Mean_Estimate'] - self.desired_result ) / \
@@ -396,7 +396,7 @@ class HistoryMatching():
 
             if do_plot_data:
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
-                plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True, desired_result=self.desired_result)
+                plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale, desired_result=self.desired_result)
 
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
                 plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)
