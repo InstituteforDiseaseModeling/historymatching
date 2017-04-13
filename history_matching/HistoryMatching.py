@@ -31,8 +31,8 @@ class HistoryMatching():
     ):
         """
         :param DataFrame param_info: Parameter info with index named 'Name' containing parameter name, and columns of 'Min' and 'Max'
-        :param DataFrame inputs: Model inputs with index named 'Sample' containing parameter names.  All Names from param_info must be columns in this data frame, but it can have other columns as well.  Data contents are model input parameter values.
-        :param Series results: Series with MultiIndex of 'Sample' and 'Sim_Id'.  Data are simulation results.
+        :param DataFrame inputs: Model inputs with index named 'Sample_Id' containing parameter names.  All Names from param_info must be columns in this data frame, but it can have other columns as well.  Data contents are model input parameter values.
+        :param Series results: Series with MultiIndex of 'Sample_Id' and 'Sim_Id'.  Data are simulation results.
         :param float desired_result: The desired result to match.
         :param int iteration: The current iteration.  Work will be saved to iter[iteration]
         """
@@ -56,25 +56,31 @@ class HistoryMatching():
         #Xcols_all = self.param_info.index.unique().values.tolist()
 
         self.results.name = 'Sim_Result'
-        self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Exp_Id', 'Sample']).set_index(['Exp_Id', 'Sample', 'Sim_Id'])#.sort_index()
         self.Ycol = self.results.name
+        if 'Train' in self.inputs.columns:
+            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Train', 'Sample_Id', 'Sim_Id'])#.sort_index()
+            self.training_data = self.data.loc[True]
+            self.test_data = self.data.loc[False]
+            print 'Using train/test split as specified by user'
+        else:
+            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
 
-        # Train/test split
-        nSamp = len(self.data.index.get_level_values('Sample'))
-        nTrain = int(round(self.training_fraction * nSamp))
-        nTest = nSamp - nTrain
+            # Train/test split
+            nSamp = len(self.data.index.get_level_values('Sample_Id'))
+            nTrain = int(round(self.training_fraction * nSamp))
+            nTest = nSamp - nTrain
 
-        # TODO: Fix REPLICATES!!!
-        data_tmp = self.data.reset_index()
-        data_tmp.rename(columns={'Sample': 'Sample_Orig'}, inplace=True)
-        data_tmp.index.name='Sample'
-        nRep = data_tmp.iloc[0].shape[0]
-        self.training_data = data_tmp.loc[:nTrain-1]
-        self.test_data = data_tmp.loc[nTrain:]
+            # TODO: Fix REPLICATES!!!
+            data_tmp = self.data.reset_index()
+            data_tmp.rename(columns={'Sample_Id': 'Sample_Orig'}, inplace=True)
+            data_tmp.index.name='Sample_Id'
+            nRep = data_tmp.iloc[0].shape[0]
+            self.training_data = data_tmp.loc[:nTrain-1]
+            self.test_data = data_tmp.loc[nTrain:]
 
-        print "Found %d unique parameter configurations, each of which is repeated %d time(s)." % (nSamp, nRep)
-        print "--> Training with %d unique parameter configurations (%d simulations including replicates)"  % (nSamp-nTest, (nSamp-nTest)*nRep)
-        print "--> Testing  with %d unique parameter configurations (%d simulations including replicates)" % (nTest, nTest*nRep)
+            print "Found %d unique parameter configurations, each of which is repeated %d time(s)." % (nSamp, nRep)
+            print "--> Training with %d unique parameter configurations (%d simulations including replicates)"  % (nSamp-nTest, (nSamp-nTest)*nRep)
+            print "--> Testing  with %d unique parameter configurations (%d simulations including replicates)" % (nTest, nTest*nRep)
 
         # Dir prep
         self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name) )
@@ -96,7 +102,7 @@ class HistoryMatching():
             iteration = hm_params.loc['iteration'].values[0]
 
             inputs = pd.read_excel(xls, 'Inputs', index_col=0)
-            results = pd.read_excel(xls, 'Results', index_col=[0,1]) # NOTE: was series, now DF
+            results = pd.read_excel(xls, 'Results', index_col=[0,1,2,3]).squeeze() # NOTE: was series, now DF
             param_info = pd.read_excel(xls, 'Param_Info', index_col=0)
 
         return cls(
@@ -126,7 +132,7 @@ class HistoryMatching():
 
         with pd.ExcelWriter(config_fn) as writer:
             hm_params.to_frame().to_excel(writer, sheet_name='History_Matching_Params')
-            self.inputs.to_excel(writer, sheet_name='Inputs')
+            self.inputs.to_excel(writer, sheet_name='Inputs', merge_cells=False)
             self.results.to_frame().to_excel(writer, sheet_name='Results', merge_cells=False)
             self.param_info.to_excel(writer, sheet_name='Param_Info')
             #writer.save()
@@ -167,8 +173,10 @@ class HistoryMatching():
             mean_params_fn = os.path.join(self.glmdir, 'params.p')
 
             # TODO: Ask user if they want mean, although I'm not sure statsmodels works without it!
-            train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
-            test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
+            #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
+            #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
+            train_mean = self.training_data.reset_index().groupby(['Exp_Id', 'Sample', 'Sample_Id']).mean()
+            test_mean = self.test_data.reset_index().groupby(['Exp_Id', 'Sample', 'Sample_Id']).mean()
 
             if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
                 print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
@@ -220,20 +228,24 @@ class HistoryMatching():
                 #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram.pdf') );          plt.close(fig)
                 #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit.pdf') );                plt.close(fig)
 
+
+            train_mean = train_mean.reset_index().set_index('Sample_Id')
+            test_mean = test_mean.reset_index().set_index('Sample_Id')
+
             self.training_data = self.training_data.join(train_mean['Yglm'])
             self.training_data['Yerr'] = self.training_data[self.Ycol] - self.training_data['Yglm']
 
-            if self.verbose:
-                print 'Best and worst training errors:\n', self.training_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
+            #if self.verbose:
+            #    print 'Best and worst training errors:\n', self.training_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
 
             self.test_data = self.test_data.join(test_mean['Yglm'])
             self.test_data['Yerr'] = self.test_data[self.Ycol] - self.test_data['Yglm']
 
-            #train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
-            #test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
+            #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
+            #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
-            if self.verbose:
-                print 'Best and worst test errors:\n', self.test_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
+            #if self.verbose:
+            #    print 'Best and worst test errors:\n', self.test_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
 
 
     def gpr(self, basis,
@@ -312,8 +324,8 @@ class HistoryMatching():
             self.gpr_model.save(gpr_model_fn)
 
 
-        train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
-        test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
+        train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
+        test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
         print 'GPR evaluating training data'
         ret = self.gpr_model.evaluate(train_mean)
@@ -323,8 +335,8 @@ class HistoryMatching():
             train_mean['Mean_Estimate'] += train_mean['Yglm']
         train_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         train_mean['Var_Err_Latent'] = ret['Var_Latent']
-        self.training_data = self.training_data.reset_index().join(train_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample')
-        self.training_data.set_index(['Sample', 'Sim_Id'], inplace=True)
+        self.training_data = self.training_data.reset_index().join(train_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
+        self.training_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
 
         print 'GPR evaluating test data'
         ret = self.gpr_model.evaluate(test_mean)
@@ -334,8 +346,8 @@ class HistoryMatching():
             test_mean['Mean_Estimate'] += test_mean['Yglm']
         test_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         test_mean['Var_Err_Latent'] = ret['Var_Latent']
-        self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample')
-        self.test_data.set_index(['Sample', 'Sim_Id'], inplace=True)
+        self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
+        self.test_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
 
         # Add test data to gpr training
         gpr_model_with_test_fn = os.path.join(self.gprdir, 'model_with_test_data.json')
@@ -379,6 +391,7 @@ class HistoryMatching():
         self.test_data['Z_Noisy'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / np.sqrt(self.test_data['Var_Err_Predictive'])
         self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / np.sqrt(self.test_data['Var_Err_Latent'])
 
+        '''
         if self.verbose:
             if self.use_glm:
                 Ycol = 'Yerr'
@@ -386,10 +399,11 @@ class HistoryMatching():
                 Ycol = 'Sim_Result'
             print 'Best and worst training Z-scores:\n', self.training_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
             print 'Best and worst test Z-scores:\n', self.test_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
+        '''
 
         if plot:
-            train_mean = self.training_data.reset_index().groupby(['Sample']).mean()
-            test_mean = self.test_data.reset_index().groupby(['Sample']).mean()
+            train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
+            test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
             fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
             fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)

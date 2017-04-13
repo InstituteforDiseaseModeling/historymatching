@@ -103,7 +103,7 @@ class GPR():
                 return cls(
                     basis = basis,
                     Ycol = config['Ycol'],
-                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample'),
+                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
                     param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
                     kernel_mode = config['Kernel_Mode'],
                     kernel_params = np.array(config['Kernel_Params']),
@@ -456,9 +456,9 @@ class GPR():
         idx = self.training_data.index.names    # Save index
         self.training_data.reset_index(inplace=True)
 
-        samples = self.training_data['Sample'].unique()
+        samples = self.training_data['Sample_Id'].unique()
         for i,s in enumerate(samples):
-            self.training_data.loc[ self.training_data['Sample']==s, 'Sample_Index'] = i
+            self.training_data.loc[ self.training_data['Sample_Id']==s, 'Sample_Index'] = i
 
         if K <=1:
             # Identity partition (LOO)
@@ -469,10 +469,10 @@ class GPR():
 
         num_params = 2 + self.D # sigma_n, sigma_f, lengthscale 1, lengthscale_2, ..., lengthscale_D
 
-        train_mean = self.training_data.reset_index().groupby('Sample').mean()
+        train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         P = train_mean['Partition'].values
-        Y = self.training_data.reset_index().groupby('Sample').apply(self.assign_rep).pivot('Sample', 'Replicate', self.Ycol).values
+        Y = self.training_data.reset_index().groupby('Sample_Id').apply(self.assign_rep).pivot('Sample_Id', 'Replicate', self.Ycol).values
 
         # Maximize LOO cross-validation error
         ret = spo.minimize(
@@ -497,7 +497,7 @@ class GPR():
     def evaluate(self, data):
         # Predict at test and training points, store mean and variance in self.data
 
-        train_mean = self.training_data.reset_index().groupby('Sample').mean()
+        train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         #Y = self.training_data[self.Ycol].values
         Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
@@ -625,10 +625,8 @@ class GPR():
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
                     print row, col, row*self.D+col, fixed_inputs
 
-                    # TODO: Real parameter ranges here, not just 0-1
                     (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
                     (col_min, col_max) = (self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max())
-                    # sim_cases_range = data.reset_index().groupby('Sample')['Sim_Cases'].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
                     x1 = np.linspace(row_min, row_max, res)
                     x2 = np.linspace(col_min, col_max, res)
                     X1, X2 = np.meshgrid(x1, x2)
@@ -673,13 +671,12 @@ class GPR():
         return (fig, fig_std_latent)
 
     def plot_errors(self, train, test, mean_col, var_predictive_col, var_latent_col):
-
         train['Z_Predictive'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_predictive_col])
         train['Z_Latent'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_latent_col])
         test['Z_Predictive'] = (test[self.Ycol_orig] - test[mean_col]) / np.sqrt(test[var_predictive_col])
         test['Z_Latent'] = (test[self.Ycol_orig] - test[mean_col]) / np.sqrt(test[var_latent_col])
 
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+        fig, ((ax1, ax2)) = plt.subplots(nrows=2, ncols=1, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
         ax = ax1
         ax.errorbar(x=test[self.Ycol_orig], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='o', c='m', lw=0.5)
@@ -690,20 +687,22 @@ class GPR():
         ax.set_xlabel(self.Ycol_orig)
         ax.set_ylabel('Predicted')
 
+        '''
         ax = ax2
-        ax.scatter(x=train['Sample'], y=train[self.Ycol_orig], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.scatter(x=test['Sample'], y=test[self.Ycol_orig], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.errorbar(x=train['Sample'], y=train[mean_col], yerr=2*np.sqrt(train[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
-        ax.errorbar(x=test['Sample'], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
+        ax.scatter(x=train['Sample_Id'], y=train[self.Ycol_orig], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+        ax.scatter(x=test['Sample_Id'], y=test[self.Ycol_orig], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+        ax.errorbar(x=train['Sample_Id'], y=train[mean_col], yerr=2*np.sqrt(train[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
+        ax.errorbar(x=test['Sample_Id'], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
         ax.margins(x=0,y=0.05)
-        ax.set_xlabel('Sample Index')
+        ax.set_xlabel('Sample Id')
         ax.set_ylabel(self.Ycol_orig)
+        '''
 
-
+        '''
         a=0.05
         ax = ax4
-        ax.scatter(x=train['Sample'], y=train['Z_Predictive'], c='c', marker='_', alpha=0.5, linewidth=1)
-        ax.scatter(x=test['Sample'], y=test['Z_Predictive'], c='m', marker='_', alpha=0.5, linewidth=1)
+        ax.scatter(x=train['Sample_Id'], y=train['Z_Predictive'], c='c', marker='_', alpha=0.5, linewidth=1)
+        ax.scatter(x=test['Sample_Id'], y=test['Z_Predictive'], c='m', marker='_', alpha=0.5, linewidth=1)
 
         ax.margins(x=0,y=0.05)
         xlim = ax.get_xlim()
@@ -713,10 +712,11 @@ class GPR():
         ax.add_patch( patches.Rectangle( (0, 2), xlim[1], 3, alpha=a, color='#FFA500' ) )
         ax.add_patch( patches.Rectangle( (0, ylim[0]), xlim[1], abs(ylim[0])-5, alpha=a, color='r' ) )
         ax.add_patch( patches.Rectangle( (0, 5), xlim[1], abs(ylim[1])-5, alpha=a, color='r' ) )
-        ax.set_xlabel('Sample Index')
+        ax.set_xlabel('Sample Id')
         ax.set_ylabel('Z-Score')
+        '''
 
-        ax = ax3
+        ax = ax2
         ax.scatter(x=train[self.Ycol_orig], y=train['Z_Predictive'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
         ax.scatter(x=test[self.Ycol_orig], y=test['Z_Predictive'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
         ax.set_xlabel(self.Ycol_orig)

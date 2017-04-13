@@ -83,7 +83,7 @@ class GLM(object):
                 return cls(
                     basis = basis,
                     Ycol = config['Ycol'],
-                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample'),
+                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
                     reference_value = config['Reference_Value'],
                     family = config['Family'],
                     fitted_model = fitted_model
@@ -256,19 +256,19 @@ class GLM(object):
         #sns.despine(left=True)
 
         d = self.training_data.reset_index()
-        d_by_sample = self.training_data.reset_index().set_index('Sample')
+        d_by_sample = self.training_data.reset_index().set_index('Sample_Id')
         n_samples = len(d_by_sample.index.unique())
 
         axes.plot( 2 * [self.reference_value], [0,n_samples], 'r-') # , axes=axes[0,0]
 
-        sim_cases_range = self.training_data.reset_index().groupby('Sample')[self.Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
+        sim_cases_range = self.training_data.reset_index().groupby('Sample_Id')[self.Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
         sim_cases_range['Fitted_Model_Mean'] = self.fitted_model.mu
         for idx,s in sim_cases_range.iterrows():
             axes.plot( [s['Min'], s['Max']], [idx,idx], 'b-', linewidth=0.5 )
             axes.plot( [s['Mean'], s['Fitted_Model_Mean']], [idx,idx], 'g-', linewidth=0.25 )
-        axes.scatter(d[self.Ycol], d['Sample'], c='k', marker='|', alpha=1, linewidths=0.5)
+        axes.scatter(d[self.Ycol], d['Sample_Id'], c='k', marker='|', alpha=1, linewidths=0.5)
 
-        axes.scatter(self.fitted_model.mu, d['Sample'], c='g', marker='+', alpha=1, linewidths=0.5)
+        axes.scatter(self.fitted_model.mu, d['Sample_Id'], c='g', marker='+', alpha=1, linewidths=0.5)
 
         # TODO: Vectorize
         '''
@@ -281,21 +281,27 @@ class GLM(object):
             mean = n*a / (a+b)
             var = n*a*b*(a+b+n) / ((a+b)**2 * (a+b+1))
 
-            axes[0].errorbar(s['Sim_Cases'], int(float(s['Sample'])), xerr=2*np.sqrt(var), marker='|', markersize=20, ecolor='k', mew=1)
+            axes[0].errorbar(s['Sim_Cases'], int(float(s['Sample_Id'])), xerr=2*np.sqrt(var), marker='|', markersize=20, ecolor='k', mew=1)
         '''
         plt.autoscale()
         axes.set_ylim(ymin=0, ymax=n_samples)
         #axes.set_xlabel('LOG(1+Y)')
         axes.set_xlabel('Y')
-        axes.set_ylabel('Sample')
+        axes.set_ylabel('Sample Id')
 
         return fig
 
 
     def plot_errors(self, train, test):
-        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+        _tr = train.set_index(['Exp_Id', 'Sample'])
+        _ts = test.set_index(['Exp_Id', 'Sample'])
+        train_exps = _tr.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
+        test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
+        exp_ids = list(set(train_exps + test_exps))
 
-        ax = ax1
+        fig, ax_vec = plt.subplots(nrows=1, ncols=1+len(exp_ids), sharey='row', figsize=(24,10)) # , sharex='col', sharey='row')
+
+        ax = ax_vec[0]
         ax.plot(train['Yglm'], train[self.Ycol], 'c+', ms=10, mew=1)
         ax.plot(test['Yglm'], test[self.Ycol], 'm+', ms=10, mew=1)
         ax.margins(x=0,y=0.05)
@@ -304,13 +310,27 @@ class GLM(object):
         ax.set_xlabel('Predicted')
         ax.set_ylabel(self.Ycol)
 
-        ax = ax2
-        ax.scatter(x=train['Sample'], y=train[self.Ycol], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.scatter(x=test['Sample'], y=test[self.Ycol], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.plot(train['Sample'], train['Yglm'], 'k.', ms=5, linewidth=1)
-        ax.plot(test['Sample'], test['Yglm'], 'k.', ms=5, linewidth=1)
-        ax.margins(x=0,y=0.05)
-        ax.set_xlabel('Sample Index')
-        ax.set_ylabel(self.Ycol)
+        for i, exp_id in enumerate(exp_ids):
+            ax = ax_vec[i+1]
+            data_all = []
+            cols = []
+            if exp_id in train_exps: 
+                data_all.append(_tr.loc[exp_id])
+                cols.append('c')
+            if exp_id in test_exps:
+                data_all.append(_ts.loc[exp_id])
+                cols.append('m')
+
+            for data, col in zip(data_all, cols):
+                data = data.reset_index()
+                ax.scatter(x=data['Sample'], y=data[self.Ycol], c=col, marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+                ax.plot(data['Sample'], data['Yglm'], 'k.', ms=5, linewidth=1)
+                ax.set_title(exp_id)
+
+            ax.margins(x=0,y=0.05)
+            ax.set_xlabel('Sample')
+
+        #ax.set_ylabel(self.Ycol)
+        plt.tight_layout()
 
         return fig

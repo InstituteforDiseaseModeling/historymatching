@@ -57,9 +57,8 @@ class HistoryMatchingCut():
 
     def test_plausibility(self, points, constraint = None):
         new_candidates = points.copy()
-        new_candidates['Implausible'] = False
 
-        cols = ['Implausible']
+        cols = []
         for cut in self.cuts:
             (it, cut_name) = cut
             print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
@@ -75,7 +74,6 @@ class HistoryMatchingCut():
             new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
             cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
 
-            new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
         return new_candidates[cols]
 
 
@@ -104,6 +102,7 @@ class HistoryMatchingCut():
 
             plausibility = self.test_plausibility(new_candidates, constraint)
             new_candidates = new_candidates.merge(plausibility, left_index=True, right_index=True)
+            new_candidates['Implausible'] = False
 
             for cut in self.cuts:
                 (it, cut_name) = cut
@@ -114,6 +113,8 @@ class HistoryMatchingCut():
                 print('--> Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name, 
                     100.*stats[cut]['cut_implausible']/float(stats[cut]['num']),
                     100.*stats[cut]['newly_implausible']/float(stats[cut]['num'])))
+
+                new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
 
             candidates = candidates.append(new_candidates)
             stats['num_new_plausible_candidates'] = sum(new_candidates['Implausible'] == False)
