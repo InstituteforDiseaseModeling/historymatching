@@ -286,13 +286,18 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                 fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
                 fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
-                for implausible, ec in zip([False, True], ['k', 'r']):
-                    x = td.loc[ implausible, Xcols[row] ].values
-                    y = td.loc[ implausible, Xcols[col] ].values
-                    s = scaled.loc[ implausible ].values
+                for true_or_false, ec in zip([False, True], ['k', 'r']):
+                    if true_or_false not in td.index:
+                        continue
+
+                    x = td.loc[ true_or_false, [Xcols[row]] ].values
+                    y = td.loc[ true_or_false, [Xcols[col]] ].values
+                    s = scaled.loc[ true_or_false ]
+                    if not isinstance(s, np.float64):
+                        s = s.values
 
                     sc = plt.scatter(x, y, s=np.maximum(1, 25*s), c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
-                    if implausible == False:
+                    if true_or_false == False:
                         cbar = plt.colorbar(sc, ticks=ticks)
                         cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
                         cbar.ax.set_yticklabels(tick_labels)  # vertically oriented colorbar
