@@ -1,18 +1,22 @@
 from history_matching import HistoryMatching, quick_read, Basis
 import pandas as pd
 import os
+import re, time
 import json
 import numpy as np
+import glob
 
 force_optimize_glm = True
 force_optimize_gpr = True
 
-iteration = 1
-exp_ids = ['Exp1']
+iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
+exp_ids = glob.glob('Data_*')
 training_fraction = 0.75
 implausibility_threshold = 3
 
+cut_name = 'RadiusShouldBe15'
 desired_result = 15
+discrepancy_std = 0.1 * desired_result
 print 'Desired result is: ', desired_result
 
 # Data
@@ -48,12 +52,9 @@ inputs = pd.concat(sim_inputs)
 sim_results_all = pd.concat(sim_results)
 
 
-discrepancy_std = 0.1 * desired_result
-
 sim_results_all.set_index(['Exp_Id', 'Sample', 'Sim_Id'], append=True, inplace=True)
 results = sim_results_all['Sim_Result']
 
-cut_name = 'Example_Cut'
 if not os.path.exists(os.path.join('Cuts', cut_name)):
     os.makedirs(os.path.join('Cuts', cut_name))
 
@@ -63,7 +64,6 @@ print 'All available parameters:'
 print ' *','\n * '.join(param_names)
 
 # Choose GLM inputs
-
 try:
     with open(os.path.join('Cuts', cut_name, 'basis_glm.json')) as data_file:
         config = json.load( data_file )
@@ -84,7 +84,7 @@ except:
             'Fitted_Values': fitted_values.reset_index().to_json(orient='split')
         }, fout, indent=4)
 
-# Choose GPR inputs - should train on ERROR from GLM!
+# Choose GLM inputs
 try:
     with open(os.path.join('Cuts', cut_name, 'basis_gpr.json')) as data_file:
         config = json.load( data_file )
@@ -145,7 +145,7 @@ hm.gpr(
     sigma2_f_guess = 1,
     sigma2_f_bounds = (0.1, 100),
     sigma2_n_guess = 1,
-    sigma2_n_bounds = (0.01, 100),
+    sigma2_n_bounds = (0.001, 100),
     #lengthscale_guess = [0.04313128, 0.2, 0.14240553, 0.01418867, 0.2, 0.17683428],
     lengthscale_bounds = (0.001, 0.2),
     verbose = True,

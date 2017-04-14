@@ -28,7 +28,7 @@ print 'Mapping'
 g = g.map_dataframe(plt_hist)
 
 # SHOW THE LOCATION OF ONE POINT:
-g = g.map_dataframe(plt_sample, pt = samples.loc[4408])
+#g = g.map_dataframe(plt_sample, pt = samples.loc[4408])
 
 g = g.set_titles("{col_name}")
 plt.savefig('Samples.pdf')

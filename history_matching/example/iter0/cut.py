@@ -1,4 +1,5 @@
 from history_matching import HistoryMatchingCut
+import os, re
 
 # Example constraint function:
 #def day_sum(row):
@@ -8,7 +9,7 @@ from history_matching import HistoryMatchingCut
 # History Matching!
 hm = HistoryMatchingCut(
     cut_dir = 'Cuts',
-    iteration = 0
+    iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
 )
 
 

@@ -2,12 +2,13 @@ import os
 import pandas as pd
 from pyDOE import lhs
 import numpy as np
+import re, time
 
 from history_matching import quick_read
 
-iteration = 1
-experiment_name = 'Exp%d'%iteration # <-- Should be unique to this history match
-N_samples = 50 # <-- Only applies to iteration 0
+iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
+experiment_name = 'Data_%s'%time.strftime("%Y%m%d_%H%M%S")
+N_samples = 25 # <-- Only applies to iteration 0
 
 params = quick_read( os.path.join('..', 'Params.xlsx'), 'Params').set_index('Name')
 

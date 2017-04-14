@@ -1,0 +1,16 @@
+{
+    "Basis": {
+        "Param_Dict": {
+            "Sample": "Sample", 
+            "First Parameter": "First_Parameter", 
+            "Train": "Train", 
+            "Exp_Id": "Exp_Id", 
+            "Second Parameter": "Second_Parameter"
+        }, 
+        "Param_Info": "{\"columns\":[\"Name\",\"Min\",\"Max\"],\"index\":[0,1],\"data\":[[\"First Parameter\",-50,50],[\"Second Parameter\",-100,100]]}", 
+        "Terms": [
+            "First_Parameter", 
+            "Second_Parameter"
+        ]
+    }
+}

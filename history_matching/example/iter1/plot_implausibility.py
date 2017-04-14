@@ -1,4 +1,4 @@
-import os
+import os, re
 import copy
 import pandas as pd
 import numpy as np
@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib import cm
 
-iteration = 1
-res = 25
+iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
+res = 10
 sns.set_style("whitegrid", {'axes.grid' : False})
 
 params_file = os.path.join('..', 'Params.xlsx')
@@ -69,8 +69,9 @@ for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.
                 # nearest, bicubic
                 ax.imshow(masked_array, interpolation='nearest', cmap=cmap, aspect='equal', origin='lower') # , vmin=0, vmax=1
                 ax.set_axis_off()
+                ax.set_title('Fraction Implausible, log10')
 
-                impl_min = cxy_gb[implausibility_col].min()
+                impl_min = np.log10(cxy_gb[implausibility_col].min())
                 #impl_min.name = 'Min Implausibility'
                 impl_min = all_inds.merge(impl_min.to_frame(), left_index=True, right_index=True, how='left')
                 Z = impl_min.values.reshape((res,res))#.transpose()
@@ -80,7 +81,8 @@ for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.
                 cmap = copy.copy(cm.autumn)
                 cmap.set_bad('gray',1.) # color, alpha
                 # nearest, bicubic
-                ax.imshow(masked_array, interpolation='nearest', cmap=cmap, aspect='equal', vmin=0, vmax=1, origin='lower')
+                ax.imshow(masked_array, interpolation='nearest', cmap=cmap, aspect='equal', origin='lower') # vmin=0, vmax=1, 
+                ax.set_title('Implausibility Min, log10')
                 ax.set_axis_off()
 
     fig.savefig('Implausibility_%s.pdf'%cut_name)
