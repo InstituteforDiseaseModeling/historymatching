@@ -29,7 +29,7 @@ class GPR():
 
     def __init__(self, basis, Ycol, training_data, param_info,
             kernel_mode = 'RBF',
-            kernel_params = None,
+            theta = None,   # kernel_params
             #is_poisson = False,
             normalize_y = True,
             verbose = False,
@@ -69,11 +69,13 @@ class GPR():
         self.verbose = verbose
         self.debug = debug
 
-        self.theta = None # Kernel/model hyperparameters
-        self.kernel_xx_gpu = None
+        #self.kernel_xx_gpu = None
+        self.define_kernel()
 
-        self.kernel_params = kernel_params
-        self.define_kernel(self.kernel_params)
+        if theta is None:
+            self.reset_theta()
+        else:
+            self.set_theta(theta)
 
 
     @classmethod
@@ -106,7 +108,7 @@ class GPR():
                     training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
                     param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
                     kernel_mode = config['Kernel_Mode'],
-                    kernel_params = np.array(config['Kernel_Params']),
+                    theta = np.array(config['Kernel_Params']),
                     normalizer_mean = config['Normalizer_Mean'],
                     normalizer_std = config['Normalizer_Std'],
                     normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
@@ -117,10 +119,40 @@ class GPR():
 
     def set_training_data(self, new_training_data):
         self.training_data = new_training_data.copy()
-        self.define_kernel(self.kernel_params)
+        self.define_kernel()
 
         # Normalize training data as in __init__
         self.training_data[self.Ycol] = self.normalize(self.training_data[self.Ycol_orig])
+
+        self.update_cache()
+
+    def reset_theta(self):
+        # Set the kernel/model hyperparameters
+        self.theta = None
+        self.Kxx_inv_Y = None
+        self.Kxx_inv = None
+
+    def set_theta(self, theta):
+        assert( len(theta) == 2+self.D )
+        self.theta = theta
+        self.update_cache()
+
+    def update_cache(self):
+        train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
+        X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
+        #Y = self.training_data[self.Ycol].values
+        Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
+
+        try:
+            Kxx = self.kxx_gpu_wrapper(X, self.theta, add_sigma2_n = True)  # Y is noisy
+        except pycuda._driver.MemoryError:
+            print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%X.shape[0]
+            Kxx = self.kernel_xx(X, self.theta, add_sigma2_n = True)
+
+        # Cache
+        print 'Doing N^3 operation to compute Kxx inv'
+        self.Kxx_inv_Y = np.linalg.solve(Kxx, Y)
+        self.Kxx_inv = np.linalg.inv(Kxx)
 
 
     def save(self, save_to):
@@ -156,7 +188,7 @@ class GPR():
         else:
             return data
 
-    def define_kernel(self, params):
+    def define_kernel(self):
         if self.kernel_mode == 'RBF':
             Nx = self.training_data.shape[0]
 
@@ -192,9 +224,6 @@ class GPR():
             print 'Bad kernel mode, kernel_mode=%s'%self.kernel_mode
             raise
 
-        if params is not None:
-            assert( len(params) == 2+self.D )
-            self.theta = params
 
     def kernel_xx(self, X, theta, add_sigma2_n):
         # NOTE: Slow, use GPU acceleration instead.
@@ -248,6 +277,7 @@ class GPR():
 
     def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True):
         Nx = X.shape[0]
+
         # Use from before...?
         block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
 
@@ -491,7 +521,10 @@ class GPR():
         # Restore original index
         self.training_data.set_index(idx, inplace=True)
 
-        self.theta = ret.x # Length scales now on 0-1 range
+        # if cache:
+        self.set_theta(ret.x)
+        #else:
+            #self.theta = ret.x # Length scales now on 0-1 range
 
 
     def evaluate(self, data):
@@ -508,19 +541,20 @@ class GPR():
             print 'Y',Y.shape,' flags:\n', Y.flags
             print 'P',P.shape,' flags:\n', P.flags
 
-        # TODO: Save Kxx, just compute Kxp and Kpp!
-        try:
-            Kxx = self.kxx_gpu_wrapper(X, self.theta, add_sigma2_n = True)  # Y is noisy
-        except pycuda._driver.MemoryError:
-            print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%X.shape[0]
-            Kxx = self.kernel_xx(X, self.theta, add_sigma2_n = True)
+        if self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
+            # TODO: Save Kxx, just compute Kxp and Kpp!
+            try:
+                Kxx = self.kxx_gpu_wrapper(X, self.theta, add_sigma2_n = True)  # Y is noisy
+            except pycuda._driver.MemoryError:
+                print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%X.shape[0]
+                Kxx = self.kernel_xx(X, self.theta, add_sigma2_n = True)
 
-        if self.debug:
-            Kxx_cpu = self.kernel_xx(X, self.theta, add_sigma2_n = True)
-            if not np.allclose(Kxx_cpu, Kxx):
-                print 'evaluate(CPU XX):\n', Kxx_cpu
-                print 'evaluate(GPU XX):\n', Kxx
-                raise
+            if self.debug:
+                Kxx_cpu = self.kernel_xx(X, self.theta, add_sigma2_n = True)
+                if not np.allclose(Kxx_cpu, Kxx):
+                    print 'evaluate(CPU XX):\n', Kxx_cpu
+                    print 'evaluate(GPU XX):\n', Kxx
+                    raise
 
         Kxp = self.kxp_gpu_wrapper(X, P, self.theta)
         if self.debug:
@@ -538,28 +572,25 @@ class GPR():
                 print 'evaluate(GPU PP):\n', Kpp
                 raise
 
-        f = np.dot(Kxp.T, np.linalg.solve(Kxx, Y))
-        # Print, just want diagonal elements!
-        covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
-        stdf = np.sqrt(np.diag(covf))
+        if self.Kxx_inv_Y is not None:
+            print 'Using cache for f'
+            f = np.dot(Kxp.T, self.Kxx_inv_Y)
+        else:
+            f = np.dot(Kxp.T, np.linalg.solve(Kxx, Y))
 
-        fig = None
-        if self.D == 1: # One D
-            print '1D'
-            fig = plt.figure()
-            plt.plot(X[:,0], Y, 'o')
-            #plt.plot(P[:,0], f, '|-')
-            plt.errorbar(P[:,0], f, yerr=2*stdf, lw=1)
-        elif self.D == 2:
-            fig = plt.figure()
-            plt.scatter(X[:,0], X[:,1], s=Y, c=Y, edgecolor='k', linewidth=2, cmap='jet')
-            plt.scatter(P[:,0], P[:,1], s=f, c=f, linewidth=0, cmap='jet')
+        # JUST WANT DIAGONAL ELEMENTS!
+        if self.Kxx_inv is not None:
+            print 'Using cache for covf'
+            covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
+        else:
+            covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
+
+        stdf = np.sqrt(np.diag(covf))
 
         # Note inverse normalize
         return {    'Mean': self.inverse_normalize_mean(f),
                     'Var_Latent': self.inverse_normalize_var(np.diag(covf)),
-                    'Var_Predictive': self.inverse_normalize_var(np.diag(covf) + self.theta[1]*np.ones(P.shape[0])),
-                    'Fig': fig      }
+                    'Var_Predictive': self.inverse_normalize_var(np.diag(covf) + self.theta[1]*np.ones(P.shape[0])) }
 
     def plot_data(self, samples_to_circle=pd.DataFrame(), saveto_dir = None, log_scale=False):
         scaled = (self.training_data[self.Ycol]-self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max()-self.training_data[self.Ycol].min())

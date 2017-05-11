@@ -25,6 +25,7 @@ class HistoryMatching():
         iteration,  # Current iteration, needed?
         implausibility_threshold = 3,
         discrepancy_var = 0,
+        desired_result_var = 0,
         training_fraction = 0.75,
         use_glm = True,      # Disable the glm by setting to False
         verbose = False
@@ -47,6 +48,7 @@ class HistoryMatching():
         self.results = results.copy()
         self.implausibility_threshold = implausibility_threshold
         self.discrepancy_var = discrepancy_var
+        self.desired_result_var = desired_result_var
         self.desired_result = desired_result
         self.training_fraction = training_fraction
         self.iteration = iteration
@@ -97,6 +99,7 @@ class HistoryMatching():
             cut_name = hm_params.loc['cut_name'].values[0]
             implausibility_threshold = hm_params.loc['implausibility_threshold'].values[0]
             discrepancy_var = hm_params.loc['discrepancy_var'].values[0]
+            desired_result_var = hm_params.loc['desired_result_var'].values[0] if 'desired_result_var' in hm_params else 0
             training_fraction = hm_params.loc['training_fraction'].values[0]
             desired_result = hm_params.loc['desired_result'].values[0]
             iteration = hm_params.loc['iteration'].values[0]
@@ -114,6 +117,7 @@ class HistoryMatching():
             iteration = iteration,
             implausibility_threshold = implausibility_threshold,
             discrepancy_var = discrepancy_var,
+            desired_result_var = desired_result_var,
             training_fraction   = training_fraction,
         )
 
@@ -124,6 +128,7 @@ class HistoryMatching():
             'cut_name'                  : self.cut_name,
             'implausibility_threshold'  : self.implausibility_threshold,
             'discrepancy_var'           : self.discrepancy_var,
+            'desired_result_var'        : self.desired_result_var,
             'training_fraction'         : self.training_fraction,
             'desired_result'            : self.desired_result,
             'iteration'                 : self.iteration
@@ -377,12 +382,12 @@ class HistoryMatching():
 
         self.training_data['Implausibility'] = \
                     abs( self.training_data['Mean_Estimate'] - self.desired_result ) / \
-                    np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var)
+                    np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
         self.training_data['Implausible'] = self.training_data[ 'Implausibility' ] > self.implausibility_threshold
 
         self.test_data['Implausibility'] = \
                     abs( self.test_data['Mean_Estimate'] - self.desired_result ) / \
-                    np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var)
+                    np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
         self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > self.implausibility_threshold
 
 

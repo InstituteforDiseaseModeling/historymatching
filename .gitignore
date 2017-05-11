@@ -1,0 +1,37 @@
+# Python
+*.py[cod]
+
+# Visual Studio
+*.pyproj*
+*.sln
+*.suo
+*.vscode*
+*.vs*
+
+# Simulation meta-data
+*simulations/
+
+# dtk-tools
+overseer_check_lock
+.overseer_check_lock
+*.db
+
+# Old stuff
+deprecate/
+
+# Setup
+*.eggs
+*egg-info
+*build/
+*dist/
+
+# PyCharm
+*.idea*
+*.log
+.ipynb_checkpoints
+
+# Vim
+*.sw[nop]
+
+# Helper
+*.ignore.*

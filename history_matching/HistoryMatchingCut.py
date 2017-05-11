@@ -21,7 +21,7 @@ class HistoryMatchingCut():
         self.gpr_all = {}
         self.cuts = []
 
-        for it in range(self.iteration + 1): # Loop over previous iterations
+        for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
             cuts_dir = os.path.join('..', 'iter%d'%it, 'Cuts')
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
@@ -52,29 +52,41 @@ class HistoryMatchingCut():
                 self.gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
                 self.cuts.append((it, cut_name))
 
-        self.cuts.sort()
+        ###self.cuts.sort()
 
 
     def test_plausibility(self, points, constraint = None):
         new_candidates = points.copy()
+        new_candidates['Implausible'] = False
 
         cols = []
         for cut in self.cuts:
             (it, cut_name) = cut
+
+            plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
+
+            print plausible_candidates.shape
+            if plausible_candidates.shape[0] == 0:
+                print 'Returning early because none of the candidates are plausible.'
+                return new_candidates['Implausible']
+
             print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
-            new_candidates['Yglm'] = self.glm_all[cut].evaluate(new_candidates)
-            ret = self.gpr_all[cut].evaluate(new_candidates)
-            new_candidates['Mean_Estimate'] = new_candidates['Yglm'] + ret['Mean']
-            new_candidates['Var_Predictive'] = ret['Var_Predictive']
+            plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
+            ret = self.gpr_all[cut].evaluate(plausible_candidates)
+            plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
+            plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
 
-            new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
-                abs( new_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
-                np.sqrt(new_candidates['Var_Predictive'] + self.hm_params[cut]['discrepancy_var'] )
+            plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
+                abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
+                np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['discrepancy_var'] )
 
-            new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = new_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
+            plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
             cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
 
-        return new_candidates[cols]
+            new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+
+        #return new_candidates[cols]
+        return new_candidates['Implausible']
 
 
     def cut(self, num_desired_candidates = 5000, constraint = None):
@@ -85,11 +97,12 @@ class HistoryMatchingCut():
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print '-'*80
+            max_nSamples = 5000
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0 or stats['num_plausible_candidates'] == 0:
-                nSamples = min(2500, num_desired_candidates)
+                nSamples = min(max_nSamples, num_desired_candidates)
             else:
-                nSamples = min(2500, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
+                nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
             lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
 
             for i, xc in enumerate(self.Xcols_all_orig):
@@ -101,9 +114,10 @@ class HistoryMatchingCut():
                 new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
 
             plausibility = self.test_plausibility(new_candidates, constraint)
-            new_candidates = new_candidates.merge(plausibility, left_index=True, right_index=True)
-            new_candidates['Implausible'] = False
+            new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
+            #new_candidates['Implausible'] = False
 
+            '''
             for cut in self.cuts:
                 (it, cut_name) = cut
 
@@ -114,7 +128,8 @@ class HistoryMatchingCut():
                     100.*stats[cut]['cut_implausible']/float(stats[cut]['num']),
                     100.*stats[cut]['newly_implausible']/float(stats[cut]['num'])))
 
-                new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+                #new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+            '''
 
             candidates = candidates.append(new_candidates)
             stats['num_new_plausible_candidates'] = sum(new_candidates['Implausible'] == False)

@@ -6,8 +6,8 @@ import json
 import numpy as np
 import glob
 
-force_optimize_glm = True
-force_optimize_gpr = True
+force_optimize_glm = False
+force_optimize_gpr = False
 
 iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
 exp_ids = glob.glob('Data_*')
