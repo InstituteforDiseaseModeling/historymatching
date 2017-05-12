@@ -141,12 +141,18 @@ class HistoryMatchingCut():
             print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
 
         rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
-        print 'Rejected %.1f%%' % rejected_percent
+        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, sum(candidates['Implausible']), candidates.shape[0])
 
         non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
+
+        hdf = pd.HDFStore('Candidates_for_iter%d.hd5'%(self.iteration+1))
+        hdf.put('values', non_implausible_candidates[self.Xcols_all_orig])
+        hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
+        hdf.put('all', candidates.set_index(self.Xcols_all_orig))
+        hdf.close()
+
         writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
         non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
-
         non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
         candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
         writer.save()
