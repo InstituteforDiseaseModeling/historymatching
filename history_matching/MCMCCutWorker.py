@@ -1,24 +1,50 @@
-import os
-from pyDOE import lhs
+import multiprocessing as mp
+import sys
 import pandas as pd
-import numpy as np
-from history_matching import HistoryMatching
-from glm import GLM
-from gpr import GPR
+from pyDOE import lhs
+import copy
 
-class HistoryMatchingCut():
+class MCMCCutWorker(mp.Process):
 
-    def __init__(self, cut_dir, iteration):
-        self.cut_dir = cut_dir
-        self.iteration = iteration
+    logger = mp.get_logger()
 
-        self.param_info = None
-        self.Xcols_all_orig = None
+    def __init__(self, x0, N, param_info, constraint):
+        super(MCMCCutWorker, self).__init__()
+
+        self.x0 = x0.copy()
+        self.N = N
+        self.constraint = constraint
+
+        '''
+        self.hm_params = copy.deepcopy(hm_params)
+        self.Xcols_all_orig = copy.deepcopy(Xcols_all_orig)
+        self.cuts = copy.deepcopy(cuts)
+
+        self.param_info = param_info.copy(deep=True)
+
+        # FAILS:
+        #self.glm_all = {k: copy.deepcopy(v) for k,v in glm_all.items()}
+        #self.gpr_all = {k: copy.deepcopy(v) for k,v in gpr_all.items()}
+
+        self.glm_all = glm_all
+        self.gpr_all = gpr_all
+        '''
+
+        import os
+        from history_matching import HistoryMatching
+        from glm import GLM
+        from gpr import GPR
+        self.iteration = 0
+        self.cut_dir = 'Cuts'
 
         self.hm_params = {}
         self.glm_all = {}
         self.gpr_all = {}
         self.cuts = []
+
+        self.param_info = param_info
+        self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
+        candidates = pd.DataFrame( columns=self.Xcols_all_orig )
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
@@ -30,11 +56,6 @@ class HistoryMatchingCut():
                 print '\t Desired Result Var:', hm.desired_result_var
                 print '\t Discrepancy Var:', hm.discrepancy_var
                 print '\t Imp Thresh:', hm.implausibility_threshold
-
-                if self.param_info is None:
-                    self.param_info = hm.param_info
-                    self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
-                    candidates = pd.DataFrame( columns=self.Xcols_all_orig )
 
                 self.hm_params[(it, cut_name)] = {
                     'desired_result':hm.desired_result,
@@ -81,20 +102,22 @@ class HistoryMatchingCut():
         return new_candidates['Implausible']
 
 
-    def cut(self, num_desired_candidates = 5000, constraint = None):
+    def run(self):
+        self.logger.info( 'x0:\n%s' % self.x0.to_string() )
+
         candidates = pd.DataFrame()
 
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
-        while stats['num_plausible_candidates'] < num_desired_candidates:
+        while stats['num_plausible_candidates'] < self.N:
             print '-'*80
-            max_nSamples = 5000
+            max_nSamples = 2
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0 or stats['num_plausible_candidates'] == 0:
-                nSamples = min(max_nSamples, num_desired_candidates)
+                nSamples = min(max_nSamples, self.N)
             else:
-                nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
+                nSamples = min(max_nSamples, int(round(1.25 * (self.N-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
             lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
 
             for i, xc in enumerate(self.Xcols_all_orig):
@@ -102,10 +125,12 @@ class HistoryMatchingCut():
                 lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
 
             new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all_orig)
-            if constraint is not None:
-                new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
+            if self.constraint is not None:
+                self.logger.info('About to constrain:\n%s', new_candidates.to_string())
+                print type(new_candidates)
+                new_candidates = new_candidates.loc[new_candidates.apply(self.constraint, axis=1),:]
 
-            plausibility = self.test_plausibility(new_candidates, constraint)
+            plausibility = self.test_plausibility(new_candidates, self.constraint)
             new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
             #new_candidates['Implausible'] = False
 
@@ -135,18 +160,3 @@ class HistoryMatchingCut():
         rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
         print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, sum(candidates['Implausible']), candidates.shape[0])
 
-        non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
-
-        hdf = pd.HDFStore('Candidates_for_iter%d.hd5'%(self.iteration+1))
-        hdf.put('values', non_implausible_candidates[self.Xcols_all_orig])
-        hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
-        hdf.put('all', candidates.set_index(self.Xcols_all_orig))
-        hdf.close()
-
-        writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
-        non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
-        non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
-        candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
-        writer.save()
-
-        return (candidates, rejected_percent)
