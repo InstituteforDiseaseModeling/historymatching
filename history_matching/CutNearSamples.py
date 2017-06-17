@@ -6,11 +6,15 @@ from history_matching import HistoryMatching
 from glm import GLM
 from gpr import GPR
 
-class HistoryMatchingCut():
+class CutNearSamples():
 
-    def __init__(self, cut_dir, iteration):
+    def __init__(self, cut_dir, iteration, seeds, blur_fraction_of_range = 0.1):
         self.cut_dir = cut_dir
         self.iteration = iteration
+        self.seeds = seeds # Center points for MVNs
+        self.blur_fraction_of_range = blur_fraction_of_range # Points are displaced before kernel density estimation, which is then resamples.  This parameter determines the fration of the parameter range from which a U( -blur_fraction_of_range * RANGE, blur_fraction_of_range * RANGE) random perturbation is selected.  Bigger numbers mean a higher rejection rate because perturbed samples will be farther from their seeds.
+        assert(blur_fraction_of_range > 0)
+        assert(blur_fraction_of_range < 1)
 
         self.param_info = None
         self.Xcols_all_orig = None
@@ -58,7 +62,6 @@ class HistoryMatchingCut():
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
-            print plausible_candidates.shape
             if plausible_candidates.shape[0] == 0:
                 print 'Returning early because none of the candidates are plausible.'
                 return new_candidates['Implausible']
@@ -95,13 +98,40 @@ class HistoryMatchingCut():
                 nSamples = min(max_nSamples, num_desired_candidates)
             else:
                 nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
-            lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
 
+            #lhs_sample = lhs(len(self.Xcols_all_orig), samples=nSamples)
+
+            #from sklearn.neighbors.kde import KernelDensity
+            #kde = KernelDensity(kernel='gaussian', bandwidth=0.2)
+            #print kde.get_params()
+
+            # BLUR THE SEEDS TO GET GOOD COVERAGE
+            N = self.seeds.shape[0]
+            sample = self.seeds.copy()
             for i, xc in enumerate(self.Xcols_all_orig):
                 v = self.param_info.loc[xc]
-                lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
+                sample[xc] = self.seeds[xc] + \
+                    np.random.uniform(
+                        low=-self.blur_fraction_of_range*(v['Max']-v['Min']),
+                        high=self.blur_fraction_of_range*(v['Max']-v['Min']),
+                        size=N )
+                #sample[xc] = np.clip(sample[xc], v['Min'], v['Max'])
 
-            new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all_orig)
+                # Resample points that are outside of Min-Max
+                bad_inds = sample[ (sample[xc] < v['Min']) |  (sample[xc] > v['Max'])].index
+                #print 'Starting with %d bad rows' % bad_inds.size
+                while bad_inds.size > 0:
+                    sample.loc[bad_inds, xc] = self.seeds.loc[bad_inds, xc] + np.random.uniform(low=-0.1*(v['Max']-v['Min']), high=0.1*(v['Max']-v['Min']), size=bad_inds.size)
+                    bad_inds = sample[ (sample[xc] < v['Min']) |  (sample[xc] > v['Max'])].index
+                    #print ' --> Now have %d bad rows' % bad_inds.size
+
+            if sample.shape[0] > nSamples:
+                sample = sample[:nSamples]
+
+            #kde.fit(sample)
+            #sample = kde.sample(n_samples = nSamples)
+
+            new_candidates = pd.DataFrame( sample, columns=self.Xcols_all_orig)
             if constraint is not None:
                 new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
 
@@ -131,22 +161,31 @@ class HistoryMatchingCut():
             del new_candidates
 
             print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
-
-        rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
-        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, sum(candidates['Implausible']), candidates.shape[0])
+            rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
+            print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, sum(candidates['Implausible']), candidates.shape[0])
 
         non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        hdf = pd.HDFStore('Candidates_for_iter%d.hd5'%(self.iteration+1))
+        with open('cut_stats_NSs.txt', 'w') as f:
+            f.write('Rejected Percent = %f'%rejected_percent)
+            f.write('Num Trials = %d'%candidates.shape[0])
+            f.write('Num Implausible = %d'%non_implausible_candidates.shape[0])
+
+        hdf = pd.HDFStore('Candidates_NS_for_iter%d.hd5'%(self.iteration+1))
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
+        hdf.close()
+
+        hdf = pd.HDFStore('Candidates_full_NS_for_iter%d.hd5'%(self.iteration+1))
         hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
         hdf.put('all', candidates.set_index(self.Xcols_all_orig))
         hdf.close()
 
-        writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
+        '''
+        writer = pd.ExcelWriter('Candidates_NS_for_iter%d.xlsx'%(self.iteration+1))
         non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
         non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
         candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
         writer.save()
+        '''
 
         return (candidates, rejected_percent)

@@ -40,6 +40,9 @@ class GLM(object):
         if family == 'Poisson':
             self.glmfam = sm.families.Poisson()
             print 'Using Poisson family'
+        elif family == 'Binomial':
+            self.glmfam = sm.families.Binomial()
+            print 'Using Binomial family'
         elif family == 'NegativeBinomial':
             alpha = 1.9
             self.glmfam = sm.families.NegativeBinomial(alpha=alpha) # Does strange things with float vs int values of alpha!

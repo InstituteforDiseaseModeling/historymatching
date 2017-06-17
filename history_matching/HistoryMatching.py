@@ -349,6 +349,8 @@ class HistoryMatching():
         test_mean['Mean_Estimate'] = test_mean['Mean_Err']
         if self.use_glm:
             test_mean['Mean_Estimate'] += test_mean['Yglm']
+            print 'Yglm:\n', test_mean['Yglm'].head()
+
         test_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         test_mean['Var_Err_Latent'] = ret['Var_Latent']
         self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
@@ -380,6 +382,14 @@ class HistoryMatching():
 
     def calc_and_plot_implausibility(self, plot=False, do_plot_data=False, plot_data_highlight=pd.DataFrame(), log_scale=True):
 
+        '''
+        print 'Mean_Estimate:', self.training_data['Mean_Estimate']
+        print 'Std_Err_Predictive:', np.sqrt(self.training_data['Var_Err_Predictive'])
+        print 'Discrepancy Std:', np.sqrt(self.discrepancy_var)
+        print 'Desired result std:', np.sqrt(self.desired_result_var)
+        print 'Desired_Result:', self.desired_result
+        print 'Total_Var:', np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+        '''
         self.training_data['Implausibility'] = \
                     abs( self.training_data['Mean_Estimate'] - self.desired_result ) / \
                     np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
@@ -391,10 +401,18 @@ class HistoryMatching():
         self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > self.implausibility_threshold
 
 
+        print 'IMP Ycol:\n', self.training_data[self.Ycol].head()
+        print 'IMP Mean:\n', self.training_data['Mean_Estimate'].head()
+        print 'IMP std_predictive:\n', np.sqrt(self.training_data['Var_Err_Predictive'].head())
+
         self.training_data['Z_Noisy'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Predictive'])
         self.training_data['Z_Noiseless'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Latent'])
-        self.test_data['Z_Noisy'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / np.sqrt(self.test_data['Var_Err_Predictive'])
-        self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / np.sqrt(self.test_data['Var_Err_Latent'])
+
+        # self.Ycol
+        self.test_data['Z_Noisy'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
+            np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+        self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
+            np.sqrt(self.test_data['Var_Err_Latent'] + self.discrepancy_var + self.desired_result_var)
 
         '''
         if self.verbose:

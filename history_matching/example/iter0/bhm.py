@@ -127,7 +127,7 @@ print "="*80, "\nGeneralized Linear Modeling\n", "="*80
 #######################################################################
 hm.glm(
     basis = basis_glm,
-    family = 'Poisson',
+    family = 'Gaussian',
     force_optimize_glm = force_optimize_glm,
     glm_fit_maxiter = 100000,
     plot = force_optimize_glm,

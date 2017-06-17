@@ -573,14 +573,16 @@ class GPR():
                 raise
 
         if self.Kxx_inv_Y is not None:
-            print 'Using cache for f'
+            if self.verbose:
+                print 'Using cache for f'
             f = np.dot(Kxp.T, self.Kxx_inv_Y)
         else:
             f = np.dot(Kxp.T, np.linalg.solve(Kxx, Y))
 
         # JUST WANT DIAGONAL ELEMENTS!
         if self.Kxx_inv is not None:
-            print 'Using cache for covf'
+            if self.verbose:
+                print 'Using cache for covf'
             covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
         else:
             covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
@@ -702,6 +704,11 @@ class GPR():
         return (fig, fig_std_latent)
 
     def plot_errors(self, train, test, mean_col, var_predictive_col, var_latent_col):
+
+        print 'GPR Ycol_orig:\n', train[self.Ycol_orig].head()
+        print 'GPR mean_col:\n', train[mean_col].head()
+        print 'GPR std_predictive:\n', np.sqrt(train[var_predictive_col].head())
+
         train['Z_Predictive'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_predictive_col])
         train['Z_Latent'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_latent_col])
         test['Z_Predictive'] = (test[self.Ycol_orig] - test[mean_col]) / np.sqrt(test[var_predictive_col])

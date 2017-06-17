@@ -256,6 +256,7 @@ class Basis():
         num_params = np.zeros_like(alpha)
         bic = np.zeros_like(alpha)
         for i,a in enumerate(alpha):
+            print('Regularize: %d of %d' % (i, len(alpha)))
             fit = model.fit_regularized(alpha=a, refit=True)
 
             params = pd.Series(fit.params, index=data_matrix.columns)
