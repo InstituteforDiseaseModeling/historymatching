@@ -201,6 +201,45 @@ class Basis():
         return terms
 
 
+    def fit(self, inputs, results, scaleX = False):
+        # TODO: TEST
+
+        if scaleX:
+            assert(self.param_info is not None)
+            inputs = self.scale_data(inputs.copy())
+
+        Ycol = 'Sim_Result'
+        my_results = results.copy()
+        my_results.name = Ycol
+        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Sample_Id', 'Exp_Id', 'Sample', 'Sim_Id']).sort_index()
+
+        response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
+        model = sm.OLS(response_matrix, data_matrix)
+
+        fit = model.fit()
+        if self.verbose:
+            print 'SUMMARY:\n', fit.summary()
+        print 'AIC:', fit.aic
+        print 'BIC:', fit.bic
+        params = pd.Series(fit.params, index=data_matrix.columns)
+        params = params[abs(params)>0]
+        #print 'FV:\n', fit.fittedvalues
+        print 'Non-Zero:', len(params), 'of', self.D
+
+        terms = params.index.values.tolist()
+        if 'Intercept' in terms:
+            intercept_term = [Term([])]
+            terms.remove('Intercept')
+        else:
+            intercept_term = []
+
+        self.model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms]
+        self.param_dict = Basis.make_param_dict(inputs.columns.tolist())
+        self.D = len(self.model_terms)
+
+        return fit.predict(data_matrix)
+
+
     def regularize(self, inputs, results, alpha, scaleX = False):
 
         if scaleX:
