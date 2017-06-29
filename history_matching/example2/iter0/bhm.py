@@ -9,7 +9,7 @@ import glob
 force_optimize_glm = True
 force_optimize_gpr = True
 
-iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
+iteration = int(re.search(r'iter(\d+)', os.getcwd()).group(1))
 exp_ids = glob.glob('Data_*')
 training_fraction = 0.75
 implausibility_threshold = 3

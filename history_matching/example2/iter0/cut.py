@@ -9,7 +9,7 @@ import os, re
 # History Matching!
 hm = HistoryMatchingCut(
     cut_dir = 'Cuts',
-    iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
+    iteration = int(re.search(r'iter(\d+)', os.getcwd()).group(1))
 )
 
 
