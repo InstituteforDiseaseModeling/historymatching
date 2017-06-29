@@ -6,7 +6,7 @@ import re, time
 
 from history_matching import quick_read
 
-iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
+iteration = int(re.search(r'iter(\d+)', os.getcwd()).group(1))
 experiment_name = 'Data_%s'%time.strftime("%Y%m%d_%H%M%S")
 N_samples = 25 # <-- Only applies to iteration 0
 
