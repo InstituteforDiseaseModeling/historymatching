@@ -9,7 +9,7 @@ import statsmodels.formula.api as smf
 
 from basis import Basis
 
-import numpy as np, GPy, pandas as pd, seaborn as sns
+import numpy as np, pandas as pd, seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
