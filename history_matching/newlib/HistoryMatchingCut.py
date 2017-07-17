@@ -2,14 +2,17 @@ import os
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
-from history_matching import HistoryMatching
+from newlib.HistoryMatching import HistoryMatching
+from newlib.iteration import Iteration
 from glm import GLM
 from gpr import GPR
 
 class HistoryMatchingCut():
 
-    def __init__(self, cut_dir, iteration):
-        self.cut_dir = cut_dir
+    def __init__(self, iteration): # cut_dir, iteration):
+        """
+        iteration is an Iteration object.
+        """
         self.iteration = iteration
 
         self.param_info = None
@@ -20,8 +23,9 @@ class HistoryMatchingCut():
         self.gpr_all = {}
         self.cuts = []
 
-        for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
-            cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
+        for it in reversed(range(self.iteration.iteration_number + 1)): # Loop over previous iterations
+            other_iteration = Iteration.in_same_case(source_iteration = self.iteration, num = it)
+            cuts_dir = other_iteration.cut_root_directory   # os.path.join('..', 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
                 print('Reading iteration %d. cut %s' % (it,cut_name) )
@@ -81,7 +85,8 @@ class HistoryMatchingCut():
         return new_candidates['Implausible']
 
 
-    def cut(self, num_desired_candidates = 5000, constraint = None):
+    # ck4, decouple the writing to the xlsx from cutting algorithm
+    def cut(self, output_filename, num_desired_candidates = 5000, constraint = None):
         candidates = pd.DataFrame()
 
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
@@ -137,13 +142,15 @@ class HistoryMatchingCut():
 
         non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        hdf = pd.HDFStore('Candidates_for_iter%d.hd5'%(self.iteration+1))
+        hdf_filename = os.path.splitext(output_filename)[0] + '.hd5'
+        hdf = pd.HDFStore(hdf_filename)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
         hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
         hdf.put('all', candidates.set_index(self.Xcols_all_orig))
         hdf.close()
 
-        writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
+        xlsx_filename = output_filename
+        writer = pd.ExcelWriter(xlsx_filename)
         non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
         non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
         candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
