@@ -9,7 +9,7 @@ import datetime
 
 from newlib.glm import GLM
 from newlib.gpr import GPR
-from plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
+from newlib.plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
 
 # TODO: Error plot
 # TODO: Reference plot

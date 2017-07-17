@@ -177,6 +177,7 @@ class Iteration(object):
         
     # was originally bhm.py
     def fit(self, cut_name, training_directory, data_directories,
+            target, target_std,
             training_fraction=0.75, force_optimize_glm=True, force_optimize_gpr=True,
             implausibility_threshold=3, remake_bases=False):
         
@@ -184,9 +185,8 @@ class Iteration(object):
         from newlib.quick_read import quick_read
         from newlib.basis import Basis
  
-        # ck4, more parameters somehow? This is currently hard-coded to the distance 15 circle example
-        desired_result = 15
-        discrepancy_std = 0.1 * desired_result
+        desired_result = target
+        discrepancy_std = target_std # 0.1 * desired_result
         print 'Desired result is: ', desired_result
 
         # Data
@@ -199,8 +199,6 @@ class Iteration(object):
         inputs, results = self.setup_inputs_and_results(training_directory,
                                                         data_directories,
                                                         training_fraction)
-        # ck4, this section: make it a method that can be called to return 'results' and 'inputs' (inputs = pd.concat(sim_inputs)),
-        # then pass the fxn call returns as arguments to cut.make_bases() START HERE ON FRIDAY                                                          
 
         self.make_bases(cut_name=cut_name, force=remake_bases, inputs=inputs, results=results)
         cut = self.cuts[cut_name] # set in self.make_bases()
