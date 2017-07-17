@@ -211,6 +211,7 @@ class Iteration(object):
         # History Matching!
         hm = HistoryMatching(
             cut_name = cut_name,
+            cut_directory = cut.directory,
             param_info = param_info,
             inputs = inputs,
             results = results,
@@ -267,9 +268,10 @@ class Iteration(object):
         print "="*80, "\nImplausibility\n", "="*80
         ###############################################################################
         hm.calc_and_plot_implausibility(plot=True, do_plot_data=True, plot_data_highlight=pd.DataFrame()) # plot_data_highlight=hm.training_data.loc['8c7e4af7-1120-e711-9400-f0921c16849c.003328']
-        
-        hm.training_data.to_excel(os.path.join('Cuts', cut_name, 'train_data.xlsx'))
-        hm.test_data.to_excel(os.path.join('Cuts', cut_name, 'test_data.xlsx'))
+
+        directory = self.cuts[cut_name].directory
+        hm.training_data.to_excel(os.path.join(directory, 'train_data.xlsx'))
+        hm.test_data.to_excel(os.path.join(directory, 'test_data.xlsx'))
         
         print 'Good'
 

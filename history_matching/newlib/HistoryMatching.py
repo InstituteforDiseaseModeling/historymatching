@@ -18,6 +18,7 @@ class HistoryMatching():
 
     def __init__(self,
         cut_name,           # Name for this cut
+        cut_directory,
         param_info,         # Parameter definitions
         inputs,
         results,
@@ -43,6 +44,7 @@ class HistoryMatching():
         sns.set_style('whitegrid')
 
         self.cut_name = cut_name
+        self.cut_directory = cut_directory
         self.param_info = param_info.copy()
         self.inputs = inputs.copy()
         self.results = results.copy()
@@ -85,10 +87,10 @@ class HistoryMatching():
             print "--> Testing  with %d unique parameter configurations (%d simulations including replicates)" % (nTest, nTest*nRep)
 
         # Dir prep
-        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name) )
-        self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
-        self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
-        self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
+        HistoryMatching.mkdir_if_needed(self.cut_directory)
+        self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cut_directory, 'GLM') )
+        self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cut_directory, 'GPR') )
+        self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cut_directory, 'Implausibility') )
 
 
     @classmethod
@@ -97,6 +99,7 @@ class HistoryMatching():
         with pd.ExcelFile(config_fn) as xls:
             hm_params = pd.read_excel(xls, 'History_Matching_Params', index_col=0, na_values=['NA'])
             cut_name = hm_params.loc['cut_name'].values[0]
+            cut_directory = hm_params.loc['cut_directory'].values[0]
             implausibility_threshold = hm_params.loc['implausibility_threshold'].values[0]
             discrepancy_var = hm_params.loc['discrepancy_var'].values[0]
             desired_result_var = hm_params.loc['desired_result_var'].values[0] if 'desired_result_var' in hm_params else 0
@@ -110,6 +113,7 @@ class HistoryMatching():
 
         return cls(
             cut_name = cut_name,
+            cut_directory = cut_directory,
             param_info = param_info,
             inputs = inputs,
             results = results,
@@ -121,11 +125,12 @@ class HistoryMatching():
             training_fraction   = training_fraction,
         )
 
-
+        
     def save(self):
-        config_fn = os.path.join(self.cutdir, 'history_matching_config.xlsx')
+        config_fn = os.path.join(self.cut_directory, 'history_matching_config.xlsx')
         hm_params = pd.Series({
             'cut_name'                  : self.cut_name,
+            'cut_directory'             : self.cut_directory,
             'implausibility_threshold'  : self.implausibility_threshold,
             'discrepancy_var'           : self.discrepancy_var,
             'desired_result_var'        : self.desired_result_var,
