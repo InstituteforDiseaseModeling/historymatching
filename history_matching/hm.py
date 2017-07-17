@@ -34,10 +34,6 @@ def set_samples(args):
 # from cut.py
 # ck4, needs a run through test, especially constraints
 def cut_parameter_space(args):
-    # Example constraint function:
-    #def day_sum(row):
-    #    return row[['Env Ramp Up', 'Env Ramp Down', 'Env Cutoff']].sum() < 365
-
     # try to load and error check any provide constraint information
     if args.constraint_filename:
         if args.constraint_method:
