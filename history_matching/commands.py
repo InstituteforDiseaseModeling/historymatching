@@ -31,18 +31,30 @@ def set_samples(args):
                           samples_file = sample_file)
     iteration.write_samples()
 
-# ck4, make this method nice; pasted in from cut.py currently.
-# ck4, needs a run through test
+# from cut.py
+# ck4, needs a run through test, especially constraints
 def cut_parameter_space(args):
-    import os, re
-    
     # Example constraint function:
     #def day_sum(row):
     #    return row[['Env Ramp Up', 'Env Ramp Down', 'Env Cutoff']].sum() < 365
-    
-    
+
+    # try to load and error check any provide constraint information
+    if args.constraint_filename:
+        if args.constraint_method:
+            import simtools.Utilities.Initialization as init # from dtk tools
+            args.config_name = args.constraint_filename
+            mod = init.load_config(args)
+            try:
+                constraint = getattr(mod, args.constraint_method)
+            except AttributeError as e:
+                raise AttributeError('Error in loading constraint method: %s from module: %s' % (args.constraint_method, args.constraint_filename))
+        else:
+            raise Exception('A constraint method method must be specified if a constraint filename is provided.')
+    else:
+        constraint = None
+        
     iteration = Iteration(args.iteration_directory, parameter_filename=args.parameter_file)
-    iteration.cut_param_space(n_desired_candidates=args.n_candidates, constraint = None) # ck4, constraints need to be added back somehow
+    iteration.cut_param_space(n_desired_candidates=args.n_candidates, constraint = constraint)
 
 #def make_bases(args):
 #    iteration = Iteration(args.iteration_directory, parameter_filename=args.parameter_file)

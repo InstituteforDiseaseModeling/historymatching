@@ -22,6 +22,11 @@ def populate_cut_params(subparsers, function):
                         help='Keep at least and close to this many candidate points in the cut.')
     parser.add_argument('--params', dest='parameter_file', type=str, required=True,
                         help='Parameter description .xlsx file. Required.')
+    parser.add_argument('-c', '--constraint-file', dest='constraint_filename', type=str,
+                        help='Python file containing a top-level method to be used for constraining sample space candidates.')
+    parser.add_argument('-C', '--constraint-method', dest='constraint_method', type=str,
+                        help='Method in constraint file (-c FILE) to call. Required if -c specified.')    
+    
     parser.set_defaults(func=function)
 
 def populate_run_samples(subparsers, function):
@@ -49,10 +54,10 @@ def populate_fit(subparsers, function):
                         help='Name of cut to use. Required.')
     parser.add_argument('-t', '--training-fraction', dest='training_fraction', type=float, default=0.75,
                         help='Fraction of the training data directory to use in training (0-1) (Default: 0.75).')
-    parser.add_argument('--optimize-glm', dest='optimize_glm', action='store_true', default=False,
-                        help='Force optimization of the GLM (Default: False).')
-    parser.add_argument('--optimize-gpr', dest='optimize_gpr', action='store_true', default=False,
-                        help='Force optimization of the GPR (Default: False).')
+    parser.add_argument('--no-optimize-glm', dest='optimize_glm', action='store_false', default=True,
+                        help='Do not force optimization of the GLM (Default: force).')
+    parser.add_argument('--no-optimize-gpr', dest='optimize_gpr', action='store_false', default=True,
+                        help='Do not force optimization of the GPR (Default: force).')
     parser.add_argument('--training-dir', dest='training_directory', type=str, required=True,
                         help='Training iteration directory to use. Required.')
     parser.add_argument('-d', '--data-dirs', dest='data_directories', nargs='+', type=str, default=[],
