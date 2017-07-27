@@ -147,6 +147,7 @@ hm.gpr(
     sigma2_n_guess = 1,
     sigma2_n_bounds = (0.001, 100),
     #lengthscale_guess = [0.04313128, 0.2, 0.14240553, 0.01418867, 0.2, 0.17683428],
+    lengthscale_guess = [ 1.59302768e-01, 8.51659614e-03],
     lengthscale_bounds = (0.001, 0.2),
     verbose = True,
     optimizer_options = {

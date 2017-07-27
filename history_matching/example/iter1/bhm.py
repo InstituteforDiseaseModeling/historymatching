@@ -6,8 +6,8 @@ import json
 import numpy as np
 import glob
 
-force_optimize_glm = False
-force_optimize_gpr = False
+force_optimize_glm = True
+force_optimize_gpr = True
 
 iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
 exp_ids = glob.glob('Data_*')
@@ -77,14 +77,19 @@ except:
     alpha_glm = float(raw_input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
 
     fitted_values = basis_glm.regularize(inputs, results, alpha = alpha_glm, scaleX=True) # 100 for thrid_order
+    print fitted_values
+    print type(fitted_values)
+
+    '''
     print 'Regularization for GLM selected:\n', ' *','\n * '.join(basis_glm.get_terms())
     with open(os.path.join('Cuts', cut_name, 'basis_glm.json'), 'w') as fout:
         json.dump( {
             'Basis': basis_glm.serialize(),
             'Fitted_Values': fitted_values.reset_index().to_json(orient='split')
         }, fout, indent=4)
+    '''
 
-# Choose GLM inputs
+# Choose GPR inputs
 try:
     with open(os.path.join('Cuts', cut_name, 'basis_gpr.json')) as data_file:
         config = json.load( data_file )
@@ -127,7 +132,7 @@ print "="*80, "\nGeneralized Linear Modeling\n", "="*80
 #######################################################################
 hm.glm(
     basis = basis_glm,
-    family = 'Poisson',
+    family = 'Gaussian',
     force_optimize_glm = force_optimize_glm,
     glm_fit_maxiter = 100000,
     plot = force_optimize_glm,
@@ -135,7 +140,7 @@ hm.glm(
 )
 
 
-### GLM ###############################################################
+### GPR ###############################################################
 print "="*80, "\nGaussian Process Regression\n", "="*80
 #######################################################################
 hm.gpr(

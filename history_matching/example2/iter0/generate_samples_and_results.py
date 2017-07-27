@@ -8,7 +8,7 @@ from history_matching import quick_read
 
 iteration = int(re.search(r'iter(\d+)', os.getcwd()).group(1))
 experiment_name = 'Data_%s'%time.strftime("%Y%m%d_%H%M%S")
-N_samples = 25 # <-- Only applies to iteration 0
+N_samples = 5000 # <-- Only applies to iteration 0
 
 params = quick_read( os.path.join('..', 'Params.xlsx'), 'Params').set_index('Name')
 

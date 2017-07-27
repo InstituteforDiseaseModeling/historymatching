@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -21,6 +22,10 @@ from pycuda.compiler import SourceModule
 from string import Template
 import skcuda.misc as misc
 from basis import Basis
+
+#import pycuda.gpuarray as gpuarray
+import scipy.linalg
+import skcuda.linalg as linalg
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
@@ -150,9 +155,23 @@ class GPR():
             Kxx = self.kernel_xx(X, self.theta, add_sigma2_n = True)
 
         # Cache
-        print 'Doing N^3 operation to compute Kxx inv'
-        self.Kxx_inv_Y = np.linalg.solve(Kxx, Y)
-        self.Kxx_inv = np.linalg.inv(Kxx)
+        #print 'Doing N^3 operation to compute Kxx inv'
+        #self.Kxx_inv_Y = np.linalg.solve(Kxx, Y)
+        #self.Kxx_inv = np.linalg.inv(Kxx)
+        #print 'CPU:\n', self.Kxx_inv
+        try:
+            #q = time.time()
+            Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
+            linalg.init()
+            self.Kxx_inv = linalg.inv(Kxx_gpu, overwrite=True, lib='cusolver').get()
+            #print 'Inverting KXX (GPU)=',time.time()-q
+        except Exception as e:
+            print str(e)
+            #q = time.time()
+            self.Kxx_inv = np.linalg.inv(Kxx) # self.?
+            #print 'Inverting KXX (CPU)=',time.time()-q
+
+        self.Kxx_inv_Y = np.dot(self.Kxx_inv, Y)
 
 
     def save(self, save_to):
@@ -196,7 +215,9 @@ class GPR():
                 kernel_code_template = Template(f.read())
 
             max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(pycuda.autoinit.device)
-            block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
+            device = pycuda.autoinit.device
+            print 'Autoinit GPU device name:', device.name()
+            block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
             if self.verbose:
@@ -360,6 +381,8 @@ class GPR():
 
 
     def cross_validation(self, theta, X, Y, P):
+        t = time.time()
+
         num_partitions = int(max(P)+1)
         num_points = len(P)
 
@@ -373,6 +396,47 @@ class GPR():
                 print 'loo_cross_validation(GPU XX):\n', KXX
                 raise
 
+        #############
+        z = time.time()
+        try:
+            #q = time.time()
+            KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
+            linalg.init()
+            KXX_inv = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver').get()
+            #print 'Inverting KXX (GPU)=',time.time()-q
+        except Exception as e:
+            print str(e)
+            #q = time.time()
+            KXX_inv = np.linalg.inv(KXX) # self.?
+            #print 'Inverting KXX (CPU)=',time.time()-q
+
+        #q = time.time()
+        #KXX_inv_Y = np.linalg.solve(KXX, Y) # self.?
+        KXX_inv_Y = np.dot(KXX_inv, Y)
+        #print 'KXX_inv * Y (CPU)=',time.time()-q
+
+        ll = 0
+        for partition in range(num_partitions):
+            test_inds = [k for k in range(num_points) if P[k]==partition]
+            test_inds = [k for k in range(num_points) if P[k]==partition]
+            test_array = np.array(test_inds, dtype=np.intp)
+
+            covf = np.linalg.inv(KXX_inv[test_array[:,np.newaxis], test_inds])
+            err = np.dot(covf, KXX_inv_Y[test_inds,:])
+
+            for row in range(len(test_inds)):
+                err_row = err[row,:]
+                err_row = err_row[~np.isnan(err_row)]
+                ll += np.sum(-0.5*err_row**2/covf[row,row]) -0.5*np.log(2*np.pi*covf[row,row]) * len(err_row)
+
+        if self.verbose:
+            print '[cv.gpu %.2f]'%(time.time()-z), theta, '-->', -ll
+
+        return np.array([-ll])
+        #############
+
+        '''
+        z = time.time()
         ll = 0
         for partition in range(num_partitions):
             train_inds = [k for k in range(num_points) if P[k]!=partition]
@@ -405,8 +469,83 @@ class GPR():
                     print 'loo_cross_validation(GPU pp):\n', Kpp
                     raise
 
-            f = np.dot(Kxp.T, np.linalg.solve(Kxx, y_mean)) # NOTE: Using mean here
-            covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
+            try: # GPU
+                #raise NotImplementedError("Test")
+                linalg.init()
+                Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
+                y_mean_gpu  = gpuarray.to_gpu(np.asarray(y_mean, np.float64))
+
+                s = time.time()
+                linalg.cho_solve(Kxx_gpu, y_mean_gpu, lib='cusolver')
+                if self.debug:
+                    print 'GPU(f.sol): %f'%(time.time()-s)
+                sol = y_mean_gpu.get()
+
+            except Exception as e:
+                print str(e)
+                s = time.time()
+                sol = np.linalg.solve(Kxx, y_mean)
+                if self.debug:
+                    print 'CPU(f.sol): %f'%(time.time()-s)
+
+            s = time.time()
+            f = np.dot(Kxp.T, sol) # NOTE: Using mean here
+
+
+            if self.debug:
+                print 'CPU(f.dot): %f'%(time.time()-s)
+
+            try: # GPU
+                #raise NotImplementedError("Test")
+                s = time.time()
+                linalg.init()
+                Kxp_gpu  = gpuarray.to_gpu(np.asarray(Kxp.copy(), np.float64))
+
+                #print 'Kxx_gpu flags:\n', Kxx_gpu.get().flags
+                #print 'Kxp_gpu flags:\n', Kxp_gpu.get().flags
+
+                s = time.time()
+                #linalg.cho_solve(Kxx_gpu, Kxp_gpu, lib='cusolver')
+                Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
+                linalg.cholesky(Kxx_gpu, uplo='L', lib='cusolver')
+                if self.debug:
+                    print 'GPU(cholesky): %f'%(time.time()-s)
+
+                Kxx_cholL = Kxx_gpu.get().T
+                #Kxx_cholL_cpu = scipy.linalg.cholesky(Kxx, lower=True)
+
+                rhs = scipy.linalg.solve_triangular(Kxx_cholL, Kxp, lower=True)
+                sol = scipy.linalg.solve_triangular(Kxx_cholL, rhs, trans='T', lower=True)
+                if self.debug:
+                    print 'GPU/CPU(covf.sol): %f'%(time.time()-s)
+
+            except Exception as e:
+                print str(e)
+                s = time.time()
+                sol = np.linalg.solve(Kxx, Kxp)
+                if self.debug:
+                    print 'CPU(covf.sol): %f'%(time.time()-s)
+
+
+            s = time.time()
+            covf = Kpp - np.dot(Kxp.T, sol)
+
+            #######
+            #err = yp-np.repeat(f[:,np.newaxis], yp.shape[1], axis=1)
+            #print 'ferr:\n', err
+            #print 'direct:\n', np.dot(covf, KXX_inv_Y[test_inds,:])
+            #exit()
+            #######
+
+            #######
+            #print 'covf:\n', covf
+            #print 'direct:\n', np.linalg.inv(KXX_inv[test_array[:,np.newaxis], test_inds])
+            #exit()
+            #######
+
+
+            if self.debug:
+                print 'CPU(covf.dot): %f'%(time.time()-s)
 
             err = yp-np.repeat(f[:,np.newaxis], yp.shape[1], axis=1)
             for row in range(yp.shape[0]):
@@ -421,9 +560,11 @@ class GPR():
             #ll += -self.D/2.0*np.log(2*np.pi) - 0.5 * logdet -0.5*np.dot(yp-f, np.linalg.solve(covf, yp-f))
 
         if self.verbose:
-            print theta, '-->', -ll
+            print '[cv.cpu %.2f]'%(time.time()-z), theta, '-->', -ll
+            #print '[cv %.2f]'%(time.time()-t), theta, '-->', -ll
 
         return np.array([-ll])
+        '''
 
 
     def assign_rep(self, sample):

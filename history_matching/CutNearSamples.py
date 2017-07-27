@@ -92,7 +92,7 @@ class CutNearSamples():
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print '-'*80
-            max_nSamples = 5000
+            max_nSamples = 20000 #5000
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0 or stats['num_plausible_candidates'] == 0:
                 nSamples = min(max_nSamples, num_desired_candidates)
@@ -106,15 +106,18 @@ class CutNearSamples():
             #print kde.get_params()
 
             # BLUR THE SEEDS TO GET GOOD COVERAGE
-            N = self.seeds.shape[0]
-            sample = self.seeds.copy()
+            #sample = self.seeds.copy()
+            #while sample.shape[0] < nSamples:
+            #    sample = sample.append(self.seeds.copy()
+            sample = self.seeds.sample(n=nSamples, replace=True).reset_index(drop=True)
+            #N = self.seeds.shape[0]
             for i, xc in enumerate(self.Xcols_all_orig):
                 v = self.param_info.loc[xc]
-                sample[xc] = self.seeds[xc] + \
+                sample[xc] += \
                     np.random.uniform(
                         low=-self.blur_fraction_of_range*(v['Max']-v['Min']),
                         high=self.blur_fraction_of_range*(v['Max']-v['Min']),
-                        size=N )
+                        size=sample.shape[0] )
                 #sample[xc] = np.clip(sample[xc], v['Min'], v['Max'])
 
                 # Resample points that are outside of Min-Max
@@ -125,8 +128,8 @@ class CutNearSamples():
                     bad_inds = sample[ (sample[xc] < v['Min']) |  (sample[xc] > v['Max'])].index
                     #print ' --> Now have %d bad rows' % bad_inds.size
 
-            if sample.shape[0] > nSamples:
-                sample = sample[:nSamples]
+            #if sample.shape[0] > nSamples:
+            #    sample = sample[:nSamples]
 
             #kde.fit(sample)
             #sample = kde.sample(n_samples = nSamples)
@@ -135,6 +138,7 @@ class CutNearSamples():
             if constraint is not None:
                 new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
 
+            print 'Testing:', new_candidates.shape[0]
             plausibility = self.test_plausibility(new_candidates, constraint)
             new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
             #new_candidates['Implausible'] = False

@@ -9,9 +9,8 @@ def md5(fname):
     return hash_md5.hexdigest()
 
 
-def quick_read(excel_fn, force_read=False, **kwargs):
-    assert('sheetname' in kwargs)
-    sheetname = kwargs['sheetname']
+def quick_read(excel_fn, sheetname, force_read=False, **kwargs):
+    kwargs['sheetname'] = sheetname
     excel_md5 = md5(excel_fn)
 
     filename = os.path.splitext(excel_fn)[0]
