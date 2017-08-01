@@ -5,7 +5,6 @@ from pyDOE import lhs
 
 from newlib.cut import Cut
 from newlib.sample_file import SampleFile # ck4, all pathing for hm package needs to be fixed
-from newlib.parameter_file import ParameterFile
 
 class Iteration(object):
 
@@ -16,7 +15,11 @@ class Iteration(object):
     ITERATION_DIR_PATTERN = 'iter%d'
     CANDIDATES_FILENAME = 'Candidates_for_iteration.xlsx'
 
-    def __init__(self, directory, parameter_filename=None):
+    def __init__(self, directory, parameters=None):
+        """
+        :param directory: path of this iteration
+        :param parameters: from ParameterFile().parameters
+        """
         directory = os.path.abspath(directory)
         self._validate_directory_name(directory)
         self.directory = directory
@@ -31,15 +34,9 @@ class Iteration(object):
         # The canonical path where samples will be stored for this iteration, once discovered.
         self.samples_file = os.path.join(self.directory, self.SAMPLES_FILENAME)
 
-        # Not ideal, but the parameter file exists a level above iterations. Until code
-        # is written to represent that higher level of the history matching process,
         # we keep it as an optional item here (needed for creating parameter space
         # samples, e.g. in the first iteration)
-        self.parameter_filename = parameter_filename
-        if parameter_filename:
-            self.parameters = ParameterFile(parameter_filename).parameters
-        else:
-            self.parameters = None
+        self.parameters = parameters
 
         self.cut_root_directory = os.path.join(directory, 'Cuts')
 
@@ -101,17 +98,6 @@ class Iteration(object):
             samples[param_name] = pmin + samples[param_name]*(pmax-pmin)
         samples.index.name = 'id'
         return samples
-
-    def cut_param_space(self, n_desired_candidates, constraint=None):
-        from newlib.HistoryMatchingCut import HistoryMatchingCut # ck4, fix all newlib import statements eventually
-        hm = HistoryMatchingCut(iteration = self) # ck4, pretty funky passing only self; probably means HMC.cut needs to be a method on Iteration objects. Some day.
-        
-        print "="*80, "\nCut\n", "="*80
-        (_, rejected_percent) = hm.cut(output_filename = self.sample_candidates_filename,
-                                       num_desired_candidates = n_desired_candidates,
-                                       constraint = constraint)
-        # ck4, move printing from hm.cut to here (of cut result)
-        # ck4, move writing of candidates xlsx file to a hm.write_... call here.
 
     def make_bases(self, cut_name, inputs, results, force = False):
         if not self.cuts.get(cut_name, None):
@@ -290,16 +276,6 @@ class Iteration(object):
         cls._validate_directory_name(directory)
         return int(cls.ITERATION_REGEX.match(os.path.split(directory)[-1]).group('num'))
 
-    @classmethod
-    def in_same_case(cls, source_iteration, num):
-        """
-        Creates an Iteration object for the given iteration number using the same
-        case directory as source_iteration
-        :return: an Iteration object
-        """
-        return Iteration(directory = cls.directory_for_number(source_iteration.case_directory, num),
-                         parameter_filename = source_iteration.parameter_filename)
-    
     @classmethod
     def directory_for_number(cls, case_dir, num):
         """

@@ -1,19 +1,22 @@
+# ck4, should all of this exist as part of Case directly?
+
 import os
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
 from newlib.HistoryMatching import HistoryMatching
-from newlib.iteration import Iteration
 from glm import GLM
 from gpr import GPR
 
-class HistoryMatchingCut():
+class HistoryMatchingCut(object):
 
-    def __init__(self, iteration): # cut_dir, iteration):
+    def __init__(self, case, iteration_number): # cut_dir, iteration):
         """
-        iteration is an Iteration object.
+
+        :param case: A Case object
+        :param iteration_number: an integer (0, 1, 2, ...) of the iteration being considered
         """
-        self.iteration = iteration
+        self.case = case
 
         self.param_info = None
         self.Xcols_all_orig = None
@@ -23,12 +26,13 @@ class HistoryMatchingCut():
         self.gpr_all = {}
         self.cuts = []
 
-        for it in reversed(range(self.iteration.iteration_number + 1)): # Loop over previous iterations
-            other_iteration = Iteration.in_same_case(source_iteration = self.iteration, num = it)
-            cuts_dir = other_iteration.cut_root_directory   # os.path.join('..', 'iter%d'%it, self.cut_dir)
+        for iteration in reversed(case.iterations_up_to(iteration_number)):
+#        for it in reversed(range(self.iteration.iteration_number + 1)): # Loop over previous iterations
+#            other_iteration = Iteration.in_same_case(source_iteration = self.iteration, num = it)
+            cuts_dir = iteration.cut_root_directory   # os.path.join('..', 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration %d. cut %s' % (it,cut_name) )
+                print('Reading iteration %d. cut %s' % (iteration.iteration_number, cut_name))
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
                 print '\t Desired Result:', hm.desired_result
                 print '\t Desired Result Var:', hm.desired_result_var
@@ -38,18 +42,17 @@ class HistoryMatchingCut():
                 if self.param_info is None:
                     self.param_info = hm.param_info
                     self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
-                    candidates = pd.DataFrame( columns=self.Xcols_all_orig )
 
-                self.hm_params[(it, cut_name)] = {
+                self.hm_params[(iteration.iteration_number, cut_name)] = {
                     'desired_result':hm.desired_result,
                     'desired_result_var':hm.desired_result_var,
                     'discrepancy_var':hm.discrepancy_var,
                     'implausibility_threshold':hm.implausibility_threshold,
                 }
 
-                self.glm_all[(it, cut_name)] = GLM.from_config(os.path.join(cuts_dir, cut_name, 'GLM', 'model.json'), os.path.join(cuts_dir, cut_name, 'GLM', 'params.p'))
-                self.gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
-                self.cuts.append((it, cut_name))
+                self.glm_all[(iteration.iteration_number, cut_name)] = GLM.from_config(os.path.join(cuts_dir, cut_name, 'GLM', 'model.json'), os.path.join(cuts_dir, cut_name, 'GLM', 'params.p'))
+                self.gpr_all[(iteration.iteration_number, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
+                self.cuts.append((iteration.iteration_number, cut_name))
 
 
     def test_plausibility(self, points, constraint = None):
