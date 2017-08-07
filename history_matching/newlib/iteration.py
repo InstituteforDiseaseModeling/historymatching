@@ -175,10 +175,6 @@ class Iteration(object):
         discrepancy_std = target_std # 0.1 * desired_result
         print 'Desired result is: ', desired_result
 
-        # Data
-        samples_fn = 'Samples.xlsx' # ck4, move this to a data dir class?
-        results_fn = 'Results.xlsx'
-
         sim_inputs = []
         sim_results = []        
 

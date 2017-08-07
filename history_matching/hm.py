@@ -1,3 +1,8 @@
+"""
+General development notes, ck4
+"""
+
+
 import argparse
 import commands_args
 
@@ -47,7 +52,11 @@ def cut_parameter_space(args):
                          n_desired_candidates=args.n_candidates,
                          constraint = constraint)
 
+# ck4, this method and code it calls needs to properly handle and recognize the data from the new csv
+# data format for training/data directories and per directory training_fraction/GLM/GPR usage.
 def fit(args):
+    # ck4, use args.training_sources : a csv filename, instead of data_directories/training_directory, training_fraction
+    # ... and to determine internally to iteration.fit() which to use for GPR and/or GLM.
     case = Case(case_directory=args.case_directory)
     iteration = case.get_iteration(args.iteration_number)
     if args.training_fraction <= 0 or args.training_fraction >= 1:
