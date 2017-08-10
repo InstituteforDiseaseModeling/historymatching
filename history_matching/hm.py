@@ -2,10 +2,9 @@
 General development notes, ck4
 """
 
-
 import argparse
-import commands_args
 
+import commands_args
 from newlib.case import Case # fix up all newlib references once things are packaged nicely
 from newlib.sample_file import SampleFile
 
@@ -62,16 +61,21 @@ def fit(args):
     if args.training_fraction <= 0 or args.training_fraction >= 1:
         raise Exception('Training fraction must be greater than 0 and less than 1.')
 
+    remake_basis = args.remake_basis.lower()
+    allowed_values = ['all', 'none', 'gpr']
+    if remake_basis not in allowed_values:
+        raise Exception('--remake-basis must be one of (case insensitive): %s' % allowed_values)
+
+    # load data sources csv
+    data_sources = case.load_data_sources_csv(filename=args.data_sources)
     iteration.fit(cut_name           = args.cut_name,
-                  training_directory = args.training_directory,
-                  data_directories   = args.data_directories,
+                  data_sources       = data_sources,
                   target             = args.target,
                   target_std         = args.target_std,
-                  training_fraction  = args.training_fraction,
                   force_optimize_glm = args.optimize_glm,
                   force_optimize_gpr = args.optimize_gpr,
                   implausibility_threshold = args.implausibility_threshold,
-                  remake_bases       = args.remake_bases)
+                  remake_basis   = remake_basis)
 
 def main():
     parser = argparse.ArgumentParser(prog='hm')
@@ -82,10 +86,7 @@ def main():
     
     # 'hm cut-params'
     commands_args.populate_cut_params(subparsers, function=cut_parameter_space)
-    
-#    # 'hm make-bases'
-#    commands_args.populate_make_bases(subparsers, function=make_bases)
-    
+
     # 'hm fit'
     commands_args.populate_fit(subparsers, function=fit)
     

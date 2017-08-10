@@ -42,9 +42,8 @@ def populate_fit(subparsers, function):
                         help='The minimum sigma difference between data and fitted value to determine implausibility'
                              '(Default: 3).')
 
-    # ck4, should there be three options? 1) do not remake, 2) remake GPR, 3) remake GPR and GLM bases?
-    parser.add_argument('--remake-bases', dest='remake_bases', action='store_true', default=False,
-                        help='Remove and recreate the GLM and GPR basis before fitting (Default: False).')
+    parser.add_argument('--remake-basis', dest='remake_basis', type=str, default="NONE",
+                        help='Toggle basis recreation mode before fitting: GPR, ALL (GLM and GPR), or NONE')
 
     # ck4, combine into one command line arg, something like: --target 25:4
     # ck4, or should --target-std info be part of the Case (and invariant between Iterations)
@@ -64,7 +63,7 @@ def populate_cut_params(subparsers, function):
                         help='Keep at least and close to this many candidate points in the cut.')
 
     # ck4, remove this argument and make the constraint file a well-known filename in the Case; use if present!
-    parser.add_argument('-c', '--constraint-file', dest='constraint_filename', type=str,
+    parser.add_argument('-C', '--constraint-file', dest='constraint_filename', type=str,
                         help='Python file containing the top-level method \'constrain\' to be used for constraining'
                              'sample space candidates.')
     parser.set_defaults(func=function)

@@ -9,15 +9,16 @@ class Cut(object):
     GLM_BASIS_FILENAME = 'basis_glm.json'
     GPR_BASIS_FILENAME = 'basis_gpr.json'
     
-    def __init__(self, directory):
-        self.directory = os.path.abspath(directory)
+    def __init__(self, full_path_directory):
+        self.directory = full_path_directory
+        self.name = os.path.basename(full_path_directory)
 
         # load GLM basis if it exists
-        self.glm_basis_filename = os.path.join(directory, self.GLM_BASIS_FILENAME)
+        self.glm_basis_filename = os.path.join(self.directory, self.GLM_BASIS_FILENAME)
         self.glm_basis = self._load_basis(self.glm_basis_filename)
         
         # load GPR basis if it exists
-        self.gpr_basis_filename = os.path.join(directory, self.GPR_BASIS_FILENAME)
+        self.gpr_basis_filename = os.path.join(self.directory, self.GPR_BASIS_FILENAME)
         self.gpr_basis = self._load_basis(self.gpr_basis_filename)
             
     def _load_basis(self, basis_filename):
@@ -41,22 +42,23 @@ class Cut(object):
         return fitted_values
         
     
-    def make_bases(self, param_info, inputs, results, force=False):
-#        if os.path.exists(self.glm_basis_filename) and not force:
-#            raise Exception('Cannot recreate GLM basis unless force is specified.')
-#        if os.path.exists(self.gpr_basis_filename) and not force:
-#            raise Exception('Cannot recreate GPR basis unless force is specified.')
+    def make_bases(self, param_info, inputs, results, remake='none'):
         if param_info is None:
             raise Exception('parameter information must be provided')
-        
-        if force:
-            # delete both bases
-            for filename in [self.glm_basis_filename, self.gpr_basis_filename]:
-                try:
-                    os.remove(filename)
-                except OSError:
-                    pass
-            
+
+        # delete any bases that were specified for remaking
+        to_remove = []
+        if remake == 'all': # ck4, 'all', 'none', 'gpr' should be class constants on a Basis class... someday
+            to_remove.append(self.glm_basis_filename)
+            to_remove.append(self.gpr_basis_filename)
+        elif remake == 'gpr':
+            to_remove.append(self.gpr_basis_filename)
+        for filename in [self.glm_basis_filename, self.gpr_basis_filename]:
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
+
         param_names = param_info.index.tolist()
         print 'All available parameters:'
         print ' *','\n * '.join(param_names)

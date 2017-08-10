@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
-class Basis():
+class Basis(object):
     def __init__(self, model_terms, param_dict, param_info=None, verbose=False):
         self.model_terms = model_terms
         self.param_dict = param_dict

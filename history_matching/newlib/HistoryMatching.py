@@ -62,11 +62,24 @@ class HistoryMatching():
         self.results.name = 'Sim_Result'
         self.Ycol = self.results.name
         if 'Train' in self.inputs.columns:
-            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id']).set_index(['Train', 'Sample_Id', 'Sim_Id'])#.sort_index()
-            self.training_data = self.data.loc[True]
-            self.test_data = self.data.loc[False]
+            # ck4, original code here; replaced with glm/gpr split code below
+#            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id']).set_index(['Train', 'Sample_Id', 'Sim_Id'])#.sort_index()
+#            self.training_data = self.data.loc[True]
+#            self.test_data = self.data.loc[False]
+
+            # ck4, remove all references to self.data in the code
+            self.all_data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id'])
+
+            self.glm_data = self.all_data.set_index(['use_for_glm', 'Train'])
+            self.glm_training_data = self.glm_data[[True, True]]
+            self.glm_test_data = self.glm_data[[True, False]]
+
+            self.gpr_data = self.all_data.set_index(['use_for_gpr', 'Train'])
+            self.gpr_training_data = self.gpr_data[[True, True]]
+            self.gpr_test_data = self.gpr_data[[True, False]]
             print 'Using train/test split as specified by user'
         else:
+            raise Exception('is this needed for BHM? Non-user specified Training?? seems outdated, ck4.') # ck4, need input from Dan
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id']).set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
 
             # Train/test split
@@ -160,12 +173,21 @@ class HistoryMatching():
                 raise
         return path
 
-
-    def filter(self, func, train=False, test=False):
+    # ck4, need to alert to usage change here; added gpr and glm
+    def filter(self, func, train=False, test=False, glm=False, gpr=False):
+        if not (glm or gpr) or not (train or test):
+            print('WARNING: filter function will have no effect. Must specify at least one of: train/test and at least'
+                  'one of glm/gpr .')
         if train:
-            self.training_data = func(self.training_data)
+            if glm:
+                self.glm_training_data = func(self.glm_training_data)
+            if gpr:
+                self.gpr_training_data = func(self.gpr_training_data)
         if test:
-            self.test_data = func(self.test_data)
+            if glm:
+                self.glm_test_data = func(self.glm_test_data)
+            if gpr:
+                self.gpr_test_data = func(self.gpr_test_data)
 
     def glm(self, basis,
             force_optimize_glm = False,
@@ -185,8 +207,8 @@ class HistoryMatching():
             # TODO: Ask user if they want mean, although I'm not sure statsmodels works without it!
             #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
             #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
-            train_mean = self.training_data.reset_index().groupby(['Exp_Id', 'id', 'Sample_Id']).mean()
-            test_mean = self.test_data.reset_index().groupby(['Exp_Id', 'id', 'Sample_Id']).mean()
+            train_mean = self.glm_training_data.reset_index().groupby(['Exp_Id', 'id', 'Sample_Id']).mean()
+            test_mean = self.glm_test_data.reset_index().groupby(['Exp_Id', 'id', 'Sample_Id']).mean()
 
             if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
                 print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
@@ -242,14 +264,14 @@ class HistoryMatching():
             train_mean = train_mean.reset_index().set_index('Sample_Id')
             test_mean = test_mean.reset_index().set_index('Sample_Id')
 
-            self.training_data = self.training_data.join(train_mean['Yglm'])
-            self.training_data['Yerr'] = self.training_data[self.Ycol] - self.training_data['Yglm']
+            self.glm_training_data = self.glm_training_data.join(train_mean['Yglm'])
+            self.glm_training_data['Yerr'] = self.glm_training_data[self.Ycol] - self.glm_training_data['Yglm']
 
             #if self.verbose:
             #    print 'Best and worst training errors:\n', self.training_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
 
-            self.test_data = self.test_data.join(test_mean['Yglm'])
-            self.test_data['Yerr'] = self.test_data[self.Ycol] - self.test_data['Yglm']
+            self.glm_test_data = self.glm_test_data.join(test_mean['Yglm'])
+            self.glm_test_data['Yerr'] = self.glm_test_data[self.Ycol] - self.glm_test_data['Yglm']
 
             #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
             #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
@@ -295,7 +317,7 @@ class HistoryMatching():
                 Ycol = 'Sim_Result'
             self.gpr_model = GPR(basis = basis,
                 Ycol = Ycol,
-                training_data = self.training_data,
+                training_data = self.gpr_training_data,
                 param_info = self.param_info,
                 kernel_mode = 'RBF',
                 kernel_params = None,
@@ -334,8 +356,8 @@ class HistoryMatching():
             self.gpr_model.save(gpr_model_fn)
 
 
-        train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
-        test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
+        train_mean = self.gpr_training_data.reset_index().groupby(['Sample_Id']).mean()
+        test_mean = self.gpr_test_data.reset_index().groupby(['Sample_Id']).mean()
 
         print 'GPR evaluating training data'
         ret = self.gpr_model.evaluate(train_mean)
@@ -345,8 +367,8 @@ class HistoryMatching():
             train_mean['Mean_Estimate'] += train_mean['Yglm']
         train_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         train_mean['Var_Err_Latent'] = ret['Var_Latent']
-        self.training_data = self.training_data.reset_index().join(train_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
-        self.training_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
+        self.gpr_training_data = self.gpr_training_data.reset_index().join(train_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
+        self.gpr_training_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
 
         print 'GPR evaluating test data'
         ret = self.gpr_model.evaluate(test_mean)
@@ -358,17 +380,17 @@ class HistoryMatching():
 
         test_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         test_mean['Var_Err_Latent'] = ret['Var_Latent']
-        self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
-        self.test_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
+        self.gpr_test_data = self.gpr_test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
+        self.gpr_test_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
 
         # Add test data to gpr training
         gpr_model_with_test_fn = os.path.join(self.gprdir, 'model_with_test_data.json')
-        self.gpr_model.set_training_data(pd.concat([self.training_data, self.test_data]))
+        self.gpr_model.set_training_data(pd.concat([self.gpr_training_data, self.gpr_test_data]))
         self.gpr_model.save(gpr_model_with_test_fn)
 
         if plot:
             print('Plotting')
-            fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent');
+            fig = self.gpr_model.plot_errors(self.gpr_training_data.reset_index(), self.gpr_test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent');
             fig.savefig( os.path.join(self.gprdir, 'errors.pdf') );             plt.close(fig)
 
             ''''
@@ -384,9 +406,10 @@ class HistoryMatching():
             fig.savefig( os.path.join(self.gprdir, 'histogram.pdf') );
             plt.close(fig)
 
-
+    # ck4, how do I modernize this with glm/gpr _training_data and _test_data ?? Ask Dan.
+    # ck4, I think using gpr data/variables in here is correct, as currently GPR points are a subset of GLM points,
+    # enforced by DataSource#update_for_use()
     def calc_and_plot_implausibility(self, plot=False, do_plot_data=False, plot_data_highlight=pd.DataFrame(), log_scale=True):
-
         '''
         print 'Mean_Estimate:', self.training_data['Mean_Estimate']
         print 'Std_Err_Predictive:', np.sqrt(self.training_data['Var_Err_Predictive'])
@@ -395,29 +418,29 @@ class HistoryMatching():
         print 'Desired_Result:', self.desired_result
         print 'Total_Var:', np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
         '''
-        self.training_data['Implausibility'] = \
-                    abs( self.training_data['Mean_Estimate'] - self.desired_result ) / \
-                    np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
-        self.training_data['Implausible'] = self.training_data[ 'Implausibility' ] > self.implausibility_threshold
+        self.gpr_training_data['Implausibility'] = \
+                    abs( self.gpr_training_data['Mean_Estimate'] - self.desired_result ) / \
+                    np.sqrt(self.gpr_training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+        self.gpr_training_data['Implausible'] = self.gpr_training_data[ 'Implausibility' ] > self.implausibility_threshold
 
-        self.test_data['Implausibility'] = \
-                    abs( self.test_data['Mean_Estimate'] - self.desired_result ) / \
-                    np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
-        self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > self.implausibility_threshold
+        self.gpr_test_data['Implausibility'] = \
+                    abs( self.gpr_test_data['Mean_Estimate'] - self.desired_result ) / \
+                    np.sqrt(self.gpr_test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+        self.gpr_test_data['Implausible'] = self.gpr_test_data[ 'Implausibility' ] > self.implausibility_threshold
 
 
-        print 'IMP Ycol:\n', self.training_data[self.Ycol].head()
-        print 'IMP Mean:\n', self.training_data['Mean_Estimate'].head()
-        print 'IMP std_predictive:\n', np.sqrt(self.training_data['Var_Err_Predictive'].head())
+        print 'IMP Ycol:\n', self.gpr_training_data[self.Ycol].head()
+        print 'IMP Mean:\n', self.gpr_training_data['Mean_Estimate'].head()
+        print 'IMP std_predictive:\n', np.sqrt(self.gpr_training_data['Var_Err_Predictive'].head())
 
-        self.training_data['Z_Noisy'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Predictive'])
-        self.training_data['Z_Noiseless'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Latent'])
+        self.gpr_training_data['Z_Noisy'] = (self.gpr_training_data[self.Ycol] - self.gpr_training_data['Mean_Estimate']) / np.sqrt(self.gpr_training_data['Var_Err_Predictive'])
+        self.gpr_training_data['Z_Noiseless'] = (self.gpr_training_data[self.Ycol] - self.gpr_training_data['Mean_Estimate']) / np.sqrt(self.gpr_training_data['Var_Err_Latent'])
 
         # self.Ycol
-        self.test_data['Z_Noisy'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
-            np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
-        self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
-            np.sqrt(self.test_data['Var_Err_Latent'] + self.discrepancy_var + self.desired_result_var)
+        self.gpr_test_data['Z_Noisy'] = (self.gpr_test_data[self.Ycol] - self.gpr_test_data['Mean_Estimate']) / \
+            np.sqrt(self.gpr_test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+        self.gpr_test_data['Z_Noiseless'] = (self.gpr_test_data[self.Ycol] - self.gpr_test_data['Mean_Estimate']) / \
+            np.sqrt(self.gpr_test_data['Var_Err_Latent'] + self.discrepancy_var + self.desired_result_var)
 
         '''
         if self.verbose:
@@ -425,13 +448,13 @@ class HistoryMatching():
                 Ycol = 'Yerr'
             else:
                 Ycol = 'Sim_Result'
-            print 'Best and worst training Z-scores:\n', self.training_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
-            print 'Best and worst test Z-scores:\n', self.test_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
+            print 'Best and worst training Z-scores:\n', self.gpr_training_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
+            print 'Best and worst test Z-scores:\n', self.gpr_test_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
         '''
 
         if plot:
-            train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
-            test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
+            train_mean = self.gpr_training_data.reset_index().groupby(['Sample_Id']).mean()
+            test_mean = self.gpr_test_data.reset_index().groupby(['Sample_Id']).mean()
 
             fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
             fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
@@ -444,13 +467,13 @@ class HistoryMatching():
                 plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)
 
             '''
-            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); 
+            fig = joint_plot(self.gpr_test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); 
             #plt.show()
             fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
 
-            fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result);    fig.savefig( os.path.join(self.combineddir, 'train.pdf') ); plt.close(fig)
+            fig = joint_plot(self.gpr_training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result);    fig.savefig( os.path.join(self.combineddir, 'train.pdf') ); plt.close(fig)
 
-            fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
-            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)
+            fig = joint_plot(self.gpr_training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
+            fig = joint_plot(self.gpr_test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)
             '''
 

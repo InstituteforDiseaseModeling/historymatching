@@ -4,16 +4,18 @@ import pandas as pd
 from pyDOE import lhs
 
 from newlib.cut import Cut
+from newlib.data_source import DataSource
 from newlib.sample_file import SampleFile # ck4, all pathing for hm package needs to be fixed
 
 class Iteration(object):
 
     NONE = 'none'
-    SAMPLES_FILENAME = 'Samples.xlsx'
-    RESULTS_FILENAME = 'Results.xlsx'
+
     ITERATION_REGEX = re.compile('^iter(?P<num>\d+)$')
     ITERATION_DIR_PATTERN = 'iter%d'
     CANDIDATES_FILENAME = 'Candidates_for_iteration.xlsx'
+    DATA_ROOT = 'Data'
+    SAMPLES_FILENAME = 'Samples.xlsx'
 
     def __init__(self, directory, parameters=None):
         """
@@ -24,23 +26,33 @@ class Iteration(object):
         self._validate_directory_name(directory)
         self.directory = directory
         self.iteration_number = self._parse_iteration_number(directory)
-        self.case_directory = os.path.split(directory)[0] # ck4, really should be in higher up object, but...
-        
+
         self.samples = None
 
         # One route for gathering samples is via a candidates file from another Iteration.
         self.sample_candidates_filename = os.path.join(directory, self.CANDIDATES_FILENAME)
-        
-        # The canonical path where samples will be stored for this iteration, once discovered.
+
+#        # The canonical path where samples will be stored for this iteration, once discovered.
         self.samples_file = os.path.join(self.directory, self.SAMPLES_FILENAME)
+
+        # load up data directories
+        self.data_root = os.path.join(self.directory, self.DATA_ROOT)
+        self.data_sources = {}
+        if not os.path.exists(self.data_root):
+            os.makedirs(self.data_root)
+        items = os.listdir(self.data_root)
+        for item in items:
+            if os.path.isdir(item):
+                data_dir = os.path.join(self.data_root, item)
+                ds = DataSource(directory=data_dir)
+                self.data_sources[ds.name] = ds
 
         # we keep it as an optional item here (needed for creating parameter space
         # samples, e.g. in the first iteration)
         self.parameters = parameters
 
-        self.cut_root_directory = os.path.join(directory, 'Cuts')
-
         # load up existing cuts; all are equally valid until a user specifies one on execution
+        self.cut_root_directory = os.path.join(self.directory, 'Cuts')
         self.cuts = {}
         if not os.path.exists(self.cut_root_directory):
             os.makedirs(self.cut_root_directory)
@@ -49,7 +61,8 @@ class Iteration(object):
         for item in items:
             if os.path.isdir(item):
                 cut_dir = os.path.join(self.cut_root_directory, item)
-                self.cuts[item] = Cut(cut_dir)
+                cut = Cut(cut_dir)
+                self.cuts[cut.name] = cut
     
     @property
     def sample_candidates(self):
@@ -99,27 +112,29 @@ class Iteration(object):
         samples.index.name = 'id'
         return samples
 
-    def make_bases(self, cut_name, inputs, results, force = False):
+    def make_bases(self, cut_name, inputs, results, remake='none'):
         if not self.cuts.get(cut_name, None):
             cut_dir = os.path.join(self.cut_root_directory, cut_name)
             self.cuts[cut_name] = Cut(cut_dir)
-        self.cuts[cut_name].make_bases(param_info=self.parameters, inputs=inputs, results=results, force=force)
+        self.cuts[cut_name].make_bases(param_info=self.parameters, inputs=inputs, results=results, remake=remake)
+        return self.cuts[cut_name]
 
     # This method sets up the inputs and results dicts(?) used as inputs to history matching.
-    def setup_inputs_and_results(self, training_directory, data_directories, training_fraction):
+    def setup_inputs_and_results(self, data_sources): #training_directory, data_directories, training_fraction):
         sim_inputs = []
         sim_results = []
+        # ck4, exp_id and ds.name are the same; refactor...
         # ck4, should use SampleFile for reading
-        all_directories = [training_directory] + data_directories
-        for idx, exp_id in enumerate(all_directories):
-            samples_filename = os.path.join(exp_id, self.SAMPLES_FILENAME)
-            print('Reading samples file: %s' % samples_filename)
-            read = SampleFile(samples_filename).samples # quick_read(os.path.join(exp_id, samples_fn), 'Values')
+        #all_directories = [training_directory] + data_directories
+        #for exp_id in all_directories:
+        for ds in data_sources:
+            print('Reading samples file: %s' % ds.samples_filename)
+            read = SampleFile(ds.samples_filename).samples # ck4, this essentially returns a dict-like object (pandas.DataFrame)
             print('Read in a type: %s' % type(read))
             print('dict of read item: %s' % dir(read))
-            read['Exp_Id'] = exp_id
+            read['Exp_Id'] = ds.name
             #            read['Sample_Id'] = read['Values'].apply(lambda x: '%s.%06d'%(exp_id,x))
-            read['Sample_Id'] = read.apply(lambda x: '%s.%06d'%(exp_id,x['id']), axis='columns').values
+            read['Sample_Id'] = read.apply(lambda x: '%s.%06d'%(ds.name,x['id']), axis='columns').values
 #            item = read.apply(lambda x: '%s.%06d'%(exp_id,x['id']), axis='columns')
 #            print('item type: %s' % type(item))
 #            print(item)
@@ -129,29 +144,29 @@ class Iteration(object):
 #            read.apply(lambda x: '%s.%06d'%(exp_id,x['id']), axis='columns')
             read = read.set_index('id').sort_index()
 
+            # determine if this DataSource is to be used for GLM and/or GPR basis generation
+            read['use_for_glm'] = ds.use_for_glm
+            read['use_for_gpr'] = ds.use_for_gpr
+
             # Train/test split
-            if exp_id == training_directory:
-                read['Train'] = False
+            if ds.use_for_training:
+            #if exp_id == training_directory:
+                read['Train'] = False # sets the default value to False for all rows
 #                nSamp = len(read.index.get_level_values('Sample_Id'))
                 nSamp = len(read.index.get_level_values('id'))
                 print('nsamp: %s' % nSamp)
                 nTrain = int(round(training_fraction * nSamp))
                 read.iloc[:nTrain-1]['Train'] = True
             else:
-                read['Train'] = True
+                # ck4, was originally '= true'. Ask Dan, is this right??? Shouldn't this be False?
+                read['Train'] = False
 
             sim_inputs.append(read)
 
-#            read = quick_read(os.path.join(exp_id, self.RESULTS_FILENAME), 'Sheet1') # ck4, change 'Sheet1' to 'Values' ... and update the result write to do so as well
-#            read['Exp_Id'] = exp_id
-#            read['Sample_Id'] = read['Sample'].apply(lambda x: '%s.%06d'%(exp_id,x)) # ck4, change 'Sample' to 'id' ... and update the result write to do so as well
-#            sim_results.append(read.set_index('Sample_Id').sort_index())
-
-#            read = quick_read(), 'Sheet1') # ck4, change 'Sheet1' to 'Values' ... and update the result write to do so as well
-            result_filename = os.path.join(exp_id, self.RESULTS_FILENAME)
-            read = SampleFile(result_filename).samples
-            read['Exp_Id'] = exp_id
-            read['Sample_Id'] = read.apply(lambda x: '%s.%06d'%(exp_id,x['id']), axis='columns').values # ck4, change 'Sample' to 'id' ... and update the result write to do so as well
+            read = SampleFile(ds.results_filename).samples
+            read['Exp_Id'] = ds.name
+            # ck4, change 'Sample' to 'id' ... and update the result write to do so as well
+            read['Sample_Id'] = read.apply(lambda x: '%s.%06d'%(ds.name,x['id']), axis='columns').values
             sim_results.append(read.set_index('Sample_Id').sort_index())
 
         inputs = pd.concat(sim_inputs)
@@ -162,10 +177,11 @@ class Iteration(object):
         return inputs, results
         
     # was originally bhm.py
-    def fit(self, cut_name, training_directory, data_directories,
-            target, target_std,
-            training_fraction=0.75, force_optimize_glm=True, force_optimize_gpr=True,
-            implausibility_threshold=3, remake_bases=False):
+    # ck4, this method needs to be updated to detect/use info regarding which data_sources to use for GLM and which to
+    # use for GPR
+    def fit(self, cut_name, data_sources, target, target_std,
+            force_optimize_glm=True, force_optimize_gpr=True,
+            implausibility_threshold=3, remake_basis='none'):
         
         from newlib.HistoryMatching import HistoryMatching
         from newlib.quick_read import quick_read
@@ -176,15 +192,14 @@ class Iteration(object):
         print 'Desired result is: ', desired_result
 
         sim_inputs = []
-        sim_results = []        
+        sim_results = []
 
-        inputs, results = self.setup_inputs_and_results(training_directory,
-                                                        data_directories,
-                                                        training_fraction)
+        # ck4, I think use_for_gpr/glm flags should be set on the returned inputs in this method, to carry forward to
+        # use in self.make_bases() call
+        inputs, results = self.setup_inputs_and_results(data_sources=data_sources)
 
-        self.make_bases(cut_name=cut_name, force=remake_bases, inputs=inputs, results=results)
-        cut = self.cuts[cut_name] # set in self.make_bases()
-        
+        cut = self.make_bases(cut_name=cut_name, inputs=inputs, results=results, remake=remake_basis)
+
         param_info = self.parameters
         param_names = param_info.index.tolist()
         print 'All available parameters:'
@@ -201,7 +216,7 @@ class Iteration(object):
             iteration = self.iteration_number,
             implausibility_threshold = implausibility_threshold,
             discrepancy_var = discrepancy_std**2,
-            training_fraction = training_fraction
+            training_fraction = None # ck4, ok? We are using a input csv to do line-by line specification
         )
         hm.save()
 
@@ -257,10 +272,20 @@ class Iteration(object):
         
         print 'Good'
 
+    def get_data_source(self, source):
+        """
 
-    
+        :param source: a directory name in the Data directory of an iteration
+        :return: a DataSource object
+        """
+        return self.data_sources[source]
+        #
+        # data_sources = [ds for ds in self.data_sources if ds.name == source] # ck4, define
+        # if len(data_sources) != 1:
+        #     raise Exception('Could not determine which data_source to use for %s. There are %d possibilities.' %
+        #                     (source, len(data_sources)))
+        # return data_sources[0]
 
-        
     @classmethod
     def _validate_directory_name(cls, directory):
         # verifies the dir is named properly, e.g. ..../iterN where N >= 0 (int)
