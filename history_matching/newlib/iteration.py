@@ -15,7 +15,6 @@ class Iteration(object):
     ITERATION_DIR_PATTERN = 'iter%d'
     CANDIDATES_FILENAME = 'Candidates_for_iteration.xlsx'
     DATA_ROOT = 'Data'
-    SAMPLES_FILENAME = 'Samples.xlsx'
 
     def __init__(self, directory, parameters=None):
         """
@@ -31,9 +30,6 @@ class Iteration(object):
 
         # One route for gathering samples is via a candidates file from another Iteration.
         self.sample_candidates_filename = os.path.join(directory, self.CANDIDATES_FILENAME)
-
-#        # The canonical path where samples will be stored for this iteration, once discovered.
-        self.samples_file = os.path.join(self.directory, self.SAMPLES_FILENAME)
 
         # load up data directories
         self.data_root = os.path.join(self.directory, self.DATA_ROOT)
@@ -96,11 +92,17 @@ class Iteration(object):
                 raise Exception('Cannot generate samples as n_samples was not specified.')
             self.samples = self._generate_samples(n_samples)
 
-    def write_samples(self):
+    def write_samples(self, data_source_name):
         if self.samples is None:
             raise Exception('Cannot write samples; they have not been set yet.')
         else:
-            SampleFile.write(samples=self.samples, filename=self.samples_file)
+            if self.data_sources.get(data_source_name, None):
+                ds = self.data_sources[data_source_name]
+            else:
+                data_dir = os.path.join(self.data_root, data_source_name)
+                ds = DataSource(directory=data_dir)
+                self.data_sources[ds.name] = ds
+            SampleFile.write(samples=self.samples, filename=ds.samples_filename)
 
     def _generate_samples(self, num_samples):
         N_dim = self.parameters.shape[0]

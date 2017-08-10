@@ -27,7 +27,7 @@ def set_samples(args):
     iteration.set_samples(previous_iteration=previous_iteration,
                           n_samples=n_samples,
                           samples_file = sample_file)
-    iteration.write_samples()
+    iteration.write_samples(data_source_name=args.data_source)
 
 # from cut.py
 # ck4, needs a run through test, especially constraints

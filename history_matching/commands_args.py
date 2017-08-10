@@ -8,6 +8,8 @@ def populate_set_samples(subparsers, function):
                         help='A file containing samples to use.')
     parser.add_argument('-n', '--number', dest='n_samples', type=int, default=None,
                         help='Number of parameter space points to sample in this iteration.')
+    parser.add_argument('-d', '--data-source', dest='data_source', type=str, required=True,
+                        help='The name of the data source directory to initialize.')
     parser.set_defaults(func=function)
 
 def populate_fit(subparsers, function):
