@@ -50,13 +50,9 @@ class DataSource(object):
             raise Exception('training fraction must be set (0-1, float) for data source: %s' % self.directory)
         self.training_fraction = tf
 
-        if type(use_for_glm) is not bool:
-            raise Exception('use_for_glm must be set (True/False) for data source: %s' % self.directory)
-        self.use_for_glm = use_for_glm
+        self.use_for_glm = bool(use_for_glm)
 
-        if type(use_for_gpr) is not bool:
-            raise Exception('use_for_gpr must be set (True/False) for data source: %s' % self.directory)
-        self.use_for_gpr = use_for_gpr
+        self.use_for_gpr = bool(use_for_gpr)
 
         # verify consistency for glm/gpr usage
         # ck4, verify with Dan that this is correct. Should constraints be held to training_data only?

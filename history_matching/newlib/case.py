@@ -102,11 +102,7 @@ class Case(object):
             iteration_number = int(data.iteration_number[row_index])
             data_source_name = data.data_source[row_index]
             iteration = self.get_iteration(iteration_number=iteration_number)
-            ds = iteration.get_data_source(source=data_source_name,
-                                           training_fraction=float(data.training_fraction[row_index]),
-                                           use_for_glm=data.GLM[row_index],
-                                           use_for_gpr=data.GRP[row_index]
-                                           )
+            ds = iteration.get_data_source(source=data_source_name)
             ds.update_for_use(training_fraction=float(data.training_fraction[row_index]),
                               use_for_glm=data.GLM[row_index],
                               use_for_gpr=data.GRP[row_index])
