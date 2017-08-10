@@ -10,6 +10,8 @@ class DataSource(object):
 
     def __init__(self, directory):
         self.directory = os.path.abspath(directory)
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
         self.name = os.path.basename(self.directory)
         self.training_fraction = None
         self.use_for_glm = None
