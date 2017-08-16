@@ -95,7 +95,7 @@ class Cut(object):
             basis_gpr = Basis.polynomial_basis(params=param_names, intercept = False, first_order=True, param_info=param_info)
             results_err = results - fitted_values
             basis_gpr.plot_regularize(inputs, results_err, alpha = np.logspace(-6, 0, 25), scaleX=True)
-            alpha_gpr = restore after debug float(raw_input('What would you like to use for the GPR regularization parameter, alpha_gpr = '))
+            alpha_gpr = float(raw_input('What would you like to use for the GPR regularization parameter, alpha_gpr = '))
             basis_gpr.regularize(inputs, results_err, alpha = alpha_gpr, scaleX=True)
             print 'Regularization for GPR selected:\n', ' *','\n * '.join(basis_gpr.get_terms())
             
