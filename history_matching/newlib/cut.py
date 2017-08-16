@@ -68,8 +68,8 @@ class Cut(object):
         # GLM basis
         if not os.path.exists(self.glm_basis_filename):
             basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
-            # ck4, restore after debug basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-3,0, 25), scaleX=True)
-            alpha_glm = 0.1 # ck4, restore after debug float(raw_input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
+            basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-3,0, 25), scaleX=True)
+            alpha_glm = float(raw_input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
             fitted_values = basis_glm.regularize(inputs, results, alpha = alpha_glm, scaleX=True) # 100 for thrid_order
             print 'Regularization for GLM selected:\n', ' *','\n * '.join(basis_glm.get_terms())
 
@@ -94,8 +94,8 @@ class Cut(object):
         if not os.path.exists(self.gpr_basis_filename):
             basis_gpr = Basis.polynomial_basis(params=param_names, intercept = False, first_order=True, param_info=param_info)
             results_err = results - fitted_values
-            # ck4, restore after debug basis_gpr.plot_regularize(inputs, results_err, alpha = np.logspace(-6, 0, 25), scaleX=True)
-            alpha_gpr = 0.1 # ck4, restore after debug float(raw_input('What would you like to use for the GPR regularization parameter, alpha_gpr = '))
+            basis_gpr.plot_regularize(inputs, results_err, alpha = np.logspace(-6, 0, 25), scaleX=True)
+            alpha_gpr = restore after debug float(raw_input('What would you like to use for the GPR regularization parameter, alpha_gpr = '))
             basis_gpr.regularize(inputs, results_err, alpha = alpha_gpr, scaleX=True)
             print 'Regularization for GPR selected:\n', ' *','\n * '.join(basis_gpr.get_terms())
             
