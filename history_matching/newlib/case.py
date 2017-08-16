@@ -105,6 +105,6 @@ class Case(object):
             ds = iteration.get_data_source(source=data_source_name)
             ds.update_for_use(training_fraction=float(data.training_fraction[row_index]),
                               use_for_glm=data.GLM[row_index],
-                              use_for_gpr=data.GRP[row_index])
+                              use_for_gpr=data.GPR[row_index])
             data_sources.append(ds)
         return data_sources

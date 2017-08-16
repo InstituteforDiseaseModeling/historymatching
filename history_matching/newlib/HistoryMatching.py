@@ -68,16 +68,25 @@ class HistoryMatching():
 #            self.test_data = self.data.loc[False]
 
             # ck4, remove all references to self.data in the code
+            print('inputs keys: %s\nresults keys: %s\n' % (self.inputs.keys(), self.results.keys()))
+#            exit() # ck4
             self.all_data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id'])
-
+            print('\nall_data:\n%s\n' % self.all_data)
             self.glm_data = self.all_data.set_index(['use_for_glm', 'Train'])
-            self.glm_training_data = self.glm_data[[True, True]]
-            self.glm_test_data = self.glm_data[[True, False]]
+            print('glm_data index: %s' % self.glm_data.index)
+            print('\nglm_data:\n%s\n' % self.glm_data)
+            self.glm_test_data = self.glm_data.loc[True, False]
+            print('\ntest_data:\n%s\n' % self.glm_test_data)
+            self.glm_training_data = self.glm_data.loc[True, True]
+            print('\ntraining_data:\n%s\n' % self.glm_training_data)
+
 
             self.gpr_data = self.all_data.set_index(['use_for_gpr', 'Train'])
-            self.gpr_training_data = self.gpr_data[[True, True]]
-            self.gpr_test_data = self.gpr_data[[True, False]]
+            self.gpr_training_data = self.gpr_data.loc[True, True]
+            self.gpr_test_data = self.gpr_data.loc[True, False]
             print 'Using train/test split as specified by user'
+            #print('***\nFound %d data items, of which %d are training and %d are test.\n***\n' % (len(self.all_data), len(self.glm_training_data), len(self.glm_test_data)))
+            #exit()
         else:
             raise Exception('is this needed for BHM? Non-user specified Training?? seems outdated, ck4.') # ck4, need input from Dan
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id']).set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
@@ -197,87 +206,127 @@ class HistoryMatching():
             plot_data = False
         ):
 
-            if not self.use_glm:
-                print 'use_glm is False, why are you calling glm?'
-                return
+        # ck4, this blcok for debug only
+        print('----------------------------------------------- GLM ----------------------')
+        print('self.glm_training_data:\ntype: %s\nlen: %d\ndata:\n%s\n' % (type(self.glm_training_data), len(self.glm_training_data), self.glm_training_data))
+        print('self.glm_test_data:\ntype: %s\nlen: %d\ndata:\n%s\n' % (type(self.glm_test_data), len(self.glm_test_data), self.glm_test_data))
+        #exit()
 
-            glm_model_fn = os.path.join(self.glmdir, 'model.json')
-            mean_params_fn = os.path.join(self.glmdir, 'params.p')
+        if not self.use_glm:
+            print 'use_glm is False, why are you calling glm?'
+            return
 
-            # TODO: Ask user if they want mean, although I'm not sure statsmodels works without it!
-            #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
-            #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
-            train_mean = self.glm_training_data.reset_index().groupby(['Exp_Id', 'id', 'Sample_Id']).mean()
-            test_mean = self.glm_test_data.reset_index().groupby(['Exp_Id', 'id', 'Sample_Id']).mean()
+        glm_model_fn = os.path.join(self.glmdir, 'model.json')
+        mean_params_fn = os.path.join(self.glmdir, 'params.p')
 
-            if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
-                print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
-                self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
-            else:
-                self.glm_model = GLM(
-                    basis = basis,
-                    Ycol = self.Ycol,
-                    training_data = train_mean,
-                    reference_value = self.desired_result,
-                    family = family)
-                    #family = sm.genmod.families.links.Logit,
-                    #family = sm.genmod.families.Binomial(link=sm.genmod.families.links.logit),
-                    #first_order_basis_terms = first_order_basis_terms,
-                    #second_order_basis_terms = second_order_basis_terms,
-                    #third_order_basis_terms = third_order_basis_terms,
-                    #fourth_order_basis_terms = fourth_order_basis_terms,
-                    #fifth_order_basis_terms = fifth_order_basis_terms,
-                    #higher_order_basis_terms = higher_order_basis_terms)
+        # TODO: Ask user if they want mean, although I'm not sure statsmodels works without it!
+        #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
+        #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
+        print('keys:\nglm_training_data: %s\nglm_test_data: %s' % (self.glm_training_data.keys(), self.glm_test_data.keys()))
+        print('glm training data:\n%s\nglm test data:\n%s\n' % (self.glm_training_data, self.glm_test_data))
+        train_mean = self.glm_training_data.reset_index().groupby(['Exp_Id', 'id', 'Sample_Id']).mean() # ck4, original: 'Exp_Id', 'id', 'Sample_Id']).mean()
+        test_mean = self.glm_test_data.reset_index().groupby(['Exp_Id', 'id', 'Sample_Id']).mean() # ck4, original: 'Exp_Id', 'id', 'Sample_Id']).mean()
+        print('***********************************')
+        print('test mean type: %s\ntest mean:\n%s\n' % (type(test_mean), test_mean))
+        print('***********************************')
+        print('test data type: %s\ndata:\n%s\n' % (type(self.glm_test_data), self.glm_test_data))
+        print('***********************************')
+        print('***********************************')
+        
+        if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
+            print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
+            self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
+        else:
+            print('glm: ycol: %s\ntraining_mean: %s \nesired result: %s' % (self.Ycol, train_mean, self.desired_result))
+            self.glm_model = GLM(
+                basis = basis,
+                Ycol = self.Ycol,
+                training_data = train_mean,
+                reference_value = self.desired_result,
+                family = family)
+            #family = sm.genmod.families.links.Logit,
+            #family = sm.genmod.families.Binomial(link=sm.genmod.families.links.logit),
+            #first_order_basis_terms = first_order_basis_terms,
+            #second_order_basis_terms = second_order_basis_terms,
+            #third_order_basis_terms = third_order_basis_terms,
+            #fourth_order_basis_terms = fourth_order_basis_terms,
+            #fifth_order_basis_terms = fifth_order_basis_terms,
+            #higher_order_basis_terms = higher_order_basis_terms)
 
-                print "Fitting the GLM"
-                self.glm_model.fit(maxiter=glm_fit_maxiter)
-                self.glm_model.save(glm_model_fn, mean_params_fn)
+            print "Fitting the GLM"
+            self.glm_model.fit(maxiter=glm_fit_maxiter)
+            self.glm_model.save(glm_model_fn, mean_params_fn)
 
-            print 'Evaluating training and test data'
-            train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
-            test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
+        print 'Evaluating training and test data'
+        train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
+        test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
+        
+        fig = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
+        fig.savefig( os.path.join(self.glmdir, 'errors.pdf') );             plt.close(fig)
+        
+        if plot:
+            print('Plotting')
+        
+            if plot_data:
+                # TODO: Save plots as they are made in GPR class
+                pairdir = os.path.join(self.glmdir, 'PairwiseResults')
+                if not os.path.exists( pairdir):
+                    os.mkdir( pairdir )
+                cp = pd.DataFrame()
+                #print test_mean.loc[[2110]]
+                #cp = test_mean.loc[[2110]]
+                figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
+                
+            fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed.pdf') ); plt.close(fig)
+            fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals.pdf') );  plt.close(fig)
+            fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals.pdf') ); plt.close(fig)
+            fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ.pdf') );                 plt.close(fig)
+            #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram.pdf') );          plt.close(fig)
+            #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit.pdf') );                plt.close(fig)
 
-            fig = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
-            fig.savefig( os.path.join(self.glmdir, 'errors.pdf') );             plt.close(fig)
+#        print self.glm_training_data.index
+#        print self.glm_training_data.keys()
+        train_mean = train_mean.reset_index().set_index('Sample_Id') # self.glm_training_data.index) # ck4 ? 'Sample_Id')
+        test_mean = test_mean.reset_index().set_index('Sample_Id')  # self.glm_test_data.index) # ck4 ? 'Sample_Id')
+        self.glm_training_data.reset_index().set_index('Sample_Id') # ck4, added this to get join to work with mean, correct?
+        
+#        print('1. def glm (%d):\ntraining data:\n%s' % (len(self.glm_training_data), self.glm_training_data))
+#        print('def glm (%d):\ntrain_mean:\n%s' % (len(train_mean), train_mean))
+#        print(type(train_mean['Yglm']))
+        # ck4, orginal line, replaced with merge: self.glm_training_data = self.glm_training_data.join(train_mean['Yglm'])
+        self.glm_training_data = self.glm_training_data.merge(train_mean)
+        
+#        print('2. def glm (%d):\ntraining data:\n%s' % (len(self.glm_training_data), self.glm_training_data))
+#        exit()
 
-            if plot:
-                print('Plotting')
+#        print('def glm (%d):\ntraining data:\n%s' % len(self.glm_training_data), self.glm_training_data))
 
-                if plot_data:
-                    # TODO: Save plots as they are made in GPR class
-                    pairdir = os.path.join(self.glmdir, 'PairwiseResults')
-                    if not os.path.exists( pairdir):
-                        os.mkdir( pairdir )
-                    cp = pd.DataFrame()
-                    #print test_mean.loc[[2110]]
-                    #cp = test_mean.loc[[2110]]
-                    figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
+        self.glm_training_data['Yerr'] = self.glm_training_data[self.Ycol] - self.glm_training_data['Yglm']
+#        print('3. def glm (%d):\ntraining data:\n%s' % (len(self.glm_training_data), self.glm_training_data))
+#        exit()
+        
+        #if self.verbose:
+        #    print 'Best and worst training errors:\n', self.training_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
+        
+#        print('>>>>>>>>>>>> BEFORE SETTING Yglm >>>>>>>>>>>>>>>>>>>>>>>>>>')
+#        print('glm test data:\n%s\n' % self.glm_test_data)
+#        print('glm training data:\n%s\n' % self.glm_training_data)
 
-                fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed.pdf') ); plt.close(fig)
-                fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals.pdf') );  plt.close(fig)
-                fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals.pdf') ); plt.close(fig)
-                fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ.pdf') );                 plt.close(fig)
-                #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram.pdf') );          plt.close(fig)
-                #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit.pdf') );                plt.close(fig)
+        # ck4, original line, replaced with merge: self.glm_test_data = self.glm_test_data.join(test_mean['Yglm'])
+        self.glm_test_data = self.glm_test_data.merge(test_mean)
+        self.glm_test_data['Yerr'] = self.glm_test_data[self.Ycol] - self.glm_test_data['Yglm']
 
-
-            train_mean = train_mean.reset_index().set_index('Sample_Id')
-            test_mean = test_mean.reset_index().set_index('Sample_Id')
-
-            self.glm_training_data = self.glm_training_data.join(train_mean['Yglm'])
-            self.glm_training_data['Yerr'] = self.glm_training_data[self.Ycol] - self.glm_training_data['Yglm']
-
-            #if self.verbose:
-            #    print 'Best and worst training errors:\n', self.training_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
-
-            self.glm_test_data = self.glm_test_data.join(test_mean['Yglm'])
-            self.glm_test_data['Yerr'] = self.glm_test_data[self.Ycol] - self.glm_test_data['Yglm']
-
-            #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
-            #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
-
-            #if self.verbose:
-            #    print 'Best and worst test errors:\n', self.test_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
+#        print('>>>>>>>>>>>> AFTER SETTING Yglm >>>>>>>>>>>>>>>>>>>>>>>>>>')
+#        print('glm test data (%d):\n%s\n' % (len(self.glm_test_data), self.glm_test_data))
+#        print('glm training data (%d):\n%s\n' % (len(self.glm_training_data), self.glm_training_data))
+#        print('>>>>>>>>>>>> END >>>>>>>>>>>>>>>>>>>>>>>>>>')
+#        exit() # ck4, debugging
+        
+        #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
+        #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
+        
+        #if self.verbose:
+        #    print 'Best and worst test errors:\n', self.test_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
 
 
     def gpr(self, basis,
@@ -313,6 +362,26 @@ class HistoryMatching():
         else:
             if self.use_glm:
                 Ycol = 'Yerr'
+                # grab glm Yerr results from self.glm_training_data and self.glm_test_data, ck4. Some pandas merges/concat likely
+                # ck4, the following line needs verification that it works properly when glm/gpr points are not identical sets (does the result have len(self.gpr_training_data rows?)
+                glm_points = pd.concat([self.glm_test_data, self.glm_training_data])
+                self.gpr_training_data = glm_points.merge(self.gpr_training_data) # ck4, right? give it a try; should essentially add the Ycol col to self.gpr_traininig_data. More is OK, though should end up with rows from self.gpr_training_data ONLY (no rows from glm not in gpr) (is this possible? review glm/gpr restrictions)
+                self.gpr_training_data = self.gpr_training_data.reset_index().set_index('Sample_Id') # ck4, needed in the long run?
+
+                # also need to fix up the test data in the same way; we need a better data model.
+                self.gpr_test_data = glm_points.merge(self.gpr_test_data)
+                self.gpr_test_data = self.gpr_test_data.reset_index().set_index('Sample_Id') # ck4, needed in the long run?                
+
+#                print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+#                print('glm test data (%d):\n%s\n' % (len(self.glm_test_data), self.glm_test_data))
+#                print('glm training data (%d):\n%s\n' % (len(self.glm_training_data), self.glm_training_data))
+#                print('GPR training data (%d):\n%s\n' % (len(self.gpr_training_data), self.gpr_training_data))
+#                print('GPR test data (%d):\n%s\n' % (len(self.gpr_test_data), self.gpr_test_data))
+#                print('MERGED (%d):\n%s\n' % (len(glm_data), glm_data))
+#                exit() # ck4, this debug block
+
+
+
             else:
                 Ycol = 'Sim_Result'
             self.gpr_model = GPR(basis = basis,

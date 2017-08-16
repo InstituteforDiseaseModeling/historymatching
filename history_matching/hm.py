@@ -58,9 +58,7 @@ def fit(args):
     # ... and to determine internally to iteration.fit() which to use for GPR and/or GLM.
     case = Case(case_directory=args.case_directory)
     iteration = case.get_iteration(args.iteration_number)
-    if args.training_fraction <= 0 or args.training_fraction >= 1:
-        raise Exception('Training fraction must be greater than 0 and less than 1.')
-
+    
     remake_basis = args.remake_basis.lower()
     allowed_values = ['all', 'none', 'gpr']
     if remake_basis not in allowed_values:

@@ -36,13 +36,14 @@ class GPR():
             debug = False,
             **kwargs
         ):
-
+        print('*********************** GPR *****************************')
         #sns.set_style("whitegrid")
 
         cur_dir = os.path.dirname(os.path.realpath(__file__))
         self.kernel_fn = os.path.join(cur_dir, 'kernel.c')
 
         self.training_data = training_data.copy()
+        print('gpr\ntraining_data:\n%s\n' % self.training_data)
         self.param_info = param_info.copy()
         self.basis = basis
         self.D = self.basis.D
@@ -484,6 +485,7 @@ class GPR():
 
 
         idx = self.training_data.index.names    # Save index
+
         self.training_data.reset_index(inplace=True)
 
         samples = self.training_data['Sample_Id'].unique()

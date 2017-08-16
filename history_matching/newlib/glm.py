@@ -299,6 +299,8 @@ class GLM(object):
 
 
     def plot_errors(self, train, test):
+        print('train keys: %s' % train.keys())
+        print('test keys: %s' % test.keys())
         _tr = train.set_index(['Exp_Id', 'id'])
         _ts = test.set_index(['Exp_Id', 'id'])
         train_exps = _tr.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()

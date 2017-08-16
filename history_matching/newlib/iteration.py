@@ -37,11 +37,16 @@ class Iteration(object):
         if not os.path.exists(self.data_root):
             os.makedirs(self.data_root)
         items = os.listdir(self.data_root)
+        print('loading dss from dir: %s items: %s' % (self.data_root, items))
         for item in items:
-            if os.path.isdir(item):
-                data_dir = os.path.join(self.data_root, item)
+            data_dir = os.path.join(self.data_root, item)
+            print('Examining data_dir: %s' % data_dir)
+            if os.path.isdir(data_dir):
+                print('creating ds: %s' % item)
                 ds = DataSource(directory=data_dir)
                 self.data_sources[ds.name] = ds
+            else:
+                print('NOT A DIR')
 
         # we keep it as an optional item here (needed for creating parameter space
         # samples, e.g. in the first iteration)
@@ -152,17 +157,19 @@ class Iteration(object):
 
             # Train/test split
             if ds.use_for_training:
-            #if exp_id == training_directory:
                 read['Train'] = False # sets the default value to False for all rows
-#                nSamp = len(read.index.get_level_values('Sample_Id'))
                 nSamp = len(read.index.get_level_values('id'))
-                print('nsamp: %s' % nSamp)
-                nTrain = int(round(training_fraction * nSamp))
-                read.iloc[:nTrain-1]['Train'] = True
+                nTrain = int(round(ds.training_fraction * nSamp))
+
+                # ck4, WEIRD, iloc seems to fail to actually write; seems to edit a transient copy, only
+                #read.iloc[0:(nTrain-1)]['Train'] = True # row_indexer,col_indexer]
+                read['Train'][0:nTrain] = True
             else:
                 # ck4, was originally '= true'. Ask Dan, is this right??? Shouldn't this be False?
+                print('NOT ds.use_for_training')
                 read['Train'] = False
-
+            print('nSamp: %d nTrain: %d' % (nSamp, nTrain))
+            print('>>>>> appending sim_input:\n%s' % read)
             sim_inputs.append(read)
 
             read = SampleFile(ds.results_filename).samples
@@ -173,8 +180,15 @@ class Iteration(object):
 
         inputs = pd.concat(sim_inputs)
         sim_results_all = pd.concat(sim_results)
+        print('sim_result_all:\nlen: %d\ndata:\n%s' % (len(sim_results_all), sim_results_all))
         sim_results_all.set_index(['Exp_Id', 'id', 'Sim_Id'], append=True, inplace=True)
-        results = sim_results_all['Sim_Result']
+        #        print('sim_result_all:\nlen: %d\ndata:\n%s' % (len(sim_results_all), sim_results_all))
+        results = sim_results_all['Sim_Result'] # ck4, results is a Series
+        #print('inputs:\nlen: %d\ndata:\n%s' % (len(inputs), inputs))
+        #print('results:\nlen: %d\ndata:\n%s' % (len(results), results))
+        #print(type(results))
+        #print(type(inputs))
+        #exit() # ck4
         
         return inputs, results
         
@@ -269,8 +283,10 @@ class Iteration(object):
         hm.calc_and_plot_implausibility(plot=True, do_plot_data=True, plot_data_highlight=pd.DataFrame()) # plot_data_highlight=hm.training_data.loc['8c7e4af7-1120-e711-9400-f0921c16849c.003328']
 
         directory = self.cuts[cut_name].directory
-        hm.training_data.to_excel(os.path.join(directory, 'train_data.xlsx'))
-        hm.test_data.to_excel(os.path.join(directory, 'test_data.xlsx'))
+        hm.glm_training_data.to_excel(os.path.join(directory, 'glm_train_data.xlsx'))
+        hm.glm_test_data.to_excel(os.path.join(directory, 'glm_test_data.xlsx'))
+        hm.gpr_training_data.to_excel(os.path.join(directory, 'gpr_train_data.xlsx'))
+        hm.gpr_test_data.to_excel(os.path.join(directory, 'gpr_test_data.xlsx'))
         
         print 'Good'
 
