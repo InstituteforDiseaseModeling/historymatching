@@ -29,7 +29,8 @@ class HistoryMatching():
         desired_result_var = 0,
         training_fraction = 0.75,
         use_glm = True,      # Disable the glm by setting to False
-        verbose = False
+        verbose = False,
+        from_file = False
     ):
         """
         :param DataFrame param_info: Parameter info with index named 'Name' containing parameter name, and columns of 'Min' and 'Max'
@@ -71,22 +72,24 @@ class HistoryMatching():
             print('inputs keys: %s\nresults keys: %s\n' % (self.inputs.keys(), self.results.keys()))
 #            exit() # ck4
             self.all_data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id'])
-            print('\nall_data:\n%s\n' % self.all_data)
-            self.glm_data = self.all_data.set_index(['use_for_glm', 'Train'])
-            print('glm_data index: %s' % self.glm_data.index)
-            print('\nglm_data:\n%s\n' % self.glm_data)
-            self.glm_test_data = self.glm_data.loc[True, False]
-            print('\ntest_data:\n%s\n' % self.glm_test_data)
-            self.glm_training_data = self.glm_data.loc[True, True]
-            print('\ntraining_data:\n%s\n' % self.glm_training_data)
+            # if we are loading from file, we do not know how to set glm/gpr test/train data... and we very likely don't need to
+            if not from_file:
+                print('\nall_data:\n%s\n' % self.all_data)
+                self.glm_data = self.all_data.set_index(['use_for_glm', 'Train'])
+                print('glm_data index: %s' % self.glm_data.index)
+                print('\nglm_data:\n%s\n' % self.glm_data)
+                self.glm_test_data = self.glm_data.loc[True, False]
+                print('\ntest_data:\n%s\n' % self.glm_test_data)
+                self.glm_training_data = self.glm_data.loc[True, True]
+                print('\ntraining_data:\n%s\n' % self.glm_training_data)
 
 
-            self.gpr_data = self.all_data.set_index(['use_for_gpr', 'Train'])
-            self.gpr_training_data = self.gpr_data.loc[True, True]
-            self.gpr_test_data = self.gpr_data.loc[True, False]
-            print 'Using train/test split as specified by user'
-            #print('***\nFound %d data items, of which %d are training and %d are test.\n***\n' % (len(self.all_data), len(self.glm_training_data), len(self.glm_test_data)))
-            #exit()
+                self.gpr_data = self.all_data.set_index(['use_for_gpr', 'Train'])
+                self.gpr_training_data = self.gpr_data.loc[True, True]
+                self.gpr_test_data = self.gpr_data.loc[True, False]
+                print 'Using train/test split as specified by user'
+                #print('***\nFound %d data items, of which %d are training and %d are test.\n***\n' % (len(self.all_data), len(self.glm_training_data), len(self.glm_test_data)))
+                #exit()
         else:
             raise Exception('is this needed for BHM? Non-user specified Training?? seems outdated, ck4.') # ck4, need input from Dan
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id']).set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
@@ -145,6 +148,7 @@ class HistoryMatching():
             discrepancy_var = discrepancy_var,
             desired_result_var = desired_result_var,
             training_fraction   = training_fraction,
+            from_file = True
         )
 
         

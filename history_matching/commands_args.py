@@ -62,7 +62,7 @@ def populate_cut_params(subparsers, function):
     parser.add_argument('-i', '--iteration', dest='iteration_number', type=int, required=True,
                         help='Current iteration number. Required.')
     parser.add_argument('-n', '--number', dest='n_candidates', type=int, required=True,
-                        help='Keep at least and close to this many candidate points in the cut.')
+                        help='Keep at least and close to this many candidate points in the cut. Required.')
 
     # ck4, remove this argument and make the constraint file a well-known filename in the Case; use if present!
     parser.add_argument('-C', '--constraint-file', dest='constraint_filename', type=str,
