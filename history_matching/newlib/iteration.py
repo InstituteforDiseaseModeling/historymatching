@@ -16,7 +16,7 @@ class Iteration(object):
     CANDIDATES_FILENAME = 'Candidates_for_iteration.xlsx'
     DATA_ROOT = 'Data'
 
-    def __init__(self, directory, parameters=None):
+    def __init__(self, directory, create=False, parameters=None):
         """
         :param directory: path of this iteration
         :param parameters: from ParameterFile().parameters
@@ -26,6 +26,13 @@ class Iteration(object):
         self.directory = directory
         self.iteration_number = self._parse_iteration_number(directory)
 
+        
+        if not os.path.exists(self.directory):
+            if create:
+                os.makedirs(self.directory)
+            else:
+                raise Exception('Cannot open iteration directory %s as it does not exist.')
+        
         self.samples = None
 
         # One route for gathering samples is via a candidates file from another Iteration.

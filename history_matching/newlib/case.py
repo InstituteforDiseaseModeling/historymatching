@@ -45,7 +45,12 @@ class Case(object):
         :return: an Iteration object
         """
         iterations = [ iteration for iteration in self.iterations if iteration.iteration_number == iteration_number]
-        if len(iterations) != 1:
+        if len(iterations) == 0:
+            iteration_directory = Iteration.directory_for_number(case_dir=self.directory, num=iteration_number)
+            iteration = Iteration(directory=iteration_directory, create=True, parameters=self.parameters)
+            self.iterations.append(iteration)
+            iterations = [iteration]
+        elif len(iterations) != 1:
             raise Exception('Could not determine which iteration is number %d . There are %d possibilities.' %
                             (iteration_number, len(iterations)))
         return iterations[0]
