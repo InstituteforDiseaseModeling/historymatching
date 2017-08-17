@@ -19,7 +19,7 @@ class Basis():
     @staticmethod
     def make_param_dict(param_names):
         # Return mapping from original parameter name to patsy-safe name
-        return {p:p.replace(':','').replace('&',' ').replace(' ', '_') for p in param_names}
+        return {p:p.replace(':','').replace('&',' ').replace(' ', '_').replace('-','_') for p in param_names}
 
 
     @classmethod
@@ -171,7 +171,15 @@ class Basis():
         data = data.rename(columns=self.param_dict)
 
         md = ModelDesc([], self.model_terms)
-        dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
+        try:
+            dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
+        except Exception as e:
+            print str(e)
+            if pd.isnull(data).any().any():
+                #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+                print data[data.isnull().any(axis=1)]
+                print 'Data contains Null/None/NaN, see data above.'
+                exit()
         return dmat
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
@@ -185,6 +193,7 @@ class Basis():
         data = data.rename(columns=self.param_dict)
 
         md = ModelDesc(response_terms, self.model_terms)
+
         (response_matrix, data_matrix) = dmatrices(md, data=data, return_type='dataframe')
         return response_matrix, data_matrix
 
@@ -211,6 +220,7 @@ class Basis():
         Ycol = 'Sim_Result'
         my_results = results.copy()
         my_results.name = Ycol
+
         data = pd.merge(inputs.reset_index(), my_results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Sample_Id', 'Exp_Id', 'Sample', 'Sim_Id']).sort_index()
 
         response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
@@ -316,3 +326,5 @@ class Basis():
         plt.legend()
         fig.tight_layout()
         plt.show()
+
+        return fig

@@ -6,8 +6,8 @@ import json
 import numpy as np
 import glob
 
-force_optimize_glm = True
-force_optimize_gpr = True
+force_optimize_glm = False
+force_optimize_gpr = False
 
 iteration = int(re.search(r'iter(\d+)', os.getcwd()).group(1))
 exp_ids = glob.glob('Data_*')
@@ -141,7 +141,7 @@ print "="*80, "\nGaussian Process Regression\n", "="*80
 hm.gpr(
     basis = basis_gpr,
     force_optimize_gpr = force_optimize_gpr,
-    K_folds = 10,
+    K_folds = -1,
     sigma2_f_guess = 1,
     sigma2_f_bounds = (0.1, 100),
     sigma2_n_guess = 1,
