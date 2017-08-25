@@ -80,7 +80,7 @@ def fit(args):
                   remake_basis   = remake_basis)
 
 def main():
-    parser = argparse.ArgumentParser(prog='hm')
+    parser = argparse.ArgumentParser(prog='bhm')
     subparsers = parser.add_subparsers()
     
     # 'hm set-samples'
