@@ -53,7 +53,7 @@ class HistoryMatchingCut(object):
                 self.glm_all[(iteration.iteration_number, cut_name)] = GLM.from_config(os.path.join(cuts_dir, cut_name, 'GLM', 'model.json'), os.path.join(cuts_dir, cut_name, 'GLM', 'params.p'))
                 self.gpr_all[(iteration.iteration_number, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
                 self.cuts.append((iteration.iteration_number, cut_name))
-
+        print('Cuts to use: %s' % self.cuts)
 
     def test_plausibility(self, points, constraint = None):
         new_candidates = points.copy()

@@ -112,4 +112,31 @@ class Case(object):
                               use_for_glm=data.GLM[row_index],
                               use_for_gpr=data.GPR[row_index])
             data_sources.append(ds)
+
+        # do initial checking of the data sources to make sure there are test and training points
+        # for glm and gpr.
+        n_points = {
+            'glm': {
+                'train': 0,
+                'test': 0
+            },
+            'gpr': {
+                'train': 0,
+                'test': 0
+            }
+        }
+        for ds in data_sources:
+            for step, modes_hash in n_points.iteritems():
+                for mode in modes_hash.keys():
+                    n_points[step][mode] += ds.n_points(step=step, mode=mode)
+
+        empty_cases = []
+        for step, modes_hash in n_points.iteritems():
+            for mode in modes_hash.keys():
+                print('n_points to use: %s %s : %d' % (step, mode, n_points[step][mode]))
+                if n_points[step][mode] == 0:
+                    empty_cases.append('%s:%s' % (step, mode))
+        if len(empty_cases) != 0:
+            raise Exception('No points were specified in data sources csv for the following cases: %s' % ' '.join(empty_cases))
+
         return data_sources

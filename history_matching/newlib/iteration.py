@@ -47,13 +47,9 @@ class Iteration(object):
         print('loading dss from dir: %s items: %s' % (self.data_root, items))
         for item in items:
             data_dir = os.path.join(self.data_root, item)
-            print('Examining data_dir: %s' % data_dir)
             if os.path.isdir(data_dir):
-                print('creating ds: %s' % item)
                 ds = DataSource(directory=data_dir)
                 self.data_sources[ds.name] = ds
-            else:
-                print('NOT A DIR')
 
         # we keep it as an optional item here (needed for creating parameter space
         # samples, e.g. in the first iteration)

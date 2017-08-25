@@ -53,12 +53,11 @@ class Cut(object):
             to_remove.append(self.gpr_basis_filename)
         elif remake == 'gpr':
             to_remove.append(self.gpr_basis_filename)
-        for filename in [self.glm_basis_filename, self.gpr_basis_filename]:
+        for filename in to_remove:
             try:
                 os.remove(filename)
             except OSError:
                 pass
-
         param_names = param_info.index.tolist()
         print 'All available parameters:'
         print ' *','\n * '.join(param_names)

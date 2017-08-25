@@ -1,5 +1,5 @@
-def populate_set_samples(subparsers, function):
-    parser = subparsers.add_parser('set-samples', help='')
+def populate_sample(subparsers, function):
+    parser = subparsers.add_parser('sample', help='')
     parser.add_argument('-c', '--case', dest='case_directory', type=str, required=True,
                         help='BHM case directory. Required.')
     parser.add_argument('-i', '--iteration', dest='iteration_number', type=int, required=True,
@@ -45,7 +45,7 @@ def populate_fit(subparsers, function):
                              '(Default: 3).')
 
     parser.add_argument('--remake-basis', dest='remake_basis', type=str, default="NONE",
-                        help='Toggle basis recreation mode before fitting: GPR, ALL (GLM and GPR), or NONE')
+                        help='Toggle basis recreation mode before fitting: GPR, ALL (GLM and GPR), or NONE (Default: None)')
 
     # ck4, combine into one command line arg, something like: --target 25:4
     # ck4, or should --target-std info be part of the Case (and invariant between Iterations)

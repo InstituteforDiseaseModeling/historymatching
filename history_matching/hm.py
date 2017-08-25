@@ -1,7 +1,3 @@
-"""
-General development notes, ck4
-"""
-
 import argparse
 
 import commands_args
@@ -10,7 +6,7 @@ from newlib.sample_file import SampleFile
 
 CONSTRAINT_METHOD = 'constrain'
 
-def set_samples(args):
+def sample(args):
     if args.n_samples:
         n_samples = args.n_samples
     else:
@@ -80,7 +76,7 @@ def main():
     subparsers = parser.add_subparsers()
     
     # 'hm set-samples'
-    commands_args.populate_set_samples(subparsers, function=set_samples)
+    commands_args.populate_sample(subparsers, function=sample)
     
     # 'hm cut-params'
     commands_args.populate_cut_params(subparsers, function=cut_parameter_space)

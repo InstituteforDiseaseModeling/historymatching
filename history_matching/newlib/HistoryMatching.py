@@ -78,15 +78,35 @@ class HistoryMatching():
                 self.glm_data = self.all_data.set_index(['use_for_glm', 'Train'])
                 print('glm_data index: %s' % self.glm_data.index)
                 print('\nglm_data:\n%s\n' % self.glm_data)
-                self.glm_test_data = self.glm_data.loc[True, False]
+
+                try:
+                    self.glm_test_data = self.glm_data.loc[True, False]
+                except KeyError as e:
+                    e.args = ['No GLM test points specified.']
+                    raise
                 print('\ntest_data:\n%s\n' % self.glm_test_data)
-                self.glm_training_data = self.glm_data.loc[True, True]
+
+                try:
+                    self.glm_training_data = self.glm_data.loc[True, True]
+                except KeyError as e:
+                    e.args = ['No GLM training points specified.']
+                    raise
                 print('\ntraining_data:\n%s\n' % self.glm_training_data)
 
-
                 self.gpr_data = self.all_data.set_index(['use_for_gpr', 'Train'])
-                self.gpr_training_data = self.gpr_data.loc[True, True]
-                self.gpr_test_data = self.gpr_data.loc[True, False]
+
+                try:
+                    self.gpr_training_data = self.gpr_data.loc[True, True]
+                except KeyError as e:
+                    e.args = ['No GPR training points specified.']
+                    raise
+
+                try:
+                    self.gpr_test_data = self.gpr_data.loc[True, False]
+                except KeyError as e:
+                    e.args = ['No GPR test points specified.']
+                    raise
+
                 print 'Using train/test split as specified by user'
                 #print('***\nFound %d data items, of which %d are training and %d are test.\n***\n' % (len(self.all_data), len(self.glm_training_data), len(self.glm_test_data)))
                 #exit()
@@ -94,7 +114,7 @@ class HistoryMatching():
             raise Exception('is this needed for BHM? Non-user specified Training?? seems outdated, ck4.') # ck4, need input from Dan
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id']).set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
 
-            # Train/test split
+            # Train/test split # ck4, this should eventually use methods in the DataSource class
             nSamp = len(self.data.index.get_level_values('Sample_Id'))
             nTrain = int(round(self.training_fraction * nSamp))
             nTest = nSamp - nTrain
