@@ -1,4 +1,5 @@
 import argparse
+import re
 
 import commands_args
 from newlib.case import Case # fix up all newlib references once things are packaged nicely
@@ -47,14 +48,23 @@ def cut_parameter_space(args):
                          n_desired_candidates=args.n_candidates,
                          constraint = constraint)
 
-# ck4, this method and code it calls needs to properly handle and recognize the data from the new csv
-# data format for training/data directories and per directory training_fraction/GLM/GPR usage.
 def fit(args):
     # ck4, use args.training_sources : a csv filename, instead of data_directories/training_directory, training_fraction
     # ... and to determine internally to iteration.fit() which to use for GPR and/or GLM.
     case = Case(case_directory=args.case_directory)
     iteration = case.get_iteration(args.iteration_number)
-    
+
+    # parse the target and its stddev
+    required_format = re.compile('^(?P<target>.+):(?P<target_std>.+)$')
+    match_result = required_format.match(args.target)
+    if match_result:
+        target = float(match_result.group('target'))
+        target_std = float(match_result.group('target_std'))
+    else:
+        raise Exception('Invalid target format. Must be VALUE:STD .')
+    if target_std == 0:
+        raise Exception('Target standard deviation must be > 0.')
+
     remake_basis = args.remake_basis.lower()
     allowed_values = ['all', 'none', 'gpr']
     if remake_basis not in allowed_values:
@@ -64,8 +74,8 @@ def fit(args):
     data_sources = case.load_data_sources_csv(filename=args.data_sources)
     iteration.fit(cut_name           = args.cut_name,
                   data_sources       = data_sources,
-                  target             = args.target,
-                  target_std         = args.target_std,
+                  target             = target,
+                  target_std         = target_std,
                   force_optimize_glm = args.optimize_glm,
                   force_optimize_gpr = args.optimize_gpr,
                   implausibility_threshold = args.implausibility_threshold,

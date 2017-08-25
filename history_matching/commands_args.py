@@ -47,12 +47,9 @@ def populate_fit(subparsers, function):
     parser.add_argument('--remake-basis', dest='remake_basis', type=str, default="NONE",
                         help='Toggle basis recreation mode before fitting: GPR, ALL (GLM and GPR), or NONE (Default: None)')
 
-    # ck4, combine into one command line arg, something like: --target 25:4
     # ck4, or should --target-std info be part of the Case (and invariant between Iterations)
-    parser.add_argument('--target', dest='target', type=float, required=True,
-                        help='Desired value for parameter space points to attempt to match. Required.')
-    parser.add_argument('--target-std', dest='target_std', type=float, required=True,
-                        help='Desired value standard deviation. Same units as --target . Required.')
+    parser.add_argument('--target', dest='target', type=str, required=True,
+                        help='Desired value for parameter space points to attempt to match and its standard deviation in the same units. Format: VALUE:STD . Required.')
     parser.set_defaults(func=function)
 
 def populate_cut_params(subparsers, function):
