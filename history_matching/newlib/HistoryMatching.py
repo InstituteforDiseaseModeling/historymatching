@@ -68,9 +68,7 @@ class HistoryMatching():
 #            self.training_data = self.data.loc[True]
 #            self.test_data = self.data.loc[False]
 
-            # ck4, remove all references to self.data in the code
             print('inputs keys: %s\nresults keys: %s\n' % (self.inputs.keys(), self.results.keys()))
-#            exit() # ck4
             self.all_data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id'])
             # if we are loading from file, we do not know how to set glm/gpr test/train data... and we very likely don't need to
             if not from_file:
@@ -111,7 +109,7 @@ class HistoryMatching():
                 #print('***\nFound %d data items, of which %d are training and %d are test.\n***\n' % (len(self.all_data), len(self.glm_training_data), len(self.glm_test_data)))
                 #exit()
         else:
-            raise Exception('is this needed for BHM? Non-user specified Training?? seems outdated, ck4.') # ck4, need input from Dan
+            raise Exception('is this needed for BHM? Non-user specified Training?? seems outdated, ck4.') # ck4, need input from Dan. If so, needs refactor (e.g. replacing self.data, using per-ds training fraction, etc)
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'id']).set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
 
             # Train/test split # ck4, this should eventually use methods in the DataSource class
@@ -230,11 +228,9 @@ class HistoryMatching():
             plot_data = False
         ):
 
-        # ck4, this blcok for debug only
-        print('----------------------------------------------- GLM ----------------------')
-        print('self.glm_training_data:\ntype: %s\nlen: %d\ndata:\n%s\n' % (type(self.glm_training_data), len(self.glm_training_data), self.glm_training_data))
-        print('self.glm_test_data:\ntype: %s\nlen: %d\ndata:\n%s\n' % (type(self.glm_test_data), len(self.glm_test_data), self.glm_test_data))
-        #exit()
+        # print('----------------------------------------------- GLM ----------------------')
+        # print('self.glm_training_data:\ntype: %s\nlen: %d\ndata:\n%s\n' % (type(self.glm_training_data), len(self.glm_training_data), self.glm_training_data))
+        # print('self.glm_test_data:\ntype: %s\nlen: %d\ndata:\n%s\n' % (type(self.glm_test_data), len(self.glm_test_data), self.glm_test_data))
 
         if not self.use_glm:
             print 'use_glm is False, why are you calling glm?'
@@ -344,8 +340,7 @@ class HistoryMatching():
 #        print('glm test data (%d):\n%s\n' % (len(self.glm_test_data), self.glm_test_data))
 #        print('glm training data (%d):\n%s\n' % (len(self.glm_training_data), self.glm_training_data))
 #        print('>>>>>>>>>>>> END >>>>>>>>>>>>>>>>>>>>>>>>>>')
-#        exit() # ck4, debugging
-        
+
         #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
         #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
         
@@ -387,7 +382,6 @@ class HistoryMatching():
             if self.use_glm:
                 Ycol = 'Yerr'
                 # grab glm Yerr results from self.glm_training_data and self.glm_test_data, ck4. Some pandas merges/concat likely
-                # ck4, the following line needs verification that it works properly when glm/gpr points are not identical sets (does the result have len(self.gpr_training_data rows?)
                 glm_points = pd.concat([self.glm_test_data, self.glm_training_data])
                 self.gpr_training_data = glm_points.merge(self.gpr_training_data) # ck4, right? give it a try; should essentially add the Ycol col to self.gpr_traininig_data. More is OK, though should end up with rows from self.gpr_training_data ONLY (no rows from glm not in gpr) (is this possible? review glm/gpr restrictions)
                 self.gpr_training_data = self.gpr_training_data.reset_index().set_index('Sample_Id') # ck4, needed in the long run?
@@ -402,10 +396,6 @@ class HistoryMatching():
 #                print('GPR training data (%d):\n%s\n' % (len(self.gpr_training_data), self.gpr_training_data))
 #                print('GPR test data (%d):\n%s\n' % (len(self.gpr_test_data), self.gpr_test_data))
 #                print('MERGED (%d):\n%s\n' % (len(glm_data), glm_data))
-#                exit() # ck4, this debug block
-
-
-
             else:
                 Ycol = 'Sim_Result'
             self.gpr_model = GPR(basis = basis,
@@ -499,9 +489,8 @@ class HistoryMatching():
             fig.savefig( os.path.join(self.gprdir, 'histogram.pdf') );
             plt.close(fig)
 
-    # ck4, how do I modernize this with glm/gpr _training_data and _test_data ?? Ask Dan.
     # ck4, I think using gpr data/variables in here is correct, as currently GPR points are a subset of GLM points,
-    # enforced by DataSource#update_for_use()
+    # enforced by DataSource#update_for_use(). Perhaps ask Dan?
     def calc_and_plot_implausibility(self, plot=False, do_plot_data=False, plot_data_highlight=pd.DataFrame(), log_scale=True):
         '''
         print 'Mean_Estimate:', self.training_data['Mean_Estimate']

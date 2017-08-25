@@ -85,7 +85,6 @@ class Cut(object):
         else:
             print('Not creating GLM basis, as it already exists and we were not instructed to force recreation.')
 
-        # ck4, need to set fitted_values either way (for use in GPR, below)... figure out how by looking at original bhm.py
         self.glm_basis = self._load_basis(self.glm_basis_filename)
         fitted_values = self._load_fitted_values(self.glm_basis_filename)
         

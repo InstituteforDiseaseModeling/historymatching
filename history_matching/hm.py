@@ -27,7 +27,7 @@ def sample(args):
     iteration.write_samples(data_source_name=args.data_source)
 
 # from cut.py
-# ck4, needs a run through test, especially constraints
+# ck4, constraints need testing
 def cut_parameter_space(args):
     # try to load and error check any provide constraint information
     if args.constraint_filename:
@@ -49,8 +49,6 @@ def cut_parameter_space(args):
                          constraint = constraint)
 
 def fit(args):
-    # ck4, use args.training_sources : a csv filename, instead of data_directories/training_directory, training_fraction
-    # ... and to determine internally to iteration.fit() which to use for GPR and/or GLM.
     case = Case(case_directory=args.case_directory)
     iteration = case.get_iteration(args.iteration_number)
 

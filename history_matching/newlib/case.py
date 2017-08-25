@@ -11,6 +11,7 @@ class Case(object):
     """
 
     PARAMETERS_FILENAME = 'Params.xlsx'
+    DATA_SOURCE_CSV_REQUIRED_KEYS = ['iteration_number', 'data_source', 'training_fraction', 'GLM', 'GPR']
 
     def __init__(self, case_directory):
         self.directory = case_directory
@@ -19,8 +20,7 @@ class Case(object):
         self.iterations = self._load_iterations()
 
     def _load_parameters_file(self):
-        if not os.path.exists(self.parameter_filename): # ck4, is it possible to not have a parameters file??
-            # ... first iteration (iter0)? I don't remember for sure.
+        if not os.path.exists(self.parameter_filename):
             raise Exception('Invalid case. No parameters file at: %s' % self.parameter_filename)
         return ParameterFile(self.parameter_filename).parameters
 
@@ -90,10 +90,6 @@ class Case(object):
                                        constraint=constraint)
         # ck4, move printing from hm.cut to here (of cut result)
         # ck4, move writing of candidates xlsx file to a hm.write_... call here.
-
-
-    # ck4, new stuff from newlib.data_sources ... converting to use input csv for specifying training/test directories
-    DATA_SOURCE_CSV_REQUIRED_KEYS = ['iteration_number', 'data_source', 'training_fraction', 'GLM', 'GPR']
 
     def load_data_sources_csv(self, filename):
         data = pandas.read_csv(filename)

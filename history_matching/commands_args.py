@@ -20,24 +20,13 @@ def populate_fit(subparsers, function):
                         help='Current iteration number. Required.')
     parser.add_argument('-C', '--cut-name', dest='cut_name', type=str, required=True,
                         help='Name of cut to use. Required.')
-
-    # ck4, populate this on a per-directory basis from the inputs csv file
-    # parser.add_argument('-t', '--training-fraction', dest='training_fraction', type=float, default=0.75,
-    #                     help='Fraction of the training data directory to use in training (0-1) (Default: 0.75).')
-
     parser.add_argument('--no-optimize-glm', dest='optimize_glm', action='store_false', default=True,
                         help='Do not force optimization of the GLM (Default: force).')
     parser.add_argument('--no-optimize-gpr', dest='optimize_gpr', action='store_false', default=True,
                         help='Do not force optimization of the GPR (Default: force).')
-
-    # ck4, populate these with new input csv file
     parser.add_argument('--data-sources', dest='data_sources', type=str, required=True,
                         help='A CSV file detailing which directories and their configurations to use in training and'
                              'testing GLM and GPR. Required.')
-    # parser.add_argument('--training-dir', dest='training_directory', type=str, required=True,
-    #                     help='Training iteration directory to use. Required.')
-    # parser.add_argument('-d', '--data-dirs', dest='data_directories', nargs='+', type=str, default=[],
-    #                     help='Non-training iteration directories to use for history matching inputs.')
 
     # ck4,  move this into Case object data?
     parser.add_argument('--implausibility_threshold', dest='implausibility_threshold', type=float, default=3,

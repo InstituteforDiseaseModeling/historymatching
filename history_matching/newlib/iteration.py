@@ -133,13 +133,12 @@ class Iteration(object):
     def setup_inputs_and_results(self, data_sources): #training_directory, data_directories, training_fraction):
         sim_inputs = []
         sim_results = []
-        # ck4, exp_id and ds.name are the same; refactor...
         # ck4, should use SampleFile for reading
         #all_directories = [training_directory] + data_directories
         #for exp_id in all_directories:
         for ds in data_sources:
             print('Reading samples file: %s' % ds.samples_filename)
-            read = SampleFile(ds.samples_filename).samples # ck4, this essentially returns a dict-like object (pandas.DataFrame)
+            read = SampleFile(ds.samples_filename).samples # this essentially returns a dict-like object (pandas.DataFrame)
             print('Read in a type: %s' % type(read))
             print('dict of read item: %s' % dir(read))
             read['Exp_Id'] = ds.name
@@ -168,8 +167,6 @@ class Iteration(object):
                 #read.iloc[0:(nTrain-1)]['Train'] = True # row_indexer,col_indexer]
                 read['Train'][0:nTrain] = True
             else:
-                # ck4, was originally '= true'. Ask Dan, is this right??? Shouldn't this be False?
-                print('NOT ds.use_for_training')
                 read['Train'] = False
             print('nSamp: %d nTrain: %d' % (nSamp, nTrain))
             print('>>>>> appending sim_input:\n%s' % read)
@@ -185,19 +182,11 @@ class Iteration(object):
         sim_results_all = pd.concat(sim_results)
         print('sim_result_all:\nlen: %d\ndata:\n%s' % (len(sim_results_all), sim_results_all))
         sim_results_all.set_index(['Exp_Id', 'id', 'Sim_Id'], append=True, inplace=True)
-        #        print('sim_result_all:\nlen: %d\ndata:\n%s' % (len(sim_results_all), sim_results_all))
-        results = sim_results_all['Sim_Result'] # ck4, results is a Series
-        #print('inputs:\nlen: %d\ndata:\n%s' % (len(inputs), inputs))
-        #print('results:\nlen: %d\ndata:\n%s' % (len(results), results))
-        #print(type(results))
-        #print(type(inputs))
-        #exit() # ck4
-        
+        results = sim_results_all['Sim_Result'] # results is a Series
+
         return inputs, results
         
     # was originally bhm.py
-    # ck4, this method needs to be updated to detect/use info regarding which data_sources to use for GLM and which to
-    # use for GPR
     def fit(self, cut_name, data_sources, target, target_std,
             force_optimize_glm=True, force_optimize_gpr=True,
             implausibility_threshold=3, remake_basis='none'):
@@ -235,7 +224,7 @@ class Iteration(object):
             iteration = self.iteration_number,
             implausibility_threshold = implausibility_threshold,
             discrepancy_var = discrepancy_std**2,
-            training_fraction = None # ck4, ok? We are using a input csv to do line-by line specification
+            training_fraction = None
         )
         hm.save()
 
@@ -300,12 +289,6 @@ class Iteration(object):
         :return: a DataSource object
         """
         return self.data_sources[source]
-        #
-        # data_sources = [ds for ds in self.data_sources if ds.name == source] # ck4, define
-        # if len(data_sources) != 1:
-        #     raise Exception('Could not determine which data_source to use for %s. There are %d possibilities.' %
-        #                     (source, len(data_sources)))
-        # return data_sources[0]
 
     @classmethod
     def _validate_directory_name(cls, directory):
