@@ -1,0 +1,2 @@
+python ../../bhm.py sample -c . -i 0 -n 30 -d ds
+python generate_results.py . 0 ds # args are <case_dir> <iteration_number> <data_source>
