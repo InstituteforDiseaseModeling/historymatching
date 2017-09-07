@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='HistoryMatching',
       version='0.1',
@@ -8,6 +8,7 @@ setup(name='HistoryMatching',
       author='Daniel J. Klein',
       author_email='dklein@idmod.org',
       url='https://github.com/InstituteforDiseaseModeling/history_matching',
-      packages=['history_matching']
+      packages=find_packages(), # ['history_matching'],
+      package_data={'': ['newlib/kernel.c']},
      )
 
