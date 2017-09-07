@@ -67,11 +67,11 @@ class DataSource(object):
 
         self.use_for_gpr = bool(use_for_gpr)
 
-        # verify consistency for glm/gpr usage
-        # ck4, verify with Dan that this is correct. Should the exceptions be held to training_data only?
-        if self.use_for_gpr and not self.use_for_glm:
-            raise Exception('All data sources used for GPR basis generation must also be used for GLM basis generation.'
+        # verify consistency for glm/gpr usage for if training points are present in this data source
+        if self.use_for_training and self.use_for_gpr and not self.use_for_glm:
+            raise Exception('All data sources used for GPR training must also be used for GLM training.'
                             ' Problem with usage of: %s' % self.directory)
+
         if not (self.use_for_glm or self.use_for_gpr):
             raise Exception('All data sources must be used for GLM and/or GPR basis generation and/or testing.')
         self.updated_for_use = True
