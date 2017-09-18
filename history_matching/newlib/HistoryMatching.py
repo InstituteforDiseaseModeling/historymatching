@@ -21,6 +21,7 @@ class HistoryMatching():
         cut_directory,
         param_info,         # Parameter definitions
         inputs,
+        field, # the result fieldname being compared
         results,
         desired_result,
         iteration,  # Current iteration, needed?
@@ -48,6 +49,7 @@ class HistoryMatching():
         self.cut_directory = cut_directory
         self.param_info = param_info.copy()
         self.inputs = inputs.copy()
+        self.field = field
         self.results = results.copy()
         self.implausibility_threshold = implausibility_threshold
         self.discrepancy_var = discrepancy_var
@@ -149,7 +151,7 @@ class HistoryMatching():
             training_fraction = hm_params.loc['training_fraction'].values[0]
             desired_result = hm_params.loc['desired_result'].values[0]
             iteration = hm_params.loc['iteration'].values[0]
-
+            field = hm_params.loc['field'].values[0]
             inputs = pd.read_excel(xls, 'Inputs', index_col=0)
             results = pd.read_excel(xls, 'Results', index_col=[0,1,2,3]).squeeze() # NOTE: was series, now DF
             param_info = pd.read_excel(xls, 'Param_Info', index_col=0)
@@ -159,6 +161,7 @@ class HistoryMatching():
             cut_directory = cut_directory,
             param_info = param_info,
             inputs = inputs,
+            field = field,
             results = results,
             desired_result = desired_result,
             iteration = iteration,
@@ -180,6 +183,7 @@ class HistoryMatching():
             'desired_result_var'        : self.desired_result_var,
             'training_fraction'         : self.training_fraction,
             'desired_result'            : self.desired_result,
+            'field'                     : self.field,
             'iteration'                 : self.iteration
         }, name='Value')
         hm_params.index.name = 'Parameter'

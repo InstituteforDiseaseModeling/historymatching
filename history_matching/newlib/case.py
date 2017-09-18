@@ -4,6 +4,9 @@ import pandas
 from newlib.HistoryMatchingCut import HistoryMatchingCut  # ck4, fix all newlib import statements eventually
 from newlib.iteration import Iteration
 from newlib.parameter_file import ParameterFile
+from newlib.ReferenceData import ReferenceData
+
+class NoReferenceData(Exception): pass
 
 class Case(object):
     """
@@ -12,12 +15,20 @@ class Case(object):
 
     PARAMETERS_FILENAME = 'Params.xlsx'
     DATA_SOURCE_CSV_REQUIRED_KEYS = ['iteration_number', 'data_source', 'training_fraction', 'GLM', 'GPR']
+    REFERENCE_DATA_FILE = 'reference.csv'
 
     def __init__(self, case_directory):
         self.directory = case_directory
         self.parameter_filename = os.path.join(self.directory, self.PARAMETERS_FILENAME)
         self.parameters = self._load_parameters_file()
         self.iterations = self._load_iterations()
+        self.reference_data = self._load_reference_data()
+
+    def _load_reference_data(self):
+        filename = os.path.join(self.directory, self.REFERENCE_DATA_FILE)
+        if not os.path.exists(filename):
+            raise NoReferenceData('No reference.csv file exists at: %s' % filename)
+        return ReferenceData(filename=filename)
 
     def _load_parameters_file(self):
         if not os.path.exists(self.parameter_filename):

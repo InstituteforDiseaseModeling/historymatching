@@ -9,7 +9,7 @@ def populate_sample(subparsers, function):
     parser.add_argument('-n', '--number', dest='n_samples', type=int, default=None,
                         help='Number of parameter space points to sample in this iteration.')
     parser.add_argument('-d', '--data-source', dest='data_source', type=str, required=True,
-                        help='The name of the data source directory to initialize.')
+                        help='The name of the data source directory to initialize. Required.')
     parser.set_defaults(func=function)
 
 def populate_fit(subparsers, function):
@@ -36,9 +36,9 @@ def populate_fit(subparsers, function):
     parser.add_argument('--remake-basis', dest='remake_basis', type=str, default="NONE",
                         help='Toggle basis recreation mode before fitting: GPR, ALL (GLM and GPR), or NONE (Default: None)')
 
-    # ck4, or should --target-std info be part of the Case (and invariant between Iterations)
-    parser.add_argument('--target', dest='target', type=str, required=True,
-                        help='Desired value for parameter space points to attempt to match and its standard deviation in the same units. Format: VALUE:STD . Required.')
+    parser.add_argument('-f', '--field', dest='field', type=str, required=True,
+                        help='Field name to compare reference and model results on. Required.')
+
     parser.set_defaults(func=function)
 
 def populate_cut_params(subparsers, function):

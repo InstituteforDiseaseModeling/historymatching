@@ -130,12 +130,14 @@ class Iteration(object):
         return self.cuts[cut_name]
 
     # This method sets up the inputs and results dicts(?) used as inputs to history matching.
-    def setup_inputs_and_results(self, data_sources): #training_directory, data_directories, training_fraction):
+    # This method depends on all data sources having the column specified by 'field'.
+    def setup_inputs_and_results(self, data_sources, field):
         sim_inputs = []
         sim_results = []
         # ck4, should use SampleFile for reading
         #all_directories = [training_directory] + data_directories
         #for exp_id in all_directories:
+        missing_field = []
         for ds in data_sources:
             print('Reading samples file: %s' % ds.samples_filename)
             read = SampleFile(ds.samples_filename).samples # this essentially returns a dict-like object (pandas.DataFrame)
@@ -176,18 +178,29 @@ class Iteration(object):
             read['Exp_Id'] = ds.name
             # ck4, change 'Sample' to 'id' ... and update the result write to do so as well
             read['Sample_Id'] = read.apply(lambda x: '%s.%06d'%(ds.name,x['id']), axis='columns').values
-            sim_results.append(read.set_index('Sample_Id').sort_index())
+
+            new_result = read.set_index('Sample_Id').sort_index()
+            if new_result.get(field, None) is None: # missing!
+                missing_field.append(ds.directory)
+            sim_results.append(new_result)
+
+
+        # ck4, this check should ideally be in bhm.py#fit, but there is no reading of Results.xlsx in DataSource currently
+        # to check over there.
+        if len(missing_field) > 0:
+            raise Exception('The following specified data sources are missing the field: %s requested for comparision:\n%s'
+                % (field, '\n'.join(missing_field)))
 
         inputs = pd.concat(sim_inputs)
         sim_results_all = pd.concat(sim_results)
         print('sim_result_all:\nlen: %d\ndata:\n%s' % (len(sim_results_all), sim_results_all))
         sim_results_all.set_index(['Exp_Id', 'id', 'Sim_Id'], append=True, inplace=True)
-        results = sim_results_all['Sim_Result'] # results is a Series
+        results = sim_results_all[field]  # results is a Series
 
         return inputs, results
         
     # was originally bhm.py
-    def fit(self, cut_name, data_sources, target, target_std,
+    def fit(self, cut_name, data_sources, field, target, target_std,
             force_optimize_glm=True, force_optimize_gpr=True,
             implausibility_threshold=3, remake_basis='none'):
         
@@ -204,7 +217,7 @@ class Iteration(object):
 
         # ck4, I think use_for_gpr/glm flags should be set on the returned inputs in this method, to carry forward to
         # use in self.make_bases() call
-        inputs, results = self.setup_inputs_and_results(data_sources=data_sources)
+        inputs, results = self.setup_inputs_and_results(data_sources=data_sources, field=field)
 
         cut = self.make_bases(cut_name=cut_name, inputs=inputs, results=results, remake=remake_basis)
 
@@ -219,6 +232,7 @@ class Iteration(object):
             cut_directory = cut.directory,
             param_info = param_info,
             inputs = inputs,
+            field = field,
             results = results,
             desired_result = desired_result,
             iteration = self.iteration_number,
@@ -279,7 +293,7 @@ class Iteration(object):
         hm.glm_test_data.to_excel(os.path.join(directory, 'glm_test_data.xlsx'))
         hm.gpr_training_data.to_excel(os.path.join(directory, 'gpr_train_data.xlsx'))
         hm.gpr_test_data.to_excel(os.path.join(directory, 'gpr_test_data.xlsx'))
-        
+
         print 'Good'
 
     def get_data_source(self, source):

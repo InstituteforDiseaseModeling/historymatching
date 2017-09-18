@@ -52,17 +52,6 @@ def fit(args):
     case = Case(case_directory=args.case_directory)
     iteration = case.get_iteration(args.iteration_number)
 
-    # parse the target and its stddev
-    required_format = re.compile('^(?P<target>.+):(?P<target_std>.+)$')
-    match_result = required_format.match(args.target)
-    if match_result:
-        target = float(match_result.group('target'))
-        target_std = float(match_result.group('target_std'))
-    else:
-        raise Exception('Invalid target format. Must be VALUE:STD .')
-    if target_std == 0:
-        raise Exception('Target standard deviation must be > 0.')
-
     remake_basis = args.remake_basis.lower()
     allowed_values = ['all', 'none', 'gpr']
     if remake_basis not in allowed_values:
@@ -70,8 +59,19 @@ def fit(args):
 
     # load data sources csv
     data_sources = case.load_data_sources_csv(filename=args.data_sources)
+
+    # verify that the requested comparison field is in both the reference data.
+    if args.field not in case.reference_data.fields:
+        raise Exception('Selected field is not in the reference data: %s' % args.field)
+
+    # ck4, compress field name/value/stddev into a simple class and pass as one arg to iteration.fit
+    field = args.field
+    target = case.reference_data.value(field=field)
+    target_std = case.reference_data.stddev(field=field)
+
     iteration.fit(cut_name           = args.cut_name,
                   data_sources       = data_sources,
+                  field              = field,
                   target             = target,
                   target_std         = target_std,
                   force_optimize_glm = args.optimize_glm,

@@ -6,7 +6,6 @@ class FileAndDataException(Exception): pass
 class InvalidFormat(Exception): pass
 class MissingField(Exception): pass
 
-# ck4, test and write tests
 class ReferenceData(object):
 
     FIELD_KEY = 'field'
