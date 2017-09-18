@@ -91,6 +91,8 @@ class Case(object):
         # ck4, move printing from hm.cut to here (of cut result)
         # ck4, move writing of candidates xlsx file to a hm.write_... call here.
 
+    # ck4, move the load csv into DataSource class? (along with DATA_SOURCE_CSV_REQUIRED_KEYS). Keep
+    # 'set of DataSources' checks here.
     def load_data_sources_csv(self, filename):
         data = pandas.read_csv(filename)
         file_keys = data.keys()
