@@ -2,8 +2,8 @@ import argparse
 import re
 
 import commands_args
-from newlib.case import Case # fix up all newlib references once things are packaged nicely
-from newlib.sample_file import SampleFile
+from history_matching.newlib.case import Case # fix up all newlib references once things are packaged nicely
+from history_matching.newlib.sample_file import SampleFile
 
 CONSTRAINT_METHOD = 'constrain'
 
@@ -80,7 +80,7 @@ def fit(args):
                   remake_basis   = remake_basis)
 
 def main():
-    parser = argparse.ArgumentParser(prog='bhm')
+    parser = argparse.ArgumentParser(prog='hm')
     subparsers = parser.add_subparsers()
     
     # 'hm set-samples'

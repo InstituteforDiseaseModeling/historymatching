@@ -10,5 +10,7 @@ setup(name='HistoryMatching',
       url='https://github.com/InstituteforDiseaseModeling/history_matching',
       packages=find_packages(), # ['history_matching'],
       package_data={'': ['newlib/kernel.c']},
+      entry_points={
+            'console_scripts': ['hm = history_matching.hm:main']
+      },
      )
-

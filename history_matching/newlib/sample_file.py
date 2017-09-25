@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from newlib.quick_read import quick_read
+from history_matching.newlib.quick_read import quick_read
 
 # ck4, Homogenized candidate and sample files. They should now both have:
 # a sheet: Values with cols: id, <all params> . These are used as samples for both.

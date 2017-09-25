@@ -1,10 +1,10 @@
 import os
 import pandas
 
-from newlib.HistoryMatchingCut import HistoryMatchingCut  # ck4, fix all newlib import statements eventually
-from newlib.iteration import Iteration
-from newlib.parameter_file import ParameterFile
-from newlib.ReferenceData import ReferenceData
+from history_matching.newlib.HistoryMatchingCut import HistoryMatchingCut  # ck4, fix all newlib import statements eventually
+from history_matching.newlib.iteration import Iteration
+from history_matching.newlib.parameter_file import ParameterFile
+from history_matching.newlib.ReferenceData import ReferenceData
 
 class NoReferenceData(Exception): pass
 

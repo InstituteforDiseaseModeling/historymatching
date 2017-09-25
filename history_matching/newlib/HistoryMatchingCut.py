@@ -4,7 +4,7 @@ import os
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
-from newlib.HistoryMatching import HistoryMatching
+from history_matching.newlib.HistoryMatching import HistoryMatching
 from glm import GLM
 from gpr import GPR
 

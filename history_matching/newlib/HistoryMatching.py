@@ -7,9 +7,9 @@ from pyDOE import lhs
 from shutil import copyfile
 import datetime
 
-from newlib.glm import GLM
-from newlib.gpr import GPR
-from newlib.plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
+from history_matching.newlib.glm import GLM
+from history_matching.newlib.gpr import GPR
+from history_matching.newlib.plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
 
 # TODO: Error plot
 # TODO: Reference plot

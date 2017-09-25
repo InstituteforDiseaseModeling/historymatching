@@ -1,4 +1,4 @@
-from newlib.quick_read import quick_read # ck4, fix up this requires
+from history_matching.newlib.quick_read import quick_read
 
 # used for reading parameter definitions
 class ParameterFile(object):

@@ -3,9 +3,9 @@ import re
 import pandas as pd
 from pyDOE import lhs
 
-from newlib.cut import Cut
-from newlib.data_source import DataSource
-from newlib.sample_file import SampleFile # ck4, all pathing for hm package needs to be fixed
+from history_matching.newlib.cut import Cut
+from history_matching.newlib.data_source import DataSource
+from history_matching.newlib.sample_file import SampleFile
 
 class Iteration(object):
 
@@ -204,9 +204,9 @@ class Iteration(object):
             force_optimize_glm=True, force_optimize_gpr=True,
             implausibility_threshold=3, remake_basis='none'):
         
-        from newlib.HistoryMatching import HistoryMatching
-        from newlib.quick_read import quick_read
-        from newlib.basis import Basis
+        from history_matching.newlib.HistoryMatching import HistoryMatching
+        from history_matching.newlib.quick_read import quick_read
+        from history_matching.newlib.basis import Basis
  
         desired_result = target
         discrepancy_std = target_std # 0.1 * desired_result

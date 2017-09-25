@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from newlib.basis import Basis
+from history_matching.newlib.basis import Basis
 
 class Cut(object):
     GLM_BASIS_FILENAME = 'basis_glm.json'
