@@ -167,7 +167,8 @@ class Iteration(object):
 
                 # ck4, WEIRD, iloc seems to fail to actually write; seems to edit a transient copy, only
                 #read.iloc[0:(nTrain-1)]['Train'] = True # row_indexer,col_indexer]
-                read['Train'][0:nTrain] = True
+                # read['Train'][0:nTrain] = True # this yields a 'working on a dataframe copy' warning but does seem to work
+                read.loc[0:nTrain, 'Train'] = True
             else:
                 read['Train'] = False
             print('nSamp: %d nTrain: %d' % (nSamp, nTrain))
