@@ -1,0 +1,42 @@
+[
+  {
+    "package_name": "pyDOE",
+    "platform": ["win", "lin", "mac"],
+    "version": "0.3.8",
+    "test": ">="
+  },
+  {
+    "package_name": "pycuda",
+    "platform": ["win", "lin", "mac"],
+    "version": "2017.1.1",
+    "test": ">="
+  },
+  {
+    "package_name": "git+https://github.com/lebedov/scikit-cuda.git@fbe6e2954c732285d0d3d46190649c3d3a3e900d",
+    "platform": ["win", "lin", "mac"]
+  },
+  {
+    "package_name": "xlrd",
+    "platform": ["win", "lin", "mac"],
+    "version": "1.1.0",
+    "test": ">="
+  },
+  {
+    "package_name": "tables",
+    "platform": ["win", "lin", "mac"],
+    "version": "3.4.2",
+    "test": ">="
+  },
+  {
+    "package_name": "openpyxl",
+    "platform": ["win", "lin", "mac"],
+    "version": "2.4.8",
+    "test": ">="
+  },
+  {
+    "package_name": "xlsxwriter",
+    "platform": ["win", "lin", "mac"],
+    "version": "1.0.0",
+    "test": ">="
+  }
+]
