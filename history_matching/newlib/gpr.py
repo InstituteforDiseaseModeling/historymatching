@@ -1,23 +1,12 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
-import matplotlib as mpl
 import seaborn as sns
 import os
-import copy
 import json
 
-from multiprocessing import Pool
-from functools import partial
-#from normalizer import UserStandardize
-
 import scipy.optimize as spo
-from pycuda import driver, compiler, gpuarray, tools
-import pycuda.autoinit
-import pycuda.driver as drv
-from pycuda.compiler import SourceModule
 from string import Template
 import skcuda.misc as misc
 from basis import Basis
@@ -190,14 +179,15 @@ class GPR():
             return data
 
     def define_kernel(self):
+        from pycuda import compiler, autoinit
         if self.kernel_mode == 'RBF':
             Nx = self.training_data.shape[0]
 
             with open(self.kernel_fn, 'r') as f:
                 kernel_code_template = Template(f.read())
 
-            max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(pycuda.autoinit.device)
-            block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
+            max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(autoinit.device)
+            block_dim, grid_dim = misc.select_block_grid_sizes(autoinit.device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
             if self.verbose:
@@ -277,10 +267,12 @@ class GPR():
 
 
     def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True):
+        from pycuda import gpuarray, autoinit
+
         Nx = X.shape[0]
 
         # Use from before...?
-        block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
+        block_dim, grid_dim = misc.select_block_grid_sizes(autoinit.device, (Nx, Nx))
 
         X_gpu = gpuarray.to_gpu(X.astype(np.float32))
 
@@ -318,9 +310,11 @@ class GPR():
 
 
     def kxp_gpu_wrapper(self, X, P, theta):
+        from pycuda import gpuarray, autoinit
+
         Nx = X.shape[0]
         Np = P.shape[0]
-        block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Np))
+        block_dim, grid_dim = misc.select_block_grid_sizes(autoinit.device, (Nx, Np))
 
         if X.flags.f_contiguous: # Fortran column-major
             # Convert to C contiguous (row major)
