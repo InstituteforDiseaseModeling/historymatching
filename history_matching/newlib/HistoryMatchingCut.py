@@ -5,8 +5,8 @@ from pyDOE import lhs
 import pandas as pd
 import numpy as np
 from history_matching.newlib.HistoryMatching import HistoryMatching
-from glm import GLM
-from gpr import GPR
+from history_matching.newlib.glm import GLM
+from history_matching.newlib.gpr import GPR
 
 class HistoryMatchingCut(object):
 

@@ -8,7 +8,6 @@ import json
 
 import scipy.optimize as spo
 from string import Template
-import skcuda.misc as misc
 from basis import Basis
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
@@ -180,6 +179,8 @@ class GPR():
 
     def define_kernel(self):
         from pycuda import compiler, autoinit
+        import skcuda.misc as misc
+
         if self.kernel_mode == 'RBF':
             Nx = self.training_data.shape[0]
 
@@ -268,6 +269,7 @@ class GPR():
 
     def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True):
         from pycuda import gpuarray, autoinit
+        import skcuda.misc as misc
 
         Nx = X.shape[0]
 
@@ -311,6 +313,7 @@ class GPR():
 
     def kxp_gpu_wrapper(self, X, P, theta):
         from pycuda import gpuarray, autoinit
+        import skcuda.misc as misc
 
         Nx = X.shape[0]
         Np = P.shape[0]
