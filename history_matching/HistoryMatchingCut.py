@@ -10,7 +10,7 @@ from gpr import GPR
 
 class HistoryMatchingCut():
 
-    def __init__(self, cut_dir, iteration):
+    def __init__(self, cut_dir, iteration, saveto_hd5 = None):
         self.cut_dir = cut_dir
         self.iteration = iteration
 
@@ -23,6 +23,12 @@ class HistoryMatchingCut():
         self.glm_all = {}
         self.gpr_all = {}
         self.cuts = []
+
+        if saveto_hd5 == None:
+            self.saveto_hd5 = 'Candidates_for_iter%d.hd5'%(self.iteration+1)
+        else:
+            assert( os.path.splitext(saveto_hd5)[1].lower() in ['.hd5', '.hdf'] )
+            self.saveto_hd5 = saveto_hd5
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
@@ -152,9 +158,8 @@ class HistoryMatchingCut():
 
         #non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        fn = 'Candidates_for_iter%d.hd5'%(self.iteration+1)
-        print 'Saving to:', fn
-        hdf = pd.HDFStore(fn)
+        print 'Saving to:', self.saveto_hd5
+        hdf = pd.HDFStore(self.saveto_hd5)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
         #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
         #hdf.put('all', candidates.set_index(self.Xcols_all_orig))
@@ -167,11 +172,14 @@ class HistoryMatchingCut():
             'Num Implausible': num_trials-non_implausible_candidates.shape[0]
         }
 
-        with open('cut_stats.json', 'w') as f:
+        (d, filename) = os.path.split(self.saveto_hd5)
+        (name, ext) = os.path.splitext(filename)
+        stats_fn = os.path.join(d, name + '_stats.json')
+        with open(stats_fn, 'w') as f:
             json.dump(stats, f)
 
-        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials)
-
+        csv_fn = os.path.join(d, name + '.xlsx')
+        non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn)
 
         '''
         writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
@@ -181,4 +189,6 @@ class HistoryMatchingCut():
         writer.save()
         '''
 
-        return (non_implausible_candidates, rejected_percent)
+        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials)
+
+        return (non_implausible_candidates, stats)
