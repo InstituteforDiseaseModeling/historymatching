@@ -1,0 +1,6 @@
+This example illustrates a sample project where a single cut was made using distinct reference data values in
+each of three iterations. The analyzer.py script was edited to change the year analyzed in each iteration (1995,
+2000, 2005), and the Results.xlsx file that was written was moved to the appropriate data source directory manually.
+
+This sample can be rerun by simply deleting any iteration(s) and picking up the history matching process at the
+beginning of the earliest (lowest numbered) deleted one.

@@ -1,0 +1,123 @@
+{
+    "Campaign_Name": "4E_Health_Care_Model_Baseline - Seeding Only", 
+    "Default_Campaign_Path": "defaults/hiv_default_campaign.json", 
+    "Use_Defaults": 1,
+    "Events":
+    [
+        {
+            "class": "CampaignEventByYear",
+            "Event_Name": "Epidemic seeding for 15-24 Males",
+            "Start_Year__KP_Seeding_Year": "<-- MARKER",
+            "Start_Year": 1981,
+            "Nodeset_Config":
+            {
+                "class": "NodeSetAll"
+            },
+            "Event_Coordinator_Config":
+            {
+                "class": "StandardInterventionDistributionEventCoordinator",
+                "Target_Demographic": "ExplicitAgeRangesAndGender",
+                "Target_Age_Min": 15,
+                "Target_Age_Max": 24,
+                "Target_Gender": "Male",
+                "Demographic_Coverage__KP_Seeding_15_24_Male": "<-- MARKER",
+                "Demographic_Coverage": 0.03,
+                "Travel_Linked": 0,
+                "Intervention_Config":
+                {
+                    "class": "OutbreakIndividual",
+                    "Event_Name": "Outbreak (not used)",
+                    "Outbreak_Source": "PrevalenceIncrease",
+                    "Incubation_Period_Override": 1,
+                    "Antigen": 0,
+                    "Genome": 0
+                }
+            }
+        },
+        {
+            "class": "CampaignEventByYear",
+            "Event_Name": "Epidemic seeding for 15-24 Females",
+            "Start_Year__KP_Seeding_Year": "<-- MARKER",
+            "Start_Year": 1985,
+            "Nodeset_Config":
+            {
+                "class": "NodeSetAll"
+            },
+            "Event_Coordinator_Config":
+            {
+                "class": "StandardInterventionDistributionEventCoordinator",
+                "Target_Demographic": "ExplicitAgeRangesAndGender",
+                "Target_Age_Min": 15,
+                "Target_Age_Max": 24,
+                "Target_Gender": "Female",
+                "Demographic_Coverage": 0.01,
+                "Travel_Linked": 0,
+                "Intervention_Config":
+                {
+                    "class": "OutbreakIndividual",
+                    "Event_Name": "Outbreak (not used)",
+                    "Outbreak_Source": "PrevalenceIncrease",
+                    "Incubation_Period_Override": 1,
+                    "Antigen": 0,
+                    "Genome": 0
+                }
+            }
+        },
+        {
+            "class": "CampaignEventByYear",
+            "Event_Name": "Epidemic seeding for 25-49",
+            "Start_Year__KP_Seeding_Year": "<-- MARKER",
+            "Start_Year": 1985,
+            "Nodeset_Config":
+            {
+                "class": "NodeSetAll"
+            },
+            "Event_Coordinator_Config":
+            {
+                "class": "StandardInterventionDistributionEventCoordinator",
+                "Target_Demographic": "ExplicitAgeRanges",
+                "Target_Age_Min": 25,
+                "Target_Age_Max": 49,
+                "Demographic_Coverage": 0.02,
+                "Travel_Linked": 0,
+                "Intervention_Config":
+                {
+                    "class": "OutbreakIndividual",
+                    "Event_Name": "Outbreak (not used)",
+                    "Outbreak_Source": "PrevalenceIncrease",
+                    "Incubation_Period_Override": 1,
+                    "Antigen": 0,
+                    "Genome": 0
+                }
+            }
+        },
+        {
+            "class": "CampaignEventByYear",
+            "Event_Name": "Epidemic seeding for 50-65",
+            "Start_Year__KP_Seeding_Year": "<-- MARKER",
+            "Start_Year": 1985,
+            "Nodeset_Config":
+            {
+                "class": "NodeSetAll"
+            },
+            "Event_Coordinator_Config":
+            {
+                "class": "StandardInterventionDistributionEventCoordinator",
+                "Target_Demographic": "ExplicitAgeRanges",
+                "Target_Age_Min": 50,
+                "Target_Age_Max": 65,
+                "Demographic_Coverage": 0.015,
+                "Travel_Linked": 0,
+                "Intervention_Config":
+                {
+                    "class": "OutbreakIndividual",
+                    "Event_Name": "Outbreak (not used)",
+                    "Outbreak_Source": "PrevalenceIncrease",
+                    "Incubation_Period_Override": 1,
+                    "Antigen": 0,
+                    "Genome": 0
+                }
+            }
+        }
+    ]
+}
