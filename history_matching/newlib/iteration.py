@@ -75,7 +75,7 @@ class Iteration(object):
         else:
             return None
     
-    def set_samples(self, previous_iteration=None, n_samples=None, samples_file = None):
+    def set_samples(self, samples):
         """
         Selects parameter space points to utilize, first reading a provided samples file, second by
         considering any previous iteration candidates, and lastly by generating the points.
@@ -87,18 +87,7 @@ class Iteration(object):
         """
         if self.samples:
             raise Exception('Cannot re-set samples.')
-
-        if samples_file:
-            # try to read a specified sample file
-            self.samples = SampleFile(samples_file).samples
-        elif previous_iteration and previous_iteration.sample_candidates is not None:
-            # read from the prior iteration's Candidate list
-            self.samples = previous_iteration.sample_candidates
-        else:
-            # generate samples
-            if not n_samples:
-                raise Exception('Cannot generate samples as n_samples was not specified.')
-            self.samples = self._generate_samples(n_samples)
+        self.samples = samples
 
     def write_samples(self, data_source_name):
         if self.samples is None:
@@ -112,7 +101,7 @@ class Iteration(object):
                 self.data_sources[ds.name] = ds
             SampleFile.write(samples=self.samples, filename=ds.samples_filename)
 
-    def _generate_samples(self, num_samples):
+    def generate_samples(self, num_samples):
         N_dim = self.parameters.shape[0]
         samples = pd.DataFrame(lhs(N_dim, samples = num_samples), columns=self.parameters.index.tolist())
         

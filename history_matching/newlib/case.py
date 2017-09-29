@@ -1,5 +1,5 @@
 import os
-import pandas
+import pandas as pd
 
 from history_matching.newlib.HistoryMatchingCut import HistoryMatchingCut  # ck4, fix all newlib import statements eventually
 from history_matching.newlib.iteration import Iteration
@@ -92,20 +92,31 @@ class Case(object):
                 iterations.append(iteration)
         return sorted(iterations, cmp = lambda x,y: cmp(x.iteration_number, y.iteration_number))
 
-    def cut_param_space(self, iteration_number, n_desired_candidates, constraint=None): # ck4, fix up calls to this
-        hm = HistoryMatchingCut(self, iteration_number)
+    def generate_samples(self, iteration_number, n_samples, constraint=None):
+        iteration = self.get_iteration(iteration_number=iteration_number)
+        if iteration.iteration_number == 0:
+            samples = iteration.generate_samples(num_samples=n_samples) # LHS
+        else:
+            hmc = HistoryMatchingCut(self, iteration_number)
 
-        print "=" * 80, "\nCut\n", "=" * 80
-        (_, rejected_percent) = hm.cut(output_filename=self.get_iteration(iteration_number).sample_candidates_filename,
-                                       num_desired_candidates=n_desired_candidates,
-                                       constraint=constraint)
-        # ck4, move printing from hm.cut to here (of cut result)
-        # ck4, move writing of candidates xlsx file to a hm.write_... call here.
+            print "=" * 80, "\nCut\n", "=" * 80
+            (samples, rejected_percent) = hmc.cut(num_desired_candidates=n_samples, constraint=constraint)
+
+            # making a nice, monotonically increasing id index
+            any_key = samples.keys()[0]
+            id_list = list(range(len(samples[any_key])))
+            samples = samples.assign(id=id_list)
+            samples.set_index(keys=['id'], inplace=True)
+
+            # if we ended up with too many samples, trim off the excess
+            if len(samples) > n_samples:
+                samples = samples[0:n_samples]
+        return samples
 
     # ck4, move the load csv into DataSource class? (along with DATA_SOURCE_CSV_REQUIRED_KEYS). Keep
     # 'set of DataSources' checks here.
     def load_data_sources_csv(self, filename):
-        data = pandas.read_csv(filename)
+        data = pd.read_csv(filename)
         file_keys = data.keys()
 
         if not sorted(self.DATA_SOURCE_CSV_REQUIRED_KEYS) == sorted(file_keys):
@@ -149,3 +160,4 @@ class Case(object):
             raise Exception('No points were specified in data sources csv for the following cases: %s' % ' '.join(empty_cases))
 
         return data_sources
+

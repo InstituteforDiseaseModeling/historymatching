@@ -10,10 +10,13 @@ def populate_sample(subparsers, function):
                         help='Current iteration number. Required.')
     parser.add_argument('-s', '--sample-file', dest='sample_file', type=str, default=None,
                         help='A file containing alternate samples to use (instead of LHS/prior candidates).')
-    parser.add_argument('-n', '--number', dest='n_samples', type=int, default=None,
-                        help='Number of parameter space points to sample in this iteration.')
+    parser.add_argument('-n', '--number', dest='n_samples', type=int, required=True,
+                        help='Number of parameter space points to sample in this iteration. Required.')
     parser.add_argument('-d', '--data-source', dest='data_source', type=str, required=True,
                         help='The name of the data source directory to initialize. Required.')
+    parser.add_argument('-C', '--constraint-file', dest='constraint_filename', type=str,
+                        help='Python file containing the top-level method \'constrain\' to be used for constraining'
+                             'sample space candidates.')
     parser.set_defaults(func=function)
 
 def populate_fit(subparsers, function):
@@ -43,20 +46,4 @@ def populate_fit(subparsers, function):
     parser.add_argument('-f', '--field', dest='field', type=str, required=True,
                         help='Field name to compare reference and model results on. Required.')
 
-    parser.set_defaults(func=function)
-
-def populate_cut_params(subparsers, function):
-    parser = subparsers.add_parser('cut', description='All cuts in <iteration> and all previous iterations will be '
-                                                      'applied.')
-    parser.add_argument('-c', '--case', dest='case_directory', type=str, required=True,
-                        help='BHM case directory. Required.')
-    parser.add_argument('-i', '--iteration', dest='iteration_number', type=int, required=True,
-                        help='Current iteration number. Required.')
-    parser.add_argument('-n', '--number', dest='n_candidates', type=int, required=True,
-                        help='Keep at least and close to this many candidate points in the cut. Required.')
-
-    # ck4, remove this argument and make the constraint file a well-known filename in the Case; use if present!
-    parser.add_argument('-C', '--constraint-file', dest='constraint_filename', type=str,
-                        help='Python file containing the top-level method \'constrain\' to be used for constraining'
-                             'sample space candidates.')
     parser.set_defaults(func=function)

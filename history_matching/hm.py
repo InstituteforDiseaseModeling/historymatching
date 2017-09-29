@@ -7,31 +7,11 @@ from history_matching.newlib.sample_file import SampleFile
 
 CONSTRAINT_METHOD = 'constrain'
 
+# # ck4, constraints need testing
 def sample(args):
-    if args.n_samples:
-        n_samples = args.n_samples
-    else:
-        n_samples = None
-
-    case = Case(case_directory=args.case_directory)
-    iteration = case.get_iteration(args.iteration_number)
-    previous_iteration = case.get_previous_iteration(args.iteration_number)
-    if args.sample_file:
-        sample_file = SampleFile(args.sample_file)
-    else:
-        sample_file = None
-
-    iteration.set_samples(previous_iteration=previous_iteration,
-                          n_samples=n_samples,
-                          samples_file = sample_file)
-    iteration.write_samples(data_source_name=args.data_source)
-
-# from cut.py
-# ck4, constraints need testing
-def cut_parameter_space(args):
     # try to load and error check any provide constraint information
     if args.constraint_filename:
-        import simtools.Utilities.Initialization as init # from dtk tools
+        import simtools.Utilities.Initialization as init  # from dtk tools
         args.config_name = args.constraint_filename
         mod = init.load_config(args)
         constraint_method = CONSTRAINT_METHOD
@@ -43,10 +23,21 @@ def cut_parameter_space(args):
     else:
         constraint = None
 
+    # determine how many and where to obtain sample parameter points from
+    n_samples = args.n_samples
+
     case = Case(case_directory=args.case_directory)
-    case.cut_param_space(iteration_number=args.iteration_number,
-                         n_desired_candidates=args.n_candidates,
-                         constraint = constraint)
+    iteration = case.get_iteration(args.iteration_number)
+    if args.sample_file:
+        samples = SampleFile(args.sample_file).samples
+    else:
+        samples = case.generate_samples(n_samples=n_samples,
+                                        iteration_number=iteration.iteration_number,
+                                        constraint=constraint)
+
+    # apply and write samples to the selected iteration/data source
+    iteration.set_samples(samples=samples)
+    iteration.write_samples(data_source_name=args.data_source)
 
 def fit(args):
     case = Case(case_directory=args.case_directory)
@@ -83,11 +74,8 @@ def main():
     parser = argparse.ArgumentParser(prog='hm')
     subparsers = parser.add_subparsers()
     
-    # 'hm set-samples'
+    # 'hm sample'
     commands_args.populate_sample(subparsers, function=sample)
-    
-    # 'hm cut-params'
-    commands_args.populate_cut_params(subparsers, function=cut_parameter_space)
 
     # 'hm fit'
     commands_args.populate_fit(subparsers, function=fit)

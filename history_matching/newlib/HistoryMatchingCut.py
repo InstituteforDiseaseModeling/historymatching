@@ -54,6 +54,8 @@ class HistoryMatchingCut(object):
                 self.gpr_all[(iteration.iteration_number, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
                 self.cuts.append((iteration.iteration_number, cut_name))
         print('Cuts to use: %s' % self.cuts)
+        if self.param_info is None:
+            raise Exception('No existing cuts were found to operate with, cannot proceed.')
 
     def test_plausibility(self, points, constraint = None):
         new_candidates = points.copy()
@@ -88,8 +90,7 @@ class HistoryMatchingCut(object):
         return new_candidates['Implausible']
 
 
-    # ck4, decouple the writing to the xlsx from cutting algorithm
-    def cut(self, output_filename, num_desired_candidates = 5000, constraint = None):
+    def cut(self, num_desired_candidates = 5000, constraint = None):
         candidates = pd.DataFrame()
 
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
@@ -145,18 +146,7 @@ class HistoryMatchingCut(object):
 
         non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        hdf_filename = os.path.splitext(output_filename)[0] + '.hd5'
-        hdf = pd.HDFStore(hdf_filename)
-        hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
-        hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
-        hdf.put('all', candidates.set_index(self.Xcols_all_orig))
-        hdf.close()
-
-        xlsx_filename = output_filename
-        writer = pd.ExcelWriter(xlsx_filename)
-        non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
-        non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
-        candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
-        writer.save()
+        # we are only interested in returning non-implausible candidates
+        candidates = non_implausible_candidates[self.Xcols_all_orig]
 
         return (candidates, rejected_percent)
