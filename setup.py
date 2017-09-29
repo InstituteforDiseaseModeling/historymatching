@@ -269,7 +269,7 @@ def install_packages(my_os, reqs):
               author_email='dklein@idmod.org,'
                            'ckirkman@idmod.org',
               packages=find_packages(),
-              package_data={'': ['newlib/kernel.c']},
+              package_data={'': ['newlib/kernel.c', 'documentation/history_matching_beginner_documentation.xlsx']},
               entry_points={
                     'console_scripts': ['hm = history_matching.hm:main']
               },
