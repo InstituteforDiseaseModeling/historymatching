@@ -97,7 +97,8 @@ class Case(object):
         if iteration.iteration_number == 0:
             samples = iteration.generate_samples(num_samples=n_samples) # LHS
         else:
-            hmc = HistoryMatchingCut(self, iteration_number)
+            # -1 avoids accidentally using any cuts in THIS iteration, if they exist
+            hmc = HistoryMatchingCut(self, iteration_number-1)
 
             print "=" * 80, "\nCut\n", "=" * 80
             (samples, rejected_percent) = hmc.cut(num_desired_candidates=n_samples, constraint=constraint)
