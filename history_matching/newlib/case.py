@@ -101,7 +101,7 @@ class Case(object):
             hmc = HistoryMatchingCut(self, iteration_number-1)
 
             print "=" * 80, "\nCut\n", "=" * 80
-            (samples, rejected_percent) = hmc.cut(num_desired_candidates=n_samples, constraint=constraint)
+            (samples, stats) = hmc.cut(num_desired_candidates=n_samples, constraint=constraint)
 
             # making a nice, monotonically increasing id index
             any_key = samples.keys()[0]

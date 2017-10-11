@@ -1,6 +1,7 @@
 # ck4, should all of this exist as part of Case directly?
-
+import json
 import os
+import time
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
@@ -17,9 +18,10 @@ class HistoryMatchingCut(object):
         :param iteration_number: an integer (0, 1, 2, ...) of the iteration being considered
         """
         self.case = case
-
         self.param_info = None
         self.Xcols_all_orig = None
+
+        self.debug = False
 
         self.hm_params = {}
         self.glm_all = {}
@@ -73,8 +75,13 @@ class HistoryMatchingCut(object):
                 return new_candidates['Implausible']
 
             print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
+            t = time.time()
             plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
+            if self.debug:
+                print 'GLM:', time.time()-t; t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
+            if self.debug:
+                print 'GPR:', time.time()-t; t=time.time()
             plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
 
@@ -91,62 +98,96 @@ class HistoryMatchingCut(object):
 
 
     def cut(self, num_desired_candidates = 5000, constraint = None):
-        candidates = pd.DataFrame()
+        non_implausible_candidates = pd.DataFrame()
+        num_trials = 0
 
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print '-'*80
-            max_nSamples = 5000
+            max_nSamples = 25000 # TODO: make a parameter or determine from GPU info
             # Min here to avoid running out of GPU ram!
-            if stats['num_candidates'] == 0 or stats['num_plausible_candidates'] == 0:
+            if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
                 nSamples = min(max_nSamples, num_desired_candidates)
             else:
-                nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
-            lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
+                nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / ((1+stats['num_plausible_candidates'])/float(stats['num_candidates'])))))
 
+            t = time.time()
+            lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
+            print 'LHS Sampling (%d):'%nSamples, time.time() - t
+
+            t = time.time()
             for i, xc in enumerate(self.Xcols_all_orig):
                 v = self.param_info.loc[xc]
                 lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
+            print 'LHS Scaling:', time.time() - t
 
+            t = time.time()
             new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all_orig)
+            print 'DataFrame:', time.time() - t
+            t = time.time()
             if constraint is not None:
-                new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
+                #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
+                #new_candidates = new_candidates.query(constraint)
+                new_candidates = new_candidates.loc[constraint(new_candidates),:]
+            print 'Constraint:', time.time() - t
 
+            t = time.time()
             plausibility = self.test_plausibility(new_candidates, constraint)
+            print 'Test plausibility:', time.time() - t
+
+            t = time.time()
             new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
+            print 'Merge plausibility (needed?):', time.time() - t
             #new_candidates['Implausible'] = False
 
-            '''
-            for cut in self.cuts:
-                (it, cut_name) = cut
 
-                stats[cut]['cut_implausible'] += new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ].sum()
-                stats[cut]['newly_implausible'] += sum(new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] & ~new_candidates['Implausible'])
-                stats[cut]['num'] += new_candidates.shape[0]
-                print('--> Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name, 
-                    100.*stats[cut]['cut_implausible']/float(stats[cut]['num']),
-                    100.*stats[cut]['newly_implausible']/float(stats[cut]['num'])))
+            num_trials += new_candidates.shape[0]
+            new_non_implausible_candidates = new_candidates.loc[ new_candidates['Implausible'] == False, :]
+            non_implausible_candidates = non_implausible_candidates.append(new_non_implausible_candidates)
 
-                #new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
-            '''
-
-            candidates = candidates.append(new_candidates)
-            stats['num_new_plausible_candidates'] = sum(new_candidates['Implausible'] == False)
-            stats['num_plausible_candidates'] += stats['num_new_plausible_candidates']
-            stats['num_candidates'] += new_candidates.shape[0]
+            stats['num_new_plausible_candidates'] = new_non_implausible_candidates.shape[0] # sum(new_candidates['Implausible'] == False)
+            stats['num_plausible_candidates'] = non_implausible_candidates.shape[0]
+            stats['num_candidates'] += num_trials
 
             del new_candidates
 
             print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
 
-        rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
-        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, sum(candidates['Implausible']), candidates.shape[0])
+        #non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
+        print 'Saving to:', self.saveto_hd5
+        hdf = pd.HDFStore(self.saveto_hd5)
+        hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
+        #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
+        #hdf.put('all', candidates.set_index(self.Xcols_all_orig))
+        hdf.close()
 
-        # we are only interested in returning non-implausible candidates
-        candidates = non_implausible_candidates[self.Xcols_all_orig]
+        rejected_percent = 100 * (num_trials-non_implausible_candidates.shape[0]) / float(num_trials)
+        stats = {
+            'Rejected Percent': rejected_percent,
+            'Num Trials': num_trials,
+            'Num Implausible': num_trials-non_implausible_candidates.shape[0]
+        }
 
-        return (candidates, rejected_percent)
+        (d, filename) = os.path.split(self.saveto_hd5)
+        (name, ext) = os.path.splitext(filename)
+        stats_fn = os.path.join(d, name + '_stats.json')
+        with open(stats_fn, 'w') as f:
+            json.dump(stats, f)
+
+        csv_fn = os.path.join(d, name + '.xlsx')
+        non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn)
+
+        '''
+        writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
+        non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
+        non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
+        candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
+        writer.save()
+        '''
+
+        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials)
+
+        return (non_implausible_candidates, stats)

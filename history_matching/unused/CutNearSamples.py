@@ -1,3 +1,4 @@
+import json
 import os
 from pyDOE import lhs
 import pandas as pd
@@ -8,13 +9,14 @@ from gpr import GPR
 
 class CutNearSamples():
 
-    def __init__(self, cut_dir, iteration, seeds, blur_fraction_of_range = 0.1):
+    def __init__(self, cut_dir, iteration, seeds, blur_fraction_of_range = 0.1, saveto_hd5 = None):
         self.cut_dir = cut_dir
         self.iteration = iteration
         self.seeds = seeds # Center points for MVNs
         self.blur_fraction_of_range = blur_fraction_of_range # Points are displaced before kernel density estimation, which is then resamples.  This parameter determines the fration of the parameter range from which a U( -blur_fraction_of_range * RANGE, blur_fraction_of_range * RANGE) random perturbation is selected.  Bigger numbers mean a higher rejection rate because perturbed samples will be farther from their seeds.
         assert(blur_fraction_of_range > 0)
         assert(blur_fraction_of_range < 1)
+
 
         self.param_info = None
         self.Xcols_all_orig = None
@@ -23,6 +25,12 @@ class CutNearSamples():
         self.glm_all = {}
         self.gpr_all = {}
         self.cuts = []
+
+        if saveto_hd5 == None:
+            self.saveto_hd5 = 'Candidates_NS_for_iter%d.hd5'%(self.iteration+1)
+        else:
+            assert( os.path.splitext(saveto_hd5)[1].lower() in ['hd5', 'hdf'] )
+            self.saveto_hd5 = saveto_hd5
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
@@ -37,7 +45,8 @@ class CutNearSamples():
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
-                    self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
+                    #self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
+                    self.Xcols_all_orig = self.param_info.index.get_level_values('Name').unique().tolist()
                     candidates = pd.DataFrame( columns=self.Xcols_all_orig )
 
                 self.hm_params[(it, cut_name)] = {
@@ -83,109 +92,102 @@ class CutNearSamples():
 
         return new_candidates['Implausible']
 
+    def draw_samples(self, nSamples):
+
+        good = np.ones(nSamples, dtype=bool)
+        sample = self.seeds.sample(n=nSamples, replace=True).reset_index(drop=True)
+
+        for i, xc in enumerate(self.Xcols_all_orig):
+            v = self.param_info.loc[xc]
+            sample[xc] += \
+                np.random.uniform(
+                    low=-self.blur_fraction_of_range*(v['Max']-v['Min']),
+                    high=self.blur_fraction_of_range*(v['Max']-v['Min']),
+                    size=sample.shape[0] )
+
+            # Resample points that are outside of Min-Max
+            df = (sample[xc] > v['Min']) & (sample[xc] < v['Max'])
+            good &= df.values
+
+        return sample.loc[good]
+
 
     def cut(self, num_desired_candidates = 5000, constraint = None):
-        candidates = pd.DataFrame()
+        non_implausible_candidates = pd.DataFrame()
+        num_trials = 0
+
+        stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
+        stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print '-'*80
-            max_nSamples = 5000
+            max_nSamples = 25000 #5000 # TODO: Make parameter
             # Min here to avoid running out of GPU ram!
-            if stats['num_candidates'] == 0 or stats['num_plausible_candidates'] == 0:
+            if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
                 nSamples = min(max_nSamples, num_desired_candidates)
             else:
-                nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / (stats['num_plausible_candidates']/float(stats['num_candidates'])))))
+                nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / ((1+stats['num_plausible_candidates'])/float(stats['num_candidates'])))))
 
-            #lhs_sample = lhs(len(self.Xcols_all_orig), samples=nSamples)
+            print 'Testing (%d):'%nSamples
 
-            #from sklearn.neighbors.kde import KernelDensity
-            #kde = KernelDensity(kernel='gaussian', bandwidth=0.2)
-            #print kde.get_params()
-
-            # BLUR THE SEEDS TO GET GOOD COVERAGE
-            N = self.seeds.shape[0]
-            sample = self.seeds.copy()
-            for i, xc in enumerate(self.Xcols_all_orig):
-                v = self.param_info.loc[xc]
-                sample[xc] = self.seeds[xc] + \
-                    np.random.uniform(
-                        low=-self.blur_fraction_of_range*(v['Max']-v['Min']),
-                        high=self.blur_fraction_of_range*(v['Max']-v['Min']),
-                        size=N )
-                #sample[xc] = np.clip(sample[xc], v['Min'], v['Max'])
-
-                # Resample points that are outside of Min-Max
-                bad_inds = sample[ (sample[xc] < v['Min']) |  (sample[xc] > v['Max'])].index
-                #print 'Starting with %d bad rows' % bad_inds.size
-                while bad_inds.size > 0:
-                    sample.loc[bad_inds, xc] = self.seeds.loc[bad_inds, xc] + np.random.uniform(low=-0.1*(v['Max']-v['Min']), high=0.1*(v['Max']-v['Min']), size=bad_inds.size)
-                    bad_inds = sample[ (sample[xc] < v['Min']) |  (sample[xc] > v['Max'])].index
-                    #print ' --> Now have %d bad rows' % bad_inds.size
-
-            if sample.shape[0] > nSamples:
-                sample = sample[:nSamples]
-
-            #kde.fit(sample)
-            #sample = kde.sample(n_samples = nSamples)
+            sample = self.draw_samples(nSamples)
 
             new_candidates = pd.DataFrame( sample, columns=self.Xcols_all_orig)
             if constraint is not None:
-                new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
+                #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
+                #new_candidates = new_candidates.query(constraint)
+                new_candidates = new_candidates.loc[constraint(new_candidates),:]
 
             plausibility = self.test_plausibility(new_candidates, constraint)
+
             new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
-            #new_candidates['Implausible'] = False
 
-            '''
-            for cut in self.cuts:
-                (it, cut_name) = cut
+            num_trials += new_candidates.shape[0]
+            new_non_implausible_candidates = new_candidates.loc[ new_candidates['Implausible'] == False, :]
+            non_implausible_candidates = non_implausible_candidates.append(new_non_implausible_candidates)
 
-                stats[cut]['cut_implausible'] += new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ].sum()
-                stats[cut]['newly_implausible'] += sum(new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] & ~new_candidates['Implausible'])
-                stats[cut]['num'] += new_candidates.shape[0]
-                print('--> Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name, 
-                    100.*stats[cut]['cut_implausible']/float(stats[cut]['num']),
-                    100.*stats[cut]['newly_implausible']/float(stats[cut]['num'])))
-
-                #new_candidates['Implausible'] |= new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
-            '''
-
-            candidates = candidates.append(new_candidates)
-            stats['num_new_plausible_candidates'] = sum(new_candidates['Implausible'] == False)
-            stats['num_plausible_candidates'] += stats['num_new_plausible_candidates']
-            stats['num_candidates'] += new_candidates.shape[0]
+            stats['num_new_plausible_candidates'] = new_non_implausible_candidates.shape[0] # sum(new_candidates['Implausible'] == False)
+            stats['num_plausible_candidates'] = non_implausible_candidates.shape[0]
+            stats['num_candidates'] += num_trials
 
             del new_candidates
 
             print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
-            rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
-            print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, sum(candidates['Implausible']), candidates.shape[0])
 
-        non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
-
-        with open('cut_stats_NSs.txt', 'w') as f:
-            f.write('Rejected Percent = %f'%rejected_percent)
-            f.write('Num Trials = %d'%candidates.shape[0])
-            f.write('Num Implausible = %d'%non_implausible_candidates.shape[0])
-
-        hdf = pd.HDFStore('Candidates_NS_for_iter%d.hd5'%(self.iteration+1))
+        print 'Saving to:', self.saveto_hd5
+        hdf = pd.HDFStore(self.saveto_hd5)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
+        #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
+        #hdf.put('all', candidates.set_index(self.Xcols_all_orig))
         hdf.close()
 
-        hdf = pd.HDFStore('Candidates_full_NS_for_iter%d.hd5'%(self.iteration+1))
-        hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
-        hdf.put('all', candidates.set_index(self.Xcols_all_orig))
-        hdf.close()
+        rejected_percent = 100 * (num_trials-non_implausible_candidates.shape[0]) / float(num_trials)
+        stats = {
+            'Rejected Percent': rejected_percent,
+            'Num Trials': num_trials,
+            'Num Implausible': num_trials-non_implausible_candidates.shape[0]
+        }
+
+        (d, filename) = os.path.split(self.saveto_hd5)
+        (name, ext) = os.path.splitext(filename)
+        stats_fn = os.path.join(d, name + '_stats.json')
+        with open(stats_fn, 'w') as f:
+            json.dump(stats, f)
+
+        csv_fn = os.path.join(d, name + '.xlsx')
+        non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn)
 
         '''
-        writer = pd.ExcelWriter('Candidates_NS_for_iter%d.xlsx'%(self.iteration+1))
+        writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
         non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
         non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
         candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
         writer.save()
         '''
 
-        return (candidates, rejected_percent)
+        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials)
+
+        return (non_implausible_candidates, stats)

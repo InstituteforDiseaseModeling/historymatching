@@ -55,7 +55,7 @@ class GLM(object):
             print 'Using Gaussian family'
 
         if self.fitted_model is not None:
-            print self.fitted_model.summary()
+            #print self.fitted_model.summary()
             print 'AIC:', self.fitted_model.aic
             print 'BIC:', self.fitted_model.bic
             print 'ITERATION:', self.fitted_model.fit_history['iteration']
@@ -121,7 +121,6 @@ class GLM(object):
 
     def fit(self, maxiter=100):
         (response_matrix, data_matrix) = self.basis.generate_dmatrices(self.training_data, self.Ycol, scaleX=True)
-
         self.model = sm.GLM(response_matrix, data_matrix, family=self.glmfam)
 
         if self.verbose:

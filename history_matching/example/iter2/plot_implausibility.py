@@ -9,7 +9,7 @@ import matplotlib.gridspec as gridspec
 from matplotlib import cm
 
 iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
-res = 25
+res = 10
 sns.set_style("whitegrid", {'axes.grid' : False})
 
 params_file = os.path.join('..', 'Params.xlsx')

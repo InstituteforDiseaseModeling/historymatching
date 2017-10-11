@@ -9,12 +9,13 @@ def md5(fname):
     return hash_md5.hexdigest()
 
 
-def quick_read(excel_fn, sheetname):
+def quick_read(excel_fn, sheetname, force_read=False, **kwargs):
+    kwargs['sheetname'] = sheetname
     excel_md5 = md5(excel_fn)
 
     filename = os.path.splitext(excel_fn)[0]
     hdf_fn = os.path.join( '%s_%s.hd5'%(filename, excel_md5) )
-    if os.path.isfile(hdf_fn):
+    if not force_read and os.path.isfile(hdf_fn):
         print 'Reading %s from %s' % (sheetname, hdf_fn)
         store = pd.HDFStore(hdf_fn)
         if sheetname in store:
@@ -24,7 +25,7 @@ def quick_read(excel_fn, sheetname):
 
     # Not in store, read and store now
     print 'Reading %s from %s' % (sheetname, excel_fn)
-    sheetdata = pd.read_excel(excel_fn, sheetname=sheetname)
+    sheetdata = pd.read_excel(excel_fn, **kwargs)
 
     store = pd.HDFStore(hdf_fn)
     store[sheetname] = sheetdata

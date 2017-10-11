@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -9,6 +10,8 @@ import json
 import scipy.optimize as spo
 from string import Template
 from basis import Basis
+
+
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
@@ -120,6 +123,8 @@ class GPR():
         self.theta = None
         self.Kxx_inv_Y = None
         self.Kxx_inv = None
+        self.X = None
+        self.Y = None
 
     def set_theta(self, theta):
         assert( len(theta) == 2+self.D )
@@ -127,21 +132,37 @@ class GPR():
         self.update_cache()
 
     def update_cache(self):
+        import skcuda.linalg as linalg
+        import pycuda
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
-        X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
+        self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         #Y = self.training_data[self.Ycol].values
-        Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
+        self.Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
 
         try:
-            Kxx = self.kxx_gpu_wrapper(X, self.theta, add_sigma2_n = True)  # Y is noisy
+            Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
         except pycuda._driver.MemoryError:
-            print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%X.shape[0]
-            Kxx = self.kernel_xx(X, self.theta, add_sigma2_n = True)
+            print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'% self.X.shape[0]
+            Kxx = self.kernel_xx(self.X, self.theta, add_sigma2_n = True)
 
         # Cache
-        print 'Doing N^3 operation to compute Kxx inv'
-        self.Kxx_inv_Y = np.linalg.solve(Kxx, Y)
-        self.Kxx_inv = np.linalg.inv(Kxx)
+        #print 'Doing N^3 operation to compute Kxx inv'
+        #self.Kxx_inv_Y = np.linalg.solve(Kxx, Y)
+        #self.Kxx_inv = np.linalg.inv(Kxx)
+        #print 'CPU:\n', self.Kxx_inv
+        try:
+            #q = time.time()
+            Kxx_gpu = pycuda.gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
+            linalg.init()
+            self.Kxx_inv = linalg.inv(Kxx_gpu, overwrite=True, lib='cusolver').get()
+            #print 'Inverting KXX (GPU)=',time.time()-q
+        except Exception as e:
+            print str(e)
+            #q = time.time()
+            self.Kxx_inv = np.linalg.inv(Kxx) # self.?
+            #print 'Inverting KXX (CPU)=',time.time()-q
+
+        self.Kxx_inv_Y = np.dot(self.Kxx_inv, self.Y) # GPU
 
 
     def save(self, save_to):
@@ -189,6 +210,7 @@ class GPR():
 
             max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(autoinit.device)
             block_dim, grid_dim = misc.select_block_grid_sizes(autoinit.device, (Nx, Nx))
+            print 'Autoinit GPU device name:', autoinit.device.name()
             max_blocks_per_grid = max(max_grid_dim)
 
             if self.verbose:
@@ -267,9 +289,9 @@ class GPR():
         return kxp
 
 
-    def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True):
-        from pycuda import gpuarray, autoinit
+    def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True, deriv=-1):
         import skcuda.misc as misc
+        from pycuda import gpuarray, autoinit
 
         Nx = X.shape[0]
 
@@ -289,7 +311,7 @@ class GPR():
             X_gpu, theta_gpu,   # <-- Inputs
             np.uint32(Nx),      # <-- N
             np.uint32(self.D),  # <-- D
-            np.uint32(-1),      # <-- Negative for no derivative
+            np.uint32(deriv),      # <-- Negative for no derivative
             np.uint8(X.flags.f_contiguous), # FORTRAN (column) contiguous
             block = block_dim,
             grid = grid_dim
@@ -358,6 +380,11 @@ class GPR():
 
 
     def cross_validation(self, theta, X, Y, P):
+        import skcuda.linalg as linalg
+        from pycuda import gpuarray
+
+        t = time.time()
+
         num_partitions = int(max(P)+1)
         num_points = len(P)
 
@@ -371,57 +398,109 @@ class GPR():
                 print 'loo_cross_validation(GPU XX):\n', KXX
                 raise
 
+        #############
+        z = time.time()
+        try:
+            #q = time.time()
+            KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
+            linalg.init()
+            KXX_inv = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver').get()
+            #print 'Inverting KXX (GPU)=',time.time()-q
+        except Exception as e:
+            print str(e)
+            #q = time.time()
+            KXX_inv = np.linalg.inv(KXX) # self.?
+            #print 'Inverting KXX (CPU)=',time.time()-q
+
+        #q = time.time()
+        #KXX_inv_Y = np.linalg.solve(KXX, Y) # self.?
+        KXX_inv_Y = np.dot(KXX_inv, Y)
+        #print 'KXX_inv * Y (CPU)=',time.time()-q
+
         ll = 0
         for partition in range(num_partitions):
-            train_inds = [k for k in range(num_points) if P[k]!=partition]
-            train_array = np.array(train_inds, dtype=np.intp)
-
+            test_inds = [k for k in range(num_points) if P[k]==partition]
             test_inds = [k for k in range(num_points) if P[k]==partition]
             test_array = np.array(test_inds, dtype=np.intp)
 
-            Kxx = KXX[train_array[:,np.newaxis], train_array] # kernel_xx(x, theta)
+            covf = np.linalg.inv(KXX_inv[test_array[:,np.newaxis], test_inds])
+            err = np.dot(covf, KXX_inv_Y[test_inds,:])
 
-            #y = Y[train_inds, :]
-            y_mean = Y_mean[train_inds]
-            yp = Y[test_inds, :]
-
-            Kxp = KXX[train_array[:,np.newaxis], test_inds] # kernel_xp(x, xp, theta)
-            if self.debug:
-                x_cpu = X[train_inds,]
-                xp_cpu = X[test_inds,:][np.newaxis,:]
-                Kxp_cpu = self.kernel_xp(x_cpu, xp_cpu, theta)
-                if not np.allclose(Kxp_cpu, Kxp):
-                    print 'loo_cross_validation(CPU Xp):\n', Kxp_cpu
-                    print 'loo_cross_validation(GPU Xp):\n', Kxp
-                    raise
-
-            Kpp = KXX[test_array[:,np.newaxis], test_inds] #kernel_xx(xp, theta)
-            if self.debug:
-                Kpp_cpu = self.kernel_xx(xp_cpu, theta, add_sigma2_n = True) # PREDICTIVE
-                if not np.allclose(Kpp_cpu, Kpp):
-                    print 'loo_cross_validation(CPU pp):\n', Kpp_cpu
-                    print 'loo_cross_validation(GPU pp):\n', Kpp
-                    raise
-
-            f = np.dot(Kxp.T, np.linalg.solve(Kxx, y_mean)) # NOTE: Using mean here
-            covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
-
-            err = yp-np.repeat(f[:,np.newaxis], yp.shape[1], axis=1)
-            for row in range(yp.shape[0]):
+            for row in range(len(test_inds)):
                 err_row = err[row,:]
                 err_row = err_row[~np.isnan(err_row)]
                 ll += np.sum(-0.5*err_row**2/covf[row,row]) -0.5*np.log(2*np.pi*covf[row,row]) * len(err_row)
 
-            #UNIVARIATE:
-            #ll += -0.5*np.dot((yp-f).T, (yp-f))/covf -0.5*np.log(2*np.pi*covf)
-
-            #(_, logdet) = np.linalg.slogdet(covf)
-            #ll += -self.D/2.0*np.log(2*np.pi) - 0.5 * logdet -0.5*np.dot(yp-f, np.linalg.solve(covf, yp-f))
-
         if self.verbose:
-            print theta, '-->', -ll
+            print '[cv.gpu %.2f]'%(time.time()-z), theta, '-->', -ll
 
         return np.array([-ll])
+        #############
+
+    def cross_validation_with_grad(self, theta, X, Y, P):
+        import skcuda.linalg as linalg
+        from pycuda import gpuarray
+
+        t = time.time()
+
+        Y_mean = np.nanmean(Y, axis=1)
+
+        D = len(theta)
+
+        KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution
+        if self.debug:
+            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
+            if not np.allclose(KXX_cpu, KXX):
+                print 'loo_cross_validation(CPU XX):\n', KXX_cpu
+                print 'loo_cross_validation(GPU XX):\n', KXX
+                raise
+
+        try:
+            KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
+            linalg.init()
+            KXX_inv_gpu = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver')
+            KXX_inv = KXX_inv_gpu.get()
+        except Exception as e:
+            print str(e)
+            KXX_inv = np.linalg.inv(KXX) # self.?
+
+        KXX_inv_Y = np.dot(KXX_inv, Y).squeeze()
+
+        sigma2 = np.reciprocal(np.diag(KXX_inv))
+        err = np.multiply(KXX_inv_Y, sigma2)
+
+        ll = np.sum(-0.5* np.log(sigma2) - np.divide(np.square(err), 2*sigma2))
+        ll -= 0.5*np.log(2*np.pi) * Y.shape[0]
+
+        dLLOO_dtheta = np.empty_like(theta)
+        linalg.init()
+        for j in range(D):
+            # TODO: Can compute some from KXX without calling kxx_gpu_wrapper
+            z = time.time()
+            dK_dthetaj = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True, deriv = j)
+
+
+            try:
+                # Get these as gpu arrays from the kernel function
+                dK_dthetaj_gpu = gpuarray.to_gpu(np.asarray(dK_dthetaj, np.float64))
+                Zj = linalg.dot(KXX_inv_gpu.copy(), dK_dthetaj_gpu.copy()).get()
+            except Exception as e:
+                print str(e)
+                Zj = np.dot(KXX_inv, dK_dthetaj) # This is the slow part
+
+            dLLOO_dthetaj = np.multiply(KXX_inv_Y, np.dot(Zj, KXX_inv_Y))
+            dLLOO_dthetaj -= 0.5 * np.multiply( \
+                    (1 + np.divide(np.square(KXX_inv_Y), np.diag(KXX_inv))), \
+                    np.einsum('ij,ji->i', Zj, KXX_inv)
+                )
+            dLLOO_dthetaj = np.sum( np.multiply(dLLOO_dthetaj, sigma2) )
+
+            dLLOO_dtheta[j] = dLLOO_dthetaj
+
+        if self.verbose:
+            print '[cv.gpu %.2f]'%(time.time()-t), theta, '-->', -ll
+
+        return -ll, -dLLOO_dtheta
 
 
     def assign_rep(self, sample):
@@ -503,6 +582,7 @@ class GPR():
         P = train_mean['Partition'].values
         Y = self.training_data.reset_index().groupby('Sample_Id').apply(self.assign_rep).pivot('Sample_Id', 'Replicate', self.Ycol).values
 
+        '''
         # Maximize LOO cross-validation error
         ret = spo.minimize(
             self.cross_validation,
@@ -511,6 +591,19 @@ class GPR():
             method='L-BFGS-B',
             bounds = bounds, # Constrain values
             jac=None, hess=None, hessp=None,
+            constraints=(), tol=None, callback=None,
+            options = optimizer_options
+        )
+        '''
+
+        ret = spo.minimize(
+            self.cross_validation_with_grad,
+            args=(X,Y,P),
+            x0 = x0,
+            #method='CG', # CG, L-BFGS-B
+            method='L-BFGS-B',
+            bounds = bounds, # Constrain values
+            jac=True, hess=None, hessp=None,
             constraints=(), tol=None, callback=None,
             options = optimizer_options
         )
@@ -527,41 +620,53 @@ class GPR():
 
 
     def evaluate(self, data):
+        import skcuda.linalg as linalg
+        from pycuda import gpuarray
+
         # Predict at test and training points, store mean and variance in self.data
+        t = time.time()
 
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
-        X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
+        if self.X is None:
+            self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         #Y = self.training_data[self.Ycol].values
-        Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
+        if self.Y is None:
+            self.Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
         P = self.basis.generate_dmatrix( data, scaleX = True).values
 
         if self.debug:
-            print 'X',X.shape,' flags:\n', X.flags
-            print 'Y',Y.shape,' flags:\n', Y.flags
+            print 'X',self.X.shape,' flags:\n', self.X.flags
+            print 'Y',self.Y.shape,' flags:\n', self.Y.flags
             print 'P',P.shape,' flags:\n', P.flags
 
         if self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
             # TODO: Save Kxx, just compute Kxp and Kpp!
             try:
-                Kxx = self.kxx_gpu_wrapper(X, self.theta, add_sigma2_n = True)  # Y is noisy
+                Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
             except pycuda._driver.MemoryError:
-                print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%X.shape[0]
-                Kxx = self.kernel_xx(X, self.theta, add_sigma2_n = True)
+                print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%self.X.shape[0]
+                Kxx = self.kernel_xx(self.X, self.theta, add_sigma2_n = True)
 
             if self.debug:
-                Kxx_cpu = self.kernel_xx(X, self.theta, add_sigma2_n = True)
+                Kxx_cpu = self.kernel_xx(self.X, self.theta, add_sigma1_n = True)
                 if not np.allclose(Kxx_cpu, Kxx):
                     print 'evaluate(CPU XX):\n', Kxx_cpu
                     print 'evaluate(GPU XX):\n', Kxx
                     raise
 
-        Kxp = self.kxp_gpu_wrapper(X, P, self.theta)
         if self.debug:
-            Kxp_cpu = self.kernel_xp(X, P, self.theta)
+            print '- T1:', time.time() - t; t=time.time()
+
+        Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
+        if self.debug:
+            Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
             if not np.allclose(Kxp_cpu, Kxp):
                 print 'evaluate(CPU XP):\n', Kxp_cpu
                 print 'evaluate(GPU XP):\n', Kxp
                 raise
+
+        if self.debug:
+            print '- T2:', time.time() - t; t=time.time()
 
         Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
         if self.debug:
@@ -571,27 +676,85 @@ class GPR():
                 print 'evaluate(GPU PP):\n', Kpp
                 raise
 
+        if self.debug:
+            print '- T3:', time.time() - t; t=time.time()
+
+        f = np.dot(Kxp.T, self.Kxx_inv_Y)
+        '''
         if self.Kxx_inv_Y is not None:
             if self.verbose:
                 print 'Using cache for f'
-            f = np.dot(Kxp.T, self.Kxx_inv_Y)
-        else:
-            f = np.dot(Kxp.T, np.linalg.solve(Kxx, Y))
+            try:
+                Kxx_inv_Y_gpu = gpuarray.to_gpu(np.asarray(self.Kxx_inv_Y, np.float64)) # TODO: Cache
+                #Kxp_gpu = gpuarray.to_gpu(np.asarray(Kxp, np.float64))
+                #f = linalg.dot(Kxp_gpu, Kxx_inv_Y_gpu, transa='T')
+                Kxp_gpu = gpuarray.to_gpu(np.asarray(Kxp, np.float64))
 
-        # JUST WANT DIAGONAL ELEMENTS!
-        if self.Kxx_inv is not None:
-            if self.verbose:
-                print 'Using cache for covf'
-            covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
-        else:
-            covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
+                print Kxp_gpu.get()
+                print '--'
+                print Kxx_inv_Y_gpu.get()
 
-        stdf = np.sqrt(np.diag(covf))
+                f = linalg.dot(Kxp_gpu, Kxx_inv_Y_gpu, transa='T').get()
+            except Exception as e:
+                print 'ERROR:', str(e)
+                print 'BAD'
+                f = np.dot(Kxp.T, self.Kxx_inv_Y)
+        else:
+            print 'SHOULD NOT BE HERE!' # TODO
+            f = np.dot(Kxp.T, np.linalg.solve(Kxx, self.Y))
+
+        print 'gpu', f
+        print 'cpu', np.dot(Kxp.T, self.Kxx_inv_Y)
+        exit()
+        '''
+
+        if self.debug:
+            print '- T4:', time.time() - t; t=time.time()
+
+        #if self.Kxx_inv is not None:
+
+        if self.verbose:
+            print 'Using cache for covf'
+
+        #print 'JUST WANT DIAGONAL ELEMENTS!'
+        #q = time.time()
+        #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
+        #print 'Full (%f):'%(time.time()-q), np.sqrt(np.diag(covf))
+        #stdf = np.sqrt(np.diag(covf))
+
+        #q = time.time()
+        #covf = np.diag(Kpp) - np.einsum('ji,jk,ki->i', Kxp, self.Kxx_inv, Kxp)
+        try:
+            # TODO: Reuse gpu arrays to reduce to_gpu transfers
+            Kxx_inv_gpu = gpuarray.to_gpu(np.asarray(self.Kxx_inv, np.float64))
+
+            # TODO: HAVE FROM ABOVE (HOPEFULLY)!
+            Kxp_gpu = gpuarray.to_gpu(np.asarray(Kxp, np.float64))
+
+            tmp = linalg.dot(Kxx_inv_gpu, Kxp_gpu).get() # Need .copy() on gpu arrays?
+        except Exception as e:
+            print 'ERROR:', str(e)
+            tmp = np.dot(self.Kxx_inv, Kxp)
+
+        covf = np.diag(Kpp) - np.einsum('ji,ji->i', Kxp, tmp)
+        #print 'Diag (%f):'%(time.time()-q), np.sqrt(covf)
+
+        #else:
+        #    covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
+        #    stdf = np.sqrt(np.diag(covf))
+
+        if self.debug:
+            print '- T5:', time.time() - t; t=time.time()
+
+        #stdf = np.sqrt(covf)
+
+        if self.debug:
+            print '- T6:', time.time() - t; t=time.time()
 
         # Note inverse normalize
         return {    'Mean': self.inverse_normalize_mean(f),
-                    'Var_Latent': self.inverse_normalize_var(np.diag(covf)),
-                    'Var_Predictive': self.inverse_normalize_var(np.diag(covf) + self.theta[1]*np.ones(P.shape[0])) }
+                    'Var_Latent': self.inverse_normalize_var(covf),
+                    'Var_Predictive': self.inverse_normalize_var(covf + self.theta[1]*np.ones(P.shape[0])) }
 
     def plot_data(self, samples_to_circle=pd.DataFrame(), saveto_dir = None, log_scale=False):
         scaled = (self.training_data[self.Ycol]-self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max()-self.training_data[self.Ycol].min())
@@ -669,8 +832,7 @@ class GPR():
 
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
-                    self.debug=False;
-                    #print 'WARNING: DEBUG!\n'
+                    self.debug=False
                     self.verbose=False
 
                     ret = self.evaluate( Xdf )

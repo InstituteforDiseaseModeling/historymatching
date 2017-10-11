@@ -6,8 +6,8 @@ import json
 import numpy as np
 import glob
 
-force_optimize_glm = True
-force_optimize_gpr = True
+force_optimize_glm = False
+force_optimize_gpr = False
 
 iteration = int(re.search(r'iter(\d+)', os.getcwd()).group(1))
 exp_ids = glob.glob('Data_*')
@@ -72,7 +72,7 @@ try:
 except:
     basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
 
-    basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-3,0, 25), scaleX=True)
+    basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-2,2, 25), scaleX=True)
 
     alpha_glm = float(raw_input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
 
@@ -93,7 +93,7 @@ except:
     basis_gpr = Basis.polynomial_basis(params=param_names, intercept = False, first_order=True, param_info=param_info)
     results_err = results - fitted_values
 
-    basis_gpr.plot_regularize(inputs, results_err, alpha = np.logspace(-6, 0, 25), scaleX=True)
+    basis_gpr.plot_regularize(inputs, results_err, alpha = np.logspace(-2, 2, 25), scaleX=True)
     alpha_gpr = float(raw_input('What would you like to use for the GPR regularization parameter, alpha_gpr = '))
 
     basis_gpr.regularize(inputs, results_err, alpha = alpha_gpr, scaleX=True)
@@ -141,12 +141,13 @@ print "="*80, "\nGaussian Process Regression\n", "="*80
 hm.gpr(
     basis = basis_gpr,
     force_optimize_gpr = force_optimize_gpr,
-    K_folds = 10,
+    K_folds = -1,
     sigma2_f_guess = 1,
     sigma2_f_bounds = (0.1, 100),
     sigma2_n_guess = 1,
     sigma2_n_bounds = (0.001, 100),
     #lengthscale_guess = [0.04313128, 0.2, 0.14240553, 0.01418867, 0.2, 0.17683428],
+    lengthscale_guess = [ 1.59302768e-01, 8.51659614e-03],
     lengthscale_bounds = (0.001, 0.2),
     verbose = True,
     optimizer_options = {
