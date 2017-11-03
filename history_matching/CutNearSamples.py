@@ -92,13 +92,87 @@ class CutNearSamples():
 
         return new_candidates['Implausible']
 
-    def draw_samples(self, nSamples):
+    def calc_seed_prob(self):
+        # returns p: the volume of the symmetric space around each seed
+        p = np.ones(self.seeds.shape[0])
+        for col_name, col_series in self.seeds.iteritems():
+            v = self.param_info.loc[col_name]
+            v_range = self.blur_fraction_of_range * (v['Max']-v['Min'])
+
+            values = col_series.values
+            right_range = (v['Max'] - values) / v_range
+            left_range = 1.0/self.blur_fraction_of_range - right_range # (values - v['Min']) / v_range
+
+            blur_range = np.minimum(np.minimum(1.0, right_range), left_range)
+
+            p = np.multiply(p, blur_range)
+
+        p /= sum(p)
+
+        return p
+
+
+    def draw_samples(self, nSamples, p):
+        seed_inds = np.random.choice(self.seeds.shape[0], size=nSamples, replace=True, p=p)
+        seeds = self.seeds.loc[seed_inds]
+
+        #seeds = self.seeds.sample(n=nSamples, replace=True).reset_index(drop=True)
+        sample = seeds.copy()
+
+        for col_name, col_series in seeds.iteritems():
+            v = self.param_info.loc[col_name]
+            v_range = (v['Max']-v['Min'])
+
+            values = col_series.values
+            right_range = (v['Max'] - values)
+            left_range = (values - v['Min'])
+
+            blur_range = np.minimum(np.minimum(self.blur_fraction_of_range*v_range, right_range), left_range)
+
+            sample[col_name] += -blur_range + np.multiply(2*blur_range, np.random.rand(nSamples))
+
+        return sample
+
+
+        '''
+        print 'Drawing %d samples:'%nSamples
+
+        seeds = self.seeds.sample(n=nSamples, replace=True).reset_index(drop=True)
+        sample = seeds.copy()
+
+        for row_idx, row in seeds.iterrows():
+            for (col_name, value) in row.iteritems():
+                v = self.param_info.loc[col_name]
+                v_range = (v['Max']-v['Min'])
+
+                right_frac = (v['Max'] - value) / v_range
+                left_frac = (value - v['Min']) / v_range
+
+                blur_frac = np.min([self.blur_fraction_of_range, right_frac, left_frac])
+
+                sample.loc[row_idx, col_name] = value + \
+                        np.random.uniform(
+                            low = -blur_frac * v_range,
+                            high = blur_frac * v_range,
+                            size = 1 )
+
+        print 'DONE drawing %d samples:'%nSamples
+
+        return sample
+        '''
+
+        '''
+        print 'in draw_samples, nSamples=%d' % nSamples
 
         good = np.ones(nSamples, dtype=bool)
         sample = self.seeds.sample(n=nSamples, replace=True).reset_index(drop=True)
+        print 'in draw_samples, sample len is %d' % sample.shape[0]
+        print 'in draw_samples, here is sample head:\n', sample.head()
 
         for i, xc in enumerate(self.Xcols_all_orig):
             v = self.param_info.loc[xc]
+            print 'in draw_samples, here is v:\n', v
+            print 'blur fraction of range is %f', self.blur_fraction_of_range
             sample[xc] += \
                 np.random.uniform(
                     low=-self.blur_fraction_of_range*(v['Max']-v['Min']),
@@ -109,7 +183,9 @@ class CutNearSamples():
             df = (sample[xc] > v['Min']) & (sample[xc] < v['Max'])
             good &= df.values
 
+        print 'in draw_samples, good len is %d, sum is %d' % (good.shape[0], sum(good))
         return sample.loc[good]
+        '''
 
 
     def cut(self, num_desired_candidates = 5000, constraint = None):
@@ -122,6 +198,8 @@ class CutNearSamples():
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
+        p = self.calc_seed_prob()
+
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print '-'*80
             max_nSamples = 25000 #5000 # TODO: Make parameter
@@ -131,15 +209,33 @@ class CutNearSamples():
             else:
                 nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / ((1+stats['num_plausible_candidates'])/float(stats['num_candidates'])))))
 
-            print 'Testing (%d):'%nSamples
+            print 'Starting with (%d):'%nSamples
 
-            sample = self.draw_samples(nSamples)
-
+            print 'initialy draw_samples:'
+            sample = self.draw_samples(nSamples, p)
+            print 'data frame and constraint:'
             new_candidates = pd.DataFrame( sample, columns=self.Xcols_all_orig)
             if constraint is not None:
                 #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
                 #new_candidates = new_candidates.query(constraint)
                 new_candidates = new_candidates.loc[constraint(new_candidates),:]
+
+            print 'entering while loop:'
+            while new_candidates.shape[0] < nSamples:
+                print 'draw_samples in while loop (%d):'%new_candidates.shape[0]
+                samples = self.draw_samples(nSamples, p)
+                print 'data frame in while loop:'
+                sample_df = pd.DataFrame( samples, columns=self.Xcols_all_orig )
+                print 'sample_df has rows numbering %d:'%sample_df.shape[0]
+                if constraint is not None:
+                    print 'constraint evaluation in while loop:'
+                    sample_df = sample_df.loc[constraint(sample_df),:]
+                print 'appending sample_df to new_candidates.  was %d:' % new_candidates.shape[0]
+                new_candidates = new_candidates.append( sample_df, ignore_index=True )
+                print 'new_candidates.  now %d:' % new_candidates.shape[0]
+
+
+            print 'Testing (%d):'%nSamples
 
             plausibility = self.test_plausibility(new_candidates, constraint)
 

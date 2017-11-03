@@ -264,7 +264,10 @@ class Basis():
         response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
         model = sm.OLS(response_matrix, data_matrix)
 
-        fit = model.fit_regularized(alpha=alpha, refit=True)
+        if alpha > 0:
+            fit = model.fit_regularized(alpha=alpha, refit=True)
+        else:
+            fit = model.fit()
         if self.verbose:
             print 'SUMMARY:\n', fit.summary()
         print 'AIC:', fit.aic
