@@ -259,7 +259,8 @@ class Basis():
         Ycol = 'Sim_Result'
         my_results = results.copy()
         my_results.name = Ycol
-        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Sample_Id', 'Exp_Id', 'Sample', 'Sim_Id']).sort_index()
+        #data = pd.merge(inputs.reset_index(), my_results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Sample_Id', 'Exp_Id', 'Sample', 'Sim_Id']).sort_index()
+        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id']).sort_index()
 
         response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
         model = sm.OLS(response_matrix, data_matrix)
@@ -291,7 +292,7 @@ class Basis():
 
         return fit.predict(data_matrix)
 
-    def plot_regularize(self, inputs, results, alpha, scaleX = False):
+    def plot_regularize(self, inputs, results, alpha, scaleX = False, title = None):
 
         if scaleX:
             assert(self.param_info is not None)
@@ -300,7 +301,7 @@ class Basis():
         Ycol = 'Sim_Result'
         my_results = results.copy()
         my_results.name = Ycol
-        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id']).sort_index()
+        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on='Sample_Id')
 
         response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
         model = sm.OLS(response_matrix, data_matrix)
@@ -317,16 +318,20 @@ class Basis():
             num_params[i] = len(params)
             bic[i] = fit.bic
 
+        lns = []
         fig, ax1 = plt.subplots()
-        ax1.plot(alpha, bic, 'ro-', label='BIC')
+        lns += ax1.plot(alpha, bic, 'ro-', label='BIC')
         ax1.set_xscale('log')
         ax1.set_xlabel('alpha')
 
         ax2 = ax1.twinx()
-        ax2.plot(alpha, num_params, 'bo-', label='N')
+        lns += ax2.plot(alpha, num_params, 'bo-', label='N')
         ax2.set_ylabel('N')
 
-        plt.legend()
+        labs = [l.get_label() for l in lns]
+        plt.legend(lns, labs, loc=0)
+        if title is not None:
+            plt.title(title)
         fig.tight_layout()
         plt.show()
 

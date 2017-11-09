@@ -37,6 +37,7 @@ class GPR():
             theta = None,   # kernel_params
             #is_poisson = False,
             normalize_y = True,
+            sigma2_n = None,
             verbose = False,
             debug = False,
             **kwargs
@@ -71,8 +72,15 @@ class GPR():
 
         self.normalizer = True #UserStandardize(mean=self.normalizer_mean, std=self.normalizer_std)
         self.poisson = False #is_poisson
+
         self.verbose = verbose
         self.debug = debug
+
+        self.fixed_sigma_n = True
+        if isinstance(sigma2_n, GPR):
+            print 'User has configured GPR with noise coming from another GPR'
+            self.sigma2_n = sigma2_n
+            self.fixed_sigma_n = False
 
         #self.kernel_xx_gpu = None
         self.define_kernel()
@@ -251,7 +259,13 @@ class GPR():
     def kernel_xx(self, X, theta, add_sigma2_n):
         # NOTE: Slow, use GPU acceleration instead.
         sigma2_f = theta[0]
-        sigma2_n = theta[1]
+        if self.fixed_sigma_n:
+            sigma2_n = theta[1]
+        else:
+            Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=['Beta'])
+            sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
+            if self.normalize_y:
+                sigma2_n /= self.normalizer_std**2
 
         N = X.shape[0]
 
@@ -273,7 +287,7 @@ class GPR():
             kxx[i,i] = sigma2_f * np.exp( -r2 / 2. )
 
             if add_sigma2_n:
-                kxx[i,i] += sigma2_n
+                kxx[i,i] += sigma2_n[i]
 
         return kxx
 
@@ -301,6 +315,9 @@ class GPR():
     def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True, deriv=-1):
         Nx = X.shape[0]
 
+        if deriv == 1: # Assuming add_sigma2_n is True, otherwise it would be zeros(Nx)
+            return np.eye(Nx)
+
         # Use from before...?
         block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
 
@@ -326,8 +343,17 @@ class GPR():
         Kxx = Kxx_gpu.get()
 
         if add_sigma2_n:
+            if self.fixed_sigma_n:
+                sigma2_n = theta[1]
+            else:
+                Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=['Beta'])
+                # TODO: Cache
+                sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
+                if self.normalize_y:
+                    sigma2_n /= self.normalizer_std**2
+
             # Add sigma_n^2 to the diagonal, observation noise
-            Kxx[np.diag_indices(Nx)] += theta[1]
+            Kxx[np.diag_indices(Nx)] += sigma2_n
 
         if self.debug:
             Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
@@ -471,11 +497,11 @@ class GPR():
 
         dLLOO_dtheta = np.empty_like(theta)
         linalg.init()
+        # TODO: IMPORTANT: Deriv wrt sigma2_n (theta[1]) is WRONG, setting to 0 below
         for j in range(D):
             # TODO: Can compute some from KXX without calling kxx_gpu_wrapper
             z = time.time()
             dK_dthetaj = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True, deriv = j)
-
 
             try:
                 # Get these as gpu arrays from the kernel function
@@ -497,6 +523,7 @@ class GPR():
         if self.verbose:
             print '[cv.gpu %.2f]'%(time.time()-t), theta, '-->', -ll
 
+        #dLLOO_dtheta[1] = 0 # TODO: Zeroing out deriv wrt sigma2_n for now 
         return -ll, -dLLOO_dtheta
 
 
@@ -564,14 +591,14 @@ class GPR():
         for i,s in enumerate(samples):
             self.training_data.loc[ self.training_data['Sample_Id']==s, 'Sample_Index'] = i
 
-        if K <=1:
+        if K <= 1:
             # Identity partition (LOO)
             self.training_data['Partition'] = self.training_data['Sample_Index']
         else:
-            assert(K<=len(samples))
+            assert( K <= len(samples) )
             self.training_data['Partition'] = np.floor(self.training_data['Sample_Index']%K).astype(int)
 
-        num_params = 2 + self.D # sigma_n, sigma_f, lengthscale 1, lengthscale_2, ..., lengthscale_D
+        num_params = 2 + self.D # sigma2_n, sigma2_f, lengthscale 1, lengthscale_2, ..., lengthscale_D
 
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
@@ -744,10 +771,16 @@ class GPR():
         if self.debug:
             print '- T6:', time.time() - t; t=time.time()
 
+        if self.fixed_sigma_n:
+            sigma2_n = self.theta[1]*np.ones(P.shape[0])
+        else:
+            sigma2_n = np.exp( self.sigma2_n.evaluate(data)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
+            if self.normalize_y:
+                sigma2_n /= self.normalizer_std**2
         # Note inverse normalize
         return {    'Mean': self.inverse_normalize_mean(f),
                     'Var_Latent': self.inverse_normalize_var(covf),
-                    'Var_Predictive': self.inverse_normalize_var(covf + self.theta[1]*np.ones(P.shape[0])) }
+                    'Var_Predictive': self.inverse_normalize_var(covf + sigma2_n) }
 
     def plot_data(self, samples_to_circle=pd.DataFrame(), saveto_dir = None, log_scale=False):
         scaled = (self.training_data[self.Ycol]-self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max()-self.training_data[self.Ycol].min())
