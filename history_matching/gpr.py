@@ -301,6 +301,9 @@ class GPR():
     def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True, deriv=-1):
         Nx = X.shape[0]
 
+        if deriv == 1: # Assuming add_sigma2_n is True, otherwise it would be zeros(Nx)
+            return np.eye(Nx)
+
         # Use from before...?
         block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
 
@@ -475,7 +478,6 @@ class GPR():
             # TODO: Can compute some from KXX without calling kxx_gpu_wrapper
             z = time.time()
             dK_dthetaj = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True, deriv = j)
-
 
             try:
                 # Get these as gpu arrays from the kernel function
