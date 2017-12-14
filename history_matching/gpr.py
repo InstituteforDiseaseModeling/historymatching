@@ -82,6 +82,7 @@ class GPR():
             self.sigma2_n = sigma2_n
             self.fixed_sigma_n = False
 
+
         #self.kernel_xx_gpu = None
         self.define_kernel()
 
@@ -153,6 +154,9 @@ class GPR():
         self.update_cache()
 
     def update_cache(self):
+        if self.verbose:
+            print 'Updating cache of Kxx_inv and Kxx_inv_Y'
+
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         #Y = self.training_data[self.Ycol].values
@@ -262,7 +266,13 @@ class GPR():
         if self.fixed_sigma_n:
             sigma2_n = theta[1]
         else:
-            Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=['Beta'])
+            #TODO: HAS TO BE A BETTER WAY
+            #XX = self.basis.generate_dmatrix( self.training_data, scaleX = True)#.values
+            #Xcols = XX.columns.tolist()
+
+            Xcols = self.basis.param_info.index.values
+
+            Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=Xcols) # ['Beta']
             sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
             if self.normalize_y:
                 sigma2_n /= self.normalizer_std**2
@@ -316,7 +326,10 @@ class GPR():
         Nx = X.shape[0]
 
         if deriv == 1: # Assuming add_sigma2_n is True, otherwise it would be zeros(Nx)
-            return np.eye(Nx)
+            if self.fixed_sigma_n:
+                return np.eye(Nx)
+            else:
+                return np.zeros((Nx,Nx))
 
         # Use from before...?
         block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
@@ -346,7 +359,15 @@ class GPR():
             if self.fixed_sigma_n:
                 sigma2_n = theta[1]
             else:
-                Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=['Beta'])
+                #print self.basis.param_info
+
+                #TODO: HAS TO BE A BETTER WAY
+                #XX = self.basis.generate_dmatrix( self.training_data, scaleX = True)#.values
+                #Xcols = XX.columns.tolist()
+
+                Xcols = self.basis.param_info.index.values
+
+                Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=Xcols) # ['Beta'], basis.param_info.index.values.tolist()
                 # TODO: Cache
                 sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
                 if self.normalize_y:
@@ -523,7 +544,6 @@ class GPR():
         if self.verbose:
             print '[cv.gpu %.2f]'%(time.time()-t), theta, '-->', -ll
 
-        #dLLOO_dtheta[1] = 0 # TODO: Zeroing out deriv wrt sigma2_n for now 
         return -ll, -dLLOO_dtheta
 
 
@@ -660,6 +680,9 @@ class GPR():
             print 'P',P.shape,' flags:\n', P.flags
 
         if self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
+            if self.verbose:
+                print 'No cache for Kxx_inv or Kxx_inv_Y?!'
+
             # TODO: Save Kxx, just compute Kxp and Kpp!
             try:
                 Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
@@ -733,7 +756,7 @@ class GPR():
 
         #if self.Kxx_inv is not None:
 
-        if self.verbose:
+        if self.debug:
             print 'Using cache for covf'
 
         #print 'JUST WANT DIAGONAL ELEMENTS!'
