@@ -263,19 +263,6 @@ class GPR():
     def kernel_xx(self, X, theta, add_sigma2_n):
         # NOTE: Slow, use GPU acceleration instead.
         sigma2_f = theta[0]
-        if self.fixed_sigma_n:
-            sigma2_n = theta[1]
-        else:
-            #TODO: HAS TO BE A BETTER WAY
-            #XX = self.basis.generate_dmatrix( self.training_data, scaleX = True)#.values
-            #Xcols = XX.columns.tolist()
-
-            Xcols = self.basis.param_info.index.values
-
-            Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=Xcols) # ['Beta']
-            sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
-            if self.normalize_y:
-                sigma2_n /= self.normalizer_std**2
 
         N = X.shape[0]
 
@@ -296,8 +283,21 @@ class GPR():
                 r2 += dX[d] * dX[d]/theta[2+d]
             kxx[i,i] = sigma2_f * np.exp( -r2 / 2. )
 
-            if add_sigma2_n:
-                kxx[i,i] += sigma2_n[i]
+        if add_sigma2_n:
+            if self.fixed_sigma_n:
+                sigma2_n = theta[1]
+            else:
+                Xcols = self.basis.param_info.index.values
+
+                Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=Xcols) # ['Beta'], basis.param_info.index.values.tolist()
+                # TODO: Cache
+                sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
+                if self.normalize_y:
+                    sigma2_n /= self.normalizer_std**2
+
+            # Add sigma_n^2 to the diagonal, observation noise
+            Kxx[np.diag_indices(Nx)] += sigma2_n
+
 
         return kxx
 
@@ -446,7 +446,6 @@ class GPR():
                 raise
 
         #############
-        z = time.time()
         try:
             #q = time.time()
             KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
@@ -477,9 +476,6 @@ class GPR():
                 err_row = err[row,:]
                 err_row = err_row[~np.isnan(err_row)]
                 ll += np.sum(-0.5*err_row**2/covf[row,row]) -0.5*np.log(2*np.pi*covf[row,row]) * len(err_row)
-
-        if self.verbose:
-            print '[cv.gpu %.2f]'%(time.time()-z), theta, '-->', -ll
 
         return np.array([-ll])
         #############
@@ -518,10 +514,8 @@ class GPR():
 
         dLLOO_dtheta = np.empty_like(theta)
         linalg.init()
-        # TODO: IMPORTANT: Deriv wrt sigma2_n (theta[1]) is WRONG, setting to 0 below
         for j in range(D):
-            # TODO: Can compute some from KXX without calling kxx_gpu_wrapper
-            z = time.time()
+            # TODO: Could compute some from KXX without calling kxx_gpu_wrapper
             dK_dthetaj = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True, deriv = j)
 
             try:
@@ -540,9 +534,6 @@ class GPR():
             dLLOO_dthetaj = np.sum( np.multiply(dLLOO_dthetaj, sigma2) )
 
             dLLOO_dtheta[j] = dLLOO_dthetaj
-
-        if self.verbose:
-            print '[cv.gpu %.2f]'%(time.time()-t), theta, '-->', -ll
 
         return -ll, -dLLOO_dtheta
 
