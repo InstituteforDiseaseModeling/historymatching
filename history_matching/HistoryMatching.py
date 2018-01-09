@@ -60,12 +60,12 @@ class HistoryMatching():
         self.results.name = 'Sim_Result'
         self.Ycol = self.results.name
         if 'Train' in self.inputs.columns:
-            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Train', 'Sample_Id', 'Sim_Id'])#.sort_index()
+            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Train', 'Sample_Id', 'Sim_Id'])#.sort_index()
             self.training_data = self.data.loc[True]
             self.test_data = self.data.loc[False]
             print 'Using train/test split as specified by user'
         else:
-            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
+            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
 
             # Train/test split
             nSamp = len(self.data.index.get_level_values('Sample_Id'))
@@ -180,8 +180,8 @@ class HistoryMatching():
             # TODO: Ask user if they want mean, although I'm not sure statsmodels works without it!
             #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
             #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
-            train_mean = self.training_data.reset_index().groupby(['Exp_Id', 'Sample', 'Sample_Id']).mean()
-            test_mean = self.test_data.reset_index().groupby(['Exp_Id', 'Sample', 'Sample_Id']).mean()
+            train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
+            test_mean = self.test_data.reset_index().groupby('Sample_Id').mean()
 
             if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
                 print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
@@ -267,7 +267,8 @@ class HistoryMatching():
         lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
         lengthscale_bounds = (0.01,1),
         normalize_y = True,
-        optimizer_options= {}
+        optimizer_options= {},
+        **kwargs
     ):
         assert( method in ['CrossValidation'] ) # Supporint only CV for now
 
@@ -288,7 +289,8 @@ class HistoryMatching():
                 Ycol = 'Yerr'
             else:
                 Ycol = 'Sim_Result'
-            self.gpr_model = GPR(basis = basis,
+            self.gpr_model = GPR(
+                basis = basis,
                 Ycol = Ycol,
                 training_data = self.training_data,
                 param_info = self.param_info,
@@ -296,7 +298,8 @@ class HistoryMatching():
                 kernel_params = None,
                 normalize_y = normalize_y,
                 verbose = verbose,
-                debug = False   )
+                debug = False,
+                **kwargs)
 
             if isinstance(lengthscale_guess, int) or isinstance(lengthscale_guess, float):
                 lengthscale_guess = basis.D*[lengthscale_guess]

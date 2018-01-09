@@ -298,8 +298,19 @@ class GLM(object):
 
 
     def plot_errors(self, train, test):
-        _tr = train.set_index(['Exp_Id', 'Sample'])
-        _ts = test.set_index(['Exp_Id', 'Sample'])
+
+        _tr = train.reset_index()
+        _ts = test.reset_index()
+
+        _tr['Exp_Id'] = _tr['Sample_Id'].apply(lambda x: x.split('.')[0])
+        _tr['Sample'] = _tr['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
+
+        _ts['Exp_Id'] = _ts['Sample_Id'].apply(lambda x: x.split('.')[0])
+        _ts['Sample'] = _ts['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
+
+        _tr.set_index(['Exp_Id', 'Sample'], inplace=True)
+        _ts.set_index(['Exp_Id', 'Sample'], inplace=True)
+
         train_exps = _tr.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         exp_ids = list(set(train_exps + test_exps))
