@@ -8,7 +8,26 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
 class Basis():
+    """Class to support polynomial basis, data matrix generation, and parameter name handling.
+    """
+
     def __init__(self, model_terms, param_dict, param_info=None, verbose=False):
+        """Create and instance of the Basis class.
+
+        Args:
+            model_terms: (list) basis model terms.
+                This argument is typically only used in deserialization.
+            param_dict: (dict) Parameters in a dictionary form that maps original parameter names to patsy-safe parameter names.  The helper function make_param_dict generates this mapping.
+            param_info:  (Pandas dataframe) used to normalize data
+                Columns include:
+                * Name: The name of the parameter, must match column name in training_data.
+                * Min: Minimum value of parameter.
+                * Max: Maximum value of parameter.
+                * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
+                * Source: (optional) Source from which parameter ranges came from
+            verbose: (bool)
+        """
+
         self.model_terms = model_terms
         self.param_dict = param_dict
         self.D = len(self.model_terms)
@@ -18,12 +37,33 @@ class Basis():
 
     @staticmethod
     def make_param_dict(param_names):
+        """Static helper method to transform parameter names into a dictionary in which the keys are the original parameter names and the values are patsy-safe strings
+
+        Args:
+            param_names: (list) The original parameter names.
+        """
+
         # Return mapping from original parameter name to patsy-safe name
         return {p:p.replace(':','').replace('&',' ').replace(' ', '_').replace('-','_') for p in param_names}
 
 
     @classmethod
     def identity_basis(cls, params, param_info=None):
+        """This constructor builds the `identity` basis, in which X1-->x1, X2-->x2, ...
+
+        Args:
+            params: (str) List of parameters, by name, to include in the basis.
+            param_info:  (Pandas dataframe)
+                Columns include:
+                * Name: The name of the parameter, must match column name in training_data.
+                * Min: Minimum value of parameter.
+                * Max: Maximum value of parameter.
+                * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
+                * Source: (optional) Source from which parameter ranges came from
+
+        Returns: Instance of Basis class.
+        """
+
         param_dict = Basis.make_param_dict(params)
         params_patsy = param_dict.values()
         model_terms = [Term([LookupFactor(x)]) for x in params_patsy] # X
@@ -43,6 +83,29 @@ class Basis():
             param_info = None,
             verbose = False
     ):
+        """This constructor builds a `polynmial` basis, in which [X1, X1, ...]-->[X1, X1^2, X2, X2^2, X1*X2, ...]
+
+        Args:
+            params: (str) List of parameters, by name, to include in the basis.
+            intercept: (bool) Set True to include a constant in the basis.
+            first_order: (bool) Set True to include first-order terms.
+            second_order: (bool) Set True to include second-order terms.
+            third_order: (bool) Set True to include third-order terms.
+            fourth_order: (bool) Set True to include fourth-order terms.
+            fifth_order: (bool) Set True to include fifth-order terms.
+            higher_order: (bool) Set True to include some sixth and seventh order terms.
+            param_info:  (Pandas dataframe)
+                Columns include:
+                * Name: The name of the parameter, must match column name in training_data.
+                * Min: Minimum value of parameter.
+                * Max: Maximum value of parameter.
+                * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
+                * Source: (optional) Source from which parameter ranges came from
+            verbose: (bool)
+
+        Returns: Instance of Basis class.
+        """
+
         param_dict = Basis.make_param_dict(params)
         params_patsy = param_dict.values()
 
@@ -131,6 +194,14 @@ class Basis():
 
     @classmethod
     def deserialize(cls, state):
+        """ Helper to read basis from file.
+
+        Args:
+            state: (dict) Contents of file produced by serialize.
+
+        Returns: Instance of Basis class.
+        """
+
         terms = state['Terms']
         if 'Intercept' in terms:
             intercept_term = [Term([])]
@@ -146,6 +217,9 @@ class Basis():
 
 
     def serialize(self):
+        """ Helper to write Basis to file.
+        """
+
         return {
             'Terms' : self.get_terms(),
             'Param_Dict' : self.param_dict,
@@ -154,6 +228,13 @@ class Basis():
 
 
     def scale_data(self, data):
+        """ Helper to scale data.
+
+        The transformation for data x is:
+            y = [x-min] / [max-min]
+        where parameter ranges come from param_info that was passed in previously.
+        """
+
         for col in data.columns.tolist():
             if col in self.param_info.index:
                 data[col] = (data[col] - self.param_info.loc[col,'Min'])/(self.param_info.loc[col,'Max']-self.param_info.loc[col,'Min'])
@@ -163,6 +244,14 @@ class Basis():
 
 
     def generate_dmatrix(self, data, scaleX = False):
+        """Generate data matrix.
+
+        Args:
+            data: (DataFrame) The data to transform.
+            scaleX: (bool) When True, the scale_data will be called.
+
+        Return: data matrix
+        """
 
         data = data.copy()
         if scaleX:
@@ -183,6 +272,16 @@ class Basis():
         return dmat
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
+        """Generates the data and response matrices.
+
+        Args:
+            data: (DataFrame) The data to transform.
+            Ycol: (str) The column in the data that contains the responses
+            scaleX: (bool) When True, the scale_data will be called.
+
+        Return: (response matrix, data matrix)
+        """
+
         response_terms = [Term([LookupFactor(Ycol)])]
 
         data = data.copy()
@@ -198,6 +297,11 @@ class Basis():
         return response_matrix, data_matrix
 
     def get_terms(self):
+        """Returns the basis terms.
+
+        Returns: A list of terms.
+        """
+
         md = ModelDesc([], self.model_terms)
         terms = [c.strip() for c in md.describe().split('+')]
         terms[0] = terms[0][2:] # Remove '~ ' from beginning of first column
@@ -210,47 +314,17 @@ class Basis():
         return terms
 
 
-    def fit(self, inputs, results, scaleX = False):
-        # TODO: TEST
-
-        if scaleX:
-            assert(self.param_info is not None)
-            inputs = self.scale_data(inputs.copy())
-
-        Ycol = 'Sim_Result'
-        my_results = results.copy()
-        my_results.name = Ycol
-
-        data = pd.merge(inputs.reset_index(), my_results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Sample_Id', 'Exp_Id', 'Sample', 'Sim_Id']).sort_index()
-
-        response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
-        model = sm.OLS(response_matrix, data_matrix)
-
-        fit = model.fit()
-        if self.verbose:
-            print 'SUMMARY:\n', fit.summary()
-        print 'AIC:', fit.aic
-        print 'BIC:', fit.bic
-        params = pd.Series(fit.params, index=data_matrix.columns)
-        params = params[abs(params)>0]
-        #print 'FV:\n', fit.fittedvalues
-        print 'Non-Zero:', len(params), 'of', self.D
-
-        terms = params.index.values.tolist()
-        if 'Intercept' in terms:
-            intercept_term = [Term([])]
-            terms.remove('Intercept')
-        else:
-            intercept_term = []
-
-        self.model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms]
-        self.param_dict = Basis.make_param_dict(inputs.columns.tolist())
-        self.D = len(self.model_terms)
-
-        return fit.predict(data_matrix)
-
-
     def regularize(self, inputs, results, alpha, scaleX = False):
+        """Performs a lasso L1 regularization to select important terms.
+
+        Args:
+            inputs: (DataFrame) The training data.
+            results: (Series) The result values.
+            alpha: (float) Penalty weight.
+            scaleX: (bool) When True, the scale_data will be called.
+
+        Returns: The predicted results at the inputs.
+        """
 
         if scaleX:
             assert(self.param_info is not None)
@@ -259,7 +333,6 @@ class Basis():
         Ycol = 'Sim_Result'
         my_results = results.copy()
         my_results.name = Ycol
-        #data = pd.merge(inputs.reset_index(), my_results.reset_index(), on=['Sample_Id', 'Exp_Id', 'Sample']).set_index(['Sample_Id', 'Exp_Id', 'Sample', 'Sim_Id']).sort_index()
         data = pd.merge(inputs.reset_index(), my_results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id']).sort_index()
 
         response_matrix, data_matrix = self.generate_dmatrices(data, Ycol)
@@ -269,15 +342,16 @@ class Basis():
             fit = model.fit_regularized(alpha=alpha, refit=True)
         else:
             fit = model.fit()
+
         if self.verbose:
             print 'SUMMARY:\n', fit.summary()
         print 'AIC:', fit.aic
         print 'BIC:', fit.bic
+
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]
         #print 'FV:\n', fit.fittedvalues
         print 'Non-Zero:', len(params), 'of', self.D
-        #print alpha, len(params), fit.bic
 
         terms = params.index.values.tolist()
         if 'Intercept' in terms:
@@ -291,6 +365,21 @@ class Basis():
         self.D = len(self.model_terms)
 
         return fit.predict(data_matrix)
+
+
+    def fit(self, inputs, results, scaleX = False):
+        """Fits an ordinary least-squares model.
+
+        Args:
+            inputs: (DataFrame) The training data.
+            results: (Series) The result values.
+            scaleX: (bool) When True, the scale_data will be called.
+
+        Returns: The predicted results at the inputs.
+        """
+
+        return self.regularize(inputs, results, 0, scaleX)
+
 
     def plot_regularize(self, inputs, results, alpha, scaleX = False, title = None):
 

@@ -15,6 +15,8 @@ from plotting import plot_data, joint_plot, plot_errors, plot_implausibility, pl
 # TODO: Reference plot
 
 class HistoryMatching():
+    """Main class to support history matching.
+    """
 
     def __init__(self,
         cut_name,           # Name for this cut
@@ -30,12 +32,24 @@ class HistoryMatching():
         use_glm = True,      # Disable the glm by setting to False
         verbose = False
     ):
-        """
-        :param DataFrame param_info: Parameter info with index named 'Name' containing parameter name, and columns of 'Min' and 'Max'
-        :param DataFrame inputs: Model inputs with index named 'Sample_Id' containing parameter names.  All Names from param_info must be columns in this data frame, but it can have other columns as well.  Data contents are model input parameter values.
-        :param Series results: Series with MultiIndex of 'Sample_Id' and 'Sim_Id'.  Data are simulation results.
-        :param float desired_result: The desired result to match.
-        :param int iteration: The current iteration.  Work will be saved to iter[iteration]
+        """ Initialize a history matching object.
+
+        Args:
+            cut_name: (str) Name for this cut.  A directory in the `Cuts` folder will be generated.
+            param_info: (DataFrame) Parameter info with index named 'Name' containing parameter name, and columns of 'Min' and 'Max'.  Other columns will be ignored.
+            inputs: (DataFrame) Model inputs with index named 'Sample_Id' containing parameter names.  All Names from param_info must be columns in this data frame, but it can have other columns as well.  Data contents are model input parameter values.
+            results: (Series) Series with MultiIndex of 'Sample_Id' and 'Sim_Id'.  Data are simulation results.
+            desired_result: (float) The desired result to match.
+            iteration: (int) The current iteration.  Work will be saved to iter[iteration].
+            implausibility_threshold: (float) The threshold to use for determining if a point is implausible.
+            discrepancy_var: (float) Constant variance to include in implausibility calculations for discrepancy.
+            desired_result_var: (float) Constant variance to include in implausibility calculations for variance in the desired result.  This typically comes from a confidence interval in survey data.
+            discrepatraining_fraction: (float) The fraction of the inputs and results to use a training data. NOTE: You can also specify training data by including a boolean column named `Train` in the inputs or results data frames.
+            use_glm: (bool) Set False to disable the GLM, in which case the results will be modeled purely using GPR.
+            verbose: (bool) Set True to see more details.
+
+        Returns:
+            Class instance.
         """
 
         print('Welcome to IDM History Matching!')
@@ -55,12 +69,12 @@ class HistoryMatching():
         self.use_glm = use_glm
         self.verbose = verbose
 
-        #Xcols_all = self.param_info.index.unique().values.tolist()
-
         self.results.name = 'Sim_Result'
         self.Ycol = self.results.name
         if 'Train' in self.inputs.columns:
-            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Train', 'Sample_Id', 'Sim_Id'])#.sort_index()
+            self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id')
+            self.data['Train'] = self.data['Train'].astype(bool)  # Annoying that I have to cast this!
+            self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)#.sort_index()
             self.training_data = self.data.loc[True]
             self.test_data = self.data.loc[False]
             print 'Using train/test split as specified by user'
@@ -93,6 +107,17 @@ class HistoryMatching():
 
     @classmethod
     def from_file(cls, cut_dir, cut_name):
+        """Load an instance of HistoryMatching from cache.  Used extensively during `cutting.`
+
+        The configuration file from which the HistoryMatching instance will be created is cut_dir/cut_name/history_matching_config.xlsx.
+
+        Args:
+            cut_dir: (str) Directory containing all cuts
+            cut_name: (str) The name of the specific cut to restore from.
+
+        Returns: Instance of HistoryMatching
+        """
+
         config_fn = os.path.join(cut_dir, cut_name, 'history_matching_config.xlsx')
         with pd.ExcelFile(config_fn) as xls:
             hm_params = pd.read_excel(xls, 'History_Matching_Params', index_col=0, na_values=['NA'])
@@ -105,7 +130,7 @@ class HistoryMatching():
             iteration = hm_params.loc['iteration'].values[0]
 
             inputs = pd.read_excel(xls, 'Inputs', index_col=0)
-            results = pd.read_excel(xls, 'Results', index_col=[0,1,2,3]).squeeze() # NOTE: was series, now DF
+            results = pd.read_excel(xls, 'Results', index_col=[0,1]).squeeze() # NOTE: was series, now DF
             param_info = pd.read_excel(xls, 'Param_Info', index_col=0)
 
         return cls(
@@ -123,6 +148,11 @@ class HistoryMatching():
 
 
     def save(self):
+        """Save instance of HistoryMatching to cache.
+
+        A configuration file will be saved to cut_dir/cut_name/history_matching_config.xlsx.
+        """
+
         config_fn = os.path.join(self.cutdir, 'history_matching_config.xlsx')
         hm_params = pd.Series({
             'cut_name'                  : self.cut_name,
@@ -145,6 +175,9 @@ class HistoryMatching():
 
     @staticmethod
     def mkdir_if_needed(path):
+        """Utility to make a directory, but only if needed.
+        """
+
         # TODO: Move to helper
         try:
             os.makedirs(path)
@@ -157,105 +190,109 @@ class HistoryMatching():
 
 
     def filter(self, func, train=False, test=False):
+        """Utility to allow the user to filter training and test data.  For example, you could keep only data where the result is greater than zero.
+
+        Args:
+            func: (lambda) Function to apply to the data
+            train: (bool) Set True to apply fun to the training data
+            test: (bool) Set True to apply fun to the test data
+        """
+
         if train:
             self.training_data = func(self.training_data)
         if test:
             self.test_data = func(self.test_data)
 
-    def glm(self, basis,
-            force_optimize_glm = False,
-            glm_fit_maxiter = 100000,
-            family = 'Poisson', # e.g. Poisson, Gaussian
-            plot = True,
-            plot_data = False
-        ):
+    def glm(self,
+        basis,
+        force_optimize_glm = False,
+        glm_fit_maxiter = 100000,
+        family = 'Poisson', # e.g. Poisson, Gaussian
+        plot = True,
+        plot_data = False
+    ):
+        """Perform Generalized Linear Modeling (GLM).
 
-            if not self.use_glm:
-                print 'use_glm is False, why are you calling glm?'
-                return
+        Note that the GLM will be performed on the mean of the training data if multiple replicates are provided for each Sample_Id.
 
-            glm_model_fn = os.path.join(self.glmdir, 'model.json')
-            mean_params_fn = os.path.join(self.glmdir, 'params.p')
+        Args:
+            basis: (Basis instance) Instance of basis allowing the inputs to be transformed into a data matrix.
+            force_optimize_glm: (bool) Set True to force optimization of the GLM parameters even when results from a previous optimization exist.
+            glm_fit_maxiter: (int) Maximum number of iterations during parameter optimization.
+            family: (str) GLM family from statsmodels.  Examples include `Poisson` and `Gaussian.`
+            plot: (bool) Set True to produce informative diagnostic plots.
+            plot_data: (bool) Set True to visualize the data in many pairwise plots.  Note plot must also be true for plot_data to produce results.  Results will be saved to a folder named PairwiseResults.
+        """
 
-            # TODO: Ask user if they want mean, although I'm not sure statsmodels works without it!
-            #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
-            #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
-            train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
-            test_mean = self.test_data.reset_index().groupby('Sample_Id').mean()
+        if not self.use_glm:
+            print 'use_glm is False, why are you calling glm?'
+            return
 
-            if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
-                print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
-                self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
-            else:
-                self.glm_model = GLM(
-                    basis = basis,
-                    Ycol = self.Ycol,
-                    training_data = train_mean,
-                    reference_value = self.desired_result,
-                    family = family)
-                    #family = sm.genmod.families.links.Logit,
-                    #family = sm.genmod.families.Binomial(link=sm.genmod.families.links.logit),
-                    #first_order_basis_terms = first_order_basis_terms,
-                    #second_order_basis_terms = second_order_basis_terms,
-                    #third_order_basis_terms = third_order_basis_terms,
-                    #fourth_order_basis_terms = fourth_order_basis_terms,
-                    #fifth_order_basis_terms = fifth_order_basis_terms,
-                    #higher_order_basis_terms = higher_order_basis_terms)
+        # Files to store the model and parameters
+        glm_model_fn = os.path.join(self.glmdir, 'model.json')
+        mean_params_fn = os.path.join(self.glmdir, 'params.p')
 
-                print "Fitting the GLM"
-                self.glm_model.fit(maxiter=glm_fit_maxiter)
-                self.glm_model.save(glm_model_fn, mean_params_fn)
+        # TODO: Ask user if they want mean, although I'm not sure statsmodels works without it!
+        train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
+        test_mean = self.test_data.reset_index().groupby('Sample_Id').mean()
 
-            print 'Evaluating training and test data'
-            train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
-            test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
+        if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
+            print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
+            self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
+        else:
+            self.glm_model = GLM(
+                basis = basis,
+                Ycol = self.Ycol,
+                training_data = train_mean,
+                reference_value = self.desired_result,
+                family = family)
 
-            fig = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
-            fig.savefig( os.path.join(self.glmdir, 'errors.pdf') );             plt.close(fig)
+            print "Fitting the GLM"
+            self.glm_model.fit(maxiter=glm_fit_maxiter)
+            self.glm_model.save(glm_model_fn, mean_params_fn)
 
-            if plot:
-                print('Plotting')
+        print 'Evaluating training and test data' # Store results in Yglm
+        train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
+        test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
 
-                if plot_data:
-                    # TODO: Save plots as they are made in GPR class
-                    pairdir = os.path.join(self.glmdir, 'PairwiseResults')
-                    if not os.path.exists( pairdir):
-                        os.mkdir( pairdir )
-                    cp = pd.DataFrame()
-                    #print test_mean.loc[[2110]]
-                    #cp = test_mean.loc[[2110]]
-                    figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
+        # Plot the errors and save to errors_glm.pdf
+        fig = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
+        fig.savefig( os.path.join(self.glmdir, 'glm.pdf') );
+        plt.close(fig)
 
-                fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed.pdf') ); plt.close(fig)
-                fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals.pdf') );  plt.close(fig)
-                fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals.pdf') ); plt.close(fig)
-                fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ.pdf') );                 plt.close(fig)
-                #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram.pdf') );          plt.close(fig)
-                #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit.pdf') );                plt.close(fig)
+        if plot:
+            print('Plotting')
+
+            if plot_data:
+                # TODO: Save plots as they are made
+                pairdir = os.path.join(self.glmdir, 'PairwiseResults')
+                if not os.path.exists( pairdir):
+                    os.mkdir( pairdir )
+                cp = pd.DataFrame() # To not circle a point, pass in an empty data frame.
+                #print test_mean.loc[[2110]]
+                #cp = test_mean.loc[[2110]]
+                figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
+
+            fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed.pdf') ); plt.close(fig)
+            fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals.pdf') );  plt.close(fig)
+            fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals.pdf') ); plt.close(fig)
+            fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ.pdf') );                 plt.close(fig)
+            #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram.pdf') );          plt.close(fig)
+            #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit.pdf') );                plt.close(fig)
 
 
-            train_mean = train_mean.reset_index().set_index('Sample_Id')
-            test_mean = test_mean.reset_index().set_index('Sample_Id')
+        train_mean = train_mean.reset_index().set_index('Sample_Id')
+        test_mean = test_mean.reset_index().set_index('Sample_Id')
 
-            self.training_data = self.training_data.join(train_mean['Yglm'])
-            self.training_data['Yerr'] = self.training_data[self.Ycol] - self.training_data['Yglm']
-
-            #if self.verbose:
-            #    print 'Best and worst training errors:\n', self.training_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
-
-            self.test_data = self.test_data.join(test_mean['Yglm'])
-            self.test_data['Yerr'] = self.test_data[self.Ycol] - self.test_data['Yglm']
-
-            #train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
-            #test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
-
-            #if self.verbose:
-            #    print 'Best and worst test errors:\n', self.test_data[['Yerr', 'Sim_Result']].sort_values('Yerr')
+        # Compute Yerr as the difference between the training data and the GLM for training and test data
+        self.training_data = self.training_data.join(train_mean['Yglm'])
+        self.training_data['Yerr'] = self.training_data[self.Ycol] - self.training_data['Yglm']
+        self.test_data = self.test_data.join(test_mean['Yglm'])
+        self.test_data['Yerr'] = self.test_data[self.Ycol] - self.test_data['Yglm']
 
 
     def gpr(self, basis,
         force_optimize_gpr = True,
-        K_folds = 5,
         method = 'CrossValidation',
         verbose = False,
         plot = True,
@@ -267,9 +304,36 @@ class HistoryMatching():
         lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
         lengthscale_bounds = (0.01,1),
         normalize_y = True,
+        optimize_sigma2_n = True,
+        log_transform = False,
         optimizer_options= {},
         **kwargs
     ):
+        """Perform Gaussian Process Regression modeling.
+
+        Note that the GLM will be performed on the mean of the training data if multiple replicates are provided for each Sample_Id.
+
+        By default, the GPR will be configured to use the `RBF` kernel.
+
+        Args:
+            force_optimize_gpr: (bool) Set True to force optimization of the GPR parameters even when results from a previous optimization exist.
+            plot: (bool) Set True if you want to see diagnostic plots.
+            plot_data: (bool) Set True to produce many pairwise plots of the inputs and results.  Within the GPR folder, they will appear in `PairwiseResults.`
+            sigma2_f_guess: (float) The guess value for the signal variance. Note that when normalizing Y, a value of 1 correspons to the variance of the results.
+            sigma2_f_bounds: (tuple) Lower and upper bounds for sigma2_f, e.g. like (0.005,10).
+            sigma2_n_guess: (float) Initial guess value for observation noise variance.  Normalized like sigma2_f.
+            sigma2_n_bounds: (tuple) Lower and upper bounds for sigma2_n, e.g. like (0.01,10).
+            lengthscale_guess: (float or ndarray)
+                If supplying a float, this value representes the kernel lengthscale guess and will be used for all lengthscales.  Note, lengthscale is in a scaled range, training data to [0,1] for each parameter.
+                Alternatively, you can provide a ndarray with one entry for each parameter.
+            lengthscale_bounds: (tuple) Range for lengthscale, e.g. (0.01,1).
+            normalize_y: (bool) Set True to normalize the outputs (recommended).
+            method: (str) Must be 'CrossValidation' for now.
+            verbose: (bool) Set True to see lots of output.
+            optimizer_options: (dict) Dictionary to be passed to the optimization algorithm within the GPR code.
+            kwargs: (dict) Additional arguments to pass to the GPR class.
+        """
+
         assert( method in ['CrossValidation'] ) # Supporint only CV for now
 
         gpr_model_fn = os.path.join(self.gprdir, 'model.json')
@@ -289,6 +353,7 @@ class HistoryMatching():
                 Ycol = 'Yerr'
             else:
                 Ycol = 'Sim_Result'
+
             self.gpr_model = GPR(
                 basis = basis,
                 Ycol = Ycol,
@@ -298,7 +363,7 @@ class HistoryMatching():
                 kernel_params = None,
                 normalize_y = normalize_y,
                 verbose = verbose,
-                debug = False,
+                debug = False, # Debug is really for testing the code
                 **kwargs)
 
             if isinstance(lengthscale_guess, int) or isinstance(lengthscale_guess, float):
@@ -307,14 +372,14 @@ class HistoryMatching():
                 assert( isinstance(lengthscale_guess, list) )
                 assert( len(lengthscale_guess) == basis.D )
 
-            #TODO: Check guess within bounds
-            x0 =np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess)
-
             if os.path.isfile(gpr_model_fn):
                 timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
                 backup_fn = os.path.join(self.gprdir, 'model_%s.json'%timestamp)
                 print 'Backing up gpr model to %s'%backup_fn
                 copyfile(gpr_model_fn, backup_fn)
+
+            #TODO: Check guess within bounds
+            x0 = np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess)
             self.gpr_model.theta = x0
             self.gpr_model.save(gpr_model_fn)
 
@@ -326,12 +391,14 @@ class HistoryMatching():
                 x0 = x0,
                 bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
                 #eps = eps,
-                K = K_folds,
+                optimize_sigma2_n = True,
+                log_transform = False,
                 optimizer_options = optimizer_options
             )
-            self.gpr_model.save(gpr_model_fn)
+            self.gpr_model.save(gpr_model_fn) # Save the model to file
 
 
+        # Taking the mean prior to evaluation because it is unnecessary to evaluate each point more than once as the GP output will always be the same
         train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
         test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
@@ -352,8 +419,6 @@ class HistoryMatching():
         test_mean['Mean_Estimate'] = test_mean['Mean_Err']
         if self.use_glm:
             test_mean['Mean_Estimate'] += test_mean['Yglm']
-            print 'Yglm:\n', test_mean['Yglm'].head()
-
         test_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         test_mean['Var_Err_Latent'] = ret['Var_Latent']
         self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
@@ -366,10 +431,10 @@ class HistoryMatching():
 
         if plot:
             print('Plotting')
-            fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent');
-            fig.savefig( os.path.join(self.gprdir, 'errors.pdf') );             plt.close(fig)
+            fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive');
+            fig.savefig( os.path.join(self.gprdir, 'gpr.pdf') );             plt.close(fig)
 
-            ''''
+            '''' # Useful debugging
             if False:
                 mu = self.training_data[self.Xcols_GPR].mean()
                 #mu = train.loc[146][Xcols_GPR].mean(); print mu
@@ -383,16 +448,21 @@ class HistoryMatching():
             plt.close(fig)
 
 
-    def calc_and_plot_implausibility(self, plot=False, do_plot_data=False, plot_data_highlight=pd.DataFrame(), log_scale=True):
+    def calc_and_plot_implausibility(self,
+        plot = False,
+        do_plot_data = False,
+        plot_data_highlight = pd.DataFrame(),
+        log_scale = True
+    ):
+        """Calculate and plot implausibility.
 
-        '''
-        print 'Mean_Estimate:', self.training_data['Mean_Estimate']
-        print 'Std_Err_Predictive:', np.sqrt(self.training_data['Var_Err_Predictive'])
-        print 'Discrepancy Std:', np.sqrt(self.discrepancy_var)
-        print 'Desired result std:', np.sqrt(self.desired_result_var)
-        print 'Desired_Result:', self.desired_result
-        print 'Total_Var:', np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
-        '''
+        Args:
+            plot: (bool) Set True to produce plots.
+            do_plot_data: (bool) Set True to produce many pairwise plots of the inputs and results.  Within the Implausibility folder, they will appear in `PairwiseResults` for both `Train` and `Test.`
+            plot_data_highlight: (float) The guess value for the signal variance. Note that when normalizing Y, a value of 1 correspons to the variance of the results.
+            log_scale: (tuple) Lower and upper bounds for sigma2_f, e.g. like (0.005,10).
+        """
+
         self.training_data['Implausibility'] = \
                     abs( self.training_data['Mean_Estimate'] - self.desired_result ) / \
                     np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
@@ -403,36 +473,20 @@ class HistoryMatching():
                     np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
         self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > self.implausibility_threshold
 
-
-        print 'IMP Ycol:\n', self.training_data[self.Ycol].head()
-        print 'IMP Mean:\n', self.training_data['Mean_Estimate'].head()
-        print 'IMP std_predictive:\n', np.sqrt(self.training_data['Var_Err_Predictive'].head())
-
         self.training_data['Z_Noisy'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Predictive'])
         self.training_data['Z_Noiseless'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Latent'])
 
-        # self.Ycol
         self.test_data['Z_Noisy'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
             np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
         self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
             np.sqrt(self.test_data['Var_Err_Latent'] + self.discrepancy_var + self.desired_result_var)
-
-        '''
-        if self.verbose:
-            if self.use_glm:
-                Ycol = 'Yerr'
-            else:
-                Ycol = 'Sim_Result'
-            print 'Best and worst training Z-scores:\n', self.training_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
-            print 'Best and worst test Z-scores:\n', self.test_data[['Sim_Result', Ycol, 'Z_Noisy', 'Implausible']].sort_values('Z_Noisy')
-        '''
 
         if plot:
             train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
             test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
             fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
-            fig.savefig( os.path.join(self.combineddir, 'errors.pdf') );  plt.close(fig)
+            fig.savefig( os.path.join(self.combineddir, 'implausibility.pdf') );  plt.close(fig)
 
             if do_plot_data:
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
@@ -440,15 +494,4 @@ class HistoryMatching():
 
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
                 plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)
-
-            '''
-            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result); 
-            #plt.show()
-            fig.savefig( os.path.join(self.combineddir, 'test.pdf') );  plt.close(fig)
-
-            fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result);    fig.savefig( os.path.join(self.combineddir, 'train.pdf') ); plt.close(fig)
-
-            fig = joint_plot(self.training_data, train_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);    fig.savefig( os.path.join(self.combineddir, 'train_log.pdf') ); plt.close(fig)
-            fig = joint_plot(self.test_data, test_mean, Ycol=self.Ycol, desired_result=self.desired_result, log_x=True);      fig.savefig( os.path.join(self.combineddir, 'test_log.pdf') );  plt.close(fig)
-            '''
 
