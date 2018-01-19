@@ -16,16 +16,20 @@ from functools import partial
 #from normalizer import UserStandardize
 
 import scipy.optimize as spo
-from pycuda import driver, compiler, gpuarray, tools
-import pycuda.autoinit
-import pycuda.driver as drv
-from pycuda.compiler import SourceModule
 from string import Template
-import skcuda.misc as misc
-from basis import Basis
+from history_matching.basis import Basis
 
 import scipy.linalg
-import skcuda.linalg as linalg
+
+try:
+    from pycuda import driver, compiler, gpuarray, tools
+    import pycuda.autoinit
+    import pycuda.driver as drv
+    from pycuda.compiler import SourceModule
+    import skcuda.misc as misc
+    import skcuda.linalg as linalg
+except ImportError:
+    print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
@@ -122,7 +126,7 @@ class GPR():
         # Heteroscedastic GP setup
         self.fixed_sigma_n = True
         if isinstance(sigma2_n, GPR):
-            print 'User has configured GPR with noise coming from another GPR'
+            print('User has configured GPR with noise coming from another GPR')
             self.sigma2_n = sigma2_n
             self.fixed_sigma_n = False
 
@@ -144,7 +148,7 @@ class GPR():
         """
 
         try:
-            print "from_config:", config_fn
+            print('from_config:', config_fn)
             with open(os.path.join(config_fn)) as data_file:
                 config = json.load( data_file )
 
@@ -177,7 +181,7 @@ class GPR():
                     normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
                 )
         except EnvironmentError:
-            print "Unable to load GPR from_config file", config_fn
+            print('Unable to load GPR from_config file', config_fn)
             raise
 
     def set_training_data(self, new_training_data):
@@ -225,7 +229,7 @@ class GPR():
         """
 
         if self.debug:
-            print 'Updating cache of Kxx_inv and Kxx_inv_Y'
+            print('Updating cache of Kxx_inv and Kxx_inv_Y')
 
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
@@ -234,7 +238,7 @@ class GPR():
         try:
             Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
         except pycuda._driver.MemoryError:
-            print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%X.shape[0]
+            print('Insufficient video memory for Kxx matrix of dimension', X.shape[0],', reverting to (slow) CPU computation.')
             Kxx = self.kernel_xx(self.X, self.theta, add_sigma2_n = True)
 
         try:
@@ -242,7 +246,7 @@ class GPR():
             linalg.init()
             self.Kxx_inv = linalg.inv(Kxx_gpu, overwrite=True, lib='cusolver').get()
         except Exception as e:
-            print str(e)
+            print(str(e))
             self.Kxx_inv = np.linalg.inv(Kxx)
 
         self.Kxx_inv_Y = np.dot(self.Kxx_inv, self.Y) # TODO: GPU
@@ -314,17 +318,17 @@ class GPR():
 
             max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(pycuda.autoinit.device)
             device = pycuda.autoinit.device
-            print 'Autoinit GPU device name:', device.name()
+            print('Autoinit GPU device name:', device.name())
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
             if self.verbose:
-                print "max_threads_per_block", max_threads_per_block
-                print "max_block_dim", max_block_dim
-                print "max_grid_dim", max_grid_dim
-                print "max_blocks_per_grid", max_blocks_per_grid
-                print "block_dim", block_dim
-                print "grid_dim", grid_dim
+                print("max_threads_per_block", max_threads_per_block)
+                print("max_block_dim", max_block_dim)
+                print("max_grid_dim", max_grid_dim)
+                print("max_blocks_per_grid", max_blocks_per_grid)
+                print("block_dim", block_dim)
+                print("grid_dim", grid_dim)
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -340,7 +344,7 @@ class GPR():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print 'Bad kernel mode, kernel_mode=%s'%self.kernel_mode
+            print('Bad kernel mode, kernel_mode =',self.kernel_mode)
             raise
 
 
@@ -486,8 +490,8 @@ class GPR():
             # Test on CPU
             Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
             if not np.allclose(Kxx_cpu, Kxx):
-                print 'kxx_gpu_wrapper(CPU):\n', Kxx_cpu
-                print 'kxx_gpu_wrapper(GPU):\n', Kxx
+                print('kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
+                print('kxx_gpu_wrapper(GPU):\n', Kxx)
                 raise
 
         return Kxx
@@ -538,8 +542,8 @@ class GPR():
             # Test on CPU
             Kxp_cpu = self.kernel_xp(X, P, theta)
             if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                print 'kxp_gpu_wrapper(CPU):\n', Kxp_cpu
-                print 'kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get()
+                print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
+                print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
                 raise
 
         return Kxp_gpu.get()
@@ -566,8 +570,8 @@ class GPR():
             # Compare to CPU
             KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
             if not np.allclose(KXX_cpu, KXX):
-                print 'loo_cross_validation(CPU XX):\n', KXX_cpu
-                print 'loo_cross_validation(GPU XX):\n', KXX
+                print('loo_cross_validation(CPU XX):\n', KXX_cpu)
+                print('loo_cross_validation(GPU XX):\n', KXX)
                 raise
 
         try:
@@ -575,7 +579,7 @@ class GPR():
             linalg.init()
             KXX_inv = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver').get()
         except Exception as e:
-            print str(e)
+            print(str(e))
             KXX_inv = np.linalg.inv(KXX) # self.?
 
         KXX_inv_Y = np.dot(KXX_inv, Y)
@@ -621,8 +625,8 @@ class GPR():
             # Compare to CPU
             KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
             if not np.allclose(KXX_cpu, KXX):
-                print 'loo_cross_validation(CPU XX):\n', KXX_cpu
-                print 'loo_cross_validation(GPU XX):\n', KXX
+                print('loo_cross_validation(CPU XX):\n', KXX_cpu)
+                print('loo_cross_validation(GPU XX):\n', KXX)
                 raise
 
         try:
@@ -631,7 +635,7 @@ class GPR():
             KXX_inv_gpu = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver')
             KXX_inv = KXX_inv_gpu.get()
         except Exception as e:
-            print str(e)
+            print(str(e))
             KXX_inv = np.linalg.inv(KXX) # self.?
 
         KXX_inv_Y = np.dot(KXX_inv, Y).squeeze()
@@ -653,7 +657,7 @@ class GPR():
                 dK_dthetaj_gpu = gpuarray.to_gpu(np.asarray(dK_dthetaj, np.float64))
                 Zj = linalg.dot(KXX_inv_gpu, dK_dthetaj_gpu).get()
             except Exception as e:
-                print str(e)
+                print(str(e))
                 Zj = np.dot(KXX_inv, dK_dthetaj) # This is the slow part
 
             # Fancy Einstein summations to compute only the diagonal elements!
@@ -683,7 +687,7 @@ class GPR():
         if not optimize_sigma2_n:
             dLLOO_dtheta[1] = 0
 
-        print '\n\tLL:', -ll, '\n\tTheta:', theta, '\n\tDeriv:', -dLLOO_dtheta
+        print('\n\tLL:', -ll, '\n\tTheta:', theta, '\n\tDeriv:', -dLLOO_dtheta)
         #exit()
 
         return -ll, -dLLOO_dtheta
@@ -717,7 +721,7 @@ class GPR():
 
         # Optimizer options for L-BFGS-B:
         '''
-        print spo.show_options(solver='minimize', method='l-bfgs-b')
+        print(spo.show_options(solver='minimize', method='l-bfgs-b'))
 
         Minimize a scalar function of one or more variables using the L-BFGS-B
         algorithm.
@@ -817,7 +821,7 @@ class GPR():
             options = optimizer_options
         )
 
-        print 'OPTIMIZATION RETURNED:\n', ret
+        print('OPTIMIZATION RETURNED:\n', ret)
 
         # Restore original index
         self.training_data.set_index(idx, inplace=True)
@@ -847,36 +851,36 @@ class GPR():
 
         if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
             if self.verbose:
-                print 'No cache for Kxx_inv or Kxx_inv_Y' # Does this happen?
+                print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
             self.update_cache()
 
         P = self.basis.generate_dmatrix( data, scaleX = True).values
 
         if self.debug:
-            print 'X',self.X.shape,' flags:\n', self.X.flags
-            print 'Y',self.Y.shape,' flags:\n', self.Y.flags
-            print 'P',P.shape,' flags:\n', P.flags
+            print('X',self.X.shape,' flags:\n', self.X.flags)
+            print('Y',self.Y.shape,' flags:\n', self.Y.flags)
+            print('P',P.shape,' flags:\n', P.flags)
 
         Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
         if self.debug:
             Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
             if not np.allclose(Kxp_cpu, Kxp):
-                print 'evaluate(CPU XP):\n', Kxp_cpu
-                print 'evaluate(GPU XP):\n', Kxp
+                print('evaluate(CPU XP):\n', Kxp_cpu)
+                print('evaluate(GPU XP):\n', Kxp)
                 raise
 
         Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
         if self.debug:
             Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
             if not np.allclose(Kpp_cpu, Kpp):
-                print 'evaluate(CPU PP):\n', Kpp_cpu
-                print 'evaluate(GPU PP):\n', Kpp
+                print('evaluate(CPU PP):\n', Kpp_cpu)
+                print('evaluate(GPU PP):\n', Kpp)
                 raise
 
         f = np.dot(Kxp.T, self.Kxx_inv_Y)
 
         if self.debug:
-            print 'Using cache for covf'
+            print('Using cache for covf')
 
         # NOTE: Just computing diagonal elements of:
         #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
@@ -886,7 +890,7 @@ class GPR():
             Kxp_gpu = gpuarray.to_gpu(np.asarray(Kxp, np.float64))
             tmp = linalg.dot(Kxx_inv_gpu, Kxp_gpu).get() # Need .copy() on gpu arrays?
         except Exception as e:
-            print 'ERROR:', str(e)
+            print('ERROR:', str(e))
             tmp = np.dot(self.Kxx_inv, Kxp)
 
         covf = np.diag(Kpp) - np.einsum('ji,ji->i', Kxp, tmp)
@@ -997,7 +1001,7 @@ class GPR():
                     ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row]) # , projection='3d'
 
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
-                    print row, col, row*self.D+col, fixed_inputs
+                    print(row, col, row*self.D+col, fixed_inputs)
 
                     (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
                     (col_min, col_max) = (self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max())
@@ -1024,7 +1028,7 @@ class GPR():
                         CS = ax.contour(X1, X2, Y_mean, zorder=100)
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print 'Unable to plot mean contour'
+                        print('Unable to plot mean contour')
                         pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25, cmap='jet')
@@ -1033,7 +1037,7 @@ class GPR():
                         CS = ax_std_latent.contour(X1, X2, Y_std_latent, zorder=100)
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print 'Unable to plot std contour'
+                        print('Unable to plot std contour')
                         pass
 
                     if col == self.D-1:

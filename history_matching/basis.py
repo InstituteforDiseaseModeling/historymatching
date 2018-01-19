@@ -239,7 +239,7 @@ class Basis():
             if col in self.param_info.index:
                 data[col] = (data[col] - self.param_info.loc[col,'Min'])/(self.param_info.loc[col,'Max']-self.param_info.loc[col,'Min'])
             elif self.verbose:
-                print('Basis: Unable to scale %s'%col)
+                print('Basis: Unable to scale', col)
         return data
 
 
@@ -263,11 +263,11 @@ class Basis():
         try:
             dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
         except Exception as e:
-            print str(e)
+            print(str(e))
             if pd.isnull(data).any().any():
                 #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-                print data[data.isnull().any(axis=1)]
-                print 'Data contains Null/None/NaN, see data above.'
+                print(data[data.isnull().any(axis=1)])
+                print('Data contains Null/None/NaN, see data above.')
                 exit()
         return dmat
 
@@ -344,14 +344,14 @@ class Basis():
             fit = model.fit()
 
         if self.verbose:
-            print 'SUMMARY:\n', fit.summary()
-        print 'AIC:', fit.aic
-        print 'BIC:', fit.bic
+            print('SUMMARY:\n', fit.summary())
+        print('AIC:', fit.aic)
+        print('BIC:', fit.bic)
 
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]
-        #print 'FV:\n', fit.fittedvalues
-        print 'Non-Zero:', len(params), 'of', self.D
+        #print('FV:\n', fit.fittedvalues)
+        print('Non-Zero:', len(params), 'of', self.D)
 
         terms = params.index.values.tolist()
         if 'Intercept' in terms:
@@ -398,7 +398,7 @@ class Basis():
         num_params = np.zeros_like(alpha)
         bic = np.zeros_like(alpha)
         for i,a in enumerate(alpha):
-            print('Regularize: %d of %d' % (i, len(alpha)))
+            print('Regularize: ', i,' of ', len(alpha))
             fit = model.fit_regularized(alpha=a, refit=True)
 
             params = pd.Series(fit.params, index=data_matrix.columns)

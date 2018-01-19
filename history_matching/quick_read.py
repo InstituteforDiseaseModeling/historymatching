@@ -16,7 +16,7 @@ def quick_read(excel_fn, sheetname, force_read=False, **kwargs):
     filename = os.path.splitext(excel_fn)[0]
     hdf_fn = os.path.join( '%s_%s.hd5'%(filename, excel_md5) )
     if not force_read and os.path.isfile(hdf_fn):
-        print 'Reading %s from %s' % (sheetname, hdf_fn)
+        print('Reading', sheetname, 'from', hdf_fn)
         store = pd.HDFStore(hdf_fn)
         if sheetname in store:
             sheetdata = store[sheetname]
@@ -24,7 +24,7 @@ def quick_read(excel_fn, sheetname, force_read=False, **kwargs):
             return sheetdata
 
     # Not in store, read and store now
-    print 'Reading %s from %s' % (sheetname, excel_fn)
+    print('Reading', sheetname, 'from', excel_fn)
     sheetdata = pd.read_excel(excel_fn, **kwargs)
 
     store = pd.HDFStore(hdf_fn)

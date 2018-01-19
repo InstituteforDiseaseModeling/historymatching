@@ -7,9 +7,9 @@ from pyDOE import lhs
 from shutil import copyfile
 import datetime
 
-from glm import GLM
-from gpr import GPR
-from plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
+from history_matching.glm import GLM
+from history_matching.gpr import GPR
+from history_matching.plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
 
 # TODO: Error plot
 # TODO: Reference plot
@@ -77,7 +77,7 @@ class HistoryMatching():
             self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)#.sort_index()
             self.training_data = self.data.loc[True]
             self.test_data = self.data.loc[False]
-            print 'Using train/test split as specified by user'
+            print('Using train/test split as specified by user')
         else:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
 
@@ -94,9 +94,9 @@ class HistoryMatching():
             self.training_data = data_tmp.loc[:nTrain-1]
             self.test_data = data_tmp.loc[nTrain:]
 
-            print "Found %d unique parameter configurations, each of which is repeated %d time(s)." % (nSamp, nRep)
-            print "--> Training with %d unique parameter configurations (%d simulations including replicates)"  % (nSamp-nTest, (nSamp-nTest)*nRep)
-            print "--> Testing  with %d unique parameter configurations (%d simulations including replicates)" % (nTest, nTest*nRep)
+            print("Found", nSamp, "unique parameter configurations, each of which is repeated", nRep, "time(s).")
+            print("--> Training with",nSamp-nTest, "unique parameter configurations (", (nSamp-nTest)*nRep," simulations including replicates)")
+            print("--> Testing  with", nTest," unique parameter configurations (", nTest*nRep, "simulations including replicates)")
 
         # Dir prep
         self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name) )
@@ -225,7 +225,7 @@ class HistoryMatching():
         """
 
         if not self.use_glm:
-            print 'use_glm is False, why are you calling glm?'
+            print('use_glm is False, why are you calling glm?')
             return
 
         # Files to store the model and parameters
@@ -237,7 +237,7 @@ class HistoryMatching():
         test_mean = self.test_data.reset_index().groupby('Sample_Id').mean()
 
         if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
-            print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
+            print("Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn)
             self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
         else:
             self.glm_model = GLM(
@@ -247,11 +247,11 @@ class HistoryMatching():
                 reference_value = self.desired_result,
                 family = family)
 
-            print "Fitting the GLM"
+            print("Fitting the GLM")
             self.glm_model.fit(maxiter=glm_fit_maxiter)
             self.glm_model.save(glm_model_fn, mean_params_fn)
 
-        print 'Evaluating training and test data' # Store results in Yglm
+        print('Evaluating training and test data') # Store results in Yglm
         train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
         test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
 
@@ -269,7 +269,7 @@ class HistoryMatching():
                 if not os.path.exists( pairdir):
                     os.mkdir( pairdir )
                 cp = pd.DataFrame() # To not circle a point, pass in an empty data frame.
-                #print test_mean.loc[[2110]]
+                #print(test_mean.loc[[2110]])
                 #cp = test_mean.loc[[2110]]
                 figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
 
@@ -344,7 +344,7 @@ class HistoryMatching():
                 os.mkdir( pairdir )
 
         if not force_optimize_gpr and os.path.isfile(gpr_model_fn):
-            print "Loading GPR from", gpr_model_fn
+            print("Loading GPR from", gpr_model_fn)
             self.gpr_model = GPR.from_config(gpr_model_fn)
             if plot_data:
                 figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
@@ -375,7 +375,7 @@ class HistoryMatching():
             if os.path.isfile(gpr_model_fn):
                 timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
                 backup_fn = os.path.join(self.gprdir, 'model_%s.json'%timestamp)
-                print 'Backing up gpr model to %s'%backup_fn
+                print('Backing up gpr model to', backup_fn)
                 copyfile(gpr_model_fn, backup_fn)
 
             #TODO: Check guess within bounds
@@ -386,7 +386,7 @@ class HistoryMatching():
             if plot_data:
                 figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
 
-            print "Fitting the GPR"
+            print("Fitting the GPR")
             self.gpr_model.optimize_hyperparameters(
                 x0 = x0,
                 bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
@@ -402,7 +402,7 @@ class HistoryMatching():
         train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
         test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
-        print 'GPR evaluating training data'
+        print('GPR evaluating training data')
         ret = self.gpr_model.evaluate(train_mean)
         train_mean['Mean_Err'] = ret['Mean']
         train_mean['Mean_Estimate'] = train_mean['Mean_Err']
@@ -413,7 +413,7 @@ class HistoryMatching():
         self.training_data = self.training_data.reset_index().join(train_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
         self.training_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
 
-        print 'GPR evaluating test data'
+        print('GPR evaluating test data')
         ret = self.gpr_model.evaluate(test_mean)
         test_mean['Mean_Err'] = ret['Mean']
         test_mean['Mean_Estimate'] = test_mean['Mean_Err']
@@ -437,7 +437,7 @@ class HistoryMatching():
             '''' # Useful debugging
             if False:
                 mu = self.training_data[self.Xcols_GPR].mean()
-                #mu = train.loc[146][Xcols_GPR].mean(); print mu
+                #mu = train.loc[146][Xcols_GPR].mean(); print(mu)
                 (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25);
                 fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
                 fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW

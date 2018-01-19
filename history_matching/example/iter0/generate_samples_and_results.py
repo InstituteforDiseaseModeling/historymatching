@@ -4,7 +4,7 @@ from pyDOE import lhs
 import numpy as np
 import re, time
 
-from history_matching import quick_read
+from history_matching.quick_read import quick_read
 
 iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
 experiment_name = 'Data_%s'%time.strftime("%Y%m%d_%H%M%S")

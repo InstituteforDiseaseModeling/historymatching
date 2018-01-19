@@ -2,13 +2,13 @@
 
 import json
 import patsy
-import os, StringIO
+import os
 
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels import graphics
 
-from basis import Basis
+from history_matching.basis import Basis
 
 import numpy as np, pandas as pd, seaborn as sns
 from matplotlib import pyplot as plt
@@ -63,27 +63,27 @@ class GLM(object):
         self.fitted_model = fitted_model
 
         if family == 'Poisson':
-            print 'Using Poisson family'
+            print('Using Poisson family')
             self.glmfam = sm.families.Poisson()
         elif family == 'Binomial':
-            print 'Using Binomial family'
+            print('Using Binomial family')
             self.glmfam = sm.families.Binomial()
         elif family == 'Gamma':
-            print 'Using Gamma family'
+            print('Using Gamma family')
             self.glmfam = sm.families.Gamma()
         elif family == 'NegativeBinomial':
             alpha = 1.9
-            print 'Using NegativeBinomial family, alpha = %f' % alpha
+            print('Using NegativeBinomial family, alpha = ', alpha)
             self.glmfam = sm.families.NegativeBinomial(alpha=alpha) # Does strange things with float vs int values of alpha!
         else:
-            print 'Using Gaussian family'
+            print('Using Gaussian family')
             self.glmfam = sm.families.Gaussian()
 
         if self.fitted_model is not None:
-            print self.fitted_model.summary() # Should work, but was causing errors with some versions of statsmodels.
-            print 'AIC:', self.fitted_model.aic
-            print 'BIC:', self.fitted_model.bic
-            print 'ITERATION:', self.fitted_model.fit_history['iteration']
+            print(self.fitted_model.summary()) # Should work, but was causing errors with some versions of statsmodels.
+            print('AIC:', self.fitted_model.aic)
+            print('BIC:', self.fitted_model.bic)
+            print('ITERATION:', self.fitted_model.fit_history['iteration'])
 
 
     @classmethod
@@ -128,7 +128,7 @@ class GLM(object):
                     fitted_model = fitted_model
                 )
         except EnvironmentError:
-            print "Unable to load GLM from_config file", meta_fn, fitted_fn
+            print("Unable to load GLM from_config file", meta_fn, fitted_fn)
             raise
 
 
@@ -183,14 +183,14 @@ class GLM(object):
         self.model = sm.GLM(response_matrix, data_matrix, family=self.glmfam)
 
         if self.verbose:
-            print 'Fitting the model, please wait ...'
+            print('Fitting the model, please wait ...')
         self.fitted_model = self.model.fit(maxiter=maxiter)
 
         if self.verbose:
-            print self.fitted_model.summary()
-            print 'AIC:', self.fitted_model.aic
-            print 'BIC:', self.fitted_model.bic
-            print 'ITERATION:', self.fitted_model.fit_history['iteration']
+            print(self.fitted_model.summary())
+            print('AIC:', self.fitted_model.aic)
+            print('BIC:', self.fitted_model.bic)
+            print('ITERATION:', self.fitted_model.fit_history['iteration'])
 
     def plot_fitted_vs_observed(self):
         """Generates a plot of the fitted values vs the observed values from the training data.

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import matplotlib.patches as patches
 import seaborn as sns
-from basis import Basis
+from history_matching.basis import Basis
 import os
 
 def plot_implausibility(data, Xcols, column, thresh):

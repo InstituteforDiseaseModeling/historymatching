@@ -1,4 +1,7 @@
-from history_matching import HistoryMatching, quick_read, Basis
+from history_matching.HistoryMatching import HistoryMatching
+from history_matching.quick_read import quick_read
+from history_matching.basis import Basis
+
 import pandas as pd
 import os
 import re, time
@@ -17,7 +20,7 @@ implausibility_threshold = 3
 cut_name = 'RadiusShouldBe15'
 desired_result = 15
 discrepancy_std = 0.1 * desired_result
-print 'Desired result is: ', desired_result
+print('Desired result is', desired_result)
 
 # Data
 params_file = os.path.join('..', 'Params.xlsx')
@@ -60,8 +63,8 @@ if not os.path.exists(os.path.join('Cuts', cut_name)):
 
 param_info = quick_read(params_file, 'Params').set_index('Name')
 param_names = param_info.index.tolist()
-print 'All available parameters:'
-print ' *','\n * '.join(param_names)
+print('All available parameters:')
+print(' *','\n * '.join(param_names))
 
 # Choose GLM inputs
 try:
@@ -72,16 +75,14 @@ try:
 except:
     basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
 
-    basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-3,0, 25), scaleX=True)
+    basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-2,1, 25), scaleX=True)
 
-    alpha_glm = float(raw_input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
+    alpha_glm = float(input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
 
     fitted_values = basis_glm.regularize(inputs, results, alpha = alpha_glm, scaleX=True) # 100 for thrid_order
-    print fitted_values
-    print type(fitted_values)
 
     '''
-    print 'Regularization for GLM selected:\n', ' *','\n * '.join(basis_glm.get_terms())
+    print('Regularization for GLM selected:\n', ' *','\n * '.join(basis_glm.get_terms()))
     with open(os.path.join('Cuts', cut_name, 'basis_glm.json'), 'w') as fout:
         json.dump( {
             'Basis': basis_glm.serialize(),
@@ -102,7 +103,7 @@ except:
     alpha_gpr = float(raw_input('What would you like to use for the GPR regularization parameter, alpha_gpr = '))
 
     basis_gpr.regularize(inputs, results_err, alpha = alpha_gpr, scaleX=True)
-    print 'Regularization for GPR selected:\n', ' *','\n * '.join(basis_gpr.get_terms())
+    print('Regularization for GPR selected:\n', ' *','\n * '.join(basis_gpr.get_terms()))
     with open(os.path.join('Cuts', cut_name, 'basis_gpr.json'), 'w') as fout:
             json.dump( { 'Basis': basis_gpr.serialize(), }, fout, indent=4)
 
@@ -128,7 +129,7 @@ hm.save()
 #hm.filter_data(source='Both', lower=0)
 
 ### GLM ###############################################################
-print "="*80, "\nGeneralized Linear Modeling\n", "="*80
+print("="*80, "\nGeneralized Linear Modeling\n", "="*80)
 #######################################################################
 hm.glm(
     basis = basis_glm,
@@ -141,7 +142,7 @@ hm.glm(
 
 
 ### GPR ###############################################################
-print "="*80, "\nGaussian Process Regression\n", "="*80
+print("="*80, "\nGaussian Process Regression\n", "="*80)
 #######################################################################
 hm.gpr(
     basis = basis_gpr,
@@ -167,12 +168,12 @@ hm.gpr(
 )
 
 ### Implausibility ############################################################
-print "="*80, "\nImplausibility\n", "="*80
+print("="*80, "\nImplausibility\n", "="*80)
 ###############################################################################
 hm.calc_and_plot_implausibility(plot=True, do_plot_data=True, plot_data_highlight=pd.DataFrame()) # plot_data_highlight=hm.training_data.loc['8c7e4af7-1120-e711-9400-f0921c16849c.003328']
 
 hm.training_data.to_excel(os.path.join('Cuts', cut_name, 'train_data.xlsx'))
 hm.test_data.to_excel(os.path.join('Cuts', cut_name, 'test_data.xlsx'))
 
-print 'Good'
+print('Good')
 
