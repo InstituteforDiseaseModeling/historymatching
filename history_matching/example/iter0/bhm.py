@@ -55,7 +55,7 @@ inputs = pd.concat(sim_inputs)
 sim_results_all = pd.concat(sim_results)
 
 
-sim_results_all.set_index(['Exp_Id', 'Sample', 'Sim_Id'], append=True, inplace=True)
+sim_results_all.set_index(['Sim_Id'], append=True, inplace=True)
 results = sim_results_all['Sim_Result']
 
 if not os.path.exists(os.path.join('Cuts', cut_name)):
@@ -71,13 +71,13 @@ try:
     with open(os.path.join('Cuts', cut_name, 'basis_glm.json')) as data_file:
         config = json.load( data_file )
         basis_glm = Basis.deserialize(config['Basis'])
-        fitted_values = pd.read_json(config['Fitted_Values'], orient='split').set_index(['Sample_Id', 'Exp_Id', 'Sample', 'Sim_Id']).squeeze()
+        fitted_values = pd.read_json(config['Fitted_Values'], orient='split').set_index(['Sample_Id', 'Sim_Id']).squeeze()
 except:
     basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
 
     basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-2,1, 25), scaleX=True)
-
     alpha_glm = float(input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
+    #alpha_glm = 1e-3
 
     fitted_values = basis_glm.regularize(inputs, results, alpha = alpha_glm, scaleX=True) # 100 for thrid_order
 
@@ -99,8 +99,8 @@ except:
     basis_gpr = Basis.polynomial_basis(params=param_names, intercept = False, first_order=True, param_info=param_info)
     results_err = results - fitted_values
 
-    basis_gpr.plot_regularize(inputs, results_err, alpha = np.logspace(-6, 0, 25), scaleX=True)
-    alpha_gpr = float(raw_input('What would you like to use for the GPR regularization parameter, alpha_gpr = '))
+    basis_gpr.plot_regularize(inputs, results_err, alpha = np.logspace(-3, 1, 25), scaleX=True)
+    alpha_gpr = float(input('What would you like to use for the GPR regularization parameter, alpha_gpr = '))
 
     basis_gpr.regularize(inputs, results_err, alpha = alpha_gpr, scaleX=True)
     print('Regularization for GPR selected:\n', ' *','\n * '.join(basis_gpr.get_terms()))
