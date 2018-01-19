@@ -391,8 +391,8 @@ class HistoryMatching():
                 x0 = x0,
                 bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
                 #eps = eps,
-                optimize_sigma2_n = True,
-                log_transform = False,
+                optimize_sigma2_n = optimize_sigma2_n,
+                log_transform = log_transform,
                 optimizer_options = optimizer_options
             )
             self.gpr_model.save(gpr_model_fn) # Save the model to file

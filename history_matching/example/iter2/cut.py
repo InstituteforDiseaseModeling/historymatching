@@ -1,4 +1,4 @@
-from history_matching import HistoryMatchingCut
+from history_matching.HistoryMatchingCut import HistoryMatchingCut
 import os, re
 
 # Example constraint function:
@@ -14,7 +14,7 @@ hm = HistoryMatchingCut(
 
 
 ### Cut #######################################################################
-print "="*80, "\nCut\n", "="*80
+print("="*80, "\nCut\n", "="*80)
 ###############################################################################
 (_, rejected_percent) = hm.cut(num_desired_candidates=250, constraint = None)
 

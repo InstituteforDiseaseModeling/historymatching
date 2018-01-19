@@ -9,8 +9,8 @@ import json
 import numpy as np
 import glob
 
-force_optimize_glm = True
-force_optimize_gpr = True
+force_optimize_glm = False
+force_optimize_gpr = False
 
 iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
 exp_ids = glob.glob('Data_*')
@@ -81,14 +81,12 @@ except:
 
     fitted_values = basis_glm.regularize(inputs, results, alpha = alpha_glm, scaleX=True) # 100 for thrid_order
 
-    '''
     print('Regularization for GLM selected:\n', ' *','\n * '.join(basis_glm.get_terms()))
     with open(os.path.join('Cuts', cut_name, 'basis_glm.json'), 'w') as fout:
         json.dump( {
             'Basis': basis_glm.serialize(),
             'Fitted_Values': fitted_values.reset_index().to_json(orient='split')
         }, fout, indent=4)
-    '''
 
 # Choose GPR inputs
 try:
@@ -105,7 +103,7 @@ except:
     basis_gpr.regularize(inputs, results_err, alpha = alpha_gpr, scaleX=True)
     print('Regularization for GPR selected:\n', ' *','\n * '.join(basis_gpr.get_terms()))
     with open(os.path.join('Cuts', cut_name, 'basis_gpr.json'), 'w') as fout:
-            json.dump( { 'Basis': basis_gpr.serialize(), }, fout, indent=4)
+        json.dump( { 'Basis': basis_gpr.serialize(), }, fout, indent=4)
 
 
 #basis_gpr = Basis.identity_basis(params=['Protection per Infection', 'Symptomatic Fraction', 'LOG Contact Exposure Period', 'LOG Environmental Exposure Period', 'LOG Acute Infectiousness'], param_info=param_info)

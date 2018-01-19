@@ -203,6 +203,7 @@ class Basis():
         """
 
         terms = state['Terms']
+
         if 'Intercept' in terms:
             intercept_term = [Term([])]
             terms.remove('Intercept')
@@ -290,7 +291,6 @@ class Basis():
             data = self.scale_data(data)
 
         data = data.rename(columns=self.param_dict)
-
         md = ModelDesc(response_terms, self.model_terms)
 
         (response_matrix, data_matrix) = dmatrices(md, data=data, return_type='dataframe')
@@ -309,6 +309,8 @@ class Basis():
         if '0' in terms: # NO INTERCEPT
             terms.remove('0')
         else:
+            #assert('1' in terms)
+            #terms.remove('1')
             terms = ['Intercept'] + terms
 
         return terms
@@ -345,12 +347,11 @@ class Basis():
 
         if self.verbose:
             print('SUMMARY:\n', fit.summary())
-        print('AIC:', fit.aic)
-        print('BIC:', fit.bic)
+            print('AIC:', fit.aic)
+            print('BIC:', fit.bic)
 
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]
-        #print('FV:\n', fit.fittedvalues)
         print('Non-Zero:', len(params), 'of', self.D)
 
         terms = params.index.values.tolist()

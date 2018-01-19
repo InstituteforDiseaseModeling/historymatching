@@ -22,7 +22,7 @@ def choose_samples(num_samples):
             samples[param_name] = pmin + samples[param_name]*(pmax-pmin)
         samples.index.name = 'Sample'
     else:
-        samples = pd.read_excel(os.path.join('..', 'iter%d'%(iteration-1), 'Candidates_for_iter%d.xlsx'%iteration), sheetname='Values')
+        samples = pd.read_csv(os.path.join('..', 'iter%d'%(iteration-1), 'Candidates_for_iter%d.csv'%iteration), skipinitialspace=True)
         samples.index.name = 'Sample'
     return samples
 

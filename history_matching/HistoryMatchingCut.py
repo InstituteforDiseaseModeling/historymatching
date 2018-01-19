@@ -4,9 +4,9 @@ import time
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
-from history_matching import HistoryMatching
-from glm import GLM
-from gpr import GPR
+from history_matching.HistoryMatching import HistoryMatching
+from history_matching.glm import GLM
+from history_matching.gpr import GPR
 
 class HistoryMatchingCut():
 
@@ -34,12 +34,12 @@ class HistoryMatchingCut():
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration %d. cut %s' % (it,cut_name) )
+                print('Reading iteration', it, '. cut', cut_name)
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print '\t Desired Result:', hm.desired_result
-                print '\t Desired Result Var:', hm.desired_result_var
-                print '\t Discrepancy Var:', hm.discrepancy_var
-                print '\t Imp Thresh:', hm.implausibility_threshold
+                print('\t Desired Result:', hm.desired_result)
+                print('\t Desired Result Var:', hm.desired_result_var)
+                print('\t Discrepancy Var:', hm.discrepancy_var)
+                print('\t Imp Thresh:', hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
@@ -70,19 +70,19 @@ class HistoryMatchingCut():
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
-            print plausible_candidates.shape
+            print(plausible_candidates.shape)
             if plausible_candidates.shape[0] == 0:
-                print 'Returning early because none of the candidates are plausible.'
+                print('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
 
-            print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
+            print('Performing cut: iteration', it, ', cut', cut_name)
             t = time.time()
             plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
             if self.debug:
-                print 'GLM:', time.time()-t; t=time.time()
+                print('GLM:', time.time()-t); t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
             if self.debug:
-                print 'GPR:', time.time()-t; t=time.time()
+                print('GPR:', time.time()-t); t=time.time()
             plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
 
@@ -106,7 +106,7 @@ class HistoryMatchingCut():
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
-            print '-'*80
+            print('-'*80)
             max_nSamples = 25000 # TODO: make a parameter or determine from GPU info
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
@@ -116,31 +116,31 @@ class HistoryMatchingCut():
 
             t = time.time()
             lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
-            print 'LHS Sampling (%d):'%nSamples, time.time() - t
+            print('LHS Sampling (', nSamples,'):', time.time() - t)
 
             t = time.time()
             for i, xc in enumerate(self.Xcols_all_orig):
                 v = self.param_info.loc[xc]
                 lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
-            print 'LHS Scaling:', time.time() - t
+            print('LHS Scaling:', time.time() - t)
 
             t = time.time()
             new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all_orig)
-            print 'DataFrame:', time.time() - t
+            print('DataFrame:', time.time() - t)
             t = time.time()
             if constraint is not None:
                 #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
                 #new_candidates = new_candidates.query(constraint)
                 new_candidates = new_candidates.loc[constraint(new_candidates),:]
-            print 'Constraint:', time.time() - t
+            print('Constraint:', time.time() - t)
 
             t = time.time()
             plausibility = self.test_plausibility(new_candidates, constraint)
-            print 'Test plausibility:', time.time() - t
+            print('Test plausibility:', time.time() - t)
 
             t = time.time()
             new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
-            print 'Merge plausibility (needed?):', time.time() - t
+            print('Merge plausibility (needed?):', time.time() - t)
             #new_candidates['Implausible'] = False
 
 
@@ -154,11 +154,11 @@ class HistoryMatchingCut():
 
             del new_candidates
 
-            print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
+            print('Plausible candidates: New =', stats['num_new_plausible_candidates'], ', Tot =', stats['num_plausible_candidates'])
 
         #non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        print 'Saving to:', self.saveto_hd5
+        print('Saving to:', self.saveto_hd5)
         hdf = pd.HDFStore(self.saveto_hd5)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
         #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
@@ -178,8 +178,8 @@ class HistoryMatchingCut():
         with open(stats_fn, 'w') as f:
             json.dump(stats, f)
 
-        csv_fn = os.path.join(d, name + '.xlsx')
-        non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn)
+        csv_fn = os.path.join(d, name + '.csv')
+        non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn, index=False)
 
         '''
         writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
@@ -189,6 +189,6 @@ class HistoryMatchingCut():
         writer.save()
         '''
 
-        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials)
+        print('Rejected {0:.1f}% [{1:d} / {2:d}]'.format(rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials))
 
         return (non_implausible_candidates, stats)
