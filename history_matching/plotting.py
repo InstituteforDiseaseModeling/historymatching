@@ -295,7 +295,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                     if not isinstance(s, np.float64): # If only one value
                         s = s.values[:,None]
                     else:
-                        s = np.array(s)
+                        s = np.array([s])
 
                     sc = plt.scatter(x, y, s=np.maximum(1, 25*s), c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
                     if true_or_false == False:
