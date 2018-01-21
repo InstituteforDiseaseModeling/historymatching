@@ -309,8 +309,9 @@ class Basis():
         if '0' in terms: # NO INTERCEPT
             terms.remove('0')
         else:
-            #assert('1' in terms)
-            #terms.remove('1')
+            if '1' in terms:
+                print('Found "1" in terms, removing as this is likely a stored representation of the intercept.')
+                terms.remove('1')
             terms = ['Intercept'] + terms
 
         return terms
@@ -353,6 +354,9 @@ class Basis():
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]
         print('Non-Zero:', len(params), 'of', self.D)
+
+        if len(params) == 0:
+            raise ValueError('In regularize, no parameters had a non-zero coefficient.  Try making alpha smaller.')
 
         terms = params.index.values.tolist()
         if 'Intercept' in terms:

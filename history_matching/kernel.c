@@ -9,24 +9,31 @@ __global__ void kernel_xx(float *kxx, float *X, float *theta, unsigned int N, un
         unsigned int i = idx/N;
         unsigned int j = idx%N;
 
+	// if i == j! Special, including deriv!
+
         if (i <= j) {
-            float sigma2_f = theta[0];// * theta[0];
+            float sigma2_f = theta[0];
             if (deriv == 0) {
                 sigma2_f = 1;
             }
 
-            float r2 = 0;
-            for( int d=0; d<D; d++) {
-                if (FORTRAN_CONTIGUOUS) {
-                    // FORTRAN contiguous (row major)
-                    r2 += (X[N*d+i]-X[N*d+j]) * (X[N*d+i]-X[N*d+j]) / theta[2+d];
-                } else {
-                    // C contiguous (column major)
-                    r2 += (X[D*i+d]-X[D*j+d]) * (X[D*i+d]-X[D*j+d]) / theta[2+d];
+            if (i == j) {
+                kxx[N*i+j] = sigma2_f;
+            } else {
+                float r2 = 0;
+                for( int d=0; d<D; d++) {
+                    if (FORTRAN_CONTIGUOUS) {
+                        // FORTRAN contiguous (row major)
+                        r2 += (X[N*d+i]-X[N*d+j]) * (X[N*d+i]-X[N*d+j]) / theta[2+d];
+                    } else {
+                        // C contiguous (column major)
+                        r2 += (X[D*i+d]-X[D*j+d]) * (X[D*i+d]-X[D*j+d]) / theta[2+d];
+                    }
                 }
+
+                kxx[N*i+j] = sigma2_f * exp( -r2 / 2.0 );
             }
 
-            kxx[N*i+j] = sigma2_f * exp( -r2 / 2.0 );
 
             if (deriv > 1) {    // Lengthscale derivatives
                 int d = deriv-2;

@@ -91,8 +91,12 @@ class GPR():
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
         """
 
-        print('Warning: ASSUMING NO GPU!')
-        self.use_gpu = False
+        try:
+            device = pycuda.autoinit.device
+            print('Autoinit GPU device name:', device.name())
+            self.use_gpu = True
+        except Exception as e:
+            self.use_gpu = False
 
         if self.use_gpu:
             # Read in the RFB kernel
@@ -185,6 +189,27 @@ class GPR():
                     normalizer_std = config['Normalizer_Std'],
                     normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
                 )
+                '''
+                instance = cls(
+                    basis = basis,
+                    Ycol = config['Ycol'],
+                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
+                    param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
+                    kernel_mode = config['Kernel_Mode'],
+                    theta = np.array(config['Kernel_Params']),
+                    normalizer_mean = config['Normalizer_Mean'],
+                    normalizer_std = config['Normalizer_Std'],
+                    normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
+                )
+
+                train_mean = instance.training_data.reset_index().groupby('Sample_Id').mean()
+                X = instance.basis.generate_dmatrix( train_mean, scaleX = True).values
+                Y = instance.training_data.reset_index().groupby('Sample_Id').apply(instance.assign_rep).pivot('Sample_Id', 'Replicate', instance.Ycol).values
+                print(instance.cross_validation_with_grad(instance.theta, X, Y, optimize_sigma2_n=True, log_transform=False))
+                exit()
+
+                return instance
+                '''
         except EnvironmentError:
             print('Unable to load GPR from_config file', config_fn)
             raise
@@ -323,7 +348,6 @@ class GPR():
 
             max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(pycuda.autoinit.device)
             device = pycuda.autoinit.device
-            print('Autoinit GPU device name:', device.name())
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
@@ -366,7 +390,7 @@ class GPR():
 
         Nx = X.shape[0]
 
-        if deriv == 0:
+        if deriv >= 0:
             assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
@@ -382,6 +406,12 @@ class GPR():
 
         Kxx = np.zeros([Nx,Nx], dtype=np.float32)
         for i in range(Nx):
+            # Diagonal:
+            if deriv <= 1:
+                Kxx[i,i] = sigma2_f # theta[0] or 1, see above
+            else:
+                Kxx[i,i] = 0
+
             # Off-diagonal
             for j in range(i+1,Nx):
                 dX = X[i,:]-X[j,:]
@@ -389,18 +419,11 @@ class GPR():
                 for d in range(self.D):
                     r2 += dX[d] * dX[d]/theta[2+d]
                 Kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
-                Kxx[j,i] = Kxx[i,j]
 
-            # Diagonal:
-            dX = X[i,:]-X[i,:]
-            r2 = 0
-            for d in range(self.D):
-                r2 += dX[d] * dX[d]/theta[2+d]
-            Kxx[i,i] = sigma2_f * np.exp( -r2 / 2. )
+                if (deriv > 1): # Lengthscale derivatives
+                    d = deriv-2;
+                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d]);
 
-            if (deriv > 1): # Lengthscale derivatives
-                d = deriv-2;
-                Kxx[i,j] *= 0.5 * (X[i,d]-X[j,d]) * (X[i,d]-X[j,d]) / (theta[2+d] * theta[2+d]);
                 Kxx[j,i] = Kxx[i,j]
 
         if add_sigma2_n:
