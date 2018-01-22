@@ -9,7 +9,7 @@ import json
 import numpy as np
 import glob
 
-force_optimize_glm = True
+force_optimize_glm = False
 force_optimize_gpr = True
 
 iteration = int(re.search(r'[+-]?\d+', os.getcwd()).group())
@@ -54,9 +54,6 @@ for idx, exp_id in enumerate(exp_ids):
 inputs = pd.concat(sim_inputs)
 sim_results_all = pd.concat(sim_results)
 
-print(np.sqrt(inputs['First Parameter']**2 + inputs['Second Parameter']**2))
-print(sim_results_all['Sim_Result'])
-
 sim_results_all.set_index(['Sim_Id'], append=True, inplace=True)
 results = sim_results_all['Sim_Result']
 
@@ -75,7 +72,7 @@ try:
         basis_glm = Basis.deserialize(config['Basis'])
         fitted_values = pd.read_json(config['Fitted_Values'], orient='split').set_index(['Sample_Id', 'Sim_Id']).squeeze()
 except:
-    basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
+    basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info, verbose = True)
 
     basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-3,1, 25), scaleX=True)
     alpha_glm = float(input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
@@ -83,6 +80,7 @@ except:
 
     fitted_values = basis_glm.regularize(inputs, results, alpha = alpha_glm, scaleX=True) # 100 for thrid_order
 
+    print(type(basis_glm.get_terms()))
     print('Regularization for GLM selected:\n', ' *','\n * '.join(basis_glm.get_terms()))
     with open(os.path.join('Cuts', cut_name, 'basis_glm.json'), 'w') as fout:
         json.dump( {
@@ -147,13 +145,13 @@ print("="*80, "\nGaussian Process Regression\n", "="*80)
 hm.gpr(
     basis = basis_gpr,
     force_optimize_gpr = force_optimize_gpr,
-    sigma2_f_guess = 1,
-    sigma2_f_bounds = (0.1, 100),
-    sigma2_n_guess = 1,
+    sigma2_f_guess = 4,
+    sigma2_f_bounds = (0.1, 1000),
+    sigma2_n_guess = 0.1,
     sigma2_n_bounds = (0.001, 100),
     #lengthscale_guess = [0.04313128, 0.2, 0.14240553, 0.01418867, 0.2, 0.17683428],
-    lengthscale_guess = 0.15,
-    lengthscale_bounds = (0.001, 0.2),
+    lengthscale_guess = 0.1,
+    lengthscale_bounds = (0.001, 0.5),
     verbose = True,
     optimizer_options = {
         'eps': 5e-3,
@@ -164,7 +162,7 @@ hm.gpr(
         #'factr': 1e12 # <-- Not working?
     },
     optimize_sigma2_n = True,
-    log_transform = True,
+    log_transform = False,
     plot = True, #force_optimize_gpr,
     plot_data = False
 )
