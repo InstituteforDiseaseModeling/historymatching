@@ -280,7 +280,7 @@ class GLM(object):
         if circle_points.shape[0] > 0:
             cp_dmat = basis.generate_dmatrix(circle_points, scaleX=True)
 
-        reverse_param_dict = {v:k for k,v in basis.param_dict.iteritems()}
+        reverse_param_dict = {v:k for k,v in basis.param_dict.items()}
 
         for row in range(len(Xcols)):
             for col in range(len(Xcols)):
@@ -327,7 +327,7 @@ class GLM(object):
         # TODO: Save and log scale!
         scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
 
-        Xcols = basis.get_terms()[0] # Not tested!
+        Xcols = self.basis.get_terms()[0] # Not tested!
         fig = plt.figure(figsize=(6,8)) #GPy.plotting.plotting_library().figure()
         x = self.training_data[ Xcols ]
         y = self.training_data[self.Ycol]
@@ -360,9 +360,14 @@ class GLM(object):
         Returns: a dictionary of matplotlib figure handles with keys indicating the parameter names via the filename which would be used to save the figure.
         """
 
+        '''
         if self.D > 1:
             return self.plot_data_multiD(**kwargs)
         return self.plot_data_1D(**kwargs)
+        '''
+
+        # 1D not working, do multiD:
+        return self.plot_data_multiD(**kwargs)
 
     def plot_histogram(self):
         """Plots a histogram of the outputs.
