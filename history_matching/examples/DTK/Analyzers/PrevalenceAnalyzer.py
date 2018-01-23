@@ -1,6 +1,7 @@
 import pandas as pd
 import os, sys
 import json
+import errno
 
 from dtk.utils.analyzers.BaseShelveAnalyzer import BaseShelveAnalyzer
 
@@ -38,7 +39,7 @@ class PrevalenceAnalyzer(BaseShelveAnalyzer):
     def mkdir_p(path):
         try:
             os.makedirs(path)
-        except OSError as exc:  # Python >2.5
+        except FileExistsError as exc:  # Python >2.5
             if exc.errno == errno.EEXIST and os.path.isdir(path):
                 pass
             else:
