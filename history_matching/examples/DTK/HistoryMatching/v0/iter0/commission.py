@@ -14,7 +14,7 @@ from history_matching import quick_read
 
 iteration = int(re.search(r'iter(\d+)', os.getcwd()).group(1))
 N_rep_per_sample = 1
-N_samples = 1
+N_samples = 25
 
 params = quick_read( os.path.join('..', 'Params.xlsx'), 'Params').set_index('Name')
 
@@ -38,7 +38,7 @@ table_base = {
 # Standard DTKConfigBuilder
 config_builder = DTKConfigBuilder.from_files(
     os.path.join(plugin_files_dir, 'config.json'),
-    os.path.join(plugin_files_dir, 'campaign_baseline.json')
+    os.path.join(plugin_files_dir, 'campaign.json')
 )
 
 def map_sample_to_model_input(config_builder, sample_idx, replicate_idx, sample):
@@ -56,7 +56,7 @@ def map_sample_to_model_input(config_builder, sample_idx, replicate_idx, sample)
                 continue
             table[p['MapTo']] = sample.pop( param_name )
 
-    for name,value in sample.iteritems():
+    for name,value in sample.items():
         print('UNUSED PARAMETER:', name)
     assert( len(sample) == 0 ) # All params used
 
@@ -76,39 +76,43 @@ def choose_and_scale_samples_unconstrained(num_samples):
 def choose_and_scale_samples(num_samples):
     if iteration == 0:
         samples_unconstrained = choose_and_scale_samples_unconstrained(num_samples)
-        samples_unconstrained['Days'] = samples_unconstrained[['Env Ramp Up', 'Env Ramp Down', 'Env Cutoff']].sum(axis=1)
-        samples = samples_unconstrained.loc[ samples_unconstrained['Days'] < 365, :]
+        # Here is an example of how to impose a simple constraint:
+        #samples_unconstrained['Days'] = samples_unconstrained[['Env Ramp Up', 'Env Ramp Down', 'Env Cutoff']].sum(axis=1)
+        #samples = samples_unconstrained.loc[ samples_unconstrained['Days'] < 365, :]
+        samples = samples_unconstrained.copy()
 
         remaining = num_samples - samples.shape[0]
         while remaining > 0:
+            assert(False) # Should never get here in this example because there is no constraint!
             samples_unconstrained = choose_and_scale_samples_unconstrained(num_samples)
+            # Here is an example of how to impose a simple constraint:
             samples_unconstrained['Days'] = samples_unconstrained[['Env Ramp Up', 'Env Ramp Down', 'Env Cutoff']].sum(axis=1)
             samples = pd.concat([samples, samples_unconstrained.loc[ samples_unconstrained['Days'] < 365, :] ], ignore_index=True)
             remaining = num_samples - samples.shape[0]
 
         samples.index.name = 'Sample'
-        return samples.iloc[:num_samples,:].drop('Days', axis=1)
+
+        #return samples.iloc[:num_samples,:].drop('Days', axis=1) # <-- Use this with the constraint to remove 'Days'
+        return samples.iloc[:num_samples,:]
     else:
         #samples = pd.read_excel(os.path.join('..', 'iter%d'%(iteration-1), 'Candidates_for_iter%d.xlsx'%iteration), sheetname='Values')
         samples = pd.read_hdf(os.path.join('..', 'iter%d'%(iteration-1), 'Candidates_for_iter%d.hd5'%iteration), key='values')
 
         samples.index.name = 'Sample'
-        assert( pd.Series.all( samples[['Env Ramp Up', 'Env Ramp Down', 'Env Cutoff']].sum(axis=1) < 365 ))
+        #assert( pd.Series.all( samples[['Env Ramp Up', 'Env Ramp Down', 'Env Cutoff']].sum(axis=1) < 365 ))
         return samples.iloc[:num_samples,:]
 
 
-try:
-    xlsx = pd.ExcelFile('Samples.xlsx')
-    samples = pd.read_excel(xlsx, 'Samples')
-    samples.set_index('Sample', inplace=True)
-    raw_input('NOTE: Using previously compted samples from Samples.xlsx.  Enter to continue ...')
-except IOError:
-    samples = choose_and_scale_samples(N_samples)
+if os.path.exists('Samples.xlsx'):
+    print('Please move/remove Samples.xlsx from the current directory before proceeding.')
+    exit()
 
-    writer = pd.ExcelWriter('Samples.xlsx')
-    samples.to_excel(writer, sheet_name='Samples')
-    params.to_excel(writer, sheet_name='Params')
-    writer.save()
+samples = choose_and_scale_samples(N_samples)
+
+writer = pd.ExcelWriter('Samples.xlsx')
+samples.to_excel(writer, sheet_name='Samples')
+params.to_excel(writer, sheet_name='Params')
+writer.save()
 
 exp_builder = ModBuilder.from_combos(
     [
