@@ -1,0 +1,19 @@
+{
+    "Basis": {
+        "Terms": [
+            "Intercept",
+            "LOG_Base_Infectivity",
+            "LOG_Base_Infectivity ** 2",
+            "LOG_Base_Infectivity * Infectious_Period"
+        ],
+        "Param_Dict": {
+            "Sample": "Sample",
+            "LOG Base Infectivity": "LOG_Base_Infectivity",
+            "Infectious Period": "Infectious_Period",
+            "Exp_Id": "Exp_Id",
+            "Train": "Train"
+        },
+        "Param_Info": "{\"columns\":[\"Name\",\"Min\",\"Max\",\"MapTo\",\"Source\"],\"index\":[0,1],\"data\":[[\"LOG Base Infectivity\",-1,2,null,\"Default\"],[\"Infectious Period\",1,10,\"Base_Infectious_Period\",null]]}"
+    },
+    "Fitted_Values": "{\"columns\":[\"Sample_Id\",\"Sim_Id\",0],\"index\":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23],\"data\":[[\"prime.000000\",\"46ceed91-daff-e711-9414-f0921c16b9e5\",-1.956978363],[\"prime.000001\",\"45ceed91-daff-e711-9414-f0921c16b9e5\",-1.035016057],[\"prime.000002\",\"44ceed91-daff-e711-9414-f0921c16b9e5\",-0.2613786573],[\"prime.000003\",\"43ceed91-daff-e711-9414-f0921c16b9e5\",-0.3660413137],[\"prime.000004\",\"42ceed91-daff-e711-9414-f0921c16b9e5\",0.5813939241],[\"prime.000005\",\"41ceed91-daff-e711-9414-f0921c16b9e5\",-2.0305788551],[\"prime.000006\",\"40ceed91-daff-e711-9414-f0921c16b9e5\",-1.6821005739],[\"prime.000007\",\"3fceed91-daff-e711-9414-f0921c16b9e5\",0.9851080629],[\"prime.000008\",\"3eceed91-daff-e711-9414-f0921c16b9e5\",-0.5111865574],[\"prime.000009\",\"3dceed91-daff-e711-9414-f0921c16b9e5\",-1.9184973177],[\"prime.000010\",\"3cceed91-daff-e711-9414-f0921c16b9e5\",-1.8973634999],[\"prime.000012\",\"3aceed91-daff-e711-9414-f0921c16b9e5\",-5.0538253311],[\"prime.000013\",\"39ceed91-daff-e711-9414-f0921c16b9e5\",-5.1589298789],[\"prime.000014\",\"38ceed91-daff-e711-9414-f0921c16b9e5\",-2.6732414654],[\"prime.000015\",\"37ceed91-daff-e711-9414-f0921c16b9e5\",-1.680157686],[\"prime.000016\",\"36ceed91-daff-e711-9414-f0921c16b9e5\",-2.2771099915],[\"prime.000017\",\"35ceed91-daff-e711-9414-f0921c16b9e5\",-2.6421859915],[\"prime.000018\",\"34ceed91-daff-e711-9414-f0921c16b9e5\",-2.6923668325],[\"prime.000019\",\"33ceed91-daff-e711-9414-f0921c16b9e5\",-3.3526262986],[\"prime.000020\",\"32ceed91-daff-e711-9414-f0921c16b9e5\",-2.1876749268],[\"prime.000021\",\"31ceed91-daff-e711-9414-f0921c16b9e5\",-0.9889964228],[\"prime.000022\",\"30ceed91-daff-e711-9414-f0921c16b9e5\",-2.297548145],[\"prime.000023\",\"2fceed91-daff-e711-9414-f0921c16b9e5\",-2.5647898366],[\"prime.000024\",\"2eceed91-daff-e711-9414-f0921c16b9e5\",-0.3238042301]]}"
+}

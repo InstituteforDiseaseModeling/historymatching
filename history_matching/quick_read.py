@@ -10,7 +10,7 @@ def md5(fname):
 
 
 def quick_read(excel_fn, sheetname, force_read=False, **kwargs):
-    kwargs['sheetname'] = sheetname
+    kwargs['sheet_name'] = sheetname
     excel_md5 = md5(excel_fn)
 
     filename = os.path.splitext(excel_fn)[0]
