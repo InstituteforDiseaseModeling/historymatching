@@ -1,0 +1,27 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from history_matching import quick_read
+import os
+
+samples = quick_read(os.path.join('prime', 'Samples.xlsx'), 'Samples').set_index('Sample')
+params = quick_read(os.path.join('prime','Samples.xlsx'), 'Params').set_index('Name')
+
+s = samples.stack()
+s.name = 'Value'
+s.index.rename(names='Variable', level=1, inplace='True')
+s = s.reset_index().drop('Sample', axis=1).sort_values('Variable').reset_index()
+
+def plt_hist(**kwargs):
+    data = kwargs.pop('data')
+    sns.distplot(data['Value'])
+    param_name = data['Variable'].iloc[0]
+    plt.xlim( (params.loc[param_name,'Min'], params.loc[param_name,'Max']) )
+
+g = sns.FacetGrid(s.reset_index(), col='Variable', col_wrap=8, sharex=False, sharey=False, size=3, aspect=1, palette=None, row_order=None, col_order=None, hue_order=None, hue_kws=None, dropna=True, legend_out=True, despine=True, margin_titles=False, xlim=None, ylim=None, subplot_kws=None, gridspec_kws=None)
+print 'Mapping'
+g = g.map_dataframe(plt_hist)
+g = g.set_titles("{col_name}")
+
+plt.savefig('Samples.pdf')
+plt.savefig('Samples.png')
