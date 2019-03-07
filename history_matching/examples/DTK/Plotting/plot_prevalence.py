@@ -59,7 +59,7 @@ for fni, fn in enumerate(sys.argv[1:]):
 plt.legend()
 fig.tight_layout()
 
-fig.savefig('Prevalence.png')
+fig.savefig('Prevalence.pdf')
 
 #plt.show()
 #plt.close(fig)
