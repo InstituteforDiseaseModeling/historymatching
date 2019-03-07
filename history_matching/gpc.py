@@ -68,7 +68,7 @@ class GPC():
     @classmethod
     def from_config(cls, config_fn):
         try:
-            print "from_config:", config_fn
+            print("from_config:", config_fn)
             with open(os.path.join(config_fn)) as data_file:
                 config = json.load( data_file )
 
@@ -81,7 +81,7 @@ class GPC():
                     kernel_params = np.array(config['Kernel_Params']),
                 )
         except EnvironmentError:
-            print "Unable to load GPC from_config file", config_fn
+            print("Unable to load GPC from_config file", config_fn)
             raise
 
 
@@ -119,12 +119,12 @@ class GPC():
             max_blocks_per_grid = max(max_grid_dim)
 
             if self.verbose:
-                print "max_threads_per_block", max_threads_per_block
-                print "max_block_dim", max_block_dim
-                print "max_grid_dim", max_grid_dim
-                print "max_blocks_per_grid", max_blocks_per_grid
-                print "block_dim", block_dim
-                print "grid_dim", grid_dim
+                print("max_threads_per_block", max_threads_per_block)
+                print("max_block_dim", max_block_dim)
+                print("max_grid_dim", max_grid_dim)
+                print("max_blocks_per_grid", max_blocks_per_grid)
+                print("block_dim", block_dim)
+                print("grid_dim", grid_dim)
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -140,7 +140,7 @@ class GPC():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print 'Bad kernel mode, kernel_mode=%s'%self.kernel_mode
+            print('Bad kernel mode, kernel_mode=%s'%self.kernel_mode)
             raise
 
         if params is not None:
@@ -223,8 +223,8 @@ class GPC():
         if self.debug:
             Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32))
             if not np.allclose(Kxx_cpu, Kxx):
-                print 'kxx_gpu_wrapper(CPU):\n', Kxx_cpu
-                print 'kxx_gpu_wrapper(GPU):\n', Kxx
+                print('kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
+                print('kxx_gpu_wrapper(GPU):\n', Kxx)
                 raise
 
         return Kxx
@@ -267,8 +267,8 @@ class GPC():
         if self.debug:
             Kxp_cpu = self.kernel_xp(X, P, theta)
             if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                print 'kxp_gpu_wrapper(CPU):\n', Kxp_cpu
-                print 'kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get()
+                print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
+                print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
                 raise
 
         return Kxp_gpu.get()
@@ -288,7 +288,7 @@ class GPC():
         # Mode finding for Laplace GPC.  Algorithm 3.1 from "Gaussian Process for Machine Learning"
         y = self.training_data[self.Ycol].values
         if self.verbose:
-            print 'y:', y
+            print('y:', y)
         N = len(y)
         if f_guess is not None:
             f = f_guess
@@ -302,22 +302,22 @@ class GPC():
         K = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
         for i in range(maxiter):
-            if self.verbose: print '---[ %d ]------------------------------------'%i
-            if self.verbose: print 'f:', f
+            if self.verbose: print('---[ %d ]------------------------------------'%i)
+            if self.verbose: print('f:', f)
 
             pi = 1.0/(1.0+np.exp(-f))
-            if self.verbose: print 'pi:', pi
+            if self.verbose: print('pi:', pi)
 
             t = (y+1)/2.0
-            if self.verbose: print 't:', t
-            if self.verbose: print 'Computing W ...'
+            if self.verbose: print('t:', t)
+            if self.verbose: print('Computing W ...')
 
             d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
 
             W = np.diag( -d2_df2_log_p_y_given_f ) # NOTE: Using logit (3.15)
             sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
-            if self.verbose: print 'Computing B ...'
+            if self.verbose: print('Computing B ...')
             #B = np.eye(N) + np.dot(sqrtW, np.dot(K, sqrtW))
             ### Dan's method for B:
             w = np.sqrt( -d2_df2_log_p_y_given_f )
@@ -325,28 +325,28 @@ class GPC():
             B = np.eye(N) + np.multiply(K, w_outer)
             ###
 
-            if self.verbose: print 'Computing L ...'
+            if self.verbose: print('Computing L ...')
             L = np.linalg.cholesky(B)
 
-            if self.verbose: print 'Computing b ...'
+            if self.verbose: print('Computing b ...')
             d_df_log_p_y_given_f = t - pi
             b = np.dot(W,f) + d_df_log_p_y_given_f
-            if self.verbose: print 'b:', b
+            if self.verbose: print('b:', b)
 
-            if self.verbose: print 'Computing W12_K_b ...'
+            if self.verbose: print('Computing W12_K_b ...')
             W12_K_b = np.dot(sqrtW, np.dot(K,b))
 
-            if self.verbose: print 'Computing L_slash_W12_K_b ...'
+            if self.verbose: print('Computing L_slash_W12_K_b ...')
             L_slash_W12_K_b = np.linalg.solve(L, W12_K_b)
 
-            if self.verbose: print 'Computing Lt_slash_L_slash_W12_K_b ...'
+            if self.verbose: print('Computing Lt_slash_L_slash_W12_K_b ...')
             Lt_slash_L_slash_W12_K_b = np.linalg.solve(np.transpose(L), L_slash_W12_K_b)
 
-            if self.verbose: print 'Computing a ...'
+            if self.verbose: print('Computing a ...')
             a = b - np.dot(sqrtW, Lt_slash_L_slash_W12_K_b)
 
-            if self.verbose: print 'a:', a
-            if self.verbose: print 'Computing f ...'
+            if self.verbose: print('a:', a)
+            if self.verbose: print('Computing f ...')
             f = np.dot(K, a)
 
             log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y,f)))
@@ -359,9 +359,9 @@ class GPC():
                 break
 
             if i == maxiter - 1:
-                print 'WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad
+                print('WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad)
 
-        print theta, '--> log_q_y_given_X_theta: %f (%d f-iterations)' % (log_q_y_given_X_theta, i)
+        print(theta, '--> log_q_y_given_X_theta: %f (%d f-iterations)' % (log_q_y_given_X_theta, i))
 
         return {
             'f_hat':f,
@@ -406,7 +406,7 @@ class GPC():
 
         C = np.linalg.solve(L, np.dot(sqrtW, K))
 
-        #print np.diag(K - np.dot(np.transpose(C),C)) - np.diag(K - np.dot(K,np.linalg.solve(np.linalg.inv(W)+K,K)))
+        #print(np.diag(K - np.dot(np.transpose(C),C)) - np.diag(K - np.dot(K,np.linalg.solve(np.linalg.inv(W)+K,K))))
         #exit()
 
         N = f.shape[0]
@@ -423,7 +423,7 @@ class GPC():
         d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
         Winv = np.diag( -1.0/d2_df2_log_p_y_given_f ) # NOTE: Using logit (3.15)
         Kinv_plus_W_all_inv = K - np.dot(K, np.dot( np.linalg.inv(Winv+K), K))
-        #print Kinv_plus_W_all_inv - ( K - np.dot(K, np.linalg.solve(np.linalg.inv(W)+K,K)) )
+        #print(Kinv_plus_W_all_inv - ( K - np.dot(K, np.linalg.solve(np.linalg.inv(W)+K,K)) ))
         I_plus_KW_all_inv = np.linalg.inv(np.eye(N)+np.dot(K,W))
         '''
 
@@ -458,15 +458,15 @@ class GPC():
                 s22[i] += part2
                 the_rest += part2 * d_fhat_dtheta_j[i]
             d_dtheta_logZ_UGH[j] += the_rest
-            #print d_dtheta_logZ[j], d_dtheta_logZ_UGH[j], d_dtheta_logZ_UGH[j]-d_dtheta_logZ[j]
-            #print s22-np.diag(s2_part1)
-            #print s2 - s22
-            #print s3 -d_fhat_dtheta_j
-            #print np.dot(np.transpose(s2), s3) - the_rest
-            print d_dtheta_logZ[j] - d_dtheta_logZ_UGH[j]
+            #print(d_dtheta_logZ[j], d_dtheta_logZ_UGH[j], d_dtheta_logZ_UGH[j]-d_dtheta_logZ[j])
+            #print(s22-np.diag(s2_part1))
+            #print(s2 - s22)
+            #print(s3 -d_fhat_dtheta_j)
+            #print(np.dot(np.transpose(s2), s3) - the_rest)
+            print(d_dtheta_logZ[j] - d_dtheta_logZ_UGH[j])
             '''
 
-        if self.verbose: print 'd_dtheta_logZ:', d_dtheta_logZ
+        if self.verbose: print('d_dtheta_logZ:', d_dtheta_logZ)
 
         return -logZ, -d_dtheta_logZ, f # Careful with sign
 
@@ -490,22 +490,22 @@ class GPC():
 
     def laplace_predict(self, theta, f_hat, P):
         y = self.training_data[self.Ycol].values
-        if self.verbose: print 'y:', y
+        if self.verbose: print('y:', y)
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
         KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
-        if self.verbose: print '---[ PREDICT ]------------------------------------'
-        if self.verbose: print 'f_hat:', f_hat
+        if self.verbose: print('---[ PREDICT ]------------------------------------')
+        if self.verbose: print('f_hat:', f_hat)
         pi = 1.0/(1.0+np.exp(-f_hat))
-        if self.verbose: print 'pi:', pi
+        if self.verbose: print('pi:', pi)
         t = (y+1)/2.0
-        if self.verbose: print 't:', t
+        if self.verbose: print('t:', t)
 
         d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
         sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
-        if self.verbose: print 'Computing B ...'
+        if self.verbose: print('Computing B ...')
         #B = np.eye(N) + np.dot(sqrtW, np.dot(K, sqrtW))
         ### Dan's method for B:
         w = np.sqrt( -d2_df2_log_p_y_given_f )
@@ -519,7 +519,7 @@ class GPC():
         # p-specific code begins here:
         ret = pd.DataFrame(columns = ['Sample', 'Mean', 'Var', 'Logistic', 'Trapz'])
         for sample, p_series in P.iterrows():
-            if self.verbose: print 'Y:', sample, self.training_data.loc[sample, self.Ycol]
+            if self.verbose: print('Y:', sample, self.training_data.loc[sample, self.Ycol])
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f)
@@ -539,10 +539,10 @@ class GPC():
             logi = logistic(mu)
             trapz = np.trapz(integrand, x=fstar)
 
-            if self.verbose: print 'MEAN:', f_bar_star
-            if self.verbose: print 'VAR:', V
-            if self.verbose: print 'LOGIS:', logi
-            if self.verbose: print 'TRAPZ:', trapz
+            if self.verbose: print('MEAN:', f_bar_star)
+            if self.verbose: print('VAR:', V)
+            if self.verbose: print('LOGIS:', logi)
+            if self.verbose: print('TRAPZ:', trapz)
 
             ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean':f_bar_star, 'Var':V[0], 'Logistic':logi, 'Trapz':trapz})])
 
@@ -612,14 +612,14 @@ class GPC():
             }
         )
         '''
-        print 'OPTIMIZATION RETURNED:\n', ret
+        print('OPTIMIZATION RETURNED:\n', ret)
         self.theta = ret.x # Length scales now on 0-1 range
         #self.theta = np.abs(ret.x) + 1e-6 # Length scales now on 0-1 range
 
         f_hat = self.find_posterior_mode(self.theta)['f_hat']
         np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
 
-        print 'OPTIMIZATION RETURNED:\n', ret
+        print('OPTIMIZATION RETURNED:\n', ret)
 
         # Restore original index
         if idx[0] is not None:
@@ -644,7 +644,7 @@ class GPC():
         ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
 
         #with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
-        #    print ret
+        #    print(ret)
 
         return ret
 
@@ -706,7 +706,7 @@ class GPC():
                     ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row]) # , projection='3d'
 
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
-                    print row, col, row*self.D+col, fixed_inputs
+                    print(row, col, row*self.D+col, fixed_inputs)
 
                     # TODO: Real parameter ranges here, not just 0-1
                     (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
@@ -723,7 +723,7 @@ class GPC():
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
                     self.debug=False;
-                    #print 'WARNING: DEBUG!\n'
+                    #print('WARNING: DEBUG!\n')
                     self.verbose=False
 
                     ret = self.evaluate( Xdf )
@@ -736,7 +736,7 @@ class GPC():
                         CS = ax.contour(X1, X2, Y_mean, zorder=100)
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print 'Unable to plot mean contour'
+                        print('Unable to plot mean contour')
                         pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25)
@@ -745,7 +745,7 @@ class GPC():
                         CS = ax_std_latent.contour(X1, X2, Y_std_latent, zorder=100)
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print 'Unable to plot std contour'
+                        print('Unable to plot std contour')
                         pass
 
                     if col == self.D-1:

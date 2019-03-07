@@ -6,7 +6,7 @@ from history_matching.gpc import GPC
 # WARNING: FIXING RANDOM SEED!
 np.random.seed(0)
 
-N = 50
+N = 25
 x = np.linspace(0,2*np.pi,N)
 f = (np.sin(x) + 1)/2.
 #f = 1 / (1 + np.exp(-x))
@@ -44,7 +44,7 @@ if True:
     #S2: 3.9387755102
     #L2: 0.0559183673469
 
-p = pd.DataFrame({'x':np.linspace(-2*np.pi, 2*np.pi + 2*np.pi, 100)})
+p = pd.DataFrame({'x':np.linspace(-2*np.pi, 4*np.pi, 100)})
 prediction = g.evaluate(p)
 
 # PLOT
@@ -88,9 +88,9 @@ for i, s2 in enumerate(sigma2_vec):
 
 amin = NLML.argmin()
 i,j = np.unravel_index(amin, NLML.shape)
-print 'MIN:', NLML[i,j]
-print 'S2:', S2[i,j]
-print 'L2:', L2[i,j]
+print('MIN:', NLML[i,j])
+print('S2:', S2[i,j])
+print('L2:', L2[i,j])
 
 
 # Plot the surface.
