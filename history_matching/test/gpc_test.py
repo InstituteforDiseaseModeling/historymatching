@@ -4,58 +4,183 @@ import matplotlib.pyplot as plt
 from history_matching.gpc import GPC
 
 # WARNING: FIXING RANDOM SEED!
-np.random.seed(0)
+np.random.seed(10)
 
-N = 25
+#N = 20+30+10
+N = 100
 x = np.linspace(0,2*np.pi,N)
-f = (np.sin(x) + 1)/2.
-#f = 1 / (1 + np.exp(-x))
+#f = (np.sin(x) + 1)/2.
+f = 1 / (1 + np.exp(-3*(x-np.pi)))
 y = 2 * (np.random.rand(N) < f) - 1
+
+'''
+x = np.sort(np.concatenate([
+    np.random.normal(loc=-6, scale=0.8, size=20),
+    np.random.normal(loc=0, scale=0.8, size=30),
+    np.random.normal(loc=2, scale=0.8, size=10),
+]))
+
+
+y = np.concatenate([
+    np.ones(shape=20),
+    np.negative(np.ones(shape=30)),
+    np.ones(shape=10)
+])
+'''
 
 data = pd.DataFrame({
     'x': x,
     'y': y
-})
+    })
 data.index.name = 'Sample'
 
 param_info = pd.DataFrame({
     'Name': ['x'],
-    'Min': [0],
-    'Max': [2*np.pi]
+    'Min': [0], #[-9], #[0],
+    'Max': [2*np.pi], #[5], #[2*np.pi]
 }).set_index('Name')
 
 g = GPC(['x'], 'y', data, param_info,
             kernel_mode = 'RBF',
             #kernel_params = [0.001, 0.04],
-            kernel_params = [4, 1.4],
+            kernel_params = [4, 0.4], # Sigma_f^2 and lengthscale^2
             verbose = False,
             debug = False
         )
 
+
+### Test find posterior mode against eq 3.17
+theta = [4, 0.2]
+ret = g.find_posterior_mode(theta, f_guess=None, tol_grad=1e-6, maxiter=10000)
+assert( np.allclose(ret['f_hat'], np.dot(ret['K'], ret['d_df_log_p_y_given_f']), atol=1e-5) )
+
+##########################################
+
+
+#s2_range = (1, 15)
+#l2_range = (0.01, 0.15)
+s2_range = (60, 80)
+l2_range = (0.25, 0.5)
+
+optim = None
 if True:
-    g.optimize_hyperparameters(
-        x0 = [4, 0.1],
-        bounds = ((0.01,20),(0.01,0.1)),
-        eps=1e-2,
+    print('BEGIN: optimize_hyperparameters')
+    optim = g.optimize_hyperparameters(
+        x0 = [65, 0.45], #[4, 0.1],
+        bounds = (s2_range, l2_range),
+        eps=1e-3,
         disp=True,
         maxiter=15000
     )
-    #MIN: 11.3391800355
-    #S2: 3.9387755102
-    #L2: 0.0559183673469
+    print('DONE optimize_hyperparameters')
 
-p = pd.DataFrame({'x':np.linspace(-2*np.pi, 4*np.pi, 100)})
+
+p = pd.DataFrame({'x':np.linspace(-2*np.pi, 4*np.pi, 1000)})
+#p = pd.DataFrame({'x':np.linspace(-9, 5, 250)})
 prediction = g.evaluate(p)
 
 # PLOT
-fig, (ax1,ax2) = plt.subplots(1,2)
+fig, (ax1,ax2) = plt.subplots(1,2, figsize=(16,10))
 ax1.plot(x,f, 'r-')
-ax1.scatter(x,(y+1)/2.,s=25)
-ax1.plot(p['x'], prediction['Trapz'], 'b.:')
+ax1.scatter(x, (y+1)/2.,s=100, color='g', marker='+')
+ax1.plot(p['x'], prediction['Mean'], 'b-') # TODO: Var
+ax1.plot(p['x'], prediction['Mean'] + 2*np.sqrt(prediction['Var']), 'b--')
+ax1.plot(p['x'], prediction['Mean'] - 2*np.sqrt(prediction['Var']), 'b--')
 
-ax2.errorbar(x=p['x'], y=prediction['Mean'], yerr=np.sqrt(prediction['Var']))
+ax2.plot(p['x'], prediction['Logit-Mean'], 'b-')
+ax2.plot(p['x'], prediction['Logit-Mean'] + 2*np.sqrt(prediction['Logit-Var']), 'b--')
+ax2.plot(p['x'], prediction['Logit-Mean'] - 2*np.sqrt(prediction['Logit-Var']), 'b--')
 
+##################################
 #plt.show(); exit()
+##################################
+################### 1D
+# Slice across sigma2
+from matplotlib import cm
+fig = plt.figure(figsize=(10,10))
+ax1 = fig.add_subplot(1,2,1)
+ax2 = fig.add_subplot(1,2,2)
+
+# Make data.
+l2 = 0.04
+sigma2_vec = np.linspace(s2_range[0], s2_range[1], 100) #np.logspace(np.log10(s2_range[0]), np.log10(s2_range[1]), 25)
+NLML = np.zeros_like(sigma2_vec)
+d_dsigma2_NLML = np.zeros_like(sigma2_vec)
+
+f_hat = None
+for i, s2 in enumerate(sigma2_vec):
+    nlml, df, f_hat = g.negative_log_marginal_likelihood_and_gradient(np.array([s2, l2]), f_hat)
+    NLML[i] = nlml
+    d_dsigma2_NLML[i] = df[0]
+
+
+i_star = NLML.argmin()
+
+# Plot
+ax1.plot(sigma2_vec, NLML, 'b')
+ax1.plot(sigma2_vec[i_star], NLML[i_star], 'b+')
+ax2.plot( sigma2_vec, np.zeros_like(sigma2_vec), 'k:')
+
+num_diff = np.diff(NLML) / np.diff(sigma2_vec)
+if i_star < len(num_diff):
+    ax2.plot( sigma2_vec[i_star], num_diff[i_star], 'b+')
+ax2.plot( 0.5*(sigma2_vec[:-1] + sigma2_vec[1:]), num_diff, 'b')
+
+j = np.abs(d_dsigma2_NLML).argmin()
+ax2.plot(sigma2_vec, d_dsigma2_NLML, 'r:')
+ax2.plot(sigma2_vec[j], d_dsigma2_NLML[j], 'r.')
+
+
+ax1.set_xlabel('sigma2_f')
+ax1.set_ylabel('NLML')
+ax1.set_xlim([np.min(sigma2_vec), np.max(sigma2_vec)])
+ax1.set_title('Negative log marginal likelihood wrt s2, l2=%f'%l2)
+
+
+################### 1D
+# Slice across l2
+from matplotlib import cm
+fig = plt.figure(figsize=(10,10))
+ax1 = fig.add_subplot(1,2,1)
+ax2 = fig.add_subplot(1,2,2)
+
+# Make data.
+sigma2_f = 4
+l2_vec = np.linspace(l2_range[0], l2_range[1], 100)
+
+NLML = np.zeros_like(l2_vec)
+d_dl2_NLML = np.zeros_like(l2_vec)
+
+f_hat = None
+for i, l2 in enumerate(l2_vec):
+    nlml, df, f_hat = g.negative_log_marginal_likelihood_and_gradient(np.array([s2, l2]), f_hat)
+    NLML[i] = nlml
+    d_dl2_NLML[i] = df[1]
+
+i_star = NLML.argmin()
+
+# Plot
+ax1.plot(l2_vec, NLML, 'b')
+ax1.plot(l2_vec[i_star], NLML[i_star], 'b+')
+ax2.plot( l2_vec, np.zeros_like(l2_vec), 'k:')
+
+num_diff = np.diff(NLML) / np.diff(l2_vec)
+if i_star < len(num_diff):
+    ax2.plot( l2_vec[i_star], num_diff[i_star], 'b+')
+ax2.plot( 0.5*(l2_vec[:-1] + l2_vec[1:]), num_diff, 'b')
+
+j = np.abs(d_dl2_NLML).argmin()
+ax2.plot(l2_vec, d_dl2_NLML, 'r:')
+ax2.plot(l2_vec[j], d_dl2_NLML[j], 'r.')
+
+ax1.set_xlabel('l2')
+ax1.set_ylabel('NLML')
+ax1.set_xlim([np.min(l2_vec), np.max(l2_vec)])
+ax1.set_title('Negative log marginal likelihood wrt l2, s2=%f'%sigma2_f)
+
+
+
+############### 2D
 
 # THETA PLOT
 from mpl_toolkits.mplot3d import Axes3D
@@ -66,45 +191,55 @@ ax1 = fig.add_subplot(1,2,1, projection='3d')
 ax2 = fig.add_subplot(1,2,2) #, projection='3d')
 
 # Make data.
-sigma2_vec = np.linspace(1, 15, 25)
-l2_vec = np.linspace(0.01, 0.1, 25)
+sigma2_vec = np.linspace(s2_range[0], s2_range[1], 10) #np.logspace(np.log10(s2_range[0]), np.log10(s2_range[1]), 25)
+l2_vec = np.linspace(l2_range[0], l2_range[1], 10)
 S2 = np.zeros( [len(sigma2_vec), len(l2_vec)] )
 L2 = np.zeros_like(S2)
 NLML = np.zeros_like(S2)
-NormDF = np.zeros_like(S2)
+#NormDF = np.zeros_like(S2)
 dS2 = np.zeros_like(S2)
 dL2 = np.zeros_like(S2)
+
 
 f_hat = None
 for i, s2 in enumerate(sigma2_vec):
     for j, l2 in enumerate(l2_vec):
         S2[i,j] = s2
         L2[i,j] = l2
-        f, df, f_hat = g.negative_log_marginal_likelihood_and_gradient(np.array([s2, l2]), f_hat)
-        NLML[i,j] = f
-        dS2[i,j] = df[0] * (np.max(sigma2_vec)-np.min(sigma2_vec))**2 #* ((np.max(sigma2_vec) - np.min(sigma2_vec))/(np.max(l2_vec)-np.min(l2_vec)))**2
-        dL2[i,j] = df[1] * (np.max(l2_vec)-np.min(l2_vec))**2
-        NormDF[i,j] = np.linalg.norm(df)
+        nlml, df, f_hat = g.negative_log_marginal_likelihood_and_gradient(np.array([s2, l2]), f_hat)
+        NLML[i,j] = nlml
+        dS2[i,j] = df[0]
+        dL2[i,j] = df[1]
+        #NormDF[i,j] = np.linalg.norm(df)
+
+# Correct for range
+dS2 = dS2 * (s2_range[1] - s2_range[0])**2
+dL2 = dL2 * (l2_range[1] - l2_range[0])**2
 
 amin = NLML.argmin()
-i,j = np.unravel_index(amin, NLML.shape)
-print('MIN:', NLML[i,j])
-print('S2:', S2[i,j])
-print('L2:', L2[i,j])
-
+i_star, j_star = np.unravel_index(amin, NLML.shape)
+print('MIN:', NLML[i_star,j_star])
+print('S2:', S2[i_star, j_star])
+print('L2:', L2[i_star, j_star])
 
 # Plot the surface.
-surf1 = ax1.plot_surface(S2, L2, NLML, cmap=cm.coolwarm, linewidth=0, antialiased=False)
-q1 = ax2.quiver(S2, L2, dS2, dL2, angles='xy', scale_units='xy', units='xy') #, scale=1, units='xy', scale_units='xy', angles='xy')
-ax1.scatter(S2[i,j], L2[i,j], NLML[i,j]*1.1, c='r', s=500, marker='*')
-ax2.scatter(S2[i,j], L2[i,j], c='r', marker='*', s=50)
+surf1 = ax1.plot_surface(S2, L2, NLML, cmap=cm.coolwarm, linewidth=0, antialiased=False, alpha=0.5)
+q1 = ax2.quiver(S2, L2, dS2, dL2, angles='xy', units='xy') # , scale=1 scale_units='xy'
+
+if optim:
+    ax1.scatter(optim.x[0], optim.x[1], optim.fun, c='m', s=500, marker='*')
+    ax2.scatter(optim.x[0], optim.x[1], c='m', marker='*', s=50)
+
+ax1.scatter(S2[i_star, j_star], L2[i_star, j_star], NLML[i_star, j_star], c='r', s=500, marker='.')
+ax2.scatter(S2[i_star, j_star], L2[i_star, j_star], c='r', marker='.', s=50)
 #surf2 = ax2.plot_surface(S2, L2, NormDF, cmap=cm.coolwarm, linewidth=0, antialiased=False)
 
-ax1.set_xlabel('sigma2_n')
+ax1.set_xlabel('sigma2_f')
 ax1.set_ylabel('l^2')
 ax1.set_xlim([np.min(sigma2_vec), np.max(sigma2_vec)])
 ax1.set_ylim([np.min(l2_vec), np.max(l2_vec)])
-ax2.set_xlabel('sigma2_n')
+ax1.set_title('Negative log marginal likelihood')
+ax2.set_xlabel('sigma2_f')
 ax2.set_ylabel('l^2')
 ax2.set_xlim([np.min(sigma2_vec), np.max(sigma2_vec)])
 ax2.set_ylim([np.min(l2_vec), np.max(l2_vec)])

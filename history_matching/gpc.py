@@ -25,6 +25,9 @@ plt.rcParams['image.cmap'] = 'jet'
 # NOTE theta = [sigma_f^2, l_1^2, l_2^2, ..., l_D^2] # NOTE: no sigma_n^2
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
 
+#with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
+#    print(ret)
+
 class GPC():
 
     def __init__(self, Xcols, Ycol, training_data, param_info,
@@ -281,31 +284,29 @@ class GPC():
         return sample
 
 
-    def find_posterior_mode(self, theta, f_guess=None, tol_grad=1e-5, maxiter=1000):
-        # TODO: f_hat guess, or 0 if none
-        # TODO: stopping criteria
+    def find_posterior_mode(self, theta, f_guess=None, tol_grad=1e-6, maxiter=100):
+        # Mode finding for Laplace GPC.  Algorithm 3.1 from "Gaussian Process for Machine Learning", p46
 
-        # Mode finding for Laplace GPC.  Algorithm 3.1 from "Gaussian Process for Machine Learning"
         y = self.training_data[self.Ycol].values
         if self.verbose:
             print('y:', y)
         N = len(y)
         if f_guess is not None:
-            f = f_guess
-            assert( isinstance(f, np.ndarray) )
-            assert(f.shape[0] == y.shape[0])
+            f_hat = f_guess
+            assert( isinstance(f_hat, np.ndarray) )
+            assert(f_hat.shape[0] == y.shape[0])
         else:
-            f = np.zeros_like( y )
+            f_hat = np.zeros_like( y )
 
         X = self.training_data[self.Xcols_scaled].values
 
-        K = self.kxx_gpu_wrapper(X, theta)  # This is for f
+        K = self.kxx_gpu_wrapper(X, theta)  # This is for f, no sigma2_n
 
         for i in range(maxiter):
             if self.verbose: print('---[ %d ]------------------------------------'%i)
-            if self.verbose: print('f:', f)
+            if self.verbose: print('f_hat:', f_hat)
 
-            pi = 1.0/(1.0+np.exp(-f))
+            pi = 1.0/(1.0+np.exp(-f_hat))
             if self.verbose: print('pi:', pi)
 
             t = (y+1)/2.0
@@ -330,7 +331,7 @@ class GPC():
 
             if self.verbose: print('Computing b ...')
             d_df_log_p_y_given_f = t - pi
-            b = np.dot(W,f) + d_df_log_p_y_given_f
+            b = np.dot(W, f_hat) + d_df_log_p_y_given_f
             if self.verbose: print('b:', b)
 
             if self.verbose: print('Computing W12_K_b ...')
@@ -346,13 +347,14 @@ class GPC():
             a = b - np.dot(sqrtW, Lt_slash_L_slash_W12_K_b)
 
             if self.verbose: print('a:', a)
-            if self.verbose: print('Computing f ...')
-            f = np.dot(K, a)
+            if self.verbose: print('Computing f_hat ...')
+            f_hat = np.dot(K, a)
 
-            log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y,f)))
-            log_q_y_given_X_theta = -0.5 * np.dot(np.transpose(a),f) + log_p_y_given_f - sum( np.log(np.diag(L)) )
+            #####log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y, f_hat)))
+            log_p_y_given_f = np.sum(-np.log(1 + np.exp(-np.multiply(y, f_hat))))
+            log_q_y_given_X_theta = -0.5 * np.dot(np.transpose(a), f_hat) + log_p_y_given_f - sum( np.log(np.diag(L)) )
 
-            d_df_log_q_y_given_X_theta = d_df_log_p_y_given_f - np.linalg.solve(K, f)
+            d_df_log_q_y_given_X_theta = d_df_log_p_y_given_f - np.linalg.solve(K, f_hat)
             # print '***', log_q_y_given_X_theta, np.linalg.norm(d_df_log_q_y_given_X_theta)
             norm_grad = np.linalg.norm(d_df_log_q_y_given_X_theta)
             if norm_grad < tol_grad:
@@ -361,10 +363,10 @@ class GPC():
             if i == maxiter - 1:
                 print('WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad)
 
-        print(theta, '--> log_q_y_given_X_theta: %f (%d f-iterations)' % (log_q_y_given_X_theta, i))
+        print(theta, '--> log_q_y_given_X_theta: %f (%d f_hat-iterations)' % (log_q_y_given_X_theta, i))
 
         return {
-            'f_hat':f,
+            'f_hat': f_hat,
             'log_q_y_given_X_theta': log_q_y_given_X_theta,
             'L': L,
             'K': K,
@@ -372,7 +374,8 @@ class GPC():
             'sqrtW': sqrtW,
             'pi': pi,
             'a': a,
-            'd_df_log_p_y_given_f': d_df_log_p_y_given_f
+            'd_df_log_p_y_given_f': d_df_log_p_y_given_f,
+            'log_p_y_given_f': log_p_y_given_f
         }
 
 
@@ -381,14 +384,15 @@ class GPC():
         return -log_q_y_given_X_theta
 
     def negative_log_marginal_likelihood_and_gradient(self, theta, f_guess=None):
+        # Rasmussen and Williams GPML p126 algo 5.1
+
         #if np.any(theta < 0):
         #    theta = np.abs(theta)
         #theta += 1e-6 # Keep away from 0
 
-        # Rasmussen and Williams GPML p126 algo 5.1
         mode_results_dict = self.find_posterior_mode(theta, f_guess)
 
-        f = mode_results_dict['f_hat']
+        f_hat = mode_results_dict['f_hat']
         logZ = mode_results_dict['log_q_y_given_X_theta']
         L = mode_results_dict['L']
         K = mode_results_dict['K']
@@ -397,35 +401,27 @@ class GPC():
         pi = mode_results_dict['pi']
         a = mode_results_dict['a']
         d_df_log_p_y_given_f = mode_results_dict['d_df_log_p_y_given_f']
+        log_p_y_given_f = mode_results_dict['log_p_y_given_f']
 
         X = self.training_data[self.Xcols_scaled].values
 
         L_slash_sqrtW = np.linalg.solve(L, sqrtW)
         R = np.dot(sqrtW, np.linalg.solve(np.transpose(L), L_slash_sqrtW)) # <-- good
 
-
         C = np.linalg.solve(L, np.dot(sqrtW, K))
 
         #print(np.diag(K - np.dot(np.transpose(C),C)) - np.diag(K - np.dot(K,np.linalg.solve(np.linalg.inv(W)+K,K))))
         #exit()
 
-        N = f.shape[0]
+        N = f_hat.shape[0]
         # L is good
 
         s2_part1 = np.diag( np.diag(K) - np.diag(np.dot(np.transpose(C),C)) )
         d3_df3_log_p_y_given_f = pi * (1-pi) * (2*pi-1)
         s2 = -0.5 * np.dot(s2_part1, d3_df3_log_p_y_given_f)
+        s2 = -s2 # TEMP - OMG, RW is WRONG!!!!!
 
         d_dtheta_logZ = np.zeros_like(theta)
-        '''
-        d_dtheta_logZ_UGH = np.zeros_like(theta)
-        #Kinv_plus_W_all_inv = np.linalg.inv(np.linalg.inv(K)+W)
-        d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
-        Winv = np.diag( -1.0/d2_df2_log_p_y_given_f ) # NOTE: Using logit (3.15)
-        Kinv_plus_W_all_inv = K - np.dot(K, np.dot( np.linalg.inv(Winv+K), K))
-        #print(Kinv_plus_W_all_inv - ( K - np.dot(K, np.linalg.solve(np.linalg.inv(W)+K,K)) ))
-        I_plus_KW_all_inv = np.linalg.inv(np.eye(N)+np.dot(K,W))
-        '''
 
         for j in range(len(theta)):
             # Compute dK/dtheta_j
@@ -441,34 +437,11 @@ class GPC():
             s3 = b - np.dot(K, np.dot(R,b))
             d_dtheta_logZ[j] = s1 + np.dot(np.transpose(s2), s3) #s1 seems good, s2 is good
 
-            '''
-            d_dtheta_logZ_UGH[j] = 0.5*np.dot(np.transpose(f), 
-                                    np.linalg.solve(K, 
-                                        np.dot(C,a) 
-                                    )
-                                ) \
-                      -0.5 * np.trace( np.linalg.solve( np.linalg.inv(W)+K, C ) )
-
-            the_rest = 0
-            d_fhat_dtheta_j = np.dot(I_plus_KW_all_inv, np.dot(C,d_df_log_p_y_given_f))
-            s22 = np.zeros(N)
-            the_rest = 0
-            for i in range(N):
-                part2 = -0.5 * Kinv_plus_W_all_inv[i,i] * d3_df3_log_p_y_given_f[i]
-                s22[i] += part2
-                the_rest += part2 * d_fhat_dtheta_j[i]
-            d_dtheta_logZ_UGH[j] += the_rest
-            #print(d_dtheta_logZ[j], d_dtheta_logZ_UGH[j], d_dtheta_logZ_UGH[j]-d_dtheta_logZ[j])
-            #print(s22-np.diag(s2_part1))
-            #print(s2 - s22)
-            #print(s3 -d_fhat_dtheta_j)
-            #print(np.dot(np.transpose(s2), s3) - the_rest)
-            print(d_dtheta_logZ[j] - d_dtheta_logZ_UGH[j])
-            '''
 
         if self.verbose: print('d_dtheta_logZ:', d_dtheta_logZ)
 
-        return -logZ, -d_dtheta_logZ, f # Careful with sign
+        return -logZ, -d_dtheta_logZ, f_hat # Careful with sign
+
 
     @staticmethod
     def func_wrapper(f, cache_size=100):
@@ -506,45 +479,58 @@ class GPC():
         sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
         if self.verbose: print('Computing B ...')
-        #B = np.eye(N) + np.dot(sqrtW, np.dot(K, sqrtW))
         ### Dan's method for B:
         w = np.sqrt( -d2_df2_log_p_y_given_f )
         w_outer = np.outer(w,w)
         B = np.eye(N) + np.multiply(KXX, w_outer)
+        ###
+        #Bslow = np.eye(N) + np.dot(sqrtW, np.dot(KXX, sqrtW))
+        #print( np.allclose(B, Bslow) )
+        #exit()
         ###
 
         L = np.linalg.cholesky(B)
         d_df_log_p_y_given_f = t-pi
 
         # p-specific code begins here:
-        ret = pd.DataFrame(columns = ['Sample', 'Mean', 'Var', 'Logistic', 'Trapz'])
+        ret = pd.DataFrame(columns = ['Sample', 'Logit-Mean', 'Logit-Var', 'Mean', 'Var']) #, 'Trapz' 
         for sample, p_series in P.iterrows():
-            if self.verbose: print('Y:', sample, self.training_data.loc[sample, self.Ycol])
+            if self.verbose: print(sample, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
-            f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f)
+            f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f) # MEAN (vector of length 1)
 
             v = np.linalg.solve(L, np.dot(sqrtW, KXp))
-            Kpp = self.kxx_gpu_wrapper(p, theta) # For latent distribution
-            V = Kpp - np.dot(np.transpose(v),v)
+            Kpp = self.kxx_gpu_wrapper(p, theta) # For latent distribution, don't add sigma2_n
+            V = Kpp - np.dot(np.transpose(v),v) # VARIANCE (matrix of size 1x1)
 
             def logistic(f):
                 return 1.0 / (1 + np.exp(-f))
 
             mu = f_bar_star[0]
             sigma2 = V[0,0]
-            fstar = np.linspace(mu - 3*np.sqrt(sigma2), mu + 3*np.sqrt(sigma2), 100)
-            integrand = np.multiply(logistic(fstar), np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
+            # Numerical integration ##### (Works, but need variance calculation)
+            #fstar = np.linspace(mu - 3*np.sqrt(sigma2), mu + 3*np.sqrt(sigma2), 100000) # <-- should choose num points (100) wisely
+            #integrand = np.multiply(logistic(fstar), np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
+            #trapz = np.trapz(integrand, x=fstar) # Average prediction (better)
 
-            logi = logistic(mu)
-            trapz = np.trapz(integrand, x=fstar)
+            ### Monte Carlo
+            pts = np.random.multivariate_normal(f_bar_star, V, size=10000)
+            yy = logistic(pts)
+            mean = np.mean(yy)
+            var = np.var(yy)
+            ###
 
-            if self.verbose: print('MEAN:', f_bar_star)
-            if self.verbose: print('VAR:', V)
+            logi = logistic(mu) # MAP prediction
+
+            if self.verbose: print('MEAN:', mu)
+            if self.verbose: print('VAR:', sigma2)
             if self.verbose: print('LOGIS:', logi)
-            if self.verbose: print('TRAPZ:', trapz)
+            #if self.verbose: print('TRAPZ:', trapz)
+            if self.verbose: print('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
 
-            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean':f_bar_star, 'Var':V[0], 'Logistic':logi, 'Trapz':trapz})])
+
+            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Logit-Mean':mu, 'Logit-Var':sigma2, 'Mean': mean, 'Var': var})]) # 'Trapz':trapz
 
         return ret
 
@@ -558,45 +544,47 @@ class GPC():
 
         f_, fprime = GPC.func_wrapper(self.negative_log_marginal_likelihood_and_gradient)
 
-        '''
+        # Truncated Newton Conjugate-Gradient
         ret = spo.minimize(
             fun = f_,
             x0 = x0,
             #args=(X,Y,P),
             jac = fprime,
-            method='CG',
+            method='TNC',
             bounds = bounds, # Constrain values
             hess=None, hessp=None,
             constraints=(), tol=None, callback=None,
             options= {
-                'maxiter':maxiter,
-                'disp':disp,
-                'eps': eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
+                'maxiter': maxiter,
+                'disp': disp,
+                'eps': eps
             }
         )
-        '''
 
+        '''
+        # BFGS
         ret = spo.minimize(
             fun = f_,
             #args=(X,Y,P),
             x0 = x0,
             method='L-BFGS-B',
             bounds = bounds, # Constrain values
-            jac = fprime, 
-            #jac = (), 
+            jac = fprime,
             hess=None, hessp=None,
             constraints=(), tol=None, callback=None,
             options= {
-                'maxiter':maxiter,
-                'disp':disp,
+                'maxiter': maxiter,
+                'disp': disp,
                 'ftol': 1e-12,
                 'gtol': 1e-12,
                 'factr': 0.01,
-                'eps':eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
+                'eps': eps
             }
         )
+        '''
 
         '''
+        # No jacobian
         ret = spo.minimize(
             self.negative_log_marginal_likelihood,
             #args=(X,Y,P),
@@ -612,6 +600,7 @@ class GPC():
             }
         )
         '''
+
         print('OPTIMIZATION RETURNED:\n', ret)
         self.theta = ret.x # Length scales now on 0-1 range
         #self.theta = np.abs(ret.x) + 1e-6 # Length scales now on 0-1 range
@@ -624,6 +613,8 @@ class GPC():
         # Restore original index
         if idx[0] is not None:
             self.training_data.set_index(idx, inplace=True)
+
+        return ret
 
 
     def evaluate(self, data):
@@ -643,17 +634,7 @@ class GPC():
 
         ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
 
-        #with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
-        #    print(ret)
-
         return ret
-
-        '''
-        return {    'Mean': f,
-                    'Var_Latent': np.diag(covf),
-                    'Var_Predictive': np.diag(covf) + self.theta[1]*np.ones(P.shape[0]),
-                    'Fig': fig      }
-        '''
 
 
     def plot_data(self, samples_to_circle=[]):
