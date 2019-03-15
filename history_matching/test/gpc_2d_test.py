@@ -48,7 +48,7 @@ lx2_range = (0.1, 1)
 ly2_range = (0.1, 5)
 
 optim = None
-if False:
+if True:
     print('BEGIN: optimize_hyperparameters')
     optim = g.optimize_hyperparameters(
         x0 = [30, 0.2, 1],
@@ -116,6 +116,7 @@ ax1.scatter(p['x'], p['y'], prediction['Mean'] - 2*np.sqrt(prediction['Var']), '
 ax1.set_xlabel('X')
 ax1.set_ylabel('Y')
 ax1.set_zlabel('Z')
+ax1.set_title('GPC Metamodel')
 
 proposal['Keep'] = proposal['Implausibility'] < implausibility_threshold
 proposal['Color'] = 'r'
@@ -126,7 +127,7 @@ ax2.plot_surface(Xf, Yf, implausibility_threshold * np.ones_like(Xf), color='k',
 ax2.set_xlabel('X')
 ax2.set_ylabel('Y')
 ax2.set_zlabel('Z')
-
+ax2.set_title('Implausibility')
 
 plt.show()
 

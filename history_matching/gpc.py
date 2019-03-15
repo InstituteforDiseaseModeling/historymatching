@@ -363,7 +363,7 @@ class GPC():
             if i == maxiter - 1:
                 print('WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad)
 
-        print(theta, '--> log_q_y_given_X_theta: %f (%d f_hat-iterations)' % (log_q_y_given_X_theta, i))
+        if self.verbose: print(theta, '--> log_q_y_given_X_theta: %f (%d f_hat-iterations)' % (log_q_y_given_X_theta, i))
 
         return {
             'f_hat': f_hat,
@@ -509,28 +509,39 @@ class GPC():
 
             mu = f_bar_star[0]
             sigma2 = V[0,0]
-            # Numerical integration ##### (Works, but need variance calculation)
-            #fstar = np.linspace(mu - 3*np.sqrt(sigma2), mu + 3*np.sqrt(sigma2), 100000) # <-- should choose num points (100) wisely
-            #integrand = np.multiply(logistic(fstar), np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
-            #trapz = np.trapz(integrand, x=fstar) # Average prediction (better)
 
+            import time
+            tz = time.time()
+            # Numerical integration ##### (Works, but need variance calculation)
+            fstar = np.linspace(mu - 3*np.sqrt(sigma2), mu + 3*np.sqrt(sigma2), 100) # <-- should choose num points (100) wisely
+            mean_integrand = np.multiply(logistic(fstar), np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
+            mean_trapz = np.trapz(mean_integrand, x=fstar) # Average prediction (better)
+            var_integrand = np.multiply( (logistic(fstar) - mean_trapz)**2, np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
+            var_trapz = np.trapz(var_integrand, x=fstar) # Average prediction (better)
+            #print('TRAPZ', time.time()-tz)
+
+            '''
             ### Monte Carlo
+            mc = time.time()
             pts = np.random.multivariate_normal(f_bar_star, V, size=10000)
             yy = logistic(pts)
             mean = np.mean(yy)
             var = np.var(yy)
+            print('MC', time.time()-mc)
             ###
+            '''
+
+            #print('MC: (%f, %f)  VS  TRAPZ: (%f, %f)' % (mean, var, mean_trapz, var_trapz))
 
             logi = logistic(mu) # MAP prediction
 
             if self.verbose: print('MEAN:', mu)
             if self.verbose: print('VAR:', sigma2)
             if self.verbose: print('LOGIS:', logi)
-            #if self.verbose: print('TRAPZ:', trapz)
-            if self.verbose: print('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
+            #if self.verbose: print('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
+            if self.verbose: print('TRAPZ:', 'mean=%f, var=%f'%(mean_trapz, var_trapz))
 
-
-            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Logit-Mean':mu, 'Logit-Var':sigma2, 'Mean': mean, 'Var': var})]) # 'Trapz':trapz
+            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Logit-Mean':mu, 'Logit-Var':sigma2, 'Mean': mean_trapz, 'Var': var_trapz})])
 
         return ret
 
