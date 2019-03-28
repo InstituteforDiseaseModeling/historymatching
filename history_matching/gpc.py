@@ -7,6 +7,7 @@ import seaborn as sns
 import os
 import copy
 import json
+import time
 
 from multiprocessing import Pool
 from functools import partial
@@ -19,6 +20,7 @@ import pycuda.driver as drv
 from pycuda.compiler import SourceModule
 from string import Template
 import skcuda.misc as misc
+from scipy.stats import norm
 
 plt.rcParams['image.cmap'] = 'jet'
 
@@ -37,6 +39,9 @@ class GPC():
             debug = False,
             **kwargs
         ):
+
+
+        self.use_laplace_approximation = False
 
         #sns.set_style("whitegrid")
 
@@ -283,6 +288,142 @@ class GPC():
         sample.reset_index(inplace=True)
         return sample
 
+    def expectation_propagation(self, theta):
+        # Algorithm 3.5: "Expectation Propagation for binary classification" from "Gaussian Process for Machine Learning", p58
+        # TODO: WIP!
+
+        # TODO: Pass in 
+        mu_tol = 1e-6
+        Sigma_tol = 1e-6
+
+        y = self.training_data[self.Ycol].values
+        if self.verbose:
+            print('y:', y)
+        N = len(y)
+
+        X = self.training_data[self.Xcols_scaled].values
+        K = self.kxx_gpu_wrapper(X, theta)  # This is for f, no sigma2_n
+
+        # Initialize
+        nu = np.zeros(N)
+        tau = np.zeros(N)
+        Sigma = K.copy()
+        mu = np.zeros(N)
+
+        tau_minus_i_vec = np.zeros_like(tau)
+        mu_minus_i_vec = np.zeros_like(mu)
+
+        done = False
+        it = 0
+        while not done:
+            prev_mu = mu
+            prev_Sigma = Sigma
+            prev_tau = tau
+            prev_nu = nu
+            for i in range(N):
+                #print(it, ' ', i,' ', '-'*80)
+                sigma2_i = Sigma[i,i] # Not sure on this one
+                tau_minus_i = 1/sigma2_i - tau[i]
+                nu_minus_i = mu[i]/sigma2_i - nu[i]
+                assert(tau_minus_i > 0)
+
+                den = tau_minus_i * (tau_minus_i+1)
+                sqrt_den = np.sqrt( den )
+                zi = y[i]*nu_minus_i / sqrt_den
+                N_zi = norm.pdf(zi)
+                Z_hat_i = norm.cdf(zi)
+                mu_hat_i = nu_minus_i/tau_minus_i + y[i]*N_zi / (Z_hat_i * sqrt_den )
+                sigma2_hat_i = 1/tau_minus_i - N_zi / (Z_hat_i * den) * (zi + N_zi / Z_hat_i)
+
+                delta_tau = 1/sigma2_hat_i - tau_minus_i - tau[i] # using sigmahat2_i
+                tau[i] = tau[i] + delta_tau
+                nu[i] = mu_hat_i/sigma2_hat_i - nu_minus_i # using muhat_u and sigmahat2_i
+
+                si = Sigma[:,i]
+                Sigma = Sigma - 1/( (1/delta_tau) + Sigma[i,i] ) * np.outer(si, si)
+                mu = np.dot(Sigma, nu)
+
+                tau_minus_i_vec[i] = tau_minus_i
+                mu_minus_i_vec[i] = nu_minus_i / tau_minus_i
+
+            Stilde = np.diag(tau)
+            '''
+            sqrtStilde = np.diag(np.sqrt(tau))
+            B = np.eye(N) + np.dot(sqrtStilde, np.dot(K, sqrtStilde))
+            L = np.linalg.cholesky(B)
+            V = np.linalg.solve( np.transpose(L), np.dot(sqrtStilde,K) )
+            print('V', V)
+            print('K', K)
+            Sigma = K - np.dot(np.transpose(V),V)
+            print('Sigma after', Sigma)
+
+            t = time.time()
+            SigmaDIRECT = np.linalg.inv(np.linalg.inv(K) + Stilde)
+            print('Sigma DIRECT %f'%(time.time()-t), SigmaDIRECT)
+            '''
+
+            #t = time.time()
+            SigmaMIL = K - np.dot(K, np.linalg.solve( np.linalg.inv(Stilde)+K, K) )
+            #print('Sigma MIL %f'%(time.time()-t), SigmaMIL)
+
+            '''
+            import scipy as sp
+            t = time.time()
+            a = np.linalg.inv(Stilde)+K
+            ainvsqrt = sp.linalg.sqrtm(np.linalg.inv(a))
+            Vdjk = np.dot(ainvsqrt, K)
+            SigmaDJK = K - np.dot(np.transpose(Vdjk),Vdjk)
+            print('Sigma DJK %f'%(time.time()-t), SigmaDJK)
+            print('Vdjk', Vdjk)
+
+            #Bdjk = np.linalg.inv(Stilde)+K
+            #Ldjk = np.linalg.cholesky(Bdjk)
+            #Vdjk2 = np.linalg.solve(np.transpose(Ldjk),K)
+            #print('Vdjk2', Vdjk2)
+            '''
+
+            Sigma = SigmaMIL
+
+            mu = np.dot(Sigma, nu)
+
+            d_mu = np.linalg.norm(mu - prev_mu)
+            d_Sigma = np.linalg.norm(Sigma - prev_Sigma)
+
+            done = d_mu > mu_tol or d_Sigma > Sigma_tol
+
+            it = it + 1
+
+
+        # TEMP because long-cut in calculating Sigma above
+        sqrtStilde = np.diag(np.sqrt(tau))
+        B = np.eye(N) + np.dot(sqrtStilde, np.dot(K, sqrtStilde))
+        L = np.linalg.cholesky(B)
+        ##################################################
+
+        logZep_terms_1_and_4 = 0.5 * sum( np.log(1+np.multiply(tau, np.reciprocal(tau_minus_i_vec))) - np.log(np.diag(L)) )
+
+        T = np.diag(tau_minus_i_vec)
+        big_matrix = K - np.dot(K, np.dot(sqrtStilde, np.linalg.solve(B, np.dot(sqrtStilde, K)))) - np.linalg.inv(T+Stilde)
+        logZep_terms_5b_and_2 = 0.5*np.dot(np.transpose(nu), np.dot(big_matrix, nu))
+
+        stuff = np.linalg.solve( Stilde+T, np.dot(Stilde, mu_minus_i_vec - 2*nu) )
+        logZep_term_5a = 0.5 * np.dot(np.transpose(mu_minus_i_vec), np.dot(T, stuff))
+
+        num = np.multiply(y, mu_minus_i_vec)
+        den = np.sqrt(1+tau_minus_i_vec)
+        logZep_term_3 = np.sum( np.log( norm.cdf( np.multiply(num, np.reciprocal(den)))) )
+
+        #print('logZep_terms_1_and_4', logZep_terms_1_and_4)
+        #print('logZep_terms_5b_and_2', logZep_terms_5b_and_2)
+        #print('logZep_term_5a', logZep_term_5a)
+        #print('logZep_term_3', logZep_term_3)
+
+        logZep = logZep_terms_1_and_4 + logZep_terms_5b_and_2 + logZep_term_5a + logZep_term_3
+
+        print(theta, '-->', -logZep)
+
+        return -logZep, nu, tau
+
 
     def find_posterior_mode(self, theta, f_guess=None, tol_grad=1e-6, maxiter=100):
         # Mode finding for Laplace GPC.  Algorithm 3.1 from "Gaussian Process for Machine Learning", p46
@@ -380,8 +521,12 @@ class GPC():
 
 
     def negative_log_marginal_likelihood(self, theta):
-        log_q_y_given_X_theta = self.find_posterior_mode(theta)['log_q_y_given_X_theta']
-        return -log_q_y_given_X_theta
+        if self.use_laplace_approximation:
+            log_q_y_given_X_theta = self.find_posterior_mode(theta)['log_q_y_given_X_theta']
+            return -log_q_y_given_X_theta
+        else:
+            logZep, _, _  = self.expectation_propagation(theta)
+            return logZep
 
     def negative_log_marginal_likelihood_and_gradient(self, theta, f_guess=None):
         # Rasmussen and Williams GPML p126 algo 5.1
@@ -493,7 +638,7 @@ class GPC():
         d_df_log_p_y_given_f = t-pi
 
         # p-specific code begins here:
-        ret = pd.DataFrame(columns = ['Sample', 'Logit-Mean', 'Logit-Var', 'Mean', 'Var']) #, 'Trapz' 
+        ret = pd.DataFrame(columns = ['Sample', 'Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz' 
         for sample, p_series in P.iterrows():
             if self.verbose: print(sample, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
@@ -541,7 +686,59 @@ class GPC():
             #if self.verbose: print('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
             if self.verbose: print('TRAPZ:', 'mean=%f, var=%f'%(mean_trapz, var_trapz))
 
-            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Logit-Mean':mu, 'Logit-Var':sigma2, 'Mean': mean_trapz, 'Var': var_trapz})])
+            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean-Transformed':mu, 'Var-Transformed':sigma2, 'Mean': mean_trapz, 'Var': var_trapz})])
+
+        return ret
+
+
+    def ep_predict(self, theta, P):
+        logZep, nu, tau = self.expectation_propagation(theta)
+
+        y = self.training_data[self.Ycol].values
+        if self.verbose: print('y:', y)
+        N = len(y)
+        X = self.training_data[self.Xcols_scaled].values
+        KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
+
+        if self.verbose: print('---[ PREDICT ]------------------------------------')
+
+        if self.verbose: print('Computing B ...')
+        sqrtStilde = np.diag(np.sqrt(tau))
+        B = np.eye(N) + np.dot(sqrtStilde, np.dot(KXX, sqrtStilde))
+        L = np.linalg.cholesky(B)
+
+        sqrtStilde_K_nu = np.dot(sqrtStilde, np.dot(KXX, nu))
+        L_slash_sqrtStilde_K_nu = np.linalg.solve(L, sqrtStilde_K_nu)
+        Lt_slash_L_slash_sqrtStilde_K_nu = np.linalg.solve(np.transpose(L), L_slash_sqrtStilde_K_nu)
+        z = np.dot(sqrtStilde, Lt_slash_L_slash_sqrtStilde_K_nu)
+
+        ret = pd.DataFrame(columns = ['Sample', 'Mean-Transformed', 'Var-Transformed', 'Mean', 'Var'])
+        for sample, p_series in P.iterrows():
+            if self.verbose: print(sample, 'x_star is', p_series['x (scaled)'])
+            p = p_series.as_matrix()[np.newaxis,:]
+            KXp = self.kxp_gpu_wrapper(X, p, theta)
+            f_bar_star = np.dot(np.transpose(KXp), nu-z) # MEAN (vector of length 1)
+
+            v = np.linalg.solve(L, np.dot(sqrtStilde, KXp))
+            Kpp = self.kxx_gpu_wrapper(p, theta) # For latent distribution, don't add sigma2_n
+            V = Kpp - np.dot(np.transpose(v),v) # VARIANCE (matrix of size 1x1)
+
+            mu = f_bar_star[0]
+            sigma2 = V[0,0]
+
+            mean = norm.cdf( mu / np.sqrt(1+sigma2) )
+
+            fstar = np.linspace(mu - 3*np.sqrt(sigma2), mu + 3*np.sqrt(sigma2), 100) # <-- should choose num points (100) wisely
+            '''
+            mean_integrand = np.multiply(norm.cdf(fstar), np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
+            mean_trapz = np.trapz(mean_integrand, x=fstar) # Average prediction (better)
+            print(mean, mean_trapz)
+            '''
+
+            var_integrand = np.multiply( (norm.cdf(fstar) - mean)**2, np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
+            var_trapz = np.trapz(var_integrand, x=fstar) # TODO: Closed form!
+
+            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean-Transformed':mu, 'Var-Transformed':sigma2, 'Mean': mean, 'Var': var_trapz})])
 
         return ret
 
@@ -553,8 +750,13 @@ class GPC():
         idx = self.training_data.index.names    # Save index
         self.training_data.reset_index(inplace=True)
 
-        f_, fprime = GPC.func_wrapper(self.negative_log_marginal_likelihood_and_gradient)
+        if self.use_laplace_approximation:
+            f_, fprime = GPC.func_wrapper(self.negative_log_marginal_likelihood_and_gradient)
+        else:
+            f_ = self.negative_log_marginal_likelihood
+            fprime = None
 
+        '''
         # Truncated Newton Conjugate-Gradient
         ret = spo.minimize(
             fun = f_,
@@ -571,6 +773,7 @@ class GPC():
                 'eps': eps
             }
         )
+        '''
 
         '''
         # BFGS
@@ -594,10 +797,9 @@ class GPC():
         )
         '''
 
-        '''
         # No jacobian
         ret = spo.minimize(
-            self.negative_log_marginal_likelihood,
+            fun = f_, #self.negative_log_marginal_likelihood,
             #args=(X,Y,P),
             x0 = x0,
             method='L-BFGS-B',
@@ -610,7 +812,6 @@ class GPC():
                 'eps':eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
             }
         )
-        '''
 
         print('OPTIMIZATION RETURNED:\n', ret)
         self.theta = ret.x # Length scales now on 0-1 range
@@ -637,13 +838,17 @@ class GPC():
             data[xc+' (scaled)'] = (data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
         # PREDICT:
-        if True:
-            f_hat = self.find_posterior_mode(self.theta)['f_hat']
-            np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
-        else:
-            f_hat = np.genfromtxt('f_hat.csv', delimiter=',')
+        if self.use_laplace_approximation:
+            if True:
+                f_hat = self.find_posterior_mode(self.theta)['f_hat']
+                np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
+            else:
+                f_hat = np.genfromtxt('f_hat.csv', delimiter=',')
 
-        ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
+            ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
+        else:
+            ret = self.ep_predict(self.theta, data[self.Xcols_scaled])
+
 
         return ret
 
@@ -747,38 +952,47 @@ class GPC():
         #plt.tight_layout()
         return (fig, fig_std_latent)
 
-    def plot_errors(self, train, test, mean_col, var_predictive_col, var_latent_col):
+    def plot_errors(self, train, test, mean_col, var_predictive_col, truth_col=None):
+        train['Z'] = (train[self.Ycol] + 1)/2
+        test['Z'] = (test[self.Ycol] + 1)/2
+        Ycol = 'Z'
 
-        train['Z_Predictive'] = (train[self.Ycol] - train[mean_col]) / np.sqrt(train[var_predictive_col])
-        train['Z_Latent'] = (train[self.Ycol] - train[mean_col]) / np.sqrt(train[var_latent_col])
-        test['Z_Predictive'] = (test[self.Ycol] - test[mean_col]) / np.sqrt(test[var_predictive_col])
-        test['Z_Latent'] = (test[self.Ycol] - test[mean_col]) / np.sqrt(test[var_latent_col])
+        if truth_col:
+            train['ZTrue_Predictive'] = (train[truth_col] - train[mean_col]) / np.sqrt(train[var_predictive_col])
+            test['ZTrue_Predictive'] = (test[truth_col] - test[mean_col]) / np.sqrt(test[var_predictive_col])
+
+            train['Truth-Logit'] = np.log(train[truth_col]/(1-train[truth_col]))
+            test['Truth-Logit'] = np.log(test[truth_col]/(1-test[truth_col]))
+            train['ZTrue_Predictive_Logit'] = (train['Truth-Logit'] - train['Mean-Transformed']) / np.sqrt(train['Var-Transformed'])
+            test['ZTrue_Predictive_Logit'] = (test['Truth-Logit'] - test['Mean-Transformed']) / np.sqrt(test['Var-Transformed'])
+
+        train['Z_Predictive'] = (train[Ycol] - train[mean_col]) / np.sqrt(train[var_predictive_col])
+        test['Z_Predictive'] = (test[Ycol] - test[mean_col]) / np.sqrt(test[var_predictive_col])
+
 
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
         ax = ax1
-        ax.errorbar(x=test[self.Ycol], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='o', c='m', lw=0.5)
-        ax.errorbar(x=train[self.Ycol], y=train[mean_col], yerr=2*np.sqrt(train[var_predictive_col]), fmt='o', c='c', lw=0.5)
-        ax.margins(x=0,y=0.05)
-        xlim = ax.get_xlim()
-        ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
-        ax.set_xlabel(self.Ycol)
-        ax.set_ylabel('Predicted')
-
-        ax = ax2
-        ax.scatter(x=train['Sample'], y=train[self.Ycol], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.scatter(x=test['Sample'], y=test[self.Ycol], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+        ax.scatter(x=train['Sample'], y=train[Ycol], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+        ax.scatter(x=test['Sample'], y=test[Ycol], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
         ax.errorbar(x=train['Sample'], y=train[mean_col], yerr=2*np.sqrt(train[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
         ax.errorbar(x=test['Sample'], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
+        if truth_col:
+            ax.plot(train['Sample'], train[truth_col], 'c.')
+            ax.plot(test['Sample'], test[truth_col], 'm.')
         ax.margins(x=0,y=0.05)
         ax.set_xlabel('Sample Index')
-        ax.set_ylabel(self.Ycol)
+        ax.set_ylabel(Ycol)
 
 
         a=0.05
-        ax = ax4
+        ax = ax3
         ax.scatter(x=train['Sample'], y=train['Z_Predictive'], c='c', marker='_', alpha=0.5, linewidth=1)
         ax.scatter(x=test['Sample'], y=test['Z_Predictive'], c='m', marker='_', alpha=0.5, linewidth=1)
+
+        if truth_col:
+            ax.scatter(x=train['Sample'], y=train['ZTrue_Predictive'], c='c', marker='.', alpha=0.5, linewidth=1)
+            ax.scatter(x=test['Sample'], y=test['ZTrue_Predictive'], c='m', marker='.', alpha=0.5, linewidth=1)
 
         ax.margins(x=0,y=0.05)
         xlim = ax.get_xlim()
@@ -791,12 +1005,32 @@ class GPC():
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Z-Score')
 
-        ax = ax3
-        ax.scatter(x=train[self.Ycol], y=train['Z_Predictive'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
-        ax.scatter(x=test[self.Ycol], y=test['Z_Predictive'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
-        ax.set_xlabel(self.Ycol)
-        ax.set_ylabel('Z-Score')
+        ax = ax2
+        if truth_col:
+            ax.scatter(x=train['Sample'], y=train['Truth-Logit'], c='c', marker='.', s=25, alpha=1, linewidths=1, zorder=50)
+            ax.scatter(x=test['Sample'], y=test['Truth-Logit'], c='m', marker='.', s=25, alpha=1, linewidths=1, zorder=50)
+        ax.errorbar(x=train['Sample'], y=train['Mean-Transformed'], yerr=2*np.sqrt(train['Var-Transformed']), fmt='.', ms=5, linewidth=1, c='k')
+        ax.errorbar(x=test['Sample'], y=test['Mean-Transformed'], yerr=2*np.sqrt(test['Var-Transformed']), fmt='.', ms=5, linewidth=1, c='k')
         ax.margins(x=0,y=0.05)
+        ax.set_xlabel('Sample Index')
+        ax.set_ylabel(Ycol)
+
+        if truth_col:
+            a=0.05
+            ax = ax4
+            ax.scatter(x=train['Sample'], y=train['ZTrue_Predictive_Logit'], c='c', marker='_', alpha=0.5, linewidth=1)
+            ax.scatter(x=test['Sample'], y=test['ZTrue_Predictive_Logit'], c='m', marker='_', alpha=0.5, linewidth=1)
+
+            ax.margins(x=0,y=0.05)
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            ax.add_patch( patches.Rectangle( (0, -2), xlim[1], 4, alpha=a, color='g' ) )
+            ax.add_patch( patches.Rectangle( (0, -5), xlim[1], 3, alpha=a, color='#FFA500' ) )
+            ax.add_patch( patches.Rectangle( (0, 2), xlim[1], 3, alpha=a, color='#FFA500' ) )
+            ax.add_patch( patches.Rectangle( (0, ylim[0]), xlim[1], abs(ylim[0])-5, alpha=a, color='r' ) )
+            ax.add_patch( patches.Rectangle( (0, 5), xlim[1], abs(ylim[1])-5, alpha=a, color='r' ) )
+            ax.set_xlabel('Sample Index')
+            ax.set_ylabel('Z-Score')
 
         plt.tight_layout()
 

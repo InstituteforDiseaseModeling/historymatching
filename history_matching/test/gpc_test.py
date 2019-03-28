@@ -43,30 +43,34 @@ param_info = pd.DataFrame({
 g = GPC(['x'], 'y', data, param_info,
             kernel_mode = 'RBF',
             #kernel_params = [0.001, 0.04],
-            kernel_params = [4, 0.4], # Sigma_f^2 and lengthscale^2
+            kernel_params = [40, 0.14], # Sigma_f^2 and lengthscale^2
             verbose = False,
             debug = False
         )
-
 
 ### Test find posterior mode against eq 3.17
 theta = [4, 0.2]
 ret = g.find_posterior_mode(theta, f_guess=None, tol_grad=1e-6, maxiter=10000)
 assert( np.allclose(ret['f_hat'], np.dot(ret['K'], ret['d_df_log_p_y_given_f']), atol=1e-5) )
 
+
+#g.expectation_propagation(theta)
+
+#exit()
+
 ##########################################
 
 
 #s2_range = (1, 15)
 #l2_range = (0.01, 0.15)
-s2_range = (60, 80)
-l2_range = (0.25, 0.5)
+s2_range = (20, 80)
+l2_range = (0.10, 0.75)
 
 optim = None
-if True:
+if False:
     print('BEGIN: optimize_hyperparameters')
     optim = g.optimize_hyperparameters(
-        x0 = [65, 0.45], #[4, 0.1],
+        x0 = [40, 0.45], #[4, 0.1],
         bounds = (s2_range, l2_range),
         eps=1e-3,
         disp=True,
@@ -87,12 +91,14 @@ ax1.plot(p['x'], prediction['Mean'], 'b-') # TODO: Var
 ax1.plot(p['x'], prediction['Mean'] + 2*np.sqrt(prediction['Var']), 'b--')
 ax1.plot(p['x'], prediction['Mean'] - 2*np.sqrt(prediction['Var']), 'b--')
 
-ax2.plot(p['x'], prediction['Logit-Mean'], 'b-')
-ax2.plot(p['x'], prediction['Logit-Mean'] + 2*np.sqrt(prediction['Logit-Var']), 'b--')
-ax2.plot(p['x'], prediction['Logit-Mean'] - 2*np.sqrt(prediction['Logit-Var']), 'b--')
+transformed_mean_var = 'Mean-Transformed'
+transformed_var_var = 'Var-Transformed'
+ax2.plot(p['x'], prediction[transformed_mean_var], 'b-')
+ax2.plot(p['x'], prediction[transformed_mean_var] + 2*np.sqrt(prediction[transformed_var_var]), 'b--')
+ax2.plot(p['x'], prediction[transformed_mean_var] - 2*np.sqrt(prediction[transformed_var_var]), 'b--')
 
 ##################################
-#plt.show(); exit()
+plt.show(); exit()
 ##################################
 ################### 1D
 # Slice across sigma2
