@@ -420,7 +420,8 @@ class GPC():
 
         logZep = logZep_terms_1_and_4 + logZep_terms_5b_and_2 + logZep_term_5a + logZep_term_3
 
-        print(theta, '-->', -logZep)
+        if self.verbose:
+            print(theta, '-->', -logZep)
 
         return -logZep, nu, tau
 
@@ -639,8 +640,8 @@ class GPC():
 
         # p-specific code begins here:
         ret = pd.DataFrame(columns = ['Sample', 'Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz' 
-        for sample, p_series in P.iterrows():
-            if self.verbose: print(sample, 'x_star is', p_series['x (scaled)'])
+        for idx, p_series in P.iterrows():
+            if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f) # MEAN (vector of length 1)
@@ -686,7 +687,7 @@ class GPC():
             #if self.verbose: print('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
             if self.verbose: print('TRAPZ:', 'mean=%f, var=%f'%(mean_trapz, var_trapz))
 
-            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean-Transformed':mu, 'Var-Transformed':sigma2, 'Mean': mean_trapz, 'Var': var_trapz})])
+            ret = pd.concat([ret, pd.DataFrame({'Sample':[p_series['Sample']], 'Mean-Transformed':mu, 'Var-Transformed':sigma2, 'Mean': mean_trapz, 'Var': var_trapz})])
 
         return ret
 
@@ -712,9 +713,9 @@ class GPC():
         Lt_slash_L_slash_sqrtStilde_K_nu = np.linalg.solve(np.transpose(L), L_slash_sqrtStilde_K_nu)
         z = np.dot(sqrtStilde, Lt_slash_L_slash_sqrtStilde_K_nu)
 
-        ret = pd.DataFrame(columns = ['Sample', 'Mean-Transformed', 'Var-Transformed', 'Mean', 'Var'])
-        for sample, p_series in P.iterrows():
-            if self.verbose: print(sample, 'x_star is', p_series['x (scaled)'])
+        ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var'])
+        for idx, p_series in P.iterrows():
+            if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), nu-z) # MEAN (vector of length 1)
@@ -738,7 +739,8 @@ class GPC():
             var_integrand = np.multiply( (norm.cdf(fstar) - mean)**2, np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
             var_trapz = np.trapz(var_integrand, x=fstar) # TODO: Closed form!
 
-            ret = pd.concat([ret, pd.DataFrame({'Sample':[sample], 'Mean-Transformed':mu, 'Var-Transformed':sigma2, 'Mean': mean, 'Var': var_trapz})])
+            ret = pd.concat([ret, pd.DataFrame({'Mean-Transformed':[mu], 'Var-Transformed':[sigma2], 'Mean': [mean], 'Var': [var_trapz]})])
+        ret.index = P.index.copy()
 
         return ret
 
@@ -849,6 +851,7 @@ class GPC():
         else:
             ret = self.ep_predict(self.theta, data[self.Xcols_scaled])
 
+        #ret = data.merge(ret, left_index=True, right_index=True)
 
         return ret
 
@@ -970,7 +973,7 @@ class GPC():
         test['Z_Predictive'] = (test[Ycol] - test[mean_col]) / np.sqrt(test[var_predictive_col])
 
 
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+        fig, ((ax1, ax2)) = plt.subplots(nrows=2, ncols=1, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
         ax = ax1
         ax.scatter(x=train['Sample'], y=train[Ycol], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
@@ -986,7 +989,7 @@ class GPC():
 
 
         a=0.05
-        ax = ax3
+        ax = ax2
         ax.scatter(x=train['Sample'], y=train['Z_Predictive'], c='c', marker='_', alpha=0.5, linewidth=1)
         ax.scatter(x=test['Sample'], y=test['Z_Predictive'], c='m', marker='_', alpha=0.5, linewidth=1)
 
@@ -1004,33 +1007,6 @@ class GPC():
         ax.add_patch( patches.Rectangle( (0, 5), xlim[1], abs(ylim[1])-5, alpha=a, color='r' ) )
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Z-Score')
-
-        ax = ax2
-        if truth_col:
-            ax.scatter(x=train['Sample'], y=train['Truth-Logit'], c='c', marker='.', s=25, alpha=1, linewidths=1, zorder=50)
-            ax.scatter(x=test['Sample'], y=test['Truth-Logit'], c='m', marker='.', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.errorbar(x=train['Sample'], y=train['Mean-Transformed'], yerr=2*np.sqrt(train['Var-Transformed']), fmt='.', ms=5, linewidth=1, c='k')
-        ax.errorbar(x=test['Sample'], y=test['Mean-Transformed'], yerr=2*np.sqrt(test['Var-Transformed']), fmt='.', ms=5, linewidth=1, c='k')
-        ax.margins(x=0,y=0.05)
-        ax.set_xlabel('Sample Index')
-        ax.set_ylabel(Ycol)
-
-        if truth_col:
-            a=0.05
-            ax = ax4
-            ax.scatter(x=train['Sample'], y=train['ZTrue_Predictive_Logit'], c='c', marker='_', alpha=0.5, linewidth=1)
-            ax.scatter(x=test['Sample'], y=test['ZTrue_Predictive_Logit'], c='m', marker='_', alpha=0.5, linewidth=1)
-
-            ax.margins(x=0,y=0.05)
-            xlim = ax.get_xlim()
-            ylim = ax.get_ylim()
-            ax.add_patch( patches.Rectangle( (0, -2), xlim[1], 4, alpha=a, color='g' ) )
-            ax.add_patch( patches.Rectangle( (0, -5), xlim[1], 3, alpha=a, color='#FFA500' ) )
-            ax.add_patch( patches.Rectangle( (0, 2), xlim[1], 3, alpha=a, color='#FFA500' ) )
-            ax.add_patch( patches.Rectangle( (0, ylim[0]), xlim[1], abs(ylim[0])-5, alpha=a, color='r' ) )
-            ax.add_patch( patches.Rectangle( (0, 5), xlim[1], abs(ylim[1])-5, alpha=a, color='r' ) )
-            ax.set_xlabel('Sample Index')
-            ax.set_ylabel('Z-Score')
 
         plt.tight_layout()
 

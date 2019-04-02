@@ -10,15 +10,13 @@ from scipy.stats import norm
 
 func = lambda x,y: 1/4 * (np.tanh(10*x-5)+1) * (np.tanh(3*y-0.9)+1)
 target = 0.7
-logit_target = np.log(target / (1-target))
-probit_target = norm.ppf(target)
 implausibility_threshold = 5
 training_frac = 0.75
 
 mean_var = 'Mean-Transformed'
 var_var = 'Var-Transformed'
 
-num_points_per_iteration = 40 # Number of points per iteration
+num_points_per_iteration = 50 # Number of points per iteration
 num_iterations = 10 # Number of iterations
 num_past_iterations_to_include_in_metamodel = 2 # Number of previous iterations to include in metamodel
 
@@ -78,10 +76,6 @@ for iteration in range(num_iterations):
     train = samples_to_use_this_iter.loc[samples_to_use_this_iter['Train'] == True] #samples_to_use_this_iter.where('Train' == True)
     test = samples_to_use_this_iter.loc[samples_to_use_this_iter['Train'] == False] #samples_to_use_this_iter.where('Train' == False)
 
-    print('TEST 1:')
-    print(test)
-
-
     # 1. FIT GPC
     g.append( GPC(['x', 'y'], 'z', train, param_info,
                 kernel_mode = 'RBF',
@@ -117,8 +111,8 @@ for iteration in range(num_iterations):
         proposal['Max_Implausibility'] = -1 # For plotting
         for it in reversed(range(iteration+1)):
             # TODO: Only evaluate non-implausible points to save time, although will degrate plotting
-            ret = g[it].evaluate(proposal).set_index('Sample')
-            proposal['Implausibility_%d'%it] = (ret[mean_var] - logit_target)**2 / ret[var_var]
+            ret = g[it].evaluate(proposal)
+            proposal['Implausibility_%d'%it] = (ret['Mean'] - target)**2 / ret['Var']
             proposal['Implausibile_%d'%it] = proposal['Implausibility_%d'%it] > implausibility_threshold
             proposal['Implausible'] = proposal['Implausible'] | proposal['Implausibile_%d'%it]
             proposal['Max_Implausibility'] = pd.concat([proposal['Max_Implausibility'], proposal['Implausibility_%d'%it]], axis=1).max(axis=1) # Better way?
@@ -132,27 +126,26 @@ for iteration in range(num_iterations):
 
     next_samples = next_samples.iloc[:num_points_per_iteration] # Trim if needed
     next_samples['Iteration'] = iteration+1
-    print('NS\n', next_samples)
-    exit()
+    next_samples.reset_index(drop=True, inplace=True)
     next_samples.index.name = 'Iter-Sample'
     next_samples.reset_index(inplace=True)
     next_samples['Train' ] = False
     next_samples.loc[ np.random.binomial(n=1, p=training_frac, size=next_samples.shape[0])==1, 'Train' ] = True
+    n = samples.iloc[-1]['Sample']
+    next_samples['Sample'] = list(range(n+1, n+next_samples.shape[0]+1))
 
     # PLOTS ###########################################################################################3
 
     # Evaluate GPC on prediction grid for plotting
-    prediction = g[iteration].evaluate(p).set_index('Sample')
+    prediction = g[iteration].evaluate(p)
 
     train = train \
-        .merge( g[iteration].evaluate(train).set_index('Sample'), left_index=True, right_index=True) \
-        .reset_index()
+        .merge( g[iteration].evaluate(train), left_index=True, right_index=True)
+
     train['Truth'] = train.apply( lambda d: func(d['x'], d['y']), axis=1)
     test = test \
-        .merge( g[iteration].evaluate(test).set_index('Sample'), left_index=True, right_index=True) \
-        .reset_index()
+        .merge( g[iteration].evaluate(test), left_index=True, right_index=True)
     test['Truth'] = test.apply( lambda d: func(d['x'], d['y']), axis=1)
-    print('TEST:\n', test)
     fig = g[iteration].plot_errors(train, test, 'Mean', 'Var', truth_col='Truth')
     plt.savefig('Separatrix_it%d_Errors.png'%iteration)
 
@@ -181,24 +174,22 @@ for iteration in range(num_iterations):
     ax1.set_title('GPC Metamodel')
 
     # Add in points from p to increase plotting resolution
-    proposal = p.copy()
-    proposal['Implausible'] = False
-    proposal['Max_Implausibility'] = -1 # For plotting
+    prediction_grid = p.copy()
+    prediction_grid['Implausible'] = False
+    prediction_grid['Max_Implausibility'] = -1 # For plotting
     for it in reversed(range(iteration+1)):
         # TODO: Only evaluate non-implausible points to save time, although will degrate plotting
-        ret = g[it].evaluate(proposal).set_index('Sample')
-        proposal['Implausibility_%d'%it] = (ret[mean_var] - logit_target)**2 / ret[var_var]
-        proposal['Implausibile_%d'%it] = proposal['Implausibility_%d'%it] > implausibility_threshold
-        proposal['Implausible'] = proposal['Implausible'] | proposal['Implausibile_%d'%it]
-        proposal['Max_Implausibility'] = pd.concat([proposal['Max_Implausibility'], proposal['Implausibility_%d'%it]], axis=1).max(axis=1) # Better way?
+        ret = g[it].evaluate(prediction_grid)
+        prediction_grid['Implausibility_%d'%it] = (ret['Mean'] - target)**2 / ret['Var']
+        prediction_grid['Implausibile_%d'%it] = prediction_grid['Implausibility_%d'%it] > implausibility_threshold
+        prediction_grid['Implausible'] = prediction_grid['Implausible'] | prediction_grid['Implausibile_%d'%it]
+        prediction_grid['Max_Implausibility'] = pd.concat([prediction_grid['Max_Implausibility'], prediction_grid['Implausibility_%d'%it]], axis=1).max(axis=1) # Better way?
 
-    for_plotting = for_plotting.append(proposal[['x', 'y', 'Max_Implausibility']], ignore_index=True)
+    for_plotting = for_plotting.append(prediction_grid[['x', 'y', 'Max_Implausibility']], ignore_index=True)
 
-    m = np.amax(for_plotting['Max_Implausibility'])
+    for_plotting.loc[for_plotting['Max_Implausibility'] > implausibility_threshold+2, 'Max_Implausibility'] = implausibility_threshold+2
     ax2.tricontour(for_plotting['x'], for_plotting['y'], for_plotting['Max_Implausibility'], levels=[implausibility_threshold], linewidths=2, colors='k')
-    levels = list(range(implausibility_threshold+1))
-    if m > implausibility_threshold:
-        levels = levels + [m]
+    levels = list(range(implausibility_threshold+4))
     cntr2 = ax2.tricontourf(for_plotting['x'], for_plotting['y'], for_plotting['Max_Implausibility'], levels=levels, cmap="RdBu_r")
 
     ax2.plot(next_samples['x'], next_samples['y'], 'ro')
@@ -219,11 +210,6 @@ for iteration in range(num_iterations):
     plt.savefig('Separatrix_it%d.png'%iteration)
 
     ##### APPEND NEXT_SAMPLES TO SAMPLES FOR NEXT ITERATION ##############
-    print('BEFORE:', samples)
-    n = samples.iloc[-1]['Sample']
-    next_samples['Sample'] = list(range(n, n+next_samples.shape[0]))
-    samples = samples.append(next_samples[['Iteration', 'Sample', 'Iter-Sample', 'x','y', 'Train']])
-    print('AFTER:', samples)
-    print('AFTER ... 1:', samples.loc[samples['Iteration']==1])
-    exit()
+    samples = samples \
+        .append(next_samples[['Iteration', 'Sample', 'Iter-Sample', 'x','y', 'Train']], ignore_index=True)
 
