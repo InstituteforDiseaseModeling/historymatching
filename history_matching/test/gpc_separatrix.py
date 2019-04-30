@@ -11,14 +11,16 @@ from scipy.stats import norm
 func = lambda x,y: 1/4 * (np.tanh(10*x-5)+1) * (np.tanh(3*y-0.9)+1)
 target = 0.7
 implausibility_threshold = 5
-training_frac = 0.75
+training_frac = 0.80
+
+fs = (24, 15) # Figure size
 
 mean_var = 'Mean-Transformed'
 var_var = 'Var-Transformed'
 
-num_points_per_iteration = 50 # Number of points per iteration
+num_points_per_iteration = 100 # Number of points per iteration
 num_iterations = 10 # Number of iterations
-num_past_iterations_to_include_in_metamodel = 2 # Number of previous iterations to include in metamodel
+num_past_iterations_to_include_in_metamodel = 10 # Number of previous iterations to include in metamodel
 
 # Parameter information
 param_info = pd.DataFrame({
@@ -37,22 +39,34 @@ samples['Iteration'] = 0
 samples['Iter-Sample'] = samples['Sample']
 
 # GPC hyperparameter guess and range bounds
-theta_guess = [25, 0.2, 0.5] # S2, lx2, ly2
+theta_guess = [20, 0.5, 0.5] # S2, lx2, ly2
 s2_range = (1, 100)
-lx2_range = (0.05, 10)
-ly2_range = (0.05, 10)
+lx2_range = (0.01, 10)
+ly2_range = (0.01, 10)
 
 # Prediction grid - for plotting
 Px = Py = 25
 px = np.linspace(0,1,Px)
 py = np.linspace(0,1,Py)
 Px,Py = np.meshgrid(px, py)
-p = pd.DataFrame({'x':Px.flatten(), 'y':Py.flatten()})
+p = pd.DataFrame({'x': Px.flatten(), 'y': Py.flatten()})
 pf = p.apply( lambda d: func(d['x'], d['y']), axis=1)
 Pf = pf.values.reshape(Px.shape)
+p['Truth'] = Pf.flatten()
+p['z'] = np.NaN
+p = p.sort_values('Truth', axis=0).reset_index()
+p.index.name='Sample'
+p.reset_index(inplace=True)
+prediction_grid = p.copy()
+prediction_grid['Implausible'] = False
+prediction_grid['Max_Implausibility'] = -1 # For plotting
+
+hyperparameters = pd.DataFrame(columns=['sigma^2', 'lx^2', 'ly^2', 'fun'])
 
 g = [] # Array to hold the GPC for each iteration
 for iteration in range(num_iterations):
+    print('--- BEGINNING ITERATION %d ------------------------------------'%iteration)
+
     new_samples_this_iter = samples.loc[samples['Iteration']==iteration]
 
     # Simulate
@@ -89,12 +103,14 @@ for iteration in range(num_iterations):
 
     # Optimize hyperparameters
     optim = g[iteration].optimize_hyperparameters(
-        x0 = [20, 0.2, 2],
+        x0 = theta_guess,
         bounds = (s2_range, lx2_range, ly2_range),
         eps = 1e-3,
-        disp = True,
+        disp = False,
         maxiter = 15000
     )
+
+    hyperparameters.loc[iteration] = np.append(g[iteration].theta, [optim['fun']])
 
     # Refocusing
     # TODO Consider: Keep points from prev iter that are not implausible on this iter?
@@ -112,7 +128,7 @@ for iteration in range(num_iterations):
         for it in reversed(range(iteration+1)):
             # TODO: Only evaluate non-implausible points to save time, although will degrate plotting
             ret = g[it].evaluate(proposal)
-            proposal['Implausibility_%d'%it] = (ret['Mean'] - target)**2 / ret['Var']
+            proposal['Implausibility_%d'%it] = np.sqrt( (ret['Mean'] - target)**2 / ret['Var'] )
             proposal['Implausibile_%d'%it] = proposal['Implausibility_%d'%it] > implausibility_threshold
             proposal['Implausible'] = proposal['Implausible'] | proposal['Implausibile_%d'%it]
             proposal['Max_Implausibility'] = pd.concat([proposal['Max_Implausibility'], proposal['Implausibility_%d'%it]], axis=1).max(axis=1) # Better way?
@@ -136,7 +152,22 @@ for iteration in range(num_iterations):
 
     # PLOTS ###########################################################################################3
 
-    # Evaluate GPC on prediction grid for plotting
+    ########## Hyperparameters and function value
+    fig, ax_vec = plt.subplots(nrows=1, ncols=hyperparameters.shape[1], sharex=True, figsize=fs)
+    for i, ax in enumerate(ax_vec):
+        hp_name = hyperparameters.columns[i]
+        ax.plot(hyperparameters[hp_name])
+        #if i == 1:
+        #    plot(s2_range[0], s2_range[0]
+        ax.set_title(hp_name)
+
+#s2_range = (1, 100)
+#lx2_range = (0.01, 10)
+#ly2_range = (0.01, 10)
+    plt.savefig('Separatrix_Hyperparameters.png')
+
+
+    ########## Evaluate GPC on prediction grid for plotting
     prediction = g[iteration].evaluate(p)
 
     train = train \
@@ -146,11 +177,17 @@ for iteration in range(num_iterations):
     test = test \
         .merge( g[iteration].evaluate(test), left_index=True, right_index=True)
     test['Truth'] = test.apply( lambda d: func(d['x'], d['y']), axis=1)
+    print('TRAIN:\n', train)
+    print('TEST:\n', test)
     fig = g[iteration].plot_errors(train, test, 'Mean', 'Var', truth_col='Truth')
     plt.savefig('Separatrix_it%d_Errors.png'%iteration)
 
+    prediction_grid_ret = g[iteration].evaluate(prediction_grid)
+    fig = g[iteration].plot_errors(None, prediction_grid.merge(prediction_grid_ret, left_index=True, right_index=True), 'Mean', 'Var', truth_col='Truth', figsize=fs)
+    plt.savefig('Separatrix_it%d_Grid_Errors.png'%iteration)
+
     ###
-    fig = plt.figure(figsize=(16,10))
+    fig = plt.figure(figsize=fs)
     fig.suptitle('Iteration %d'%iteration, fontsize=12)
     ax1 = fig.add_subplot(1,2,1, projection='3d')
     ax2 = fig.add_subplot(1,2,2)
@@ -174,16 +211,13 @@ for iteration in range(num_iterations):
     ax1.set_title('GPC Metamodel')
 
     # Add in points from p to increase plotting resolution
-    prediction_grid = p.copy()
-    prediction_grid['Implausible'] = False
-    prediction_grid['Max_Implausibility'] = -1 # For plotting
-    for it in reversed(range(iteration+1)):
+    #for it in reversed(range(iteration+1)):
         # TODO: Only evaluate non-implausible points to save time, although will degrate plotting
-        ret = g[it].evaluate(prediction_grid)
-        prediction_grid['Implausibility_%d'%it] = (ret['Mean'] - target)**2 / ret['Var']
-        prediction_grid['Implausibile_%d'%it] = prediction_grid['Implausibility_%d'%it] > implausibility_threshold
-        prediction_grid['Implausible'] = prediction_grid['Implausible'] | prediction_grid['Implausibile_%d'%it]
-        prediction_grid['Max_Implausibility'] = pd.concat([prediction_grid['Max_Implausibility'], prediction_grid['Implausibility_%d'%it]], axis=1).max(axis=1) # Better way?
+    #prediction_grid_ret = g[iteration].evaluate(prediction_grid)
+    prediction_grid['Implausibility_%d'%iteration] = np.sqrt( (prediction_grid_ret['Mean'] - target)**2 / prediction_grid_ret['Var'] )
+    prediction_grid['Implausibile_%d'%iteration] = prediction_grid['Implausibility_%d'%iteration] > implausibility_threshold
+    prediction_grid['Implausible'] = prediction_grid['Implausible'] | prediction_grid['Implausibile_%d'%iteration]
+    prediction_grid['Max_Implausibility'] = pd.concat([prediction_grid['Max_Implausibility'], prediction_grid['Implausibility_%d'%iteration]], axis=1).max(axis=1) # Better way?
 
     for_plotting = for_plotting.append(prediction_grid[['x', 'y', 'Max_Implausibility']], ignore_index=True)
 
@@ -212,4 +246,6 @@ for iteration in range(num_iterations):
     ##### APPEND NEXT_SAMPLES TO SAMPLES FOR NEXT ITERATION ##############
     samples = samples \
         .append(next_samples[['Iteration', 'Sample', 'Iter-Sample', 'x','y', 'Train']], ignore_index=True)
+
+    plt.close('all')
 

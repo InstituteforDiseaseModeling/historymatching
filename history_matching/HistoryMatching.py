@@ -90,7 +90,7 @@ class HistoryMatching():
             data_tmp = self.data.reset_index()
             data_tmp.rename(columns={'Sample_Id': 'Sample_Orig'}, inplace=True)
             data_tmp.index.name='Sample_Id'
-            nRep = data_tmp.iloc[0].shape[0]
+            nRep = 1 if len(data_tmp.iloc[0].shape)==1 else data_tmp.iloc[0].shape[0]
             self.training_data = data_tmp.loc[:nTrain-1]
             self.test_data = data_tmp.loc[nTrain:]
 
@@ -285,8 +285,13 @@ class HistoryMatching():
         test_mean = test_mean.reset_index().set_index('Sample_Id')
 
         # Compute Yerr as the difference between the training data and the GLM for training and test data
+        if 'Yglm' in self.training_data:
+            self.training_data.drop('Yglm', axis=1, inplace=True)
         self.training_data = self.training_data.join(train_mean['Yglm'])
         self.training_data['Yerr'] = self.training_data[self.Ycol] - self.training_data['Yglm']
+
+        if 'Yglm' in self.test_data:
+            self.test_data.drop('Yglm', axis=1, inplace=True)
         self.test_data = self.test_data.join(test_mean['Yglm'])
         self.test_data['Yerr'] = self.test_data[self.Ycol] - self.test_data['Yglm']
 
@@ -410,7 +415,11 @@ class HistoryMatching():
             train_mean['Mean_Estimate'] += train_mean['Yglm']
         train_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         train_mean['Var_Err_Latent'] = ret['Var_Latent']
-        self.training_data = self.training_data.reset_index().join(train_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
+
+        merge_cols = ['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']
+        if 'Mean_Err' in self.training_data:
+            self.training_data.drop(merge_cols, axis=1, inplace=True)
+        self.training_data = self.training_data.reset_index().join(train_mean[merge_cols], on='Sample_Id')
         self.training_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
 
         print('GPR evaluating test data')
@@ -421,6 +430,8 @@ class HistoryMatching():
             test_mean['Mean_Estimate'] += test_mean['Yglm']
         test_mean['Var_Err_Predictive'] = ret['Var_Predictive']
         test_mean['Var_Err_Latent'] = ret['Var_Latent']
+        if 'Mean_Err' in self.test_data:
+            self.test_data.drop(merge_cols, axis=1, inplace=True)
         self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
         self.test_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
 

@@ -432,14 +432,26 @@ class GLM(object):
         _tr = train.reset_index()
         _ts = test.reset_index()
 
-        _tr['Exp_Id'] = _tr['Sample_Id'].apply(lambda x: x.split('.')[0])
-        _tr['Sample'] = _tr['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
+        first_sample_id = _tr.iloc[0]['Sample_Id']
+        if isinstance(first_sample_id, str) and '.' in first_sample_id:
+            _tr['Exp_Id'] = _tr['Sample_Id'].apply(lambda x: x.split('.')[0])
+            _tr['Sample'] = _tr['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
 
-        _ts['Exp_Id'] = _ts['Sample_Id'].apply(lambda x: x.split('.')[0])
-        _ts['Sample'] = _ts['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
+            _ts['Exp_Id'] = _ts['Sample_Id'].apply(lambda x: x.split('.')[0])
+            _ts['Sample'] = _ts['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
 
-        _tr.set_index(['Exp_Id', 'Sample'], inplace=True)
-        _ts.set_index(['Exp_Id', 'Sample'], inplace=True)
+            _tr.set_index(['Exp_Id', 'Sample'], inplace=True)
+            _ts.set_index(['Exp_Id', 'Sample'], inplace=True)
+
+        else:
+            _tr['Exp_Id'] = 0
+            _tr['Sample'] = _tr['Sample_Id']
+
+            _ts['Exp_Id'] = 0
+            _ts['Sample'] = _ts['Sample_Id']
+
+            _tr.set_index(['Exp_Id', 'Sample'], inplace=True)
+            _ts.set_index(['Exp_Id', 'Sample'], inplace=True)
 
         train_exps = _tr.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()

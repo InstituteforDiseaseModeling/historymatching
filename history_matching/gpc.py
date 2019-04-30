@@ -41,7 +41,7 @@ class GPC():
         ):
 
 
-        self.use_laplace_approximation = False
+        self.use_laplace_approximation = True
 
         #sns.set_style("whitegrid")
 
@@ -639,7 +639,7 @@ class GPC():
         d_df_log_p_y_given_f = t-pi
 
         # p-specific code begins here:
-        ret = pd.DataFrame(columns = ['Sample', 'Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz' 
+        ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz' 
         for idx, p_series in P.iterrows():
             if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
@@ -687,7 +687,8 @@ class GPC():
             #if self.verbose: print('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
             if self.verbose: print('TRAPZ:', 'mean=%f, var=%f'%(mean_trapz, var_trapz))
 
-            ret = pd.concat([ret, pd.DataFrame({'Sample':[p_series['Sample']], 'Mean-Transformed':mu, 'Var-Transformed':sigma2, 'Mean': mean_trapz, 'Var': var_trapz})])
+            ret = pd.concat([ret, pd.DataFrame({'Mean-Transformed':[mu], 'Var-Transformed':[sigma2], 'Mean': [mean_trapz], 'Var': [var_trapz]})])
+        ret.index = P.index.copy()
 
         return ret
 
@@ -799,23 +800,33 @@ class GPC():
         )
         '''
 
-        # No jacobian
-        ret = spo.minimize(
-            fun = f_, #self.negative_log_marginal_likelihood,
-            #args=(X,Y,P),
-            x0 = x0,
-            method='L-BFGS-B',
-            bounds = bounds, # Constrain values
-            jac=None, hess=None, hessp=None,
-            constraints=(), tol=None, callback=None,
-            options= {
-                'maxiter':maxiter,
-                'disp':disp,
-                'eps':eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
-            }
-        )
+        attempts = 0
+        done = False
+        while attempts < 3 and not done:
+            # No jacobian
+            ret = spo.minimize(
+                fun = f_, #self.negative_log_marginal_likelihood,
+                #args=(X,Y,P),
+                x0 = x0,
+                method='L-BFGS-B',
+                bounds = bounds, # Constrain values
+                jac=None, hess=None, hessp=None,
+                constraints=(), tol=None, callback=None,
+                options= {
+                    'maxiter':maxiter,
+                    'disp':disp,
+                    'eps':eps # eps: Step size used for numerical approximation of the jacobian (1e-3).
+                }
+            )
 
-        print('OPTIMIZATION RETURNED:\n', ret)
+            print('OPTIMIZATION RETURNED:\n', ret)
+            done = ret['success'] == True
+            if not done:
+                print('OPTIMIZATION FAILED, trying AGAIN!!!')
+                x0 = 1.1*x0
+            attempts = attempts + 1
+
+
         self.theta = ret.x # Length scales now on 0-1 range
         #self.theta = np.abs(ret.x) + 1e-6 # Length scales now on 0-1 range
 
@@ -955,34 +966,42 @@ class GPC():
         #plt.tight_layout()
         return (fig, fig_std_latent)
 
-    def plot_errors(self, train, test, mean_col, var_predictive_col, truth_col=None):
-        train['Z'] = (train[self.Ycol] + 1)/2
-        test['Z'] = (test[self.Ycol] + 1)/2
+    def plot_errors(self, train, test, mean_col, var_predictive_col, truth_col=None, figsize=(16,10)):
+        if train is not None:
+            train['Z'] = (train[self.Ycol] + 1)/2
+        if test is not None:
+            test['Z'] = (test[self.Ycol] + 1)/2
         Ycol = 'Z'
 
         if truth_col:
-            train['ZTrue_Predictive'] = (train[truth_col] - train[mean_col]) / np.sqrt(train[var_predictive_col])
-            test['ZTrue_Predictive'] = (test[truth_col] - test[mean_col]) / np.sqrt(test[var_predictive_col])
+            if train is not None:
+                train['ZTrue_Predictive'] = (train[truth_col] - train[mean_col]) / np.sqrt(train[var_predictive_col])
+                train['Truth-Logit'] = np.log(train[truth_col]/(1-train[truth_col]))
+                train['ZTrue_Predictive_Logit'] = (train['Truth-Logit'] - train['Mean-Transformed']) / np.sqrt(train['Var-Transformed'])
 
-            train['Truth-Logit'] = np.log(train[truth_col]/(1-train[truth_col]))
-            test['Truth-Logit'] = np.log(test[truth_col]/(1-test[truth_col]))
-            train['ZTrue_Predictive_Logit'] = (train['Truth-Logit'] - train['Mean-Transformed']) / np.sqrt(train['Var-Transformed'])
-            test['ZTrue_Predictive_Logit'] = (test['Truth-Logit'] - test['Mean-Transformed']) / np.sqrt(test['Var-Transformed'])
-
-        train['Z_Predictive'] = (train[Ycol] - train[mean_col]) / np.sqrt(train[var_predictive_col])
-        test['Z_Predictive'] = (test[Ycol] - test[mean_col]) / np.sqrt(test[var_predictive_col])
+            if test is not None:
+                test['ZTrue_Predictive'] = (test[truth_col] - test[mean_col]) / np.sqrt(test[var_predictive_col])
+                test['Truth-Logit'] = np.log(test[truth_col]/(1-test[truth_col]))
+                test['ZTrue_Predictive_Logit'] = (test['Truth-Logit'] - test['Mean-Transformed']) / np.sqrt(test['Var-Transformed'])
 
 
-        fig, ((ax1, ax2)) = plt.subplots(nrows=2, ncols=1, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+        fig, ((ax1, ax2)) = plt.subplots(nrows=2, ncols=1, sharex='col', figsize=figsize) # , sharex='col', sharey='row')
 
         ax = ax1
-        ax.scatter(x=train['Sample'], y=train[Ycol], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.scatter(x=test['Sample'], y=test[Ycol], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.errorbar(x=train['Sample'], y=train[mean_col], yerr=2*np.sqrt(train[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
-        ax.errorbar(x=test['Sample'], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
-        if truth_col:
-            ax.plot(train['Sample'], train[truth_col], 'c.')
-            ax.plot(test['Sample'], test[truth_col], 'm.')
+        if train is not None:
+            train['Z_Predictive'] = (train[Ycol] - train[mean_col]) / np.sqrt(train[var_predictive_col])
+            ax.scatter(x=train['Sample'], y=train[Ycol], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+            ax.errorbar(x=train['Sample'], y=train[mean_col], yerr=2*np.sqrt(train[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
+            if truth_col and truth_col in train:
+                ax.plot(train['Sample'], train[truth_col], 'c.')
+
+        if test is not None:
+            test['Z_Predictive'] = (test[Ycol] - test[mean_col]) / np.sqrt(test[var_predictive_col])
+            ax.scatter(x=test['Sample'], y=test[Ycol], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+            ax.errorbar(x=test['Sample'], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
+            if truth_col and truth_col in test:
+                ax.plot(test['Sample'], test[truth_col], 'm.')
+
         ax.margins(x=0,y=0.05)
         ax.set_xlabel('Sample Index')
         ax.set_ylabel(Ycol)
@@ -990,12 +1009,15 @@ class GPC():
 
         a=0.05
         ax = ax2
-        ax.scatter(x=train['Sample'], y=train['Z_Predictive'], c='c', marker='_', alpha=0.5, linewidth=1)
-        ax.scatter(x=test['Sample'], y=test['Z_Predictive'], c='m', marker='_', alpha=0.5, linewidth=1)
+        if train is not None:
+            ax.scatter(x=train['Sample'], y=train['Z_Predictive'], c='c', marker='_', alpha=0.5, linewidth=1)
+            if truth_col and truth_col in train:
+                ax.scatter(x=train['Sample'], y=train['ZTrue_Predictive'], c='c', marker='.', alpha=0.5, linewidth=1)
 
-        if truth_col:
-            ax.scatter(x=train['Sample'], y=train['ZTrue_Predictive'], c='c', marker='.', alpha=0.5, linewidth=1)
-            ax.scatter(x=test['Sample'], y=test['ZTrue_Predictive'], c='m', marker='.', alpha=0.5, linewidth=1)
+        if test is not None:
+            ax.scatter(x=test['Sample'], y=test['Z_Predictive'], c='m', marker='_', alpha=0.5, linewidth=1)
+            if truth_col and truth_col in test:
+                ax.scatter(x=test['Sample'], y=test['ZTrue_Predictive'], c='m', marker='.', alpha=0.5, linewidth=1)
 
         ax.margins(x=0,y=0.05)
         xlim = ax.get_xlim()
