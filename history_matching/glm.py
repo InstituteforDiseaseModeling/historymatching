@@ -426,8 +426,10 @@ class GLM(object):
             train: (Pandas DataFrame) training data like training_data.
             test: (Pandas DataFrame) test data like training_data.
 
-        Returns: Matplotlib figure handle.
+        Returns: Dictionary of matplotlib figure handles.
         """
+
+        figs = {}
 
         _tr = train.reset_index()
         _ts = test.reset_index()
@@ -457,19 +459,19 @@ class GLM(object):
         test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         exp_ids = list(set(train_exps + test_exps))
 
-        fig, ax_vec = plt.subplots(nrows=1, ncols=1+len(exp_ids), sharey='row', figsize=(24,10)) # , sharex='col', sharey='row')
-
-        ax = ax_vec[0]
-        ax.plot(train['Yglm'], train[self.Ycol], 'c+', ms=10, mew=1)
-        ax.plot(test['Yglm'], test[self.Ycol], 'm+', ms=10, mew=1)
+        fig, ax = plt.subplots()
+        ax.plot(train[self.Ycol], train['Yglm'], 'c+', ms=10, mew=1)
+        ax.plot(test[self.Ycol], test['Yglm'], 'm+', ms=10, mew=1)
         ax.margins(x=0,y=0.05)
         xlim = ax.get_xlim()
         ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
-        ax.set_xlabel('Predicted')
-        ax.set_ylabel(self.Ycol)
+        ax.set_xlabel(self.Ycol)
+        ax.set_ylabel('Predicted')
+
+        figs['GLM Predicted vs Actual'] = fig
 
         for i, exp_id in enumerate(exp_ids):
-            ax = ax_vec[i+1]
+            fig, ax = plt.subplots()
             data_all = []
             cols = []
             if exp_id in train_exps: 
@@ -488,7 +490,9 @@ class GLM(object):
             ax.margins(x=0,y=0.05)
             ax.set_xlabel('Sample')
 
-        #ax.set_ylabel(self.Ycol)
-        plt.tight_layout()
+            figs['GLM expId ' + str(exp_id)] = fig
 
-        return fig
+        #ax.set_ylabel(self.Ycol)
+        #plt.tight_layout()
+
+        return figs
