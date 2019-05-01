@@ -597,7 +597,6 @@ class GPR():
 
         Kxp_cpu = self.kernel_xp(X, P, theta)
         return Kxp_cpu
-        
 
 
     def cross_validation(self, theta, X, Y, P):

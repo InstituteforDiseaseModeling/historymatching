@@ -256,9 +256,10 @@ class HistoryMatching():
         test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
 
         # Plot the errors and save to errors_glm.pdf
-        fig = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
-        fig.savefig( os.path.join(self.glmdir, 'glm.pdf') );
-        plt.close(fig)
+        figs = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
+        for key, fig in figs.items():
+            fig.savefig( os.path.join(self.glmdir, key+'.pdf') );
+            plt.close(fig)
 
         if plot:
             print('Plotting')

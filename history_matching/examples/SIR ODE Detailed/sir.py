@@ -11,7 +11,7 @@ class SIR:
         self.Tmax = Tmax
         self.beta = beta
         self.gamma = gamma
-        self.seed = np.uint32(seed)
+        self.seed = np.uint32(seed) if seed else None
 
         self.M = np.array( [[-1, 1, 0], [0, -1, 1]] ) # S-->I, I-->R
 
