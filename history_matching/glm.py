@@ -2,27 +2,55 @@
 
 import json
 import patsy
-import os, StringIO
+import os
 
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+from statsmodels import graphics
 
-from basis import Basis
+from history_matching.basis import Basis
 
 import numpy as np, pandas as pd, seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.gridspec as gridspec
+import scipy
+from scipy import stats
 
 class GLM(object):
+    """Generalized Linear Modeling (GLM).
 
-    def __init__(self, basis, Ycol,
+    This class implementes Generalized Linear Modeling using statsmodels as the engine.
+    """
+
+    def __init__(self,
+            basis,
+            Ycol,
             training_data = None,
             reference_value = 0,
             family = 'Poisson', # 'Poisson', 'NegativeBinomial', 'Gaussian'
             fitted_model = None,
             verbose = True
         ):
+        """Initialize the GLM class.
+
+        Args:
+            basis: (basis)
+                Provide an instance of a basis class which determines the parameters and computes the data matrix for the GLM.
+            Ycol:  (str)
+                The name of the column in training_data that contains the model output values.  Ycol must be a column in training_data
+            training_data:  (Pandas dataframe)
+                Columns must include:
+                * Sample_Id: A unique string that identifies each sample.
+                * Sim_Id: A unique string the identifies each simulation, typically the COMPS simulation ID.
+                * Sample: (optional?) The sample index.
+                * Exp_Id: (optional?) The name of the experiment.
+                * PARAMETER NAMES: One column for each parameter name.
+            reference_value: (float) The reference value from data, used in plotting only
+            family: (str) The family of generalized linear model to use.  Options include 'Poisson', 'Binomial', 'Gamma', 'NegativeBinomial', and 'Gaussian'.  Note that NegativeBinomial is currently hard-coded to use alpha=1.9.
+            fitted_model: (GLM) When restoring from cache, this enables file-based configuration.
+            verbose: (boolean, optional with default True)
+        """
 
         self.training_data = training_data
         self.reference_value = reference_value
@@ -30,40 +58,45 @@ class GLM(object):
         self.Ycol = Ycol
         self.D = self.basis.D
         self.family = family
-
         self.verbose = verbose
 
         self.fitted_model = fitted_model
 
-        #sns.set_style("whitegrid")
-
         if family == 'Poisson':
+            print('Using Poisson family')
             self.glmfam = sm.families.Poisson()
-            print 'Using Poisson family'
         elif family == 'Binomial':
+            print('Using Binomial family')
             self.glmfam = sm.families.Binomial()
-            print 'Using Binomial family'
         elif family == 'Gamma':
+            print('Using Gamma family')
             self.glmfam = sm.families.Gamma()
-            print 'Using Gamma family'
         elif family == 'NegativeBinomial':
             alpha = 1.9
+            print('Using NegativeBinomial family, alpha = ', alpha)
             self.glmfam = sm.families.NegativeBinomial(alpha=alpha) # Does strange things with float vs int values of alpha!
-            print 'Using NegativeBinomial family, alpha = %f' % alpha
         else:
+            print('Using Gaussian family')
             self.glmfam = sm.families.Gaussian()
-            print 'Using Gaussian family'
 
         if self.fitted_model is not None:
-            #print self.fitted_model.summary()
-            print 'AIC:', self.fitted_model.aic
-            print 'BIC:', self.fitted_model.bic
-            print 'ITERATION:', self.fitted_model.fit_history['iteration']
+            print(self.fitted_model.summary()) # Should work, but was causing errors with some versions of statsmodels.
+            print('AIC:', self.fitted_model.aic)
+            print('BIC:', self.fitted_model.bic)
+            print('ITERATION:', self.fitted_model.fit_history['iteration'])
 
 
     @classmethod
     def from_config(cls, meta_fn, fitted_fn):
-        print "from_config:", meta_fn, fitted_fn
+        """Restore a GLM instance from a saved configuration files.
+
+        Args:
+            meta_fn: (str)
+                JSON file containing configuration such as the serialized basis, column names, order, etc.
+            fitted_fn: (str)
+                Contains the saved (pickled) statsmodel.
+        """
+
         try:
             fitted_model = sm.load(fitted_fn)
             with open(os.path.join(meta_fn)) as data_file:
@@ -95,11 +128,20 @@ class GLM(object):
                     fitted_model = fitted_model
                 )
         except EnvironmentError:
-            print "Unable to load GLM from_config file", meta_fn, fitted_fn
+            print("Unable to load GLM from_config file", meta_fn, fitted_fn)
             raise
 
 
     def save(self, save_meta_to, save_fitted_to):
+        """Save a GLM instance to configuration files.
+
+        Args:
+            save_meta_to: (str)
+                JSON filename to contain configuration such as the serialized basis, column names, order, etc.
+            save_fitted_to: (str)
+                Filename to contains the saved (pickled) statsmodel.
+        """
+
         self.fitted_model.save(save_fitted_to)
         with open(save_meta_to, 'w') as fout:
             json.dump(
@@ -113,27 +155,49 @@ class GLM(object):
                 }, fout, indent=4)
 
     def evaluate(self, data):
+        """Evaluate the GLM and return the mean prediction.
+
+        Args:
+            data: (Pandas DataFrame)
+                Data frame of points similar to training_data.
+
+        Returns:
+            Predicted outputs at the inputs specified by data.
+        """
+
         dmat = self.basis.generate_dmatrix(data, scaleX=True)
         mean = self.fitted_model.predict( dmat, transform=False )
 
         return mean
 
 
-    def fit(self, maxiter=100):
+    def fit(self, maxiter=1000):
+        """Fit the GLM.
+
+        Args:
+            maxiter: (int)
+                maxiter parameter passed to the statsmodels `fit` function.
+        """
+
         (response_matrix, data_matrix) = self.basis.generate_dmatrices(self.training_data, self.Ycol, scaleX=True)
         self.model = sm.GLM(response_matrix, data_matrix, family=self.glmfam)
 
         if self.verbose:
-            print 'Fitting the model, please wait ...'
+            print('Fitting the model, please wait ...')
         self.fitted_model = self.model.fit(maxiter=maxiter)
 
         if self.verbose:
-            print self.fitted_model.summary()
-            print 'AIC:', self.fitted_model.aic
-            print 'BIC:', self.fitted_model.bic
-            print 'ITERATION:', self.fitted_model.fit_history['iteration']
+            print(self.fitted_model.summary())
+            print('AIC:', self.fitted_model.aic)
+            print('BIC:', self.fitted_model.bic)
+            print('ITERATION:', self.fitted_model.fit_history['iteration'])
 
     def plot_fitted_vs_observed(self):
+        """Generates a plot of the fitted values vs the observed values from the training data.
+
+        Returns: A matplotlib figure handle.
+        """
+
         fig, ax = plt.subplots()
         y = self.training_data[self.Ycol]
         ax.scatter(y, self.fitted_model.mu, marker='+')
@@ -148,6 +212,11 @@ class GLM(object):
 
 
     def plot_pearson_residuals(self):
+        """Generates a plot of the peasron residuals.
+
+        Returns: A matplotlib figure handle.
+        """
+
         fig, ax = plt.subplots()
         ax.scatter(self.fitted_model.mu, self.fitted_model.resid_pearson, marker='+')
         #ax.hlines(0, 0, 1)
@@ -160,7 +229,11 @@ class GLM(object):
 
 
     def plot_deviance_redisuals(self):
-        from scipy import stats
+        """Generates a plot of the deviance residuals.
+
+        Returns: A matplotlib figure handle.
+        """
+
         fig, ax = plt.subplots()
         resid = self.fitted_model.resid_deviance.copy()
         resid_std = stats.zscore(resid)
@@ -169,15 +242,31 @@ class GLM(object):
 
         return fig
 
+
     def plot_QQ(self):
-        from statsmodels import graphics
-        import scipy
+        """Generates a QQ plot.
+
+        Returns: A matplotlib figure handle.
+        """
+
         fig = graphics.gofplots.qqplot(self.fitted_model.resid_deviance, line='45', fit=True)
 
         return fig
 
 
     def plot_data_multiD(self, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True):
+        """Generates many pair-wise scatter plots of the training data.
+
+        Args:
+            circle_points: (Pandas DataFrame)
+                A data frame like training_data.  Each entry will be marked with a black x's in the figures.  Good for debugging large Z scores.
+            saveto_dir: (str)
+                If not None, figures will be saved to this directory.  The user may need to create the output directory.
+            log_scale:  (boolean, default is False) transforms size and color using log(10 * normalized_y_value + 1)
+
+        Returns: a dictionary of matplotlib figure handles with keys indicating the parameter names via the filename which would be used to save the figure.
+        """
+
         scaled = (self.training_data[self.Ycol]-self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max()-self.training_data[self.Ycol].min())
         if log_scale:
             scaled = np.log( 10*scaled+1 )
@@ -191,7 +280,7 @@ class GLM(object):
         if circle_points.shape[0] > 0:
             cp_dmat = basis.generate_dmatrix(circle_points, scaleX=True)
 
-        reverse_param_dict = {v:k for k,v in basis.param_dict.iteritems()}
+        reverse_param_dict = {v:k for k,v in basis.param_dict.items()}
 
         for row in range(len(Xcols)):
             for col in range(len(Xcols)):
@@ -223,10 +312,22 @@ class GLM(object):
 
 
     def plot_data_1D(self, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True):
+        """For 1D data, plots a scatter of output (y) vs input (x).
+
+        Args:
+            circle_points: (Pandas DataFrame)
+                A data frame like training_data.  Each entry will be marked with a black x's in the figures.  Good for debugging large Z scores.
+            saveto_dir: (str)
+                If not None, figures will be saved to this directory.  The user may need to create the output directory.
+            log_scale:  (boolean, default is False) transforms size and color using log(10 * normalized_y_value + 1)
+
+        Returns: a dictionary of matplotlib figure handles with keys indicating the parameter names via the filename which would be used to save the figure.
+        """
+
         # TODO: Save and log scale!
         scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
 
-        Xcols = basis.get_terms()[0] # Not tested!
+        Xcols = self.basis.get_terms()[0] # Not tested!
         fig = plt.figure(figsize=(6,8)) #GPy.plotting.plotting_library().figure()
         x = self.training_data[ Xcols ]
         y = self.training_data[self.Ycol]
@@ -245,11 +346,35 @@ class GLM(object):
 
 
     def plot_data(self, **kwargs):
+        """Helper to call plot_data_1D or plot_data_multiD depending on the number of independent variables.
+
+        kwargs are required by the respective functions, although not called out explicitly here.
+
+        Args:
+            circle_points: (Pandas DataFrame)
+                A data frame like training_data.  Each entry will be marked with a black x's in the figures.  Good for debugging large Z scores.
+            saveto_dir: (str)
+                If not None, figures will be saved to this directory.  The user may need to create the output directory.
+            log_scale:  (boolean, default is False) transforms size and color using log(10 * normalized_y_value + 1)
+
+        Returns: a dictionary of matplotlib figure handles with keys indicating the parameter names via the filename which would be used to save the figure.
+        """
+
+        '''
         if self.D > 1:
             return self.plot_data_multiD(**kwargs)
         return self.plot_data_1D(**kwargs)
+        '''
+
+        # 1D not working, do multiD:
+        return self.plot_data_multiD(**kwargs)
 
     def plot_histogram(self):
+        """Plots a histogram of the outputs.
+
+        Returns: matplotlib figure handle.
+        """
+
         fig = plt.figure()
         ax = fig.add_subplot(111)
         sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
@@ -257,6 +382,13 @@ class GLM(object):
         return fig
 
     def plot_fit(self):
+        """Plots each output predicted by the GLM on X agains sample index is on Y.
+
+        If there are multiple replicates per Sample_ID, a blue line will connect the Min to the Max.  A vertical red line is drawn at the reference value.  The green line is at the mean of the fitted model.  Finally, the black `|` is the true value(s) from the simulation.
+
+        Returns: matplotlib figure handle.
+        """
+
         fig, axes = plt.subplots(figsize=(16, 16))
         #sns.despine(left=True)
 
@@ -275,22 +407,8 @@ class GLM(object):
 
         axes.scatter(self.fitted_model.mu, d['Sample_Id'], c='g', marker='+', alpha=1, linewidths=0.5)
 
-        # TODO: Vectorize
-        '''
-        for idx,s in d.iterrows():
-            k = s['Ref_Cases']
-            n = s['Ref_Population']
-            a = s['Sim_Cases_Unscaled']+1
-            b = s['Sim_Population_Unscaled']+1
-
-            mean = n*a / (a+b)
-            var = n*a*b*(a+b+n) / ((a+b)**2 * (a+b+1))
-
-            axes[0].errorbar(s['Sim_Cases'], int(float(s['Sample_Id'])), xerr=2*np.sqrt(var), marker='|', markersize=20, ecolor='k', mew=1)
-        '''
         plt.autoscale()
         axes.set_ylim(ymin=0, ymax=n_samples)
-        #axes.set_xlabel('LOG(1+Y)')
         axes.set_xlabel('Y')
         axes.set_ylabel('Sample Id')
 
@@ -298,25 +416,62 @@ class GLM(object):
 
 
     def plot_errors(self, train, test):
-        _tr = train.set_index(['Exp_Id', 'Sample'])
-        _ts = test.set_index(['Exp_Id', 'Sample'])
+        """Generates several plots on a single figure, one for each unique experiment ID.
+
+        The upper plot shows GLM prediction on Y as a function of the true Y-values on X.  The lower panel shows Z-score on Y and the true Y-values on X.
+
+        In both panels, training data is cyan and test data is magenta.
+
+        Args:
+            train: (Pandas DataFrame) training data like training_data.
+            test: (Pandas DataFrame) test data like training_data.
+
+        Returns: Dictionary of matplotlib figure handles.
+        """
+
+        figs = {}
+
+        _tr = train.reset_index()
+        _ts = test.reset_index()
+
+        first_sample_id = _tr.iloc[0]['Sample_Id']
+        if isinstance(first_sample_id, str) and '.' in first_sample_id:
+            _tr['Exp_Id'] = _tr['Sample_Id'].apply(lambda x: x.split('.')[0])
+            _tr['Sample'] = _tr['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
+
+            _ts['Exp_Id'] = _ts['Sample_Id'].apply(lambda x: x.split('.')[0])
+            _ts['Sample'] = _ts['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
+
+            _tr.set_index(['Exp_Id', 'Sample'], inplace=True)
+            _ts.set_index(['Exp_Id', 'Sample'], inplace=True)
+
+        else:
+            _tr['Exp_Id'] = 0
+            _tr['Sample'] = _tr['Sample_Id']
+
+            _ts['Exp_Id'] = 0
+            _ts['Sample'] = _ts['Sample_Id']
+
+            _tr.set_index(['Exp_Id', 'Sample'], inplace=True)
+            _ts.set_index(['Exp_Id', 'Sample'], inplace=True)
+
         train_exps = _tr.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         exp_ids = list(set(train_exps + test_exps))
 
-        fig, ax_vec = plt.subplots(nrows=1, ncols=1+len(exp_ids), sharey='row', figsize=(24,10)) # , sharex='col', sharey='row')
-
-        ax = ax_vec[0]
-        ax.plot(train['Yglm'], train[self.Ycol], 'c+', ms=10, mew=1)
-        ax.plot(test['Yglm'], test[self.Ycol], 'm+', ms=10, mew=1)
+        fig, ax = plt.subplots()
+        ax.plot(train[self.Ycol], train['Yglm'], 'c+', ms=10, mew=1)
+        ax.plot(test[self.Ycol], test['Yglm'], 'm+', ms=10, mew=1)
         ax.margins(x=0,y=0.05)
         xlim = ax.get_xlim()
         ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
-        ax.set_xlabel('Predicted')
-        ax.set_ylabel(self.Ycol)
+        ax.set_xlabel(self.Ycol)
+        ax.set_ylabel('Predicted')
+
+        figs['GLM Predicted vs Actual'] = fig
 
         for i, exp_id in enumerate(exp_ids):
-            ax = ax_vec[i+1]
+            fig, ax = plt.subplots()
             data_all = []
             cols = []
             if exp_id in train_exps: 
@@ -335,7 +490,9 @@ class GLM(object):
             ax.margins(x=0,y=0.05)
             ax.set_xlabel('Sample')
 
-        #ax.set_ylabel(self.Ycol)
-        plt.tight_layout()
+            figs['GLM expId ' + str(exp_id)] = fig
 
-        return fig
+        #ax.set_ylabel(self.Ycol)
+        #plt.tight_layout()
+
+        return figs

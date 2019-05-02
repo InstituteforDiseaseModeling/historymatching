@@ -7,6 +7,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib as mpl
 import seaborn as sns
 import os
+import sys
 import copy
 import json
 
@@ -15,37 +16,92 @@ from functools import partial
 #from normalizer import UserStandardize
 
 import scipy.optimize as spo
-from pycuda import driver, compiler, gpuarray, tools
-import pycuda.autoinit
-import pycuda.driver as drv
-from pycuda.compiler import SourceModule
 from string import Template
-import skcuda.misc as misc
-from basis import Basis
+from history_matching.basis import Basis
 
-#import pycuda.gpuarray as gpuarray
 import scipy.linalg
-import skcuda.linalg as linalg
+
+try:
+    from pycuda import driver, compiler, gpuarray, tools
+    import pycuda.autoinit
+    import pycuda.driver as drv
+    from pycuda.compiler import SourceModule
+    import skcuda.misc as misc
+    import skcuda.linalg as linalg
+except ImportError:
+    print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
 
 class GPR():
+    """Gaussian Process Regression.
+
+    This class implementes Gaussian Process Regression with leave-one-out cross-validation for parameter fitting and NVidia-CUDA-based GPU acceleration for speed.
+    """
 
     def __init__(self, basis, Ycol, training_data, param_info,
             kernel_mode = 'RBF',
-            theta = None,   # kernel_params
-            #is_poisson = False,
+            theta = None,
+            #is_poisson = False, # Not currently supported
             normalize_y = True,
+            sigma2_n = None,
             verbose = False,
             debug = False,
             **kwargs
         ):
+        """Initialize the GPR class.
 
-        #sns.set_style("whitegrid")
+        Args:
+            basis: (basis)
+                Provide an instance of a basis class which determines the parameters for the GPR.
+            Ycol:  (str)
+                The name of the column in training_data that contains the model output values.  Ycol must be a column in training_data
+            training_data:  (Pandas dataframe)
+                Columns must include:
+                * Sample_Id: A unique string that identifies each sample.
+                * Sim_Id: A unique string the identifies each simulation, typically the COMPS simulation ID.
+                * Sample: (optional?) The sample index.
+                * Exp_Id: (optional?) The name of the experiment.
+                * PARAMETER NAMES: One column for each parameter name.
+            param_info:  (Pandas dataframe)
+                Columns include:
+                * Name: The name of the parameter, must match column name in training_data.
+                * Min: Minimum value of parameter.
+                * Max: Maximum value of parameter.
+                * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
+                * Source: (optional) Source from which parameter ranges came from
+            kernel_mode:  (str, optional)
+                Eventual support for various kernels, for now the only available option is `RBF`.
+            theta: (1D ndarray, optional)
+                Optionally specify the hyperparameters.  This should be a numpy array of length 2+D, where D is the number of parameters:
+                1) sigma_f^2
+                2) sigma_n^2
+                3) Squared lengthscale of first dimension
+                4) Squared lengthscale of second dimension
+                ...
+                D+2) Squared lengthscale of dimension D
+            normalize_y: (boolean, optional with default True)
+                If the responses should be normalized
+            sigma_n: (None or instance of GPR)
+                For typical homoscedastic GPR, leave as None.  The kernel hyperparamter, sigma2_n, will be optimized.  Alternatively for heteroscedastic GPR, provide an instance of a GPR with the same input dimensions for which the optut is the log of the variance.
+            verbose: (boolean, optional with default False)
+            debug: (boolean, optional with default False)
+            normalizer_mean (float, optional):  Allows specification or recovery of the mean of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
+            normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
+        """
 
-        cur_dir = os.path.dirname(os.path.realpath(__file__))
-        self.kernel_fn = os.path.join(cur_dir, 'kernel.c')
+        try:
+            device = pycuda.autoinit.device
+            print('Autoinit GPU device name:', device.name())
+            self.use_gpu = True
+        except Exception as e:
+            self.use_gpu = False
+
+        if self.use_gpu:
+            # Read in the RFB kernel
+            cur_dir = os.path.dirname(os.path.realpath(__file__))
+            self.kernel_fn = os.path.join(cur_dir, 'kernel.c')
 
         self.training_data = training_data.copy()
         self.param_info = param_info.copy()
@@ -71,11 +127,19 @@ class GPR():
 
         self.normalizer = True #UserStandardize(mean=self.normalizer_mean, std=self.normalizer_std)
         self.poisson = False #is_poisson
+
         self.verbose = verbose
         self.debug = debug
 
-        #self.kernel_xx_gpu = None
-        self.define_kernel()
+        # Heteroscedastic GP setup
+        self.fixed_sigma_n = True
+        if isinstance(sigma2_n, GPR):
+            print('User has configured GPR with noise coming from another GPR')
+            self.sigma2_n = sigma2_n
+            self.fixed_sigma_n = False
+
+        if self.use_gpu:
+            self.define_kernel()
 
         if theta is None:
             self.reset_theta()
@@ -85,8 +149,15 @@ class GPR():
 
     @classmethod
     def from_config(cls, config_fn):
+        """Restore a GPR instance from a saved configuration file.
+
+        Args:
+            config_fn: (str)
+                Path to the configuration file.
+        """
+
         try:
-            print "from_config:", config_fn
+            print('from_config:', config_fn)
             with open(os.path.join(config_fn)) as data_file:
                 config = json.load( data_file )
 
@@ -118,13 +189,41 @@ class GPR():
                     normalizer_std = config['Normalizer_Std'],
                     normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
                 )
+                '''
+                instance = cls(
+                    basis = basis,
+                    Ycol = config['Ycol'],
+                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
+                    param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
+                    kernel_mode = config['Kernel_Mode'],
+                    theta = np.array(config['Kernel_Params']),
+                    normalizer_mean = config['Normalizer_Mean'],
+                    normalizer_std = config['Normalizer_Std'],
+                    normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
+                )
+
+                train_mean = instance.training_data.reset_index().groupby('Sample_Id').mean()
+                X = instance.basis.generate_dmatrix( train_mean, scaleX = True).values
+                Y = instance.training_data.reset_index().groupby('Sample_Id').apply(instance.assign_rep).pivot('Sample_Id', 'Replicate', instance.Ycol).values
+                print(instance.cross_validation_with_grad(instance.theta, X, Y, optimize_sigma2_n=True, log_transform=False))
+                exit()
+
+                return instance
+                '''
         except EnvironmentError:
-            print "Unable to load GPR from_config file", config_fn
+            print('Unable to load GPR from_config file', config_fn)
             raise
 
     def set_training_data(self, new_training_data):
+        """Set the training data for GPR, will normalize if needed
+
+        Args:
+            new_training_data: (Pandas DataFrame)
+                As in __init__.
+        """
         self.training_data = new_training_data.copy()
-        self.define_kernel()
+        if self.use_gpu:
+            self.define_kernel()
 
         # Normalize training data as in __init__
         self.training_data[self.Ycol] = self.normalize(self.training_data[self.Ycol_orig])
@@ -132,6 +231,8 @@ class GPR():
         self.update_cache()
 
     def reset_theta(self):
+        """Resets hyperparameters (theta).
+        """
         # Set the kernel/model hyperparameters
         self.theta = None
         self.Kxx_inv_Y = None
@@ -140,43 +241,54 @@ class GPR():
         self.Y = None
 
     def set_theta(self, theta):
+        """Sets hyperparameters (theta).
+
+        Args:
+            theta: (1D numpy array)
+                As in __init__.
+        """
+
         assert( len(theta) == 2+self.D )
         self.theta = theta
         self.update_cache()
 
     def update_cache(self):
+        """Update the internal cache of X, Y, Kxx_inv, and Kxx_inv_Y.
+
+        When evaluating many points, these somewhat-slow to calculate properties do not change, co we compute and cache them here.
+
+        """
+
+        if self.debug:
+            print('Updating cache of Kxx_inv and Kxx_inv_Y')
+
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
-        #Y = self.training_data[self.Ycol].values
         self.Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
 
-        try:
-            Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
-        except pycuda._driver.MemoryError:
-            print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%X.shape[0]
-            Kxx = self.kernel_xx(self.X, self.theta, add_sigma2_n = True)
+        if self.use_gpu:
+            try:
+                Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
+            except pycuda._driver.MemoryError:
+                print('Insufficient video memory for Kxx matrix of dimension', X.shape[0],', reverting to (slow) CPU computation.')
 
-        # Cache
-        #print 'Doing N^3 operation to compute Kxx inv'
-        #self.Kxx_inv_Y = np.linalg.solve(Kxx, Y)
-        #self.Kxx_inv = np.linalg.inv(Kxx)
-        #print 'CPU:\n', self.Kxx_inv
-        try:
-            #q = time.time()
             Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
             linalg.init()
             self.Kxx_inv = linalg.inv(Kxx_gpu, overwrite=True, lib='cusolver').get()
-            #print 'Inverting KXX (GPU)=',time.time()-q
-        except Exception as e:
-            print str(e)
-            #q = time.time()
-            self.Kxx_inv = np.linalg.inv(Kxx) # self.?
-            #print 'Inverting KXX (CPU)=',time.time()-q
+        else:
+            Kxx = self.kernel_xx(self.X, self.theta, add_sigma2_n = True)
+            self.Kxx_inv = np.linalg.inv(Kxx)
 
-        self.Kxx_inv_Y = np.dot(self.Kxx_inv, self.Y) # GPU
+        self.Kxx_inv_Y = np.dot(self.Kxx_inv, self.Y) # TODO: GPU
 
 
     def save(self, save_to):
+        """Save GPR instance to file.
+
+        Args:
+            save_to: (str) Filename.
+        """
+
         with open(save_to, 'w') as fout:
             json.dump(
                 {
@@ -192,24 +304,42 @@ class GPR():
                 }, fout, indent=4)
 
     def normalize(self, data):
+        """If normalize_y is True, normalize some data by subtracting the mean and dividing by the standard deviation.
+
+        Args:
+            data: (Pandas DataFrame) Data to normalize.
+        """
         if self.normalize_y:
             return (data - self.normalizer_mean)/self.normalizer_std
         else:
             return data
 
     def inverse_normalize_mean(self, data):
+        """Reverse the normalization calculation for the mean.
+
+        Args:
+            data: (Pandas DataFrame) Data to unnormalize.
+        """
         if self.normalize_y:
             return data*self.normalizer_std + self.normalizer_mean
         else:
             return data
 
     def inverse_normalize_var(self, data):
+        """Reverse the normalization calculation for the variance.
+
+        Args:
+            data: (Pandas DataFrame) Data to unnormalize.
+        """
         if self.normalize_y:
             return data * (self.normalizer_std**2)
         else:
             return data
 
     def define_kernel(self):
+        """Prepare the Kernel.  For now, only the `RBF` kernel_mode is supprted.
+        """
+
         if self.kernel_mode == 'RBF':
             Nx = self.training_data.shape[0]
 
@@ -218,17 +348,16 @@ class GPR():
 
             max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(pycuda.autoinit.device)
             device = pycuda.autoinit.device
-            print 'Autoinit GPU device name:', device.name()
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
             if self.verbose:
-                print "max_threads_per_block", max_threads_per_block
-                print "max_block_dim", max_block_dim
-                print "max_grid_dim", max_grid_dim
-                print "max_blocks_per_grid", max_blocks_per_grid
-                print "block_dim", block_dim
-                print "grid_dim", grid_dim
+                print("max_threads_per_block", max_threads_per_block)
+                print("max_block_dim", max_block_dim)
+                print("max_grid_dim", max_grid_dim)
+                print("max_blocks_per_grid", max_blocks_per_grid)
+                print("block_dim", block_dim)
+                print("grid_dim", grid_dim)
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -244,42 +373,88 @@ class GPR():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print 'Bad kernel mode, kernel_mode=%s'%self.kernel_mode
+            print('Bad kernel mode, kernel_mode =',self.kernel_mode)
             raise
 
 
-    def kernel_xx(self, X, theta, add_sigma2_n):
-        # NOTE: Slow, use GPU acceleration instead.
+    def kernel_xx(self, X, theta, add_sigma2_n = True, deriv=-1):
+        """Compute the Kxx kernel using (SLOW) CPU-based calculations.
+
+        This function really only remains for computers that do not have access to an NVidia GPU and for testing GPU calculations.
+
+        Args:
+            X: (2D ndarray) points of dimension N x D
+            theta: (1D ndarray) hyperparameters
+            add_sigma2_n: (boolean) if True, add observation variance, sigma2_n, to the diagonal.
+        """
+
+        Nx = X.shape[0]
+
+        if deriv >= 0:
+            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+
+        if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
+            if self.fixed_sigma_n:
+                return np.eye(Nx)
+            else:
+                # No deriv wrt sigma2_n if the user has specified sigma2_n via GPR
+                return np.zeros((Nx,Nx))
+
         sigma2_f = theta[0]
-        sigma2_n = theta[1]
+        if deriv == 0:
+            sigma2_f = 1
 
-        N = X.shape[0]
+        Kxx = np.zeros([Nx,Nx], dtype=np.float32)
+        for i in range(Nx):
+            # Diagonal:
+            if deriv <= 1:
+                Kxx[i,i] = sigma2_f # theta[0] or 1, see above
+            else:
+                Kxx[i,i] = 0
 
-        kxx = np.zeros([N,N], dtype=np.float32)
-        for i in range(N):
             # Off-diagonal
-            for j in range(i+1,N):
+            for j in range(i+1,Nx):
                 dX = X[i,:]-X[j,:]
                 r2 = 0
                 for d in range(self.D):
                     r2 += dX[d] * dX[d]/theta[2+d]
-                kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
-                kxx[j,i] = kxx[i,j]
-            # Diagonal:
-            dX = X[i,:]-X[i,:]
-            r2 = 0
-            for d in range(self.D):
-                r2 += dX[d] * dX[d]/theta[2+d]
-            kxx[i,i] = sigma2_f * np.exp( -r2 / 2. )
+                Kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
 
-            if add_sigma2_n:
-                kxx[i,i] += sigma2_n
+                if (deriv > 1): # Lengthscale derivatives
+                    d = deriv-2;
+                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d]);
 
-        return kxx
+                Kxx[j,i] = Kxx[i,j]
+
+        if add_sigma2_n:
+            if self.fixed_sigma_n:
+                sigma2_n = theta[1]
+            else:
+                Xcols = self.basis.param_info.index.values
+
+                Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=Xcols) # ['Beta'], basis.param_info.index.values.tolist()
+                # TODO: Cache
+                sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
+                if self.normalize_y:
+                    sigma2_n /= self.normalizer_std**2
+
+            # Add sigma_n^2 to the diagonal, observation noise
+            Kxx[np.diag_indices(Nx)] += sigma2_n
+
+        return Kxx
 
 
     def kernel_xp(self, X, P, theta):
-        # NOTE: Slow, use GPU acceleration instead.
+        """Compute the Kxp kernel using (SLOW) CPU-based calculations.
+
+        This function really only remains for computers that do not have access to an NVidia GPU and for testing GPU calculations.
+
+        Args:
+            X: (2D ndarray) points of dimension N x D
+            P: (2D ndarray) points of dimension P x D
+            theta: (1D ndarray) hyperparameters
+        """
+
         sigma2_f = theta[0]
 
         Nx = X.shape[0]
@@ -299,22 +474,36 @@ class GPR():
 
 
     def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True, deriv=-1):
+        """Compute the Kxx kernel or derivatives using (FAST) GPU-based calculations.
+
+        Args:
+            X: (2D ndarray) points of dimension N x D.
+            theta: (1D ndarray, optional with default True) hyperparameters.
+            add_sigma2_n: (boolean) if True, add observation variance, sigma2_n, to the diagonal.
+            deriv: (int) if negative, return the kernel.  If positive between 0 and D-1, compute the partial derivative of the Kxx kernel with respect to the deriv^th hyperparameter.
+        """
+
         Nx = X.shape[0]
 
-        if deriv == 1: # Assuming add_sigma2_n is True, otherwise it would be zeros(Nx)
-            return np.eye(Nx)
+        if deriv == 0:
+            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
 
-        # Use from before...?
+        if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
+            if self.fixed_sigma_n:
+                return np.eye(Nx)
+            else:
+                # No deriv wrt sigma2_n if the user has specified sigma2_n via GPR
+                return np.zeros((Nx,Nx))
+
+        # TODO: Can use from before...?
         block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
-
         X_gpu = gpuarray.to_gpu(X.astype(np.float32))
-
         theta_gpu = gpuarray.to_gpu(theta.astype(np.float32))
 
-        # create empty gpu array for the result
+        # Create empty gpu array for the result
         Kxx_gpu = gpuarray.empty((Nx, Nx), np.float32)
 
-        # call the kernel on the card
+        # Call the kernel on the card
         self.kernel_xx_gpu(
             Kxx_gpu,            # <-- Output
             X_gpu, theta_gpu,   # <-- Inputs
@@ -329,96 +518,120 @@ class GPR():
         Kxx = Kxx_gpu.get()
 
         if add_sigma2_n:
+            if self.fixed_sigma_n:
+                sigma2_n = theta[1]
+            else:
+                Xcols = self.basis.param_info.index.values
+
+                Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=Xcols) # ['Beta'], basis.param_info.index.values.tolist()
+                # TODO: Cache
+                sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
+                if self.normalize_y:
+                    sigma2_n /= self.normalizer_std**2
+
             # Add sigma_n^2 to the diagonal, observation noise
-            Kxx[np.diag_indices(Nx)] += theta[1]
+            Kxx[np.diag_indices(Nx)] += sigma2_n
 
         if self.debug:
+            # Test on CPU
             Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
             if not np.allclose(Kxx_cpu, Kxx):
-                print 'kxx_gpu_wrapper(CPU):\n', Kxx_cpu
-                print 'kxx_gpu_wrapper(GPU):\n', Kxx
+                print('Kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
+                print('Kxx_gpu_wrapper(GPU):\n', Kxx)
                 raise
 
         return Kxx
 
 
     def kxp_gpu_wrapper(self, X, P, theta):
-        Nx = X.shape[0]
-        Np = P.shape[0]
-        block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Np))
+        """Compute the Kxp kernel or derivatives using (FAST) GPU-based calculations.
 
-        if X.flags.f_contiguous: # Fortran column-major
-            # Convert to C contiguous (row major)
-            X_gpu = gpuarray.to_gpu(np.ascontiguousarray(X).astype(np.float32))
-        else:
-            X_gpu = gpuarray.to_gpu(X.astype(np.float32))
+        Args:
+            X: (2D ndarray) points of dimension N x D.
+            P: (2D ndarray) points of dimension P x D.
+            theta: (1D ndarray, optional with default True) hyperparameters.
+        """
 
-        if P.flags.f_contiguous:
-            # Convert to C contiguous (row major)
-            P_gpu = gpuarray.to_gpu(np.ascontiguousarray(P).astype(np.float32))
-        else:
-            P_gpu = gpuarray.to_gpu(P.astype(np.float32))
+        if self.use_gpu:
+            Nx = X.shape[0]
+            Np = P.shape[0]
+            block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Np))
 
-        theta_gpu = gpuarray.to_gpu(theta.astype(np.float32))
+            if X.flags.f_contiguous: # Fortran column-major
+                # Convert to C contiguous (row major)
+                X_gpu = gpuarray.to_gpu(np.ascontiguousarray(X).astype(np.float32))
+            else:
+                X_gpu = gpuarray.to_gpu(X.astype(np.float32))
 
-        # create empty gpu array for the result
-        Kxp_gpu = gpuarray.empty((Nx, Np), np.float32)
+            if P.flags.f_contiguous:
+                # Convert to C contiguous (row major)
+                P_gpu = gpuarray.to_gpu(np.ascontiguousarray(P).astype(np.float32))
+            else:
+                P_gpu = gpuarray.to_gpu(P.astype(np.float32))
 
-        # call the kernel on the card
-        self.kernel_xp_gpu(
-            Kxp_gpu,                   # <-- Output
-            X_gpu, P_gpu, theta_gpu,   # <-- Inputs
-            np.uint32(Nx),   # <-- Nx
-            np.uint32(Np),   # <-- Nx
-            np.uint32(self.D),  # <-- D
-            block = block_dim,
-            grid = grid_dim
-        )
+            theta_gpu = gpuarray.to_gpu(theta.astype(np.float32))
 
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(X, P, theta)
-            if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                print 'kxp_gpu_wrapper(CPU):\n', Kxp_cpu
-                print 'kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get()
-                raise
+            # create empty gpu array for the result
+            Kxp_gpu = gpuarray.empty((Nx, Np), np.float32)
 
-        return Kxp_gpu.get()
+            # call the kernel on the card
+            self.kernel_xp_gpu(
+                Kxp_gpu,                   # <-- Output
+                X_gpu, P_gpu, theta_gpu,   # <-- Inputs
+                np.uint32(Nx),   # <-- Nx
+                np.uint32(Np),   # <-- Nx
+                np.uint32(self.D),  # <-- D
+                block = block_dim,
+                grid = grid_dim
+            )
+
+            if self.debug:
+                # Test on CPU
+                Kxp_cpu = self.kernel_xp(X, P, theta)
+                if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
+                    print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
+                    print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
+                    raise
+
+            return Kxp_gpu.get()
+
+        Kxp_cpu = self.kernel_xp(X, P, theta)
+        return Kxp_cpu
 
 
     def cross_validation(self, theta, X, Y, P):
-        t = time.time()
+        """Compute the LOO cross validation score.  OLD, use the one _with_grad.
 
+        Args:
+            theta: (1D ndarray, optional with default True) hyperparameters.
+            X: (2D ndarray) points of dimension N x D.
+            Y: (1D ndarray) outputs of dimension N x 1.
+            P: (2D ndarray) points of dimension P x D.
+        """
+
+        # Some vestigial reminants of K-fold cross validation.
         num_partitions = int(max(P)+1)
         num_points = len(P)
 
         Y_mean = np.nanmean(Y, axis=1)
 
-        KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution
+        KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
         if self.debug:
+            # Compare to CPU
             KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
             if not np.allclose(KXX_cpu, KXX):
-                print 'loo_cross_validation(CPU XX):\n', KXX_cpu
-                print 'loo_cross_validation(GPU XX):\n', KXX
+                print('loo_cross_validation(CPU XX):\n', KXX_cpu)
+                print('loo_cross_validation(GPU XX):\n', KXX)
                 raise
 
-        #############
-        z = time.time()
-        try:
-            #q = time.time()
+        if self.use_gpu:
             KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
             linalg.init()
             KXX_inv = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver').get()
-            #print 'Inverting KXX (GPU)=',time.time()-q
-        except Exception as e:
-            print str(e)
-            #q = time.time()
+        else:
             KXX_inv = np.linalg.inv(KXX) # self.?
-            #print 'Inverting KXX (CPU)=',time.time()-q
 
-        #q = time.time()
-        #KXX_inv_Y = np.linalg.solve(KXX, Y) # self.?
         KXX_inv_Y = np.dot(KXX_inv, Y)
-        #print 'KXX_inv * Y (CPU)=',time.time()-q
 
         ll = 0
         for partition in range(num_partitions):
@@ -434,34 +647,46 @@ class GPR():
                 err_row = err_row[~np.isnan(err_row)]
                 ll += np.sum(-0.5*err_row**2/covf[row,row]) -0.5*np.log(2*np.pi*covf[row,row]) * len(err_row)
 
-        if self.verbose:
-            print '[cv.gpu %.2f]'%(time.time()-z), theta, '-->', -ll
-
         return np.array([-ll])
-        #############
 
-    def cross_validation_with_grad(self, theta, X, Y, P):
-        t = time.time()
+
+    def cross_validation_with_grad(self, theta, X, Y, optimize_sigma2_n, log_transform):
+        """Compute the LOO cross validation score and gradient with respect to the hyperparameters.
+
+        Args:
+            theta: (1D ndarray, optional with default True) hyperparameters.
+            X: (2D ndarray) points of dimension N x D.
+            Y: (1D ndarray) outputs of dimension N x 1.
+            optimize_sigma2_n: (bool) Set False to keep sigma2_n at the initial guess value.
+            log_transform: (bool) If True, a ln transformation has been applied to contrain parameters to positive values.
+        """
+
+        if log_transform:
+            theta_log = theta
+            theta = np.maximum(np.minimum(theta, np.log(sys.float_info.max)), np.log(sys.float_info.min))
+            theta = np.exp(theta) # TEMP
 
         Y_mean = np.nanmean(Y, axis=1)
-
         D = len(theta)
 
-        KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution
-        if self.debug:
-            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-            if not np.allclose(KXX_cpu, KXX):
-                print 'loo_cross_validation(CPU XX):\n', KXX_cpu
-                print 'loo_cross_validation(GPU XX):\n', KXX
-                raise
+        if self.use_gpu:
+            KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
+            if self.debug:
+                # Compare to CPU
+                KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
+                if not np.allclose(KXX_cpu, KXX):
+                    print('loo_cross_validation(CPU XX):\n', KXX_cpu)
+                    print('loo_cross_validation(GPU XX):\n', KXX)
+                    raise
+        else:
+            KXX = self.kernel_xx(X, theta, add_sigma2_n = True)
 
-        try:
+        if self.use_gpu:
             KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
             linalg.init()
             KXX_inv_gpu = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver')
             KXX_inv = KXX_inv_gpu.get()
-        except Exception as e:
-            print str(e)
+        else:
             KXX_inv = np.linalg.inv(KXX) # self.?
 
         KXX_inv_Y = np.dot(KXX_inv, Y).squeeze()
@@ -473,36 +698,57 @@ class GPR():
         ll -= 0.5*np.log(2*np.pi) * Y.shape[0]
 
         dLLOO_dtheta = np.empty_like(theta)
-        linalg.init()
-        for j in range(D):
-            # TODO: Can compute some from KXX without calling kxx_gpu_wrapper
-            z = time.time()
-            dK_dthetaj = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True, deriv = j)
+        if self.use_gpu:
+            linalg.init()
 
-            try:
+        for j in range(D):
+            # TODO: Could compute some from KXX without calling kxx_gpu_wrapper
+            if self.use_gpu:
+                dK_dthetaj = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = False, deriv = j) # Do not want sigma2_n here!
                 # Get these as gpu arrays from the kernel function
                 dK_dthetaj_gpu = gpuarray.to_gpu(np.asarray(dK_dthetaj, np.float64))
-                Zj = linalg.dot(KXX_inv_gpu.copy(), dK_dthetaj_gpu.copy()).get()
-            except Exception as e:
-                print str(e)
+                Zj = linalg.dot(KXX_inv_gpu, dK_dthetaj_gpu).get()
+            else:
+                dK_dthetaj = self.kernel_xx(X, theta, add_sigma2_n = False, deriv = j) # Do not want sigma2_n here!
                 Zj = np.dot(KXX_inv, dK_dthetaj) # This is the slow part
 
+            # Fancy Einstein summations to compute only the diagonal elements!
             dLLOO_dthetaj = np.multiply(KXX_inv_Y, np.dot(Zj, KXX_inv_Y))
             dLLOO_dthetaj -= 0.5 * np.multiply( \
                     (1 + np.divide(np.square(KXX_inv_Y), np.diag(KXX_inv))), \
                     np.einsum('ij,ji->i', Zj, KXX_inv)
                 )
-            dLLOO_dthetaj = np.sum( np.multiply(dLLOO_dthetaj, sigma2) )
+            dLLOO_dtheta[j] = np.sum( np.multiply(dLLOO_dthetaj, sigma2) )
 
-            dLLOO_dtheta[j] = dLLOO_dthetaj
+            if self.debug:
+                # C. E. Rasmussen & C. K. I. Williams, Gaussian Processes for Machine Learning, the MIT Press, 2006, ISBN 026218253X.  2006 Massachusetts Institute of Technology.  www.GaussianProcess.org/gpml
+                # Page 117, equation (5.14)
+                # Note: Does not test dK_dthetaj calculation from above
+                alpha = np.dot(KXX_inv, Y).squeeze()
+                Zj = np.dot(KXX_inv, dK_dthetaj).squeeze()
+                Zj_alpha = np.dot(Zj, alpha)
+                Zj_Kinv = np.dot(Zj, KXX_inv)
+                mysum = 0
+                for i in range(len(alpha)):
+                    mysum += (alpha[i] * Zj_alpha[i] - 0.5 * (1 + alpha[i]**2 / KXX_inv[i,i]) * (Zj_Kinv[i,i])) /  KXX_inv[i,i]
+                assert( np.abs(mysum - dLLOO_dtheta[j]) < 1e-6 )
 
-        if self.verbose:
-            print '[cv.gpu %.2f]'%(time.time()-t), theta, '-->', -ll
+        if log_transform:
+            dLLOO_dtheta = np.multiply(dLLOO_dtheta, theta)
+
+        if not optimize_sigma2_n:
+            dLLOO_dtheta[1] = 0
+
+        print('\n\tLL:', -ll, '\n\tTheta:', theta, '\n\tDeriv:', -dLLOO_dtheta)
+        #exit()
 
         return -ll, -dLLOO_dtheta
 
 
     def assign_rep(self, sample):
+        """Helper function to assign a unique replicate index to each point.
+        """
+
         if 'index' in sample.columns:
             sample = sample.drop('index', axis=1).reset_index()
         else:
@@ -512,13 +758,22 @@ class GPR():
         return sample
 
 
-    def optimize_hyperparameters(self, x0, bounds, K=-1, optimizer_options={}):
-        # x0 like np.array([2, 0.10, 0.14641288665436947, 0.12166006573919039, 0.05, 0.05, 0.08055223671416605, 7.026854485434267 ])
-        # bounds like ((0.005,10),)+((0.01,10),) + tuple((5e-5,10) for i in range(self.D))
-        # K=None is leave one out cross validation, otherwise make K groups
+    def optimize_hyperparameters(self, x0, bounds, optimize_sigma2_n=True, log_transform=False, optimizer_options={}):
+        """Optimize the hyperparameter vector, theta, with respect to the training data.
+
+        Note that while each input may be simulated multiple times, here the mean of the outputs for each Saimple_Id are used.
+
+        Args:
+            x0: (1D ndarray) guess values like np.array([2, 0.10, 0.14641288665436947, 0.12166006573919039, 0.05, 0.05, 0.08055223671416605, 7.026854485434267 ]).
+            bounds: (tuple) ((0.005,10),)+((0.01,10),) + tuple((5e-5,10) for i in range(self.D)).
+            optimize_sigma2_n: (bool) Set False to keep sigma2_n at the initial guess value.
+            log_transform: (bool) Set True to apply a log transformation and use unconstrained Conjugate Gradient to optimize the hyperparameters.  Bounds will be ignored.
+            optimizer_options: (dict) Options to pass along to the optimization algorithm.  Through scipy-optimize, you can see these options e.g. for l-bfgs-b via spo.show_options(solver='minimize', method='l-bfgs-b')
+        """
+
         # Optimizer options for L-BFGS-B:
         '''
-        print spo.show_options(solver='minimize', method='l-bfgs-b')
+        print(spo.show_options(solver='minimize', method='l-bfgs-b'))
 
         Minimize a scalar function of one or more variables using the L-BFGS-B
         algorithm.
@@ -566,22 +821,29 @@ class GPR():
         for i,s in enumerate(samples):
             self.training_data.loc[ self.training_data['Sample_Id']==s, 'Sample_Index'] = i
 
-        if K <=1:
+        '''
+        # Old way from using K-fold cross-validation
+        if K <= 1:
             # Identity partition (LOO)
             self.training_data['Partition'] = self.training_data['Sample_Index']
         else:
-            assert(K<=len(samples))
+            assert( K <= len(samples) )
             self.training_data['Partition'] = np.floor(self.training_data['Sample_Index']%K).astype(int)
+        '''
 
-        num_params = 2 + self.D # sigma_n, sigma_f, lengthscale 1, lengthscale_2, ..., lengthscale_D
+        num_params = 2 + self.D # sigma2_n, sigma2_f, lengthscale^2 0, lengthscale^2 1, ..., lengthscale^2 D-1
 
+        # Computing the mean here:
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
+
         X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
-        P = train_mean['Partition'].values
         Y = self.training_data.reset_index().groupby('Sample_Id').apply(self.assign_rep).pivot('Sample_Id', 'Replicate', self.Ycol).values
 
         '''
         # Maximize LOO cross-validation error
+        # Old way from before using jacobian
+        P = train_mean['Partition'].values
+
         ret = spo.minimize(
             self.cross_validation,
             args=(X,Y,P),
@@ -594,171 +856,136 @@ class GPR():
         )
         '''
 
+        method = 'L-BFGS-B'
+        if log_transform:
+            x0 = np.log(x0)
+            method = 'CG'
+            bounds = None,
+
         ret = spo.minimize(
             self.cross_validation_with_grad,
-            args=(X,Y,P),
+            args=(X,Y, optimize_sigma2_n, log_transform),
             x0 = x0,
-            #method='CG', # CG, L-BFGS-B
-            method='L-BFGS-B',
+            method=method,
             bounds = bounds, # Constrain values
             jac=True, hess=None, hessp=None,
             constraints=(), tol=None, callback=None,
             options = optimizer_options
         )
 
-        print 'OPTIMIZATION RETURNED:\n', ret
+        print('OPTIMIZATION RETURNED:\n', ret)
 
         # Restore original index
         self.training_data.set_index(idx, inplace=True)
 
-        # if cache:
-        self.set_theta(ret.x)
-        #else:
-            #self.theta = ret.x # Length scales now on 0-1 range
+        # Set hyperparameters (theta) to optimal values
+
+        if log_transform:
+            x = np.maximum(np.minimum(ret.x, np.log(sys.float_info.max)), np.log(sys.float_info.min))
+            self.set_theta( np.exp(x) )
+        else:
+            self.set_theta(ret.x)
 
 
     def evaluate(self, data):
-        # Predict at test and training points, store mean and variance in self.data
-        t = time.time()
+        """Predict output values at input points specified by data.
 
-        train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
-        if self.X is None:
-            self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
-        #Y = self.training_data[self.Ycol].values
-        if self.Y is None:
-            self.Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
+        Note: as in optimize_hyperparameters, uses mean of training data over replicates.
+
+        Args:
+            data: (Pandas DataFrame) Points at which to evaluate the output.
+
+        Returns dictionay containing:
+            Mean: Predicted mean
+            Var_Latent: Variance of the latent function.  Does not include observation noise.
+            Var_Predictive: Variance of the predictive function.  Includes observation noise.
+        """
+
+        if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
+            if self.verbose:
+                print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
+            self.update_cache()
+
         P = self.basis.generate_dmatrix( data, scaleX = True).values
 
         if self.debug:
-            print 'X',self.X.shape,' flags:\n', self.X.flags
-            print 'Y',self.Y.shape,' flags:\n', self.Y.flags
-            print 'P',P.shape,' flags:\n', P.flags
-
-        if self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
-            # TODO: Save Kxx, just compute Kxp and Kpp!
-            try:
-                Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
-            except pycuda._driver.MemoryError:
-                print 'Insufficient video memory for Kxx matrix of dimension %d, reverting to (slow) CPU computation.'%self.X.shape[0]
-                Kxx = self.kernel_xx(self.X, self.theta, add_sigma2_n = True)
-
-            if self.debug:
-                Kxx_cpu = self.kernel_xx(self.X, self.theta, add_sigma1_n = True)
-                if not np.allclose(Kxx_cpu, Kxx):
-                    print 'evaluate(CPU XX):\n', Kxx_cpu
-                    print 'evaluate(GPU XX):\n', Kxx
-                    raise
-
-        if self.debug:
-            print '- T1:', time.time() - t; t=time.time()
+            print('X',self.X.shape,' flags:\n', self.X.flags)
+            print('Y',self.Y.shape,' flags:\n', self.Y.flags)
+            print('P',P.shape,' flags:\n', P.flags)
 
         Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
         if self.debug:
             Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
             if not np.allclose(Kxp_cpu, Kxp):
-                print 'evaluate(CPU XP):\n', Kxp_cpu
-                print 'evaluate(GPU XP):\n', Kxp
+                print('evaluate(CPU XP):\n', Kxp_cpu)
+                print('evaluate(GPU XP):\n', Kxp)
                 raise
 
-        if self.debug:
-            print '- T2:', time.time() - t; t=time.time()
-
-        Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
-        if self.debug:
-            Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
-            if not np.allclose(Kpp_cpu, Kpp):
-                print 'evaluate(CPU PP):\n', Kpp_cpu
-                print 'evaluate(GPU PP):\n', Kpp
-                raise
-
-        if self.debug:
-            print '- T3:', time.time() - t; t=time.time()
+        if self.use_gpu:
+            Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
+            if self.debug:
+                Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
+                if not np.allclose(Kpp_cpu, Kpp):
+                    print('evaluate(CPU PP):\n', Kpp_cpu)
+                    print('evaluate(GPU PP):\n', Kpp)
+                    raise
+        else:
+            Kpp = self.kernel_xx(P, self.theta, add_sigma2_n = False)
 
         f = np.dot(Kxp.T, self.Kxx_inv_Y)
-        '''
-        if self.Kxx_inv_Y is not None:
-            if self.verbose:
-                print 'Using cache for f'
-            try:
-                Kxx_inv_Y_gpu = gpuarray.to_gpu(np.asarray(self.Kxx_inv_Y, np.float64)) # TODO: Cache
-                #Kxp_gpu = gpuarray.to_gpu(np.asarray(Kxp, np.float64))
-                #f = linalg.dot(Kxp_gpu, Kxx_inv_Y_gpu, transa='T')
-                Kxp_gpu = gpuarray.to_gpu(np.asarray(Kxp, np.float64))
-
-                print Kxp_gpu.get()
-                print '--'
-                print Kxx_inv_Y_gpu.get()
-
-                f = linalg.dot(Kxp_gpu, Kxx_inv_Y_gpu, transa='T').get()
-            except Exception as e:
-                print 'ERROR:', str(e)
-                print 'BAD'
-                f = np.dot(Kxp.T, self.Kxx_inv_Y)
-        else:
-            print 'SHOULD NOT BE HERE!' # TODO
-            f = np.dot(Kxp.T, np.linalg.solve(Kxx, self.Y))
-
-        print 'gpu', f
-        print 'cpu', np.dot(Kxp.T, self.Kxx_inv_Y)
-        exit()
-        '''
 
         if self.debug:
-            print '- T4:', time.time() - t; t=time.time()
+            print('Using cache for covf')
 
-        #if self.Kxx_inv is not None:
-
-        if self.verbose:
-            print 'Using cache for covf'
-
-        #print 'JUST WANT DIAGONAL ELEMENTS!'
-        #q = time.time()
+        # NOTE: Just computing diagonal elements of:
         #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
-        #print 'Full (%f):'%(time.time()-q), np.sqrt(np.diag(covf))
-        #stdf = np.sqrt(np.diag(covf))
-
-        #q = time.time()
-        #covf = np.diag(Kpp) - np.einsum('ji,jk,ki->i', Kxp, self.Kxx_inv, Kxp)
-        try:
-            # TODO: Reuse gpu arrays to reduce to_gpu transfers
+        if self.use_gpu:
+            # : Reuse gpu arrays to reduce to_gpu transfers
             Kxx_inv_gpu = gpuarray.to_gpu(np.asarray(self.Kxx_inv, np.float64))
-
-            # TODO: HAVE FROM ABOVE (HOPEFULLY)!
             Kxp_gpu = gpuarray.to_gpu(np.asarray(Kxp, np.float64))
-
             tmp = linalg.dot(Kxx_inv_gpu, Kxp_gpu).get() # Need .copy() on gpu arrays?
-        except Exception as e:
-            print 'ERROR:', str(e)
+        else:
             tmp = np.dot(self.Kxx_inv, Kxp)
 
         covf = np.diag(Kpp) - np.einsum('ji,ji->i', Kxp, tmp)
-        #print 'Diag (%f):'%(time.time()-q), np.sqrt(covf)
 
-        #else:
-        #    covf = Kpp - np.dot(Kxp.T, np.linalg.solve(Kxx, Kxp))
-        #    stdf = np.sqrt(np.diag(covf))
+        # Add in observation noise
+        if self.fixed_sigma_n:
+            sigma2_n = self.theta[1]*np.ones(P.shape[0])
+        else:
+            # Evaluate the sigma2_n GPR and normalize
+            sigma2_n = np.exp( self.sigma2_n.evaluate(data)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
+            if self.normalize_y:
+                sigma2_n /= self.normalizer_std**2
 
-        if self.debug:
-            print '- T5:', time.time() - t; t=time.time()
-
-        #stdf = np.sqrt(covf)
-
-        if self.debug:
-            print '- T6:', time.time() - t; t=time.time()
-
-        # Note inverse normalize
+        # Note the inverse normalization
         return {    'Mean': self.inverse_normalize_mean(f),
                     'Var_Latent': self.inverse_normalize_var(covf),
-                    'Var_Predictive': self.inverse_normalize_var(covf + self.theta[1]*np.ones(P.shape[0])) }
+                    'Var_Predictive': self.inverse_normalize_var(covf + sigma2_n) }
 
-    def plot_data(self, samples_to_circle=pd.DataFrame(), saveto_dir = None, log_scale=False):
+
+    def plot_data(self, samples_to_circle=pd.DataFrame(), saveto_dir = None, log_scale = False):
+        """Make pairwise plots of data.
+
+        TODO: Make the scaling function a lambda.
+
+        Size is maximum of 1 and 25*normalized_y_value.
+
+        Args:
+            samples_to_circle: (Pandas DataFrame, similar cols to training_data) Plot size 50 black x's, one for each row
+            saveto_dir: (str, default None) Directory name where resulting figures should be saved.  None disables saving.
+            log_scale:  (boolean, default is False) transforms size and color using log(10 * normalized_y_value + 1)
+
+        Returns: Dictionary of matplotlib figure handle.  Keys are like VarName1-VarName2.pdf for each pair of variables.
+        """
+
         scaled = (self.training_data[self.Ycol]-self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max()-self.training_data[self.Ycol].min())
         if log_scale:
             scaled = np.log( 10*scaled+1 )
 
         figs = {}
 
-        X = self.basis.generate_dmatrix( self.training_data, scaleX = True)#.values
+        X = self.basis.generate_dmatrix( self.training_data, scaleX = True)
         Xcols = X.columns.tolist()
 
         if samples_to_circle.shape[0] > 0:
@@ -794,6 +1021,11 @@ class GPR():
 
 
     def plot_histogram(self):
+        """Plots histograms of the training data using Seaborn's distplot routine.
+
+        Returns: Matplotlib figure handle
+        """
+
         fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
         sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
 
@@ -801,6 +1033,16 @@ class GPR():
 
 
     def plot(self, Xcenter, res=10):
+        """Plots 2D contour slices through the output GPR.
+
+        When evaluating sweeping two parameteres at a time, the other parameters are fixed at Xcenter.
+
+        Args:
+            Xcenter: (1D ndarray similar to x0) These are the 'baseline' values unless modified in a 2D sweep.
+            res: (int) number of grid points per dimension.  res*res points will be evaluated to generate each pairwise plot.
+
+        Returns: Tuple of matplotlib figure handles.  The first element is for the mean and the second is for the latent standard deviation.
+        """
         Xmu = np.repeat( np.array([Xcenter]), res*res, axis=0)
 
         fig = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)))
@@ -813,7 +1055,7 @@ class GPR():
                     ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row]) # , projection='3d'
 
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
-                    print row, col, row*self.D+col, fixed_inputs
+                    print(row, col, row*self.D+col, fixed_inputs)
 
                     (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
                     (col_min, col_max) = (self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max())
@@ -840,7 +1082,7 @@ class GPR():
                         CS = ax.contour(X1, X2, Y_mean, zorder=100)
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print 'Unable to plot mean contour'
+                        print('Unable to plot mean contour')
                         pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25, cmap='jet')
@@ -849,7 +1091,7 @@ class GPR():
                         CS = ax_std_latent.contour(X1, X2, Y_std_latent, zorder=100)
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print 'Unable to plot std contour'
+                        print('Unable to plot std contour')
                         pass
 
                     if col == self.D-1:
@@ -859,60 +1101,40 @@ class GPR():
         #plt.tight_layout()
         return (fig, fig_std_latent)
 
-    def plot_errors(self, train, test, mean_col, var_predictive_col, var_latent_col):
 
-        print 'GPR Ycol_orig:\n', train[self.Ycol_orig].head()
-        print 'GPR mean_col:\n', train[mean_col].head()
-        print 'GPR std_predictive:\n', np.sqrt(train[var_predictive_col].head())
+    def plot_errors(self, train, test, mean_col, var_col):
+        """Generates two plots on a single figure.
 
-        train['Z_Predictive'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_predictive_col])
-        train['Z_Latent'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_latent_col])
-        test['Z_Predictive'] = (test[self.Ycol_orig] - test[mean_col]) / np.sqrt(test[var_predictive_col])
-        test['Z_Latent'] = (test[self.Ycol_orig] - test[mean_col]) / np.sqrt(test[var_latent_col])
+        The upper plot shows GP prediction on Y as a function of the true Y-values on X.  The lower panel shows Z-score on Y and the true Y-values on X.
+
+        In both panels, training data is cyan and test data is magenta.
+
+        Args:
+            train: (Pandas DataFrame) training data like training_data.
+            test: (Pandas DataFrame) test data like training_data.
+            mean_col: (str) Column name of predicted mean in train and test dataframes.
+            var_col: (str) Column name of variance (latent or predictive, you pick) in train and test dataframes.
+
+        Returns: Matplotlib figure handle.
+        """
+
+        train['Z_Score'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_col])
+        test['Z_Score'] = (test[self.Ycol_orig] - test[mean_col]) / np.sqrt(test[var_col])
 
         fig, ((ax1, ax2)) = plt.subplots(nrows=2, ncols=1, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
         ax = ax1
-        ax.errorbar(x=test[self.Ycol_orig], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='o', c='m', lw=0.5)
-        ax.errorbar(x=train[self.Ycol_orig], y=train[mean_col], yerr=2*np.sqrt(train[var_predictive_col]), fmt='o', c='c', lw=0.5)
+        ax.errorbar(x=test[self.Ycol_orig], y=test[mean_col], yerr=2*np.sqrt(test[var_col]), fmt='o', c='m', lw=0.5)
+        ax.errorbar(x=train[self.Ycol_orig], y=train[mean_col], yerr=2*np.sqrt(train[var_col]), fmt='o', c='c', lw=0.5)
         ax.margins(x=0,y=0.05)
         xlim = ax.get_xlim()
         ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
         ax.set_xlabel(self.Ycol_orig)
         ax.set_ylabel('Predicted')
 
-        '''
         ax = ax2
-        ax.scatter(x=train['Sample_Id'], y=train[self.Ycol_orig], c='c', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.scatter(x=test['Sample_Id'], y=test[self.Ycol_orig], c='m', marker='_', s=25, alpha=1, linewidths=1, zorder=50)
-        ax.errorbar(x=train['Sample_Id'], y=train[mean_col], yerr=2*np.sqrt(train[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
-        ax.errorbar(x=test['Sample_Id'], y=test[mean_col], yerr=2*np.sqrt(test[var_predictive_col]), fmt='.', ms=5, linewidth=1, c='k')
-        ax.margins(x=0,y=0.05)
-        ax.set_xlabel('Sample Id')
-        ax.set_ylabel(self.Ycol_orig)
-        '''
-
-        '''
-        a=0.05
-        ax = ax4
-        ax.scatter(x=train['Sample_Id'], y=train['Z_Predictive'], c='c', marker='_', alpha=0.5, linewidth=1)
-        ax.scatter(x=test['Sample_Id'], y=test['Z_Predictive'], c='m', marker='_', alpha=0.5, linewidth=1)
-
-        ax.margins(x=0,y=0.05)
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        ax.add_patch( patches.Rectangle( (0, -2), xlim[1], 4, alpha=a, color='g' ) )
-        ax.add_patch( patches.Rectangle( (0, -5), xlim[1], 3, alpha=a, color='#FFA500' ) )
-        ax.add_patch( patches.Rectangle( (0, 2), xlim[1], 3, alpha=a, color='#FFA500' ) )
-        ax.add_patch( patches.Rectangle( (0, ylim[0]), xlim[1], abs(ylim[0])-5, alpha=a, color='r' ) )
-        ax.add_patch( patches.Rectangle( (0, 5), xlim[1], abs(ylim[1])-5, alpha=a, color='r' ) )
-        ax.set_xlabel('Sample Id')
-        ax.set_ylabel('Z-Score')
-        '''
-
-        ax = ax2
-        ax.scatter(x=train[self.Ycol_orig], y=train['Z_Predictive'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
-        ax.scatter(x=test[self.Ycol_orig], y=test['Z_Predictive'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
+        ax.scatter(x=train[self.Ycol_orig], y=train['Z_Score'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
+        ax.scatter(x=test[self.Ycol_orig], y=test['Z_Score'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
         ax.set_xlabel(self.Ycol_orig)
         ax.set_ylabel('Z-Score')
         ax.margins(x=0,y=0.05)

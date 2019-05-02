@@ -7,8 +7,8 @@ from pyDOE import lhs
 import pandas as pd
 import numpy as np
 from history_matching import HistoryMatching
-from glm import GLM
-from gpr import GPR
+from history_matching.glm import GLM
+from history_matching.gpr import GPR
 
 import statsmodels.api as sm
 
@@ -35,10 +35,10 @@ class ProgressPlotting():
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
                 print('Reading iteration %d. cut %s' % (it,cut_name) )
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print '\t Desired Result:', hm.desired_result
-                print '\t Desired Result Var:', hm.desired_result_var
-                print '\t Discrepancy Var:', hm.discrepancy_var
-                print '\t Imp Thresh:', hm.implausibility_threshold
+                print('\t Desired Result:', hm.desired_result)
+                print('\t Desired Result Var:', hm.desired_result_var)
+                print('\t Discrepancy Var:', hm.discrepancy_var)
+                print('\t Imp Thresh:', hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
@@ -75,10 +75,10 @@ class ProgressPlotting():
             t = time.time()
             points['Yglm'] = self.glm_all[cut].evaluate(points)
             if self.debug:
-                print 'GLM:', time.time()-t; t=time.time()
+                print('GLM:', time.time()-t); t=time.time()
             ret = self.gpr_all[cut].evaluate(points)
             if self.debug:
-                print 'GPR:', time.time()-t; t=time.time()
+                print('GPR:', time.time()-t); t=time.time()
             points['Mean_Estimate'] = points['Yglm'] + ret['Mean']
             points['Var_Predictive'] = ret['Var_Predictive']
 
@@ -111,7 +111,10 @@ class ProgressPlotting():
 
 
         from sklearn.kernel_ridge import KernelRidge
-        clf = KernelRidge(alpha=1, kernel='gaussian')
+        #clf = KernelRidge(alpha=1, kernel='gaussian')
+        from sklearn.gaussian_process.kernels import ConstantKernel, RBF
+        kernel = ConstantKernel(constant_value=1.0, constant_value_bounds=(0.0, 10.0)) * RBF(length_scale=0.5, length_scale_bounds=(0.0, 10.0)) + RBF(length_scale=2.0, length_scale_bounds=(0.0, 10.0))
+        clf = KernelRidge(alpha=1, kernel=kernel) # gaussian
         X = pd.concat([x,y], axis=1)
         clf.fit(X, implausible)
 

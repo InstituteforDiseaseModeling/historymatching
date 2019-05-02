@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import matplotlib.patches as patches
 import seaborn as sns
-from basis import Basis
+from history_matching.basis import Basis
 import os
 
 def plot_implausibility(data, Xcols, column, thresh):
@@ -276,7 +276,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
     basis = Basis.identity_basis(params=param_info.index.unique().tolist(), param_info=param_info)
     Xcols = basis.get_terms()
 
-    reverse_param_dict = {v:k for k,v in basis.param_dict.iteritems()}
+    reverse_param_dict = {v:k for k,v in basis.param_dict.items()}
     Xcols = [reverse_param_dict[xc] for xc in Xcols]
 
     for row in range(len(Xcols)):
@@ -292,8 +292,10 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                     x = td.loc[ true_or_false, [Xcols[row]] ].values
                     y = td.loc[ true_or_false, [Xcols[col]] ].values
                     s = scaled.loc[ true_or_false ]
-                    if not isinstance(s, np.float64):
-                        s = s.values
+                    if not isinstance(s, np.float64): # If only one value
+                        s = s.values[:,None]
+                    else:
+                        s = np.array([s])
 
                     sc = plt.scatter(x, y, s=np.maximum(1, 25*s), c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
                     if true_or_false == False:

@@ -1,0 +1,16 @@
+{
+    "Basis": {
+        "Terms": [
+            "LOG_Base_Infectivity",
+            "Infectious_Period"
+        ],
+        "Param_Dict": {
+            "Sample": "Sample",
+            "LOG Base Infectivity": "LOG_Base_Infectivity",
+            "Infectious Period": "Infectious_Period",
+            "Exp_Id": "Exp_Id",
+            "Train": "Train"
+        },
+        "Param_Info": "{\"columns\":[\"Name\",\"Min\",\"Max\",\"MapTo\",\"Source\"],\"index\":[0,1],\"data\":[[\"LOG Base Infectivity\",-1,2,null,\"Default\"],[\"Infectious Period\",1,10,\"Base_Infectious_Period\",null]]}"
+    }
+}
