@@ -28,8 +28,10 @@ try:
     from pycuda.compiler import SourceModule
     import skcuda.misc as misc
     import skcuda.linalg as linalg
-except ImportError:
+except ImportError as e:
     print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
+except RuntimeError as e:
+    print("Runtime error starting cuda, message was:\n", e.message)
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
