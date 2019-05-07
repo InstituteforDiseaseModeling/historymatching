@@ -4,8 +4,8 @@ from pyDOE import lhs
 import pandas as pd
 import numpy as np
 from history_matching import HistoryMatching
-from glm import GLM
-from gpr import GPR
+from history_matching.glm import GLM
+from history_matching.gpr import GPR
 
 class CutNearSamples():
 
@@ -38,10 +38,10 @@ class CutNearSamples():
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
                 print('Reading iteration %d. cut %s' % (it,cut_name) )
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print '\t Desired Result:', hm.desired_result
-                print '\t Desired Result Var:', hm.desired_result_var
-                print '\t Discrepancy Var:', hm.discrepancy_var
-                print '\t Imp Thresh:', hm.implausibility_threshold
+                print('\t Desired Result:', hm.desired_result)
+                print('\t Desired Result Var:', hm.desired_result_var)
+                print('\t Discrepancy Var:', hm.discrepancy_var)
+                print('\t Imp Thresh:', hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
@@ -72,7 +72,7 @@ class CutNearSamples():
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
             if plausible_candidates.shape[0] == 0:
-                print 'Returning early because none of the candidates are plausible.'
+                print('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
 
             print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
@@ -201,7 +201,7 @@ class CutNearSamples():
         p = self.calc_seed_prob()
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
-            print '-'*80
+            print('-'*80)
             max_nSamples = 25000 #5000 # TODO: Make parameter
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
@@ -209,33 +209,33 @@ class CutNearSamples():
             else:
                 nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / ((1+stats['num_plausible_candidates'])/float(stats['num_candidates'])))))
 
-            print 'Starting with (%d):'%nSamples
+            print('Starting with (%d):'%nSamples)
 
-            print 'initialy draw_samples:'
+            print('initialy draw_samples:')
             sample = self.draw_samples(nSamples, p)
-            print 'data frame and constraint:'
+            print('data frame and constraint:')
             new_candidates = pd.DataFrame( sample, columns=self.Xcols_all_orig)
             if constraint is not None:
                 #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
                 #new_candidates = new_candidates.query(constraint)
                 new_candidates = new_candidates.loc[constraint(new_candidates),:]
 
-            print 'entering while loop:'
+            print('entering while loop:')
             while new_candidates.shape[0] < nSamples:
-                print 'draw_samples in while loop (%d):'%new_candidates.shape[0]
+                print('draw_samples in while loop (%d):'%new_candidates.shape[0])
                 samples = self.draw_samples(nSamples, p)
-                print 'data frame in while loop:'
+                print('data frame in while loop:')
                 sample_df = pd.DataFrame( samples, columns=self.Xcols_all_orig )
-                print 'sample_df has rows numbering %d:'%sample_df.shape[0]
+                print('sample_df has rows numbering %d:'%sample_df.shape[0])
                 if constraint is not None:
-                    print 'constraint evaluation in while loop:'
+                    print('constraint evaluation in while loop:')
                     sample_df = sample_df.loc[constraint(sample_df),:]
-                print 'appending sample_df to new_candidates.  was %d:' % new_candidates.shape[0]
+                print('appending sample_df to new_candidates.  was %d:' % new_candidates.shape[0])
                 new_candidates = new_candidates.append( sample_df, ignore_index=True )
-                print 'new_candidates.  now %d:' % new_candidates.shape[0]
+                print('new_candidates.  now %d:' % new_candidates.shape[0])
 
 
-            print 'Testing (%d):'%nSamples
+            print('Testing (%d):'%nSamples)
 
             plausibility = self.test_plausibility(new_candidates, constraint)
 
@@ -251,9 +251,9 @@ class CutNearSamples():
 
             del new_candidates
 
-            print 'Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates'])
+            print('Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates']))
 
-        print 'Saving to:', self.saveto_hd5
+        print('Saving to:', self.saveto_hd5)
         hdf = pd.HDFStore(self.saveto_hd5)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
         #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
@@ -284,6 +284,6 @@ class CutNearSamples():
         writer.save()
         '''
 
-        print 'Rejected %.1f%% [%d / %d]' % (rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials)
+        print('Rejected %.1f%% [%d / %d]' % (rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials))
 
         return (non_implausible_candidates, stats)

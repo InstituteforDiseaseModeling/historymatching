@@ -1,4 +1,4 @@
-from glm import GLM
+from history_matching.glm import GLM
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -153,13 +153,13 @@ class VariableSelection():
         #fit = model.fit_regularized(alpha=alpha)
         #for alpha in np.logspace(5,1,10):
         fit = model.fit_regularized(alpha=alpha, refit=True)
-        print 'SUMMARY:\n', fit.summary()
-        print 'AIC:', fit.aic
-        print 'BIC:', fit.bic
+        print('SUMMARY:\n', fit.summary())
+        print('AIC:', fit.aic)
+        print('BIC:', fit.bic)
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[params>0]
         #print 'FV:\n', fit.fittedvalues
-        print 'Non-Zero:', len(params), 'of', len(self.Xcols)
+        print('Non-Zero:', len(params), 'of', len(self.Xcols))
         #print alpha, len(params), fit.bic
 
         # Dang you patsy!
@@ -167,7 +167,7 @@ class VariableSelection():
         param_list = []
 
         for p,_ in params.iteritems():
-            print p
+            print(p)
             if '*' in p:
                 p_orig = [invdict[t] if t in invdict else t for t in map(str.strip, p.split('*'))]
             else:
@@ -218,7 +218,7 @@ class VariableSelection():
             #print 'BEST_X:', best_new_X, ' with BIC =', lowest_bic
             selected_X.append(best_new_X)
             Xcols_all.remove(best_new_X)
-            print 'Selected:', selected_X, 'BIC =',lowest_bic
+            print('Selected:', selected_X, 'BIC =',lowest_bic)
 
 
         fig = plt.figure()
