@@ -148,10 +148,10 @@ def plot_errors(train, test, Ycol, desired_result):
     a=0.05
     for data, ax, label in zip( [train_impl, test_impl], [ax1,ax2], ['Train', 'Test']):
         if True in data.index:
-            ax.scatter(x=data.loc[True, Ycol], y=data.loc[True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25)
+            ax.scatter(x=data.loc[True, Ycol], y=data.loc[True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25, label='Implausible')
         if False in data.index:
-            ax.scatter(x=data.loc[False, Ycol], y=data.loc[False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25)
-        ax.set_xlabel(Ycol)
+            ax.scatter(x=data.loc[False, Ycol], y=data.loc[False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25, label='Not Implausible')
+        ax.set_xlabel('Simulation Result')
         ax.set_ylabel('Z-Score')
         ax.margins(x=0,y=0.05)
         ax.set_title(label)
@@ -167,7 +167,8 @@ def plot_errors(train, test, Ycol, desired_result):
         ax.add_patch( patches.Rectangle( (0, ylim[0]), xlim[1], abs(ylim[0])-3, alpha=a, color='r' ) )
         ax.add_patch( patches.Rectangle( (0, 3), xlim[1], abs(ylim[1])-3, alpha=a, color='r' ) )
 
-        ax.plot( [desired_result, desired_result], ylim, 'y-', lw=2)
+        ax.plot( [desired_result, desired_result], ylim, 'y-', lw=2, label='Observed Data')
+        ax.legend()
 
     return fig
 
@@ -307,7 +308,9 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                     for idx, pt in circle_points.iterrows():
                         plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=65, facecolors='none', edgecolors='k', alpha=1, linewidths=1.0, marker='s')
 
-                plt.autoscale(tight=True)
+                #plt.autoscale(tight=True)
+                plt.xlim(basis.param_info.loc[Xcols[row]][['Min', 'Max']])
+                plt.ylim(basis.param_info.loc[Xcols[col]][['Min', 'Max']])
                 plt.xlabel( Xcols[row] )
                 plt.ylabel( Xcols[col] )
                 plt.tight_layout()

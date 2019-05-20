@@ -299,7 +299,9 @@ class GLM(object):
                         for idx, pt in cp_dmat.iterrows():
                             plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
-                    plt.autoscale(tight=True)
+                    #plt.autoscale(tight=True)
+                    plt.xlim(basis.param_info.loc[x_name][['Min', 'Max']])
+                    plt.ylim(basis.param_info.loc[y_name][['Min', 'Max']])
                     plt.xlabel( x_name )
                     plt.ylabel( y_name )
                     plt.tight_layout()
@@ -467,7 +469,7 @@ class GLM(object):
         ax.margins(x=0,y=0.05)
         xlim = ax.get_xlim()
         ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
-        ax.set_xlabel(self.Ycol)
+        ax.set_xlabel('Simulation Result')
         ax.set_ylabel('Predicted')
 
         figs['GLM Predicted vs Actual'] = fig

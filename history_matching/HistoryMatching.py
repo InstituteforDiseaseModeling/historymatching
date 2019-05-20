@@ -459,6 +459,29 @@ class HistoryMatching():
             fig.savefig( os.path.join(self.gprdir, 'histogram.pdf') );
             plt.close(fig)
 
+            Ymean = self.training_data['Mean_Err'] + self.training_data['Yglm']
+            Yvar = self.training_data['Var_Err_Predictive']
+            #self.training_data['Sim_Result']
+            fig, ax = plt.subplots(figsize=(16,10))
+            ax.errorbar(
+                x=self.training_data['Sim_Result'], 
+                y=self.training_data['Mean_Err'] + self.training_data['Yglm'], 
+                yerr=2*np.sqrt(self.training_data['Var_Err_Predictive']),
+                fmt='o', c='c', lw=0.5)
+            ax.errorbar(
+                x=self.test_data['Sim_Result'], 
+                y=self.test_data['Mean_Err'] + self.test_data['Yglm'], 
+                yerr=2*np.sqrt(self.test_data['Var_Err_Predictive']),
+                fmt='o', c='m', lw=0.5)
+            ax.margins(x=0,y=0.05)
+            xlim = ax.get_xlim()
+            ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
+            ax.set_xlabel('Simulation Result')
+            ax.set_ylabel('Predicted')
+            fig.savefig( os.path.join(self.gprdir, 'emulation.pdf') );
+            plt.close(fig)
+
+
 
     def plot(self):
         fig, ax = plt.subplots(figsize=(10,6)) # , sharex='col', sharey='row')
@@ -521,5 +544,5 @@ class HistoryMatching():
                 plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale, desired_result=self.desired_result)
 
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
-                plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=True)
+                plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale)
 

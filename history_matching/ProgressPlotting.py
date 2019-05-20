@@ -111,6 +111,7 @@ class ProgressPlotting():
 
 
         from sklearn.kernel_ridge import KernelRidge
+        #clf = KernelRidge(alpha=1, kernel='gaussian')
         from sklearn.gaussian_process.kernels import ConstantKernel, RBF
         kernel = ConstantKernel(constant_value=1.0, constant_value_bounds=(0.0, 10.0)) * RBF(length_scale=0.5, length_scale_bounds=(0.0, 10.0)) + RBF(length_scale=2.0, length_scale_bounds=(0.0, 10.0))
         clf = KernelRidge(alpha=1, kernel=kernel) # gaussian
