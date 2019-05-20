@@ -198,7 +198,7 @@ class GLM(object):
         Returns: A matplotlib figure handle.
         """
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(16,6))
         y = self.training_data[self.Ycol]
         ax.scatter(y, self.fitted_model.mu, marker='+')
         #line_fit = sm.OLS(y, sm.add_constant(yhat, prepend=True)).fit()
@@ -303,6 +303,8 @@ class GLM(object):
                     plt.xlabel( x_name )
                     plt.ylabel( y_name )
                     plt.tight_layout()
+                    plt.xlim(self.basis.param_info.loc[Xcols[row]][['Min', 'Max']])
+                    plt.ylim(self.basis.param_info.loc[Xcols[col]][['Min', 'Max']])
                     if saveto_dir is not None:
                         fig.savefig( os.path.join(saveto_dir, fn) ); plt.close(fig)
                     else:
@@ -459,7 +461,7 @@ class GLM(object):
         test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         exp_ids = list(set(train_exps + test_exps))
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(16,10))
         ax.plot(train[self.Ycol], train['Yglm'], 'c+', ms=10, mew=1)
         ax.plot(test[self.Ycol], test['Yglm'], 'm+', ms=10, mew=1)
         ax.margins(x=0,y=0.05)
@@ -471,7 +473,7 @@ class GLM(object):
         figs['GLM Predicted vs Actual'] = fig
 
         for i, exp_id in enumerate(exp_ids):
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(16,10))
             data_all = []
             cols = []
             if exp_id in train_exps: 

@@ -460,6 +460,22 @@ class HistoryMatching():
             plt.close(fig)
 
 
+    def plot(self):
+        fig, ax = plt.subplots(figsize=(10,6)) # , sharex='col', sharey='row')
+
+        ax.errorbar(x=self.test_data[self.Ycol], y=self.test_data['Mean_Err'] + self.test_data['Yglm'], yerr=2*np.sqrt(self.test_data['Var_Err_Predictive']), fmt='o', c='m', lw=0.5)
+        ax.errorbar(x=self.training_data[self.Ycol], y=self.training_data['Mean_Err'] + self.training_data['Yglm'], yerr=2*np.sqrt(self.training_data['Var_Err_Predictive']), fmt='o', c='c', lw=0.5)
+        ax.margins(x=0,y=0.05)
+        xlim = ax.get_xlim()
+        ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
+        ax.set_xlabel(self.Ycol)
+        ax.set_ylabel('Predicted')
+
+        #plt.tight_layout()
+
+        fig.savefig( os.path.join(self.cutdir, 'emulation.pdf') ); plt.close(fig)
+
+
     def calc_and_plot_implausibility(self,
         plot = False,
         do_plot_data = False,

@@ -298,7 +298,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                         s = np.array([s])
 
                     sc = plt.scatter(x, y, s=np.maximum(1, 25*s), c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
-                    if true_or_false == False:
+                    if False: #true_or_false == False:
                         cbar = plt.colorbar(sc, ticks=ticks)
                         cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
                         cbar.ax.set_yticklabels(tick_labels)  # vertically oriented colorbar
@@ -311,6 +311,8 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                 plt.xlabel( Xcols[row] )
                 plt.ylabel( Xcols[col] )
                 plt.tight_layout()
+                plt.xlim(basis.param_info.loc[Xcols[row]][['Min', 'Max']])
+                plt.ylim(basis.param_info.loc[Xcols[col]][['Min', 'Max']])
                 if saveto_dir is not None:
                     fig.savefig( os.path.join(saveto_dir, fn) ); plt.close(fig)
                 else:

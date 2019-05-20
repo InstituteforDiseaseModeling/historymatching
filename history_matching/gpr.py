@@ -1121,9 +1121,8 @@ class GPR():
         train['Z_Score'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_col])
         test['Z_Score'] = (test[self.Ycol_orig] - test[mean_col]) / np.sqrt(test[var_col])
 
-        fig, ((ax1, ax2)) = plt.subplots(nrows=2, ncols=1, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+        fig, ax = plt.subplots(nrows=1, ncols=1, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
-        ax = ax1
         ax.errorbar(x=test[self.Ycol_orig], y=test[mean_col], yerr=2*np.sqrt(test[var_col]), fmt='o', c='m', lw=0.5)
         ax.errorbar(x=train[self.Ycol_orig], y=train[mean_col], yerr=2*np.sqrt(train[var_col]), fmt='o', c='c', lw=0.5)
         ax.margins(x=0,y=0.05)
@@ -1132,12 +1131,14 @@ class GPR():
         ax.set_xlabel(self.Ycol_orig)
         ax.set_ylabel('Predicted')
 
+        '''
         ax = ax2
         ax.scatter(x=train[self.Ycol_orig], y=train['Z_Score'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
         ax.scatter(x=test[self.Ycol_orig], y=test['Z_Score'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
         ax.set_xlabel(self.Ycol_orig)
         ax.set_ylabel('Z-Score')
         ax.margins(x=0,y=0.05)
+        '''
 
         plt.tight_layout()
 
