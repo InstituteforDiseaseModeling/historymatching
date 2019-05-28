@@ -9,6 +9,20 @@ setup(name='HistoryMatching',
       author_email='dklein@idmod.org',
       url='https://github.com/InstituteforDiseaseModeling/history_matching',
       packages=['history_matching'],
+      install_requires=[
+          'setuptools',
+          'pandas',
+          'pyDOE',
+          'patsy',
+          'matplotlib',
+          'statsmodels',
+          'seaborn',
+          'xlrd',
+          'tables',
+          'openpyxl',
+          'jupyter',
+          'wand'
+      ],
       zip_safe=False
      )
 

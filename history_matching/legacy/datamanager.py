@@ -32,12 +32,12 @@ class DataManager(object):
         samples_md5 = DataManager.md5(self.samples_fn)
         samples_fn_hdf = os.path.join( os.path.dirname(self.samples_fn), 'Samples_%s.hd5'%samples_md5)
         if os.path.isfile(samples_fn_hdf):
-            print 'Reading samples from %s' % samples_fn_hdf
+            print('Reading samples from %s' % samples_fn_hdf)
             store = pd.HDFStore(samples_fn_hdf)
             samples = store['samples']
             store.close()
         else:
-            print 'Reading samples from %s' % self.samples_fn
+            print('Reading samples from %s' % self.samples_fn)
             xlsx = pd.ExcelFile(self.samples_fn)
             samples = pd.read_excel(xlsx, 'Samples').set_index('Sample')
             samples.sort_index(inplace=True)
@@ -49,12 +49,12 @@ class DataManager(object):
         results_md5 = DataManager.md5(self.results_fn)
         results_fn_hdf = os.path.join( os.path.dirname(self.results_fn), 'Results_%s.hd5'%results_md5)
         if os.path.isfile(results_fn_hdf):
-            print 'Reading results from %s' % results_fn_hdf
+            print('Reading results from %s' % results_fn_hdf)
             store = pd.HDFStore(results_fn_hdf)
             results = store['results']
             store.close()
         else:
-            print 'Reading results from %s' % self.results_fn
+            print('Reading results from %s' % self.results_fn)
             xlsx = pd.ExcelFile(self.results_fn)
             results = pd.read_excel(xlsx, sheetname).set_index('Sample')
             results.index = pd.Series(results.index).fillna(method='ffill') # Account for merged cells
@@ -92,26 +92,26 @@ class DataManager(object):
         if self.data.shape[0] != nSamp * nRep:
             print("Shape mismatch!  Data is %d long, but nSamp=%d x nRep=%d = %d\n" % (self.data.shape[0], nSamp, nRep, nSamp*nRep))
             cnt = self.data.groupby('Sample')['Sim_Id'].count()
-            print 'Samples with too few reps follow:\n', cnt[cnt < nRep].sort_values()
+            print('Samples with too few reps follow:\n', cnt[cnt < nRep].sort_values())
             raise Exception('Dimension mismatch')
 
-        print "Sim contains %d unique parameter configurations, each of which is repeated %d times." % (nSamp, nRep)
+        print("Sim contains %d unique parameter configurations, each of which is repeated %d times." % (nSamp, nRep))
 
-        #print self.data.head()
+        #print(self.data.head())
         #self.X = self.Xf[:-nTest,]  # Train (samples 0 to nTest-1)
         #self.Y = self.Yf[:-nTest,]
 
         #self.Xt = self.Xf[-nTest:,]  # Test (the last nTest samples)
         #self.Yt = self.Yf[-nTest:,]
 
-        print "--> Training with %d unique parameter configurations (%d simulations including replicates)"  % (nSamp-nTest, (nSamp-nTest)*nRep)
-        print "--> Testing  with %d unique parameter configurations (%d simulations including replicates)" % (nTest, nTest*nRep)
+        print("--> Training with %d unique parameter configurations (%d simulations including replicates)"  % (nSamp-nTest, (nSamp-nTest)*nRep))
+        print("--> Testing  with %d unique parameter configurations (%d simulations including replicates)" % (nTest, nTest*nRep))
 
-        #print self.data.loc['Train', self.data.Xcols].head()
+        #print(self.data.loc['Train', self.data.Xcols].head())
 
         #store = pd.HDFStore('design_info.h5')
-        #print store
-        #print 'DI\n', store.get('design_info')
+        #print(store)
+        #print('DI\n', store.get('design_info'))
         #fitted_model.model.data.orig_exog.design_info = store['design_info']
         #store.close()
 
