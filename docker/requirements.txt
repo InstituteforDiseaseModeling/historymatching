@@ -15,3 +15,4 @@ matplotlib==3.0.3
 patsy==0.5.1
 pyDOE==0.3.8
 numpy==1.16.3
+tornado==4.4.3
