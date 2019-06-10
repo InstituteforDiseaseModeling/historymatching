@@ -66,7 +66,7 @@ reference_fn = os.path.join('..', '..', 'Data', 'Zimbabwe.xlsx')
 params = pd.read_excel(samples_fn, sheetname='Params')
 Xcols_all = params['Name'].tolist()
 
-#print 'Available X-columns:\n', '\n\t'.join(Xcols_all)
+#print('Available X-columns:\n', '\n\t'.join(Xcols_all))
 #Xcols = Xcols_all
 Xcols = [
     #'Risk Reduction Fraction',
@@ -137,7 +137,7 @@ national_prevalence_reference_data = raw.loc[Source, Year, Gender, AgeBin]
 reference_value = 1/100. * national_prevalence_reference_data['NationalPrevalence'] * national_prevalence_reference_data['Count']
 
 ### DATA MANAGER ##############################################################
-print "Loading data ..."
+print("Loading data ...")
 dm = DataManager(samples_fn, results_fn, 'NationalPrevalenceAnalyzer', training_fraction)
 
 # Fix names for picky statsmodels patsy:
@@ -148,7 +148,7 @@ for i,xc in enumerate(Xcols_all):
     if ':' in xc or '&' in xc:
         new_xc = xc.replace(':', '').replace('&',' ')
         dm.rename(xc, new_xc) # statsmodels var names can't have space in formula
-        #print '\t', xc, '-->', new_xc
+        #print('\t', xc, '-->', new_xc)
         params.rename(index={xc:new_xc}, inplace=True)
         newXcols_all.append(new_xc)
         if xc in Xcols:
@@ -183,11 +183,11 @@ def compute_result(data):
 def filter_entries(data, lower=np.NaN, upper=np.NaN):
     if not np.isnan(lower):
         data = data.loc[ data[Ycol] > lower, :]
-        print 'NOTE: Keeping > %f.' % lower
+        print('NOTE: Keeping > %f.' % lower)
 
     if not np.isnan(upper):
         data = data.loc[ data[Ycol] < upper, :]
-        print 'NOTE: Keeping only data < %f.' % upper
+        print('NOTE: Keeping only data < %f.' % upper)
 
     return data
 
@@ -205,7 +205,7 @@ test = compute_result(test_data)
 train_mean = train.reset_index().groupby(['Sample']).mean()
 test_mean = test.reset_index().groupby(['Sample']).mean()
 
-#print 'WARNING: LIMITING TEST DATA!!!!\n'*10
+#print('WARNING: LIMITING TEST DATA!!!!\n'*10)
 #test_mean = test_mean.iloc[0:25]
 
 
@@ -215,11 +215,11 @@ test_mean = test.reset_index().groupby(['Sample']).mean()
 #writer.save()
 
 ### GLM ###############################################################
-print "Generalized Linear Modeling"
-print "-"*80
+print("Generalized Linear Modeling")
+print("-"*80)
 
 if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
-    print "Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn
+    print("Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn)
     glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
 else:
     glm_model = GLM( Xcols = Xcols,
@@ -234,12 +234,12 @@ else:
                         fourth_order_basis_terms = fourth_order_basis_terms,
                         fifth_order_basis_terms = fifth_order_basis_terms,
                         higher_order_basis_terms = higher_order_basis_terms)
-    print "Fitting the GLM"
+    print("Fitting the GLM")
     glm_model.fit(maxiter=glm_fit_maxiter)
     glm_model.save(glm_model_fn, mean_params_fn)
 
 
-print 'Evaluating training and test data'
+print('Evaluating training and test data')
 train_mean['Yglm'] = glm_model.evaluate(train_mean)
 test_mean['Yglm'] = glm_model.evaluate(test_mean)
 
@@ -251,7 +251,7 @@ if False:
 
     if False:
         #cp = pd.DataFrame()
-        print test_mean.loc[[2110]]
+        print(test_mean.loc[[2110]])
         cp = test_mean.loc[[2110]]
         figs = glm_model.plot_data(circle_points=cp);
         pairdir = os.path.join(glmdir, 'PairwiseResults')
@@ -270,7 +270,7 @@ if False:
 train = train.join(train_mean['Yglm'])
 train['Yerr'] = train[Ycol] - train['Yglm']
 
-#print 'Best and worst training errors:\n', train.sort_values(by='Yerr')
+#print('Best and worst training errors:\n', train.sort_values(by='Yerr'))
 
 test = test.join(test_mean['Yglm'])
 test['Yerr'] = test[Ycol] - test['Yglm']
@@ -278,16 +278,16 @@ test['Yerr'] = test[Ycol] - test['Yglm']
 train_mean = train.reset_index().groupby(['Sample']).mean()
 test_mean = test.reset_index().groupby(['Sample']).mean()
 
-#print 'Best and worst test errors:\n', test.sort_values(by='Yerr')
+#print('Best and worst test errors:\n', test.sort_values(by='Yerr'))
 
 
 ### GPR ###############################################################
-print "Gaussian Process Regression"
-print "-"*80
+print("Gaussian Process Regression")
+print("-"*80)
 ###############################################################################
 
 if not force_optimize_gpr and os.path.isfile(gpr_model_fn):
-    print "Loading GPR from", gpr_model_fn
+    print("Loading GPR from", gpr_model_fn)
     gpr_model = GPR.from_config(gpr_model_fn)
 else:
     gpr_model = GPR(    Xcols = Xcols,
@@ -301,7 +301,7 @@ else:
     param_x0 = len(Xcols)*[0.1]
     param_bounds = tuple( len(Xcols)*((0.001, 1.0),) )
 
-    print "Fitting the GPR"
+    print("Fitting the GPR")
     gpr_model.optimize_hyperparameters(
         x0 = np.append(np.array([2, 0.5]), param_x0),
         bounds = ((0.005,10),)+((0.01,10),) + param_bounds,
@@ -309,7 +309,7 @@ else:
     )
     gpr_model.save(gpr_model_fn)
 
-print 'Evaluating training and test data'
+print('Evaluating training and test data')
 ret = gpr_model.evaluate(train_mean)
 train_mean['Mean_Err'] = ret['Mean']
 train_mean['Mean_Estimate'] = train_mean['Yglm'] + train_mean['Mean_Err']
@@ -345,7 +345,7 @@ if False:
     if False: # Slow while other stuff is running, but a really nice plot!
         # TODO: Fix parameter ranges
         mu = train[Xcols].mean()
-        #mu = train.loc[146][Xcols].mean(); print mu
+        #mu = train.loc[146][Xcols].mean(); print(mu)
         (fig_mean, fig_std_latent) = gpr_model.plot(mu, res=25);
         fig_mean.savefig( os.path.join(gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
         fig_std_latent.savefig( os.path.join(gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW
@@ -355,7 +355,7 @@ if False:
     plt.close(fig)
 
 ###############################################################################
-print "Joint plot"
+print("Joint plot")
 ###############################################################################
 def joint_plot(data, data_mean, log_x = False):
     fig = plt.figure(figsize=(16,32))
@@ -504,7 +504,7 @@ if False:
     fig = plot_errors(train_mean.reset_index(), test_mean.reset_index()); fig.savefig( os.path.join(jointdir, 'errors.pdf') );  plt.close(fig)
 
 ###############################################################################
-print "OKAY, TIME TO CUT", '#'*65
+print("OKAY, TIME TO CUT", '#'*65)
 ###############################################################################
 
 # ADD TEST DATA TO GPR TRAINING
@@ -534,7 +534,7 @@ def plot_implausibility(data, column, thresh, save_fn=None):
                     plt.ylabel( Xcols[col] )
     plt.tight_layout()
     if save_fn is not None:
-        print 'Saving figure to %s' % save_fn
+        print('Saving figure to %s' % save_fn)
         plt.savefig(save_fn)
     return fig
 
@@ -584,7 +584,7 @@ def plot_implausibility_by_iter(data, save_fn=None):
     plt.tight_layout()
 
     if save_fn is not None:
-        print 'Saving figure to %s' % save_fn
+        print('Saving figure to %s' % save_fn)
         plt.savefig(save_fn)
     return fig
 
@@ -596,11 +596,11 @@ def histogram_implausibility(data, column, thresh=None, save_fn=None):
     if thresh is not None:
         plt.plot([thresh,thresh], yl, 'r-')
     if save_fn is not None:
-        print 'Saving figure to %s' % save_fn
+        print('Saving figure to %s' % save_fn)
         plt.savefig(save_fn)
 
 
-print "Looking for ", reference_value
+print("Looking for ", reference_value)
 
 num_desired_candidates = 5000
 num_good_candidates = 0
@@ -615,9 +615,9 @@ for it in range(iteration): # Loop over previous iterations
     glm_all[it] = GLM.from_config(os.path.join(iterdir, 'GLM', 'model.json'), os.path.join(iterdir, 'GLM', 'params.p'))
     gpr_all[it] = GPR.from_config(os.path.join(iterdir, 'GPR', 'model.json'))
 
-print 'Looking for candidates, step', search_step; search_step+=1
+print('Looking for candidates, step', search_step; search_step+=1)
 while num_good_candidates < num_desired_candidates:
-    print '-'*80
+    print('-'*80)
     # Likeliy need to over-sample, this could take a long time if p is low
     # Min here to avoid running out of GPU ram!
     lhs_sample = lhs( len(Xcols_all), samples=min(2500, num_desired_candidates-num_good_candidates))
@@ -649,15 +649,15 @@ while num_good_candidates < num_desired_candidates:
     num_new_good_candidates = sum(new_candidates['Implausible'] == False)
     num_good_candidates += num_new_good_candidates
 
-    #print new_candidates
+    #print(new_candidates)
     del new_candidates
 
-    print 'Candidates: New = %d, Tot = %d' % (num_new_good_candidates, num_good_candidates)
+    print('Candidates: New = %d, Tot = %d' % (num_new_good_candidates, num_good_candidates))
 
 # Put back orig parameter names
 candidates.rename(columns={new:orig for (new,orig) in zip(Xcols_all, Xcols_all_orig)}, inplace=True)
 
-print 'Rejected %.1f%%' % (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
+print('Rejected %.1f%%' % (100 * sum(candidates['Implausible']) / float(candidates.shape[0])))
 
 non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(iteration+1))
