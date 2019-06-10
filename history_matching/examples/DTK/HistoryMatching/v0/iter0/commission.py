@@ -84,7 +84,7 @@ def choose_and_scale_samples(num_samples):
         remaining = num_samples - samples.shape[0]
         while remaining > 0:
             assert(False) # Should never get here in this example because there is no constraint!
-            samples_unconstrained = choose_and_scale_samples_unconstrained(num_samples)
+            samples_unconstrained = choose_and_scale_samples_unconstrained(remaining)
             # Here is an example of how to impose a simple constraint:
             samples_unconstrained['Days'] = samples_unconstrained[['Env Ramp Up', 'Env Ramp Down', 'Env Cutoff']].sum(axis=1)
             samples = pd.concat([samples, samples_unconstrained.loc[ samples_unconstrained['Days'] < 365, :] ], ignore_index=True)

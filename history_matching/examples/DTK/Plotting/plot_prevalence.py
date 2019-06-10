@@ -8,7 +8,7 @@ from matplotlib import collections as mc
 
 from scipy.stats import beta
 from functools import partial
-from pandas.tools.plotting import parallel_coordinates
+from pandas.plotting import parallel_coordinates
 
 if len(sys.argv) < 2:
     print('Usage: plot_prevalence.py path/to/Results1.csv path/to/Results1.csv ...')
