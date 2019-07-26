@@ -503,7 +503,7 @@ class HistoryMatching():
         plot = False,
         do_plot_data = False,
         plot_data_highlight = pd.DataFrame(),
-        log_scale = True
+        log_scale = False
     ):
         """Calculate and plot implausibility.
 

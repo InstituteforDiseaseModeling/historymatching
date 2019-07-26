@@ -290,10 +290,10 @@ class GLM(object):
 
                     x_name = reverse_param_dict[ Xcols[row] ]
                     y_name = reverse_param_dict[ Xcols[col] ]
-                    x = (dmat[ Xcols[row] ] + basis.param_info.loc[x_name]['Min']) * (basis.param_info.loc[x_name]['Max'] - basis.param_info.loc[x_name]['Min'])
-                    y = (dmat[ Xcols[col] ] + basis.param_info.loc[y_name]['Min']) * (basis.param_info.loc[y_name]['Max'] - basis.param_info.loc[y_name]['Min'])
+                    x = dmat[ Xcols[row] ] * (basis.param_info.loc[x_name]['Max'] - basis.param_info.loc[x_name]['Min']) + basis.param_info.loc[x_name]['Min']
+                    y = dmat[ Xcols[col] ] * (basis.param_info.loc[y_name]['Max'] - basis.param_info.loc[y_name]['Min']) + basis.param_info.loc[y_name]['Min']
 
-                    plt.scatter(x, y, s=np.maximum(1, 25*scaled), c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
+                    plt.scatter(x, y, 100*scaled, c=100*scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k')
 
                     if circle_points.shape[0] > 0:
                         for idx, pt in cp_dmat.iterrows():
@@ -305,8 +305,7 @@ class GLM(object):
                     plt.xlabel( x_name )
                     plt.ylabel( y_name )
                     plt.tight_layout()
-                    plt.xlim(self.basis.param_info.loc[Xcols[row]][['Min', 'Max']])
-                    plt.ylim(self.basis.param_info.loc[Xcols[col]][['Min', 'Max']])
+
                     if saveto_dir is not None:
                         fig.savefig( os.path.join(saveto_dir, fn) ); plt.close(fig)
                     else:
