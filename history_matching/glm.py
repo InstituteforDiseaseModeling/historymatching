@@ -305,7 +305,6 @@ class GLM(object):
                     plt.xlabel( x_name )
                     plt.ylabel( y_name )
                     plt.tight_layout()
-
                     if saveto_dir is not None:
                         fig.savefig( os.path.join(saveto_dir, fn) ); plt.close(fig)
                     else:

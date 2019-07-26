@@ -329,6 +329,8 @@ class Basis():
         Returns: The predicted results at the inputs.
         """
 
+        print('User selected alpha = %f' % alpha)
+
         if scaleX:
             assert(self.param_info is not None)
             inputs = self.scale_data(inputs.copy())

@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 MAINTAINER Daniel J. Klein dklein@idmod.org
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
         build-essential \
         apt-utils \
         gcc \
@@ -14,17 +14,24 @@ RUN apt-get update \
         vim \
         nvidia-cuda-toolkit \
         nvidia-cuda-dev \
-        ubuntu-drivers-common \
+        jupyter-notebook \
         python3-dev \
         python3-pycuda \
         python3-setuptools \
         libmagickwand-dev \
         openssh-client \
-    && pip3 install --upgrade pip \
+        dbus-x11 \
+        firefox \
     && apt-add-repository ppa:graphics-drivers/ppa \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y nvidia-driver-418 \
+    && pip3 install --upgrade pip \
     && apt-get update -y \
-    && DEBIAN_FRONTEND=noninteractive ubuntu-drivers autoinstall \
     && apt-get clean
+
+    #&& apt-get install nvidia-driver-430 \
+    #ubuntu-drivers-common \
+    #&& DEBIAN_FRONTEND=noninteractive ubuntu-drivers autoinstall \
+
 ADD requirements.txt /
 RUN pip3 install -r requirements.txt
 
