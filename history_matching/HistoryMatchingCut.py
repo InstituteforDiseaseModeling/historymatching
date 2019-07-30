@@ -107,7 +107,7 @@ class HistoryMatchingCut():
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print('-'*80)
-            max_nSamples = 25000 # TODO: make a parameter or determine from GPU info
+            max_nSamples = 5000 # TODO: make a parameter or determine from GPU info
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
                 nSamples = min(max_nSamples, num_desired_candidates)

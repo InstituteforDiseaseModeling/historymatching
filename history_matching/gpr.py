@@ -512,7 +512,7 @@ class GPR():
             X_gpu, theta_gpu,   # <-- Inputs
             np.uint32(Nx),      # <-- N
             np.uint32(self.D),  # <-- D
-            np.uint32(deriv),      # <-- Negative for no derivative
+            np.int32(deriv),      # <-- Negative for no derivative
             np.uint8(X.flags.f_contiguous), # FORTRAN (column) contiguous
             block = block_dim,
             grid = grid_dim
@@ -535,7 +535,7 @@ class GPR():
             # Add sigma_n^2 to the diagonal, observation noise
             Kxx[np.diag_indices(Nx)] += sigma2_n
 
-        if self.debug:
+        if self.debug and deriv < 0:
             # Test on CPU
             Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
             if not np.allclose(Kxx_cpu, Kxx):
@@ -1003,7 +1003,7 @@ class GPR():
                     x = X[Xcols[row]]
                     y = X[Xcols[col]]
 
-                    plt.scatter(x, y, s=np.maximum(1, 25*scaled), c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
+                    plt.scatter(x, y, s=100*scaled, c=100*scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
                     # Circle some interesting samples
                     if samples_to_circle.shape[0] > 0:

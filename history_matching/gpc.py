@@ -58,6 +58,9 @@ class GPC():
 
         self.Xcols_scaled = []
         for xc in self.Xcols:
+            if xc not in self.training_data.columns:
+                print('Cannot find columns %s in the training data, which has columns:'%xs, self.training_data.columns)
+                raise Exception('Missing column')
             xc_new = xc+' (scaled)'
             self.Xcols_scaled.append(xc_new)
             self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
@@ -80,18 +83,22 @@ class GPC():
             print("from_config:", config_fn)
             with open(os.path.join(config_fn)) as data_file:
                 config = json.load( data_file )
-
-                return cls(
-                    config['Xcols'],
-                    config['Ycol'],
-                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample'),
-                    param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
-                    kernel_mode = config['Kernel_Mode'],
-                    kernel_params = np.array(config['Kernel_Params']),
-                )
+                return GPC.from_dict(config)
         except EnvironmentError:
             print("Unable to load GPC from_config file", config_fn)
             raise
+
+
+    @classmethod
+    def from_dict(cls, config):
+        return cls(
+            config['Xcols'],
+            config['Ycol'],
+            training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample'),
+            param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
+            kernel_mode = config['Kernel_Mode'],
+            kernel_params = np.array(config['Kernel_Params']),
+        )
 
 
     def set_training_data(self, new_training_data):
@@ -103,17 +110,20 @@ class GPC():
             self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
 
-    def save(self, save_to):
-        with open(save_to, 'w') as fout:
-            json.dump(
-                {
+    def save(self, save_to = None):
+        save_dict = {
                     'Xcols'         : self.Xcols,
                     'Ycol'          : self.Ycol,
                     'Kernel_Mode'   : self.kernel_mode,
                     'Kernel_Params' : self.theta.tolist(),
                     'Training_Data' : self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
                     'Param_Info'        : self.param_info.reset_index().to_json(orient='split')
-                }, fout, indent=4)
+                }
+
+        if save_to:
+            with open(save_to, 'w') as fout:
+                json.dump(save_dict, fout, indent=4)
+        return save_dict
 
 
     def define_kernel(self, params):

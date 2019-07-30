@@ -264,13 +264,13 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
         desired_tick = (desired_result-td[Ycol].min()) / (td[Ycol].max()-td[Ycol].min())
         ticks = np.append(ticks, desired_tick)
 
-    scaled = (td[Ycol]-td[Ycol].min()) / (td[Ycol].max()-td[Ycol].min())
+    scaled = 100*(td[Ycol]-td[Ycol].min()) / (td[Ycol].max()-td[Ycol].min())
     tick_labels = ticks * (td[Ycol].max()-td[Ycol].min()) + td[Ycol].min()
+    if log_scale:
+        scaled = np.log( scaled/10.0+1 )
+        tick_labels = (np.exp(ticks)-1)/10.0 * (td[Ycol].max()-td[Ycol].min()) + td[Ycol].min()
     vmin = scaled.min()
     vmax = scaled.max()
-    if log_scale:
-        scaled = np.log( 10*scaled+1 )
-        tick_labels = (np.exp(ticks)-1)/10.0 * (td[Ycol].max()-td[Ycol].min()) + td[Ycol].min()
 
     figs = {}
 
@@ -298,7 +298,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                     else:
                         s = np.array([s])
 
-                    sc = plt.scatter(x, y, s=np.maximum(1, 25*s), c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
+                    sc = plt.scatter(x, y, s=s, c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
                     if False: #true_or_false == False:
                         cbar = plt.colorbar(sc, ticks=ticks)
                         cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
