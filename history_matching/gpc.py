@@ -35,6 +35,7 @@ class GPC():
     def __init__(self, Xcols, Ycol, training_data, param_info,
             kernel_mode = 'RBF',
             kernel_params = None,
+            fig_type = 'pdf',
             verbose = False,
             debug = False,
             **kwargs
@@ -877,7 +878,7 @@ class GPC():
                 if col > row:
                     #gs = gridspec.GridSpec(self.D-1, self.D-1)
                     #ax = fig.add_subplot(gs[col-1,row])
-                    fn = '%s-%s.pdf' % (self.Xcols[row], self.Xcols[col])
+                    fn = '%s-%s' % (self.Xcols[row], self.Xcols[col]) + '.' + self.fig_type
                     figs[fn] = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
                     x = self.training_data[ self.Xcols[row] ]

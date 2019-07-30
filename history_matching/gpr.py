@@ -48,6 +48,7 @@ class GPR():
             #is_poisson = False, # Not currently supported
             normalize_y = True,
             sigma2_n = None,
+            fig_type = 'pdf',
             verbose = False,
             debug = False,
             **kwargs
@@ -996,7 +997,7 @@ class GPR():
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
-                    fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
+                    fn = '%s-%s' % (Xcols[row], Xcols[col]) +'.'+self.fig_type
                     fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
                     x = X[Xcols[row]]

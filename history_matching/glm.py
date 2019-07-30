@@ -29,6 +29,7 @@ class GLM(object):
             training_data = None,
             reference_value = 0,
             family = 'Poisson', # 'Poisson', 'NegativeBinomial', 'Gaussian'
+            fig_type = 'pdf',
             fitted_model = None,
             verbose = True
         ):
@@ -58,6 +59,7 @@ class GLM(object):
         self.Ycol = Ycol
         self.D = self.basis.D
         self.family = family
+        self.fig_type = fig_type
         self.verbose = verbose
 
         self.fitted_model = fitted_model
@@ -285,7 +287,7 @@ class GLM(object):
         for row in range(len(Xcols)):
             for col in range(len(Xcols)):
                 if col > row:
-                    fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
+                    fn = '%s-%s' % (Xcols[row], Xcols[col]) + '.'+self.fig_type
                     fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
                     x_name = reverse_param_dict[ Xcols[row] ]
