@@ -1,24 +1,6 @@
-""" runModel
+""" runModel_sirTaoLeap
 
 Event-driven simulation of an SIR model based on Gillespie's tao-leap method.
-
-
-Arguments: 
-
-    x          : Pandas DataFrame with each row containing a set of parameters
-                 to be used in simulations.
-
-    xCommon    : Dictionary containing the parameters that are common for all
-                 the simulations.
-
-    id         : String that names the figure to be saved.
-
-    showFigure : Boolean indicating if figure should be displayed on screen.
-
-
-Output: 
-
-    ySimulated : Pandas DataFrame containing the results of the simulations.
 
 """
 # Python libraries (native, 3rd party)
@@ -35,8 +17,29 @@ from sirTaoLeap import sirTaoLeap
 
 
 def runModel_sirTaoLeapIncidence( x, xCommon, id, showFigure=False ):
+    """
+    Event-driven simulation of an SIR model based on Gillespie's tao-leap
+    method. The output contains the incidence for each of the combinations in 
+    in the dataframe of input parameters.
 
-    # Set default parameters
+    Arguments: 
+
+        x          : Pandas DataFrame with each row containing a set of 
+                     parameters to be used in simulations.
+
+        xCommon    : Dictionary containing the parameters that are common for 
+                     all the simulations.
+
+        id         : String that names the figure to be saved.
+
+        showFigure : Boolean indicating if figure should be displayed on screen.
+
+    Output: 
+
+        ySimulated : Pandas DataFrame containing the results of the simulations.
+    """
+
+    # Model parameters (defaults)
     beta  = 0.25
     gamma = 0.25
     s0    = -1
@@ -81,7 +84,7 @@ def runModel_sirTaoLeapIncidence( x, xCommon, id, showFigure=False ):
         elif ( r0 < 0 ):  r0 = p*N - s0 - i0
         elif ( N  < 0 ):  N  = s0 + i0 + r0
         else           :  return -1  # Error condition
-        if ( (s0<0) or (i0<0) or (r0<0)) : return -2  # Another error condition
+        if ( (s0<0) or (i0<0) or (r0<0)) : return -2  # Error condition
         
         
         # Run simulations
@@ -92,9 +95,7 @@ def runModel_sirTaoLeapIncidence( x, xCommon, id, showFigure=False ):
         # Save results
         plt.plot( incidence )
         incidenceAll.append( incidence )
-        # for k, value in enumerate( incidence ):        
-           # incidenceAll.append( [j, k, value] )
-        
+       
         
         
         
@@ -120,9 +121,3 @@ def runModel_sirTaoLeapIncidence( x, xCommon, id, showFigure=False ):
     # Finalize and return
     return incidenceAll
     
-    # # Simulated results must be converted into a Pandas DataFrame
-    # ySimulated = pandas.DataFrame( incidenceAll, 
-                                   # columns=['Sample_Id', 'ObsTime', 'Incidence']
-                                  # )
-    # ySimulated['Sim_Id'] = ySimulated['Sample_Id']
-    # return ySimulated

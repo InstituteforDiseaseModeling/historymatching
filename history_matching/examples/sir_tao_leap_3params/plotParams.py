@@ -44,8 +44,7 @@ def plotParams( params,
     ax = numpy.zeros(nParams*nParams, dtype=int)
 
     plt.figure()
-    #plt.suptitle(title)
-    
+        
     for i in range(0, nParams):
 
         x = params.ix[:,i].values
@@ -55,10 +54,9 @@ def plotParams( params,
 
             y = params.ix[:,j]
 
-            #k = i*nParams + j + 1
             k  = j*nParams + i + 1
             plt.subplot( nParams+1, nParams, k )           
-            plt.scatter( x, y )
+            plt.scatter( x, y, s=1, marker="." )
 
             plt.xlabel( paramNames[i] )
             plt.ylabel( paramNames[j] )

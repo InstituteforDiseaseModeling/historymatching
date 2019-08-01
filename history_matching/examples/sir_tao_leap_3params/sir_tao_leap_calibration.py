@@ -23,6 +23,7 @@ import os
 import re
 import time
 import datetime
+import warnings
 import matplotlib
 from matplotlib import pyplot as plt
 matplotlib.pyplot.switch_backend('TKAgg')
@@ -35,10 +36,14 @@ from history_matching         import HistoryMatching,                          \
 from runModel_sirTaoLeap      import runModel_sirTaoLeapIncidence
 from sampleParameters         import sampleParameters
 from getFeatures              import getFeatures
+from selectFeature            import selectFeature
 from getObservations          import getObservations
 from getSampleFromObservation import getSampleFromObservation
 from checkConvergence         import checkConvergence
 from plotParams               import plotParams
+from plotCostVsParams         import plotCostVsParams
+
+
 
 
 
@@ -46,9 +51,9 @@ from plotParams               import plotParams
 #==== Parameters ===============================================================
 
 # General
-jobId = 'seattleFluSimulated_SirTaoLeap'        # This will be used for creating
-                                                # a path with the job execution
-                                                # files
+jobId = "SEAflu_simData_demo2"  # This will be used for creating
+                                # a path with the job execution
+                                # files
 
 # Input data
 inputDataFile = "./data/simulated_subject_database.csv"
@@ -58,16 +63,19 @@ pathogen      = 'h1n1pdm'
 cutName = "incidence_simulatedFlu_SIRtaoLeap"
 implausibilityThreshold = 3  # Typically 3 or 4
 nProbes = 100                # Number of points to simulate per iteration
-trainingFraction  = 0.75     # Fraction of sims used for emulator training
+trainingFraction  = 0.9      # Fraction of sims used for emulator training
 discrepancyStd = 2           # Model discrepancy
-maxIter = 5                  # Maximum number of history matching iterations
+maxIter = 3                  # Maximum number of history matching iterations
+glmBasis = "Poisson"         # Either "Gaussian" or "Poisson"
 
 # Model parameters
 modelParams_name = [ "beta", "gamma",     "N" ]
-modelParams_min  = [   1e-6,    1e-6,   10000 ]
-modelParams_max  = [   0.25,       1, 1000000 ]
+modelParams_min  = [   1e-6,    1e-6,     100 ]
+modelParams_max  = [   0.25,       1,  100000 ]
 
 # Other parameters
+featureSelectionMetric = "mcorgmic"  # "mean", "var", "fano", "rsd", "qcd", "snr", 
+                                # "mcor", "mcormic "mcorgmic"
 seed = 101010                 # Seed for random number generators
 verbose = True
 #
@@ -93,6 +101,7 @@ if (True):
      + "   trainingFraction        = " + str( trainingFraction        ) + "\n" \
      + "   discrepancyStd          = " + str( discrepancyStd          ) + "\n" \
      + "   maxIter                 = " + str( maxIter                 ) + "\n" \
+     + "   glmBasis                = " +      glmBasis                  + "\n" \
      + "   modelParams_name        = " + str( modelParams_name        ) + "\n" \
      + "   modelParams_min         = " + str( modelParams_min         ) + "\n" \
      + "   modelParams_max         = " + str( modelParams_max         ) + "\n" \
@@ -155,16 +164,16 @@ iterationTime_historic = []
 lambdaD_historic = []
 lambdaCovD_historic = []
 
-summaryStatistics_1_name_historic = [] # Summary statistic used for GLM/GPR
-summaryStatistics_1_mean_historic = [] # fitting at each iteration
-summaryStatistics_1_var_historic  = []
-summaryStatistics_2_name_historic = [] # Next summary statistic considered for
-summaryStatistics_2_mean_historic = [] # fitting (but not used)
-summaryStatistics_2_var_historic  = []
-summaryStatistics_3_name_historic = [] # 3rd summary statistic considered for
-summaryStatistics_3_mean_historic = [] # fitting (but not used)
-summaryStatistics_3_var_historic  = []
+featureBlacklist = []
 
+selectedFeatures_name = []
+selectedFeatures_mean = []
+selectedFeatures_var  = []
+selectedFeatures_selectionMetric = []
+
+parameters_historic = pandas.DataFrame()
+features_historic = pandas.DataFrame()
+featureStats_historic = pandas.DataFrame()
 #
 #---- End of Initialization
 
@@ -179,8 +188,6 @@ summaryStatistics_3_var_historic  = []
 y = getObservations( inputDataFile, pathogen, verbose )
 
 
-
-
 # History Matching calibration
 #
 it = 0
@@ -190,7 +197,7 @@ while (it < maxIter):
     print(" ", "*"*72, "\n  Iteration ", it, "\n ", "*"*72, "\n")
 
 
-    # Sample model parameters to use in this iteration.
+    # Sample model parameters to use in this iteration -------------------------
     if (it == 0):    # Generate parameters (covering the parameter space)
         x        = sampleParameters( xInfo, nProbes )
 
@@ -203,44 +210,56 @@ while (it < maxIter):
                 modelParams_max,
                 "Candidate Parameters at Iteration " + str(it),
                 "Parameters_iter_" + str(it) + ".pdf",
+                drawfigure=False
                )
 
-    # Run simulation for the parameters sampled
+
+    # Run simulation and get features/summary statistics  ----------------------
+    print("... running simulations")
     xCommon = { "i0": 2,   "r0": 0,   "p_sampling": 1,   "nDays": 250 }
     ySimulated = runModel_sirTaoLeapIncidence( x, xCommon, "iter-"+str(it) )
 
 
     # Compute summary statistics
-    [features, featureMean, featureVar ] = getFeatures( ySimulated,
-                                                        y["Incidence"].values
-                                                       )
+    print("... extracting features")
+    [features, featureStats ] = getFeatures( numpy.stack(ySimulated),
+                                             y["Incidence"].values,
+                                             x.values
+                                            )
 
 
-    # Select feature to match in history matching
-    sortedFeatureIndex = numpy.argsort( -featureVar )   # Sort in reverse order
+    # Save historic data 
+    features_historic = features_historic.append( features, ignore_index=True )
+    featureStats_historic \
+               = featureStats_historic.append( featureStats, ignore_index=True )
+    parameters_historic = parameters_historic.append( x, ignore_index=True )
 
-    feature_1 = features.iloc[:, sortedFeatureIndex[0] ]
-    feature_2 = features.iloc[:, sortedFeatureIndex[1] ]
-    feature_3 = features.iloc[:, sortedFeatureIndex[2] ]
+    features.to_csv( "features_historic_it" + str(it) + ".csv" )
+    featureStats.to_csv( "featureStats_historic_it" + str(it) + ".csv" )
+    x.to_csv( "parameters_historic_it" + str(it) + ".csv" )
+    
+    
+    # Select feature for fitting emulator in history matching ------------------
+    featureLoc, featureBlacklist = selectFeature( features, 
+                                                  featureStats, 
+                                                  featureSelectionMetric,
+                                                  featureBlacklist,
+                                                  timeToLiveInBlacklist = 5
+                                                 )
+    feature_1 = features.iloc[:, featureLoc ]
 
-    feature_1_mean = featureMean[ sortedFeatureIndex[0] ]
-    feature_2_mean = featureMean[ sortedFeatureIndex[1] ]
-    feature_3_mean = featureMean[ sortedFeatureIndex[2] ]
 
-    feature_1_var = featureVar[ sortedFeatureIndex[0] ]
-    feature_2_var = featureVar[ sortedFeatureIndex[1] ]
-    feature_3_var = featureVar[ sortedFeatureIndex[2] ]
-
- 
-    # Prepare inputs for history matching
+    # Prepare inputs for history matching --------------------------------------
+    print("... history matching execution  --featureLoc = ", featureLoc)
     [desiredResult,
-     desiredResultVar] = getSampleFromObservation( y, sortedFeatureIndex[1] )
+     desiredResultVar] = getSampleFromObservation( y, featureLoc )
+    
     results = pandas.DataFrame( { "Sample_Id" : range(0, len(feature_1)),
                                   "Sim_Id"    : range(0, len(feature_1)),
                                   "Feature"   : feature_1.values,
                                   }
                                ).set_index( ["Sample_Id", "Sim_Id"] )["Feature"]
-
+    
 
     # HM Init
     hm = HistoryMatching( cut_name = cutName,
@@ -257,84 +276,112 @@ while (it < maxIter):
     hm.save()
 
 
-    # GLM fit
-    hm.glm( basis = glmBasis,
-            family = 'Gaussian',
-            force_optimize_glm = True,
-            glm_fit_maxiter = int(1e5),
-            plot = True,
-            plot_data = True
-           )
+    # History matching computations --------------------------------------------
+    #     NOTE: Repeat iteration (with new simulations and feature selection) if
+    #           an error occurs during history matching computations. 
+    #
+    try:
+
+        # GLM fit
+        if (glmBasis == "Gaussian"):        
+            hm.glm( basis = glmBasis,
+                    family = 'Gaussian',
+                    force_optimize_glm = True,
+                    glm_fit_maxiter = int(1e5),
+                    plot = True,
+                    plot_data = True
+                    )   
+            
+        else:  # Poisson basis
+            hm.glm( basis = glmBasis,
+                    family = "Poisson",
+                    force_optimize_glm = True,
+                    glm_fit_maxiter = int(1e5),
+                    plot = True,
+                    plot_data = True
+                   )
+            
+
+        # GPR fit
+        hm.gpr( basis = gprBasis,
+                force_optimize_gpr = True,
+                optimize_sigma2_n = True,
+                log_transform = True,
+                verbose = verbose,
+                optimizer_options = { 'eps'    : 1e-3,
+                                      'disp'   : False,
+                                      'maxiter': int(1e5),
+                                      'ftol'   : 1e-16,
+                                      'gtol'   : 1e-16,
+                                     },
+                # optimizer_options = { 'eps'    : 1e-3,
+                                      # 'disp'   : True,
+                                      # 'maxiter': int(1e5),
+                                      # 'ftol'   : 2*numpy.finfo(float).eps,
+                                      # 'gtol'   : 2*numpy.finfo(float).eps,
+                                     # },
+                plot = True,
+                plot_data = True
+               )
 
 
-    # GPR fit
-    hm.gpr( basis = gprBasis,
-            force_optimize_gpr = True,
-            optimize_sigma2_n = True,
-            log_transform = True,
-            verbose = verbose,
-            optimizer_options = { 'eps'    : 1e-3,
-                                  'disp'   : True,
-                                  'maxiter': int(1e5),
-                                  'ftol'   : 2*numpy.finfo(float).eps,
-                                  'gtol'   : 2*numpy.finfo(float).eps,
-                                 },
-            plot = True,
-            plot_data = True
-           )
+        # Compute implausibility
+        hm.calc_and_plot_implausibility( plot = True,
+                                         do_plot_data = True,
+                                         plot_data_highlight=pandas.DataFrame(),
+                                         log_scale = True
+                                        )
+        hm.training_data.to_excel( "train_data__iter" + str(it) + ".xlsx" )
+        hm.test_data.to_excel( "test_data__iter" + str(it) + ".xlsx" )
 
 
-    # Compute implausibility
-    hm.calc_and_plot_implausibility( plot = True,
-                                     do_plot_data = True,
-                                     plot_data_highlight=pandas.DataFrame(),
-                                     log_scale = True
-                                    )
-    hm.training_data.to_excel( "train_data__iter" + str(it) + ".xlsx" )
-    hm.test_data.to_excel( "test_data__iter" + str(it) + ".xlsx" )
+        # Select samples for next iteration
+        hmc = HistoryMatchingCut( cut_dir = 'Cuts',
+                                  iteration = it
+                                 )
+
+        (nonImplausibleCandidates,
+         rejectedPercent          ) = hmc.cut( num_desired_candidates = nProbes,
+                                               constraint = None
+                                              )
 
 
-    # Select samples for next iteration
-    hmc = HistoryMatchingCut( cut_dir = 'Cuts',
-                              iteration = it
-                             )
-
-    (nonImplausibleCandidates,
-     rejectedPercent          ) = hmc.cut( num_desired_candidates = nProbes,
-                                            constraint = None
-                                          )
-
-
-    # Get ready for next iteration
-    tEndThisIter = time.time()
-    iterationTime_historic.append( tEndThisIter - tStartThisIter )
-    rejectionPercent_historic.append( rejectedPercent['Rejected Percent'] )
-    ( lambdaD, lambdaCovD ) = checkConvergence( nonImplausibleCandidates )
-    lambdaD_historic.append( lambdaD )
-    lambdaCovD_historic.append( lambdaCovD )
-    with open( "history.txt", "a" ) as historyFile:
-        historyFile.write( "   %d \t\t %4.2f \t\t %.4e \t %.4e \t\t %.2f\n"\
-                           % ( it,
-                               rejectionPercent_historic[it],
-                               lambdaD_historic[it],
-                               lambdaCovD_historic[it],
-                               iterationTime_historic[it]
+        # Get ready for next iteration -----------------------------------------
+        tEndThisIter = time.time()
+        iterationTime_historic.append( tEndThisIter - tStartThisIter )
+        rejectionPercent_historic.append( rejectedPercent['Rejected Percent'] )
+        ( lambdaD, lambdaCovD ) = checkConvergence( nonImplausibleCandidates )
+        lambdaD_historic.append( lambdaD )
+        lambdaCovD_historic.append( lambdaCovD )
+        with open( "history.txt", "a" ) as historyFile:
+            historyFile.write( "   %d \t\t %4.2f \t\t %.4e \t %.4e \t\t %.2f\n"\
+                               % ( it,
+                                   rejectionPercent_historic[it],
+                                   lambdaD_historic[it],
+                                   lambdaCovD_historic[it],
+                                   iterationTime_historic[it]
+                                  )
                               )
-                          )
+                              
+        selectedFeatures_name.append( feature_1.name )
+        selectedFeatures_mean.append( featureStats["mean"].values[featureLoc] )
+        selectedFeatures_var.append( featureStats["var"].values[featureLoc] )
+        selectedFeatures_selectionMetric.append( \
+                       featureStats[featureSelectionMetric].values[featureLoc] )
 
-    summaryStatistics_1_name_historic.append( feature_1.name )
-    summaryStatistics_2_name_historic.append( feature_2.name )
-    summaryStatistics_3_name_historic.append( feature_3.name )
+        it = it + 1
+        
+        if ( rejectedPercent['Rejected Percent'] > 99 ):
+            break
 
-    summaryStatistics_1_mean_historic.append( feature_1_mean )
-    summaryStatistics_2_mean_historic.append( feature_2_mean )
-    summaryStatistics_3_mean_historic.append( feature_3_mean )
 
-    summaryStatistics_1_var_historic.append( feature_1_var )
-    summaryStatistics_2_var_historic.append( feature_2_var )
-    summaryStatistics_3_var_historic.append( feature_3_var )
-
-    it = it + 1
+    except:  # Manage error conditions (when executing history matching --------
+             # operations (to do: print detailed error information)
+             # 
+        warnings.warn( "An exception occurred during the execution of " +     \
+                       "history matching operations. Calibration process " +  \
+                       "aborted."
+                      )
 #
 #---- End of history matching iterations ---------------------------------------
 
@@ -342,6 +389,17 @@ while (it < maxIter):
 
 
 # Closing
+plotCostVsParams( parameters_historic,
+                  features_historic["errorL1"].values,
+                  modelParams_min,
+                  modelParams_max,
+                  "L1error",
+                  "L1error.pdf",
+                  drawfigure=False
+                 )
+
+
+
 print("\n\n*****************************************************************\n")
 print( "Iteration  \t Rejection \t lambda(D) \t lambda(Cov(D)) \t Time (s)" )
 print( "           \t Rate (%)  \t           \t                \t         " )
@@ -356,19 +414,20 @@ for j in range(0, it):
 
 print("\n\n*****************************************************************\n")
 
-top3Features = pandas.DataFrame( { "Iteration" : range(0, it),
-                                "(#1) Name" : summaryStatistics_1_name_historic,
-                                "(#1) Mean" : summaryStatistics_1_mean_historic,
-                                "(#1) Var"  : summaryStatistics_1_var_historic,
-                                "(#2) Name" : summaryStatistics_2_name_historic,
-                                "(#2) Mean" : summaryStatistics_2_mean_historic,
-                                "(#2) Var"  : summaryStatistics_2_var_historic,
-                                "(#3) Name" : summaryStatistics_3_name_historic,
-                                "(#3) Mean" : summaryStatistics_3_mean_historic,
-                                "(#3) Var"  : summaryStatistics_3_var_historic,
+selectedFeatures = pandas.DataFrame( { "iteration"    : range(0, it),
+                                       "feature name" : selectedFeatures_name,
+                                       "mean"         : selectedFeatures_mean,
+                                       "variance"     : selectedFeatures_var,
+                    featureSelectionMetric : selectedFeatures_selectionMetric,
                                  }
-                                ).set_index( "Iteration" )
-print( top3Features )
+                                ).set_index( "iteration" )
+print( selectedFeatures )
+selectedFeatures.to_csv("selectedFeaturesPerIteration.csv")
+features_historic.to_csv( "features_historic_all.csv" )
+parameters_historic.to_csv( "parameters_historic_all.csv" )
+
+
+
 
 print("")
 print("*******************************************************************")
@@ -380,3 +439,4 @@ print("*******************************************************************\n\n")
 #
 #
 #==== End of Calibration =======================================================
+
