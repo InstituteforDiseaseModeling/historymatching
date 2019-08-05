@@ -29,6 +29,7 @@ class HistoryMatching():
         discrepancy_var = 0,
         desired_result_var = 0,
         training_fraction = 0.75,
+        fig_type = 'pdf',
         use_glm = True,      # Disable the glm by setting to False
         verbose = False
     ):
@@ -67,6 +68,7 @@ class HistoryMatching():
         self.training_fraction = training_fraction
         self.iteration = iteration
         self.use_glm = use_glm
+        self.fig_type = fig_type
         self.verbose = verbose
 
         self.results.name = 'Sim_Result'
@@ -258,7 +260,7 @@ class HistoryMatching():
         # Plot the errors and save to errors_glm.pdf
         figs = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
         for key, fig in figs.items():
-            fig.savefig( os.path.join(self.glmdir, key+'.pdf') );
+            fig.savefig( os.path.join(self.glmdir, key+'.'+self.fig_type) );
             plt.close(fig)
 
         if plot:
@@ -274,12 +276,12 @@ class HistoryMatching():
                 #cp = test_mean.loc[[2110]]
                 figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
 
-            fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed.pdf') ); plt.close(fig)
-            fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals.pdf') );  plt.close(fig)
-            fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals.pdf') ); plt.close(fig)
-            fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ.pdf') );                 plt.close(fig)
-            #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram.pdf') );          plt.close(fig)
-            #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit.pdf') );                plt.close(fig)
+            fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed'+'.'+self.fig_type) ); plt.close(fig)
+            fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals'+'.'+self.fig_type) );  plt.close(fig)
+            fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals'+'.'+self.fig_type) ); plt.close(fig)
+            fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ'+'.'+self.fig_type) );                 plt.close(fig)
+            #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram'+'.'+self.fig_type) );          plt.close(fig)
+            #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit'+'.'+self.fig_type) );                plt.close(fig)
 
 
         train_mean = train_mean.reset_index().set_index('Sample_Id')
@@ -444,19 +446,19 @@ class HistoryMatching():
         if plot:
             print('Plotting')
             fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive');
-            fig.savefig( os.path.join(self.gprdir, 'gpr.pdf') );             plt.close(fig)
+            fig.savefig( os.path.join(self.gprdir, 'gpr'+'.'+self.fig_type) );             plt.close(fig)
 
             '''' # Useful debugging
             if False:
                 mu = self.training_data[self.Xcols_GPR].mean()
                 #mu = train.loc[146][Xcols_GPR].mean(); print(mu)
                 (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25);
-                fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
-                fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW
+                fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean'+'.'+self.fig_type) );    plt.close(fig_mean) # SLOW
+                fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent'+'.'+self.fig_type) );    plt.close(fig_std_latent) # SLOW
             '''
 
             fig = self.gpr_model.plot_histogram();
-            fig.savefig( os.path.join(self.gprdir, 'histogram.pdf') );
+            fig.savefig( os.path.join(self.gprdir, 'histogram'+'.'+self.fig_type) );
             plt.close(fig)
 
             Ymean = self.training_data['Mean_Err'] + self.training_data['Yglm']
@@ -478,7 +480,7 @@ class HistoryMatching():
             ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
             ax.set_xlabel('Simulation Result')
             ax.set_ylabel('Predicted')
-            fig.savefig( os.path.join(self.gprdir, 'emulation.pdf') );
+            fig.savefig( os.path.join(self.gprdir, 'emulation'+'.'+self.fig_type) );
             plt.close(fig)
 
 
@@ -496,7 +498,7 @@ class HistoryMatching():
 
         #plt.tight_layout()
 
-        fig.savefig( os.path.join(self.cutdir, 'emulation.pdf') ); plt.close(fig)
+        fig.savefig( os.path.join(self.cutdir, 'emulation'+'.'+self.fig_type) ); plt.close(fig)
 
 
     def calc_and_plot_implausibility(self,
@@ -537,7 +539,7 @@ class HistoryMatching():
             test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
             fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
-            fig.savefig( os.path.join(self.combineddir, 'implausibility.pdf') );  plt.close(fig)
+            fig.savefig( os.path.join(self.combineddir, 'implausibility'+'.'+self.fig_type) );  plt.close(fig)
 
             if do_plot_data:
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
