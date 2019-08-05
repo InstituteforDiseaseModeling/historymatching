@@ -65,20 +65,25 @@ class GLM(object):
         self.fitted_model = fitted_model
 
         if family == 'Poisson':
-            print('Using Poisson family')
+            if self.verbose:
+                print('Using Poisson family')
             self.glmfam = sm.families.Poisson()
         elif family == 'Binomial':
-            print('Using Binomial family')
+            if self.verbose:
+                print('Using Binomial family')
             self.glmfam = sm.families.Binomial()
         elif family == 'Gamma':
-            print('Using Gamma family')
+            if self.verbose:
+                print('Using Gamma family')
             self.glmfam = sm.families.Gamma()
         elif family == 'NegativeBinomial':
             alpha = 1.9
-            print('Using NegativeBinomial family, alpha = ', alpha)
+            if self.verbose:
+                print('Using NegativeBinomial family, alpha = ', alpha)
             self.glmfam = sm.families.NegativeBinomial(alpha=alpha) # Does strange things with float vs int values of alpha!
         else:
-            print('Using Gaussian family')
+            if self.verbose:
+                print('Using Gaussian family')
             self.glmfam = sm.families.Gaussian()
 
         if self.fitted_model is not None:
