@@ -211,7 +211,8 @@ class HistoryMatching():
         glm_fit_maxiter = 100000,
         family = 'Poisson', # e.g. Poisson, Gaussian
         plot = True,
-        plot_data = False
+        plot_data = False,
+        **kwargs
     ):
         """Perform Generalized Linear Modeling (GLM).
 
@@ -230,6 +231,11 @@ class HistoryMatching():
             print('use_glm is False, why are you calling glm?')
             return
 
+        if 'verbose' in kwargs:
+            verbose = kwargs['verbose']
+        else:
+            verbose = self.verbose
+
         # Files to store the model and parameters
         glm_model_fn = os.path.join(self.glmdir, 'model.json')
         mean_params_fn = os.path.join(self.glmdir, 'params.p')
@@ -247,13 +253,16 @@ class HistoryMatching():
                 Ycol = self.Ycol,
                 training_data = train_mean,
                 reference_value = self.desired_result,
-                family = family)
+                family = family,
+                verbose = verbose)
 
-            print("Fitting the GLM")
+            if self.verbose:
+                print("Fitting the GLM")
             self.glm_model.fit(maxiter=glm_fit_maxiter)
             self.glm_model.save(glm_model_fn, mean_params_fn)
 
-        print('Evaluating training and test data') # Store results in Yglm
+        if self.verbose:
+            print('Evaluating training and test data') # Store results in Yglm
         train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
         test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
 
