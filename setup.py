@@ -8,6 +8,27 @@ setup(name='HistoryMatching',
       author='Daniel J. Klein',
       author_email='dklein@idmod.org',
       url='https://github.com/InstituteforDiseaseModeling/history_matching',
-      packages=['history_matching']
+      packages=['history_matching'],
+      install_requires=[ # Required packages -- install via pip install -e .
+        "matplotlib",
+        "numpy",
+        "pandas",
+        "patsy",
+        "pycuda",
+        "pyDOE",
+        "scipy",
+        "scikit-cuda",
+        "seaborn",
+        "statsmodels",
+        ],
+        extras_require={ # Required for the Jupyter notebook only -- use pip install -e .[jupyter]
+            "jupyter": [
+                "jupyter",
+                "wand",
+                "xlrd",
+                "openpyxl",
+                ],
+      },
+      zip_safe=False
      )
 
