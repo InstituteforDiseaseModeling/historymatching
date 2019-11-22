@@ -10,6 +10,7 @@ setup(name='HistoryMatching',
       author_email='dklein@idmod.org',
       url='https://github.com/InstituteforDiseaseModeling/history_matching',
       packages=['history_matching'],
+      include_package_data=True,
       install_requires=[ # Required packages -- install via pip install -e .
         "matplotlib",
         "numpy",
