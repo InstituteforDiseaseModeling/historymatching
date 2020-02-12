@@ -6,7 +6,7 @@ import seaborn as sns
 from pyDOE import lhs
 from shutil import copyfile
 import datetime
-from pathlib import Path
+import pathlib
 
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
@@ -102,10 +102,10 @@ class HistoryMatching():
             print("--> Testing  with", nTest," unique parameter configurations (", nTest*nRep, "simulations including replicates)")
 
         # Dir prep
-        self.cutdir = Path(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name)).mkdir(parents=True, exist_ok=True)
-        self.glmdir = Path(os.path.join(self.cutdir, 'GLM')).mkdir(parents=True, exist_ok=True)
-        self.gprdir = Path(os.path.join(self.cutdir, 'GPR')).mkdir(parents=True, exist_ok=True)
-        self.combineddir = Path(os.path.join(self.cutdir, 'Implausibility')).mkdir(parents=True, exist_ok=True)
+        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name) )
+        self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
+        self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
+        self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
 
 
     @classmethod
@@ -174,6 +174,16 @@ class HistoryMatching():
             self.results.to_frame().to_excel(writer, sheet_name='Results', merge_cells=False)
             self.param_info.to_excel(writer, sheet_name='Param_Info')
             #writer.save()
+
+
+    @staticmethod
+    def mkdir_if_needed(path):
+        """Utility to make a directory, but only if needed.
+        """
+
+        # TODO: Move to helper
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        return path
 
     def filter(self, func, train=False, test=False):
         """Utility to allow the user to filter training and test data.  For example, you could keep only data where the result is greater than zero.
@@ -535,9 +545,9 @@ class HistoryMatching():
             fig.savefig( os.path.join(self.combineddir, 'implausibility'+'.'+self.fig_type) );  plt.close(fig)
 
             if do_plot_data:
-                pairdir = Path(os.path.join(self.combineddir, 'PairwiseResults', 'Train')).mkdir(parents=True, exist_ok=True)
+                pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
                 plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale, desired_result=self.desired_result)
 
-                pairdir = Path(os.path.join(self.combineddir, 'PairwiseResults', 'Test')).mkdir(parents=True, exist_ok=True)
+                pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
                 plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale)
 
