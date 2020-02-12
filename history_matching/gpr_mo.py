@@ -181,12 +181,7 @@ class GPR_MO():
                     basis = Basis.polynomial_basis(
                         params = Xcols,
                         intercept = False,
-                        first_order = True,
-                        second_order = False,
-                        third_order = False,
-                        fourth_order = False,
-                        fifth_order = False,
-                        higher_order = False,
+                        order=1,
                         param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
                     )
 

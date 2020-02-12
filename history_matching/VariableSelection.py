@@ -179,21 +179,11 @@ class VariableSelection():
 
     def stepwise_selection(self,
         max_vars=3,
-        first_order_basis_terms = True,
-        second_order_basis_terms = False,
-        third_order_basis_terms = False,
-        fourth_order_basis_terms = False,
-        fifth_order_basis_terms = False,
-        higher_order_basis_terms = False
+        order=1,
     ):
         from itertools import combinations
 
-        self.glm_model.first_order_basis_terms = first_order_basis_terms
-        self.glm_model.second_order_basis_terms = second_order_basis_terms
-        self.glm_model.third_order_basis_terms = third_order_basis_terms
-        self.glm_model.fourth_order_basis_terms = fourth_order_basis_terms
-        self.glm_model.fifth_order_basis_terms = fifth_order_basis_terms
-        self.glm_model.higher_order_basis_terms = higher_order_basis_terms
+        self.glm_model.order = order
 
         Xcols_all = self.Xcols[:] # Copy
         verbose = self.glm_model.verbose

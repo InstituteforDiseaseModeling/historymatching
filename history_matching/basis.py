@@ -74,12 +74,7 @@ class Basis():
     def polynomial_basis(cls,
             params,
             intercept = True,
-            first_order = True,
-            second_order = False,
-            third_order = False,
-            fourth_order = False,
-            fifth_order = False,
-            higher_order = False,
+            order = 1,
             param_info = None,
             verbose = False
     ):
@@ -88,12 +83,9 @@ class Basis():
         Args:
             params: (str) List of parameters, by name, to include in the basis.
             intercept: (bool) Set True to include a constant in the basis.
-            first_order: (bool) Set True to include first-order terms.
-            second_order: (bool) Set True to include second-order terms.
-            third_order: (bool) Set True to include third-order terms.
-            fourth_order: (bool) Set True to include fourth-order terms.
-            fifth_order: (bool) Set True to include fifth-order terms.
-            higher_order: (bool) Set True to include some sixth and seventh order terms.
+            order: (int) A number 0-6 indicating what order of polynomial should
+                         be used for fitting.
+                         6 includes only some sixth and seventh order terms.
             param_info:  (Pandas dataframe)
                 Columns include:
                 * Name: The name of the parameter, must match column name in training_data.
@@ -116,16 +108,16 @@ class Basis():
             model_terms = []
 
         # First order
-        if first_order:
+        if order>=1:
             model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X
 
         # Second order
-        if second_order:
+        if order>=2:
             model_terms += [Term([EvalFactor('%s**2'%x)]) for x in params_patsy] # X^2
             model_terms += [Term([EvalFactor('%s*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y
 
         # Third order
-        if third_order:
+        if order>=3:
             model_terms += [Term([EvalFactor('%s**3'%x)]) for x in params_patsy] # X^3
 
             model_terms += [Term([EvalFactor('%s*%s**2'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^2
@@ -134,7 +126,7 @@ class Basis():
             model_terms += [Term([EvalFactor('%s*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 3)] # X*Y*Z
 
         # Fourth order
-        if fourth_order:
+        if order>=4:
             model_terms += [Term([EvalFactor('%s**4'%x)]) for x in params_patsy] # X^4
             model_terms += [Term([EvalFactor('%s**3*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^3*Y
             model_terms += [Term([EvalFactor('%s*%s**3'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^3
@@ -148,7 +140,7 @@ class Basis():
             model_terms += [Term([EvalFactor('%s*%s*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 4)] # W*X*Y*Z
 
         # Fifth order
-        if fifth_order:
+        if order>=5:
             model_terms += [Term([EvalFactor('%s**5'%x)]) for x in params_patsy] # X^5
             model_terms += [Term([EvalFactor('%s**4*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^4*Y
             model_terms += [Term([EvalFactor('%s*%s**4'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^4
@@ -171,7 +163,7 @@ class Basis():
 
             model_terms += [Term([EvalFactor('%s*%s*%s*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 5)] # V*W*X*Y*Z
 
-        if higher_order:
+        if order>=6:
             # Some sixth order
             model_terms += [Term([EvalFactor('%s**6'%x)]) for x in params_patsy] # X^6
 

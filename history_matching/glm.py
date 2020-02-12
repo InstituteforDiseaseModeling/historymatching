@@ -109,22 +109,7 @@ class GLM(object):
             with open(os.path.join(meta_fn)) as data_file:
                 config = json.load( data_file )
 
-                if 'Basis' in config:
-                    basis = Basis.deserialize(config['Basis'])
-                else:
-                    # Backwards compatibility
-                    Xcols = config['Xcols']
-                    basis = Basis.polynomial_basis(
-                        params = Xcols,
-                        intercept = True,
-                        first_order = config['First_Order_Basis_Terms'],
-                        second_order = config['Second_Order_Basis_Terms'],
-                        third_order = config['Third_Order_Basis_Terms'],
-                        fourth_order = config['Fourth_Order_Basis_Terms'],
-                        fifth_order = config['Fifth_Order_Basis_Terms'],
-                        higher_order = config['Higher_Order_Basis_Terms'],
-                        param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
-                    )
+                basis = Basis.deserialize(config['Basis'])
 
                 return cls(
                     basis = basis,

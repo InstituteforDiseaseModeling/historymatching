@@ -127,12 +127,7 @@ param_info = pd.DataFrame({'Name':['Beta'], 'Min':[0], 'Max':[1]}).set_index('Na
 basis = Basis.polynomial_basis(
             params,
             intercept = False,
-            first_order = True,
-            second_order = False,
-            third_order = False,
-            fourth_order = False,
-            fifth_order = False,
-            higher_order = False,
+            order=1,
             param_info = param_info,
             verbose = True
     )

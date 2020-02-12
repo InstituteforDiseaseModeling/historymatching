@@ -164,22 +164,7 @@ class GPR():
             with open(os.path.join(config_fn)) as data_file:
                 config = json.load( data_file )
 
-                if 'Basis' in config:
-                    basis = Basis.deserialize(config['Basis'])
-                else:
-                    # Backwards compatibility
-                    Xcols = config['Xcols']
-                    basis = Basis.polynomial_basis(
-                        params = Xcols,
-                        intercept = False,
-                        first_order = True,
-                        second_order = False,
-                        third_order = False,
-                        fourth_order = False,
-                        fifth_order = False,
-                        higher_order = False,
-                        param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
-                    )
+                basis = Basis.deserialize(config['Basis'])
 
                 return cls(
                     basis = basis,
