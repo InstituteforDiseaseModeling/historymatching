@@ -171,22 +171,7 @@ class GPR_MO():
         except Exception as e:
             raise HistoryMatchingError(f"Unable to decode content of GPR_MO config file '{config_fn}'")
 
-        if 'Basis' in config:
-            basis = Basis.deserialize(config['Basis'])
-        else:
-            # Backwards compatibility
-            Xcols = config['Xcols']
-            basis = Basis.make_polynomial_basis(
-                params = Xcols,
-                intercept = False,
-                first_order = True,
-                second_order = False,
-                third_order = False,
-                fourth_order = False,
-                fifth_order = False,
-                higher_order = False,
-                param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
-            )
+        basis = Basis.deserialize(config['Basis'])
 
         return cls(
             basis = basis,
@@ -205,11 +190,8 @@ class GPR_MO():
             normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
         )
 
-
-
     def vprint(self, *args, **kwargs):
         self.vprint(*args, *kwargs)
-
 
     def makeB(self, b):
         return np.array( [

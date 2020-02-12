@@ -77,12 +77,7 @@ class Basis():
     def make_polynomial_basis(cls,
             params,
             intercept = True,
-            first_order = True,
-            second_order = False,
-            third_order = False,
-            fourth_order = False,
-            fifth_order = False,
-            higher_order = False,
+            order = 1,
             param_info = None,
             verbose = False
     ):
@@ -91,12 +86,9 @@ class Basis():
         Args:
             params: (str) List of parameters, by name, to include in the basis.
             intercept: (bool) Set True to include a constant in the basis.
-            first_order: (bool) Set True to include first-order terms.
-            second_order: (bool) Set True to include second-order terms.
-            third_order: (bool) Set True to include third-order terms.
-            fourth_order: (bool) Set True to include fourth-order terms.
-            fifth_order: (bool) Set True to include fifth-order terms.
-            higher_order: (bool) Set True to include some sixth and seventh order terms.
+            order: (int) A number 0-6 indicating what order of polynomial should
+                         be used for fitting.
+                         6 includes only some sixth and seventh order terms.
             param_info:  (Pandas dataframe)
                 Columns include:
                 * Name: The name of the parameter, must match column name in training_data.
@@ -118,26 +110,26 @@ class Basis():
         comboswr = lambda x,degree: list(itertools.combinations_with_replacement(x, degree))
 
         # First order
-        if first_order:
+        if order>=1:
             model_terms += [LookupFactor(x) for x in params_patsy] # X
 
         # Second order
-        if second_order:
+        if sorder>=2:
             model_terms += ['%s*%s'%x for x in combosr(Xcols, 2)]
 
         # Third order
-        if third_order:
+        if order>=3:
             model_terms += ['%s*%s*%s'%x for x in combosr(Xcols, 3)]
 
         # Fourth order
-        if fourth_order:
+        if forder>=4:
             model_terms += ['%s*%s*%s*%s'%x for x in combosr(Xcols, 4)]
 
         # Fifth order
-        if fifth_order:
+        if order>=5:
             model_terms += ['%s*%s*%s*%s*%s'%x for x in combosr(Xcols, 5)]
 
-        if higher_order:
+        if order>=6:
             # Some sixth order
             model_terms += ['%s**6'%x for x in params_patsy] # X^6
 
