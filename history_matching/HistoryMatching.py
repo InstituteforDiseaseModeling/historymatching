@@ -6,6 +6,7 @@ import seaborn as sns
 from pyDOE import lhs
 from shutil import copyfile
 import datetime
+import pathlib
 
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
@@ -181,15 +182,8 @@ class HistoryMatching():
         """
 
         # TODO: Move to helper
-        try:
-            os.makedirs(path)
-        except OSError as exc:  # Python >2.5
-            if exc.errno == errno.EEXIST and os.path.isdir(path):
-                pass
-            else:
-                raise
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
         return path
-
 
     def filter(self, func, train=False, test=False):
         """Utility to allow the user to filter training and test data.  For example, you could keep only data where the result is greater than zero.
