@@ -74,6 +74,7 @@ def kernel_xx(X, theta, sigma2_n, add_sigma2_n, deriv):
 
 class TestCKernels(unittest.TestCase):
     def test_kernel_xp(self):
+        
         Nx    = 200
         Np    = 400
         D     = 30

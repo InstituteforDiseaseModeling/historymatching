@@ -20,6 +20,7 @@ from string import Template
 from history_matching.basis import Basis
 
 import scipy.linalg
+import ckernels
 
 try:
     from pycuda import driver, compiler, gpuarray, tools
@@ -403,35 +404,9 @@ class GPR():
                 # No deriv wrt sigma2_n if the user has specified sigma2_n via GPR
                 return np.zeros((Nx,Nx))
 
-        sigma2_f = theta[0]
-        if deriv == 0:
-            sigma2_f = 1
-
-        Kxx = np.zeros([Nx,Nx], dtype=np.float32)
-        for i in range(Nx):
-            # Diagonal:
-            if deriv <= 1:
-                Kxx[i,i] = sigma2_f # theta[0] or 1, see above
-            else:
-                Kxx[i,i] = 0
-
-            # Off-diagonal
-            for j in range(i+1,Nx):
-                dX = X[i,:]-X[j,:]
-                r2 = 0
-                for d in range(self.D):
-                    r2 += dX[d] * dX[d]/theta[2+d]
-                Kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
-
-                if (deriv > 1): # Lengthscale derivatives
-                    d = deriv-2;
-                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d]);
-
-                Kxx[j,i] = Kxx[i,j]
-
         if add_sigma2_n:
             if self.fixed_sigma_n:
-                sigma2_n = theta[1]
+                sigma2_n = theta[1]*np.ones(Nx)
             else:
                 Xcols = self.basis.param_info.index.values
 
@@ -439,13 +414,11 @@ class GPR():
                 # TODO: Cache
                 sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
                 if self.normalize_y:
-                    sigma2_n /= self.normalizer_std**2
+                    sigma2_n /= self.normalizer_std**2 
+        else:
+            sigma2_n = np.zeros(Nx)
 
-            # Add sigma_n^2 to the diagonal, observation noise
-            Kxx[np.diag_indices(Nx)] += sigma2_n
-
-        return Kxx
-
+        return ckernels.kernel_xx(X, theta, sigma2_n, add_sigma2_n, deriv)
 
     def kernel_xp(self, X, P, theta):
         """Compute the Kxp kernel using (SLOW) CPU-based calculations.
@@ -457,24 +430,7 @@ class GPR():
             P: (2D ndarray) points of dimension P x D
             theta: (1D ndarray) hyperparameters
         """
-
-        sigma2_f = theta[0]
-
-        Nx = X.shape[0]
-        Np = P.shape[0]
-        D = X.shape[1]
-
-        kxp = np.zeros([Nx,Np])
-        for i in range(Nx):
-            for j in range(Np):
-                dX = X[i,:]-P[j,:]
-                r2 = 0
-                for d in range(D):
-                    r2 += dX[d] * dX[d]/theta[2+d]
-                kxp[i,j] = sigma2_f * np.exp( -r2 / 2. )
-
-        return kxp
-
+        return ckernels.kernel_xp(X,P,theta)
 
     def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True, deriv=-1):
         """Compute the Kxx kernel or derivatives using (FAST) GPU-based calculations.

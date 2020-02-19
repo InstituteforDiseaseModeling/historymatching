@@ -106,7 +106,7 @@ auto kernel_xx(
     for(int i=0;i<Nx;i++){
         kxx(i,i)=0;
         if(deriv<=1){
-            kxx(i,i) += sigma2_f;
+            kxx(i,i) = sigma2_f;
         }
 
         for(int j=i+1;j<Nx;j++){
