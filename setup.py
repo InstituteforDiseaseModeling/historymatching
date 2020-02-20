@@ -101,7 +101,7 @@ class BuildExt(build_ext):
         build_ext.build_extensions(self)
 
 ####################################
-#PyBind11 Compilation Stuff
+#Regular Setup
 ####################################
 
 setup(name='HistoryMatching',
