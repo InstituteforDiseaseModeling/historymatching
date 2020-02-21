@@ -46,6 +46,7 @@ auto kernel_xp(
 
     auto kxp = kxp_arr.mutable_unchecked<double,2>();
 
+    #pragma omp parallel for collapse(2)
     for(int i=0;i<Nx;i++)
     for(int j=0;j<Np;j++){
         double r2=0;
@@ -103,6 +104,7 @@ auto kernel_xx(
 
     auto kxx = kxx_arr.mutable_unchecked<double,2>();
 
+    #pragma omp parallel for
     for(int i=0;i<Nx;i++){
         kxx(i,i)=0;
         if(deriv<=1){
