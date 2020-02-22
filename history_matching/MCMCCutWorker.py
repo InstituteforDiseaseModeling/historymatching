@@ -113,8 +113,7 @@ class MCMCCutWorker(mp.Process):
 
         while stats['num_plausible_candidates'] < self.N:
             print('-'*80)
-            max_nSamples = 2
-            # Min here to avoid running out of GPU ram!
+            max_nSamples = 2 #TODO: Make a parameter
             if stats['num_candidates'] == 0 or stats['num_plausible_candidates'] == 0:
                 nSamples = min(max_nSamples, self.N)
             else:

@@ -206,7 +206,6 @@ class CutNearSamples():
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print('-'*80)
             max_nSamples = 25000 #5000 # TODO: Make parameter
-            # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
                 nSamples = min(max_nSamples, num_desired_candidates)
             else:
