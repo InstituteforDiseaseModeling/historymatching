@@ -5,7 +5,7 @@ from setuptools.command.build_ext import build_ext
 import setuptools
 import sys
 
-__version__ = '0.0.1'
+__version__ = '0.0.5'
 
 
 
@@ -76,11 +76,11 @@ class BuildExt(build_ext):
     }
     l_opts = {
         'msvc': [],
-        'unix': [],
+        'unix': ['-lgomp'],
     }
 
     if sys.platform == 'darwin':
-        darwin_opts = ['-stdlib=libc++', '-mmacosx-version-min=10.7']
+        darwin_opts = ['-stdlib=libc++', '-mmacosx-version-min=10.7', '-lomp']
         c_opts['unix'] += darwin_opts
         l_opts['unix'] += darwin_opts
 
@@ -93,6 +93,8 @@ class BuildExt(build_ext):
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
+            if has_flag(self.compiler, '-fopenmp'):
+                opts.append('-fopenmp')
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
         for ext in self.extensions:
