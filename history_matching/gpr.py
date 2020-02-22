@@ -15,25 +15,13 @@ import seaborn as sns
 
 import ckernels
 
-try:
-    from pycuda import compiler, gpuarray
-    import pycuda.autoinit
-    import skcuda.misc as misc
-    import skcuda.linalg as linalg
-except ImportError as e:
-    print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
-except RuntimeError as e:
-    print("Runtime error starting cuda, message was:\n", e.message)
-except Exception as e:
-    print("Unknown CUDA error. Falling back to CPU",e)
-
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
 
 class GPR():
     """Gaussian Process Regression.
 
-    This class implementes Gaussian Process Regression with leave-one-out cross-validation for parameter fitting and NVidia-CUDA-based GPU acceleration for speed.
+    This class implementes Gaussian Process Regression with leave-one-out cross-validation for parameter fitting.
     """
 
     def __init__(self, basis, Ycol, training_data, param_info,
@@ -88,18 +76,6 @@ class GPR():
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
         """
 
-        try:
-            device = pycuda.autoinit.device
-            print('Autoinit GPU device name:', device.name())
-            self.use_gpu = True
-        except Exception as e:
-            self.use_gpu = False
-
-        if self.use_gpu:
-            # Read in the RFB kernel
-            cur_dir = os.path.dirname(os.path.realpath(__file__))
-            self.kernel_fn = os.path.join(cur_dir, 'kernel.c')
-
         self.training_data = training_data.copy()
         self.param_info = param_info.copy()
         self.basis = basis
@@ -135,9 +111,6 @@ class GPR():
             print('User has configured GPR with noise coming from another GPR')
             self.sigma2_n = sigma2_n
             self.fixed_sigma_n = False
-
-        if self.use_gpu:
-            self.define_kernel()
 
         if theta is None:
             self.reset_theta()
@@ -203,8 +176,6 @@ class GPR():
                 As in __init__.
         """
         self.training_data = new_training_data.copy()
-        if self.use_gpu:
-            self.define_kernel()
 
         # Normalize training data as in __init__
         self.training_data[self.Ycol] = self.normalize(self.training_data[self.Ycol_orig])
@@ -248,20 +219,9 @@ class GPR():
         self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         self.Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
 
-        if self.use_gpu:
-            try:
-                Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
-            except pycuda._driver.MemoryError:
-                print('Insufficient video memory for Kxx matrix of dimension', X.shape[0],', reverting to (slow) CPU computation.')
-
-            Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
-            linalg.init()
-            self.Kxx_inv = linalg.inv(Kxx_gpu, overwrite=True, lib='cusolver').get()
-        else:
-            Kxx = self.kernel_xx(self.X, self.theta, add_sigma2_n = True)
-            self.Kxx_inv = np.linalg.inv(Kxx)
-
-        self.Kxx_inv_Y = np.dot(self.Kxx_inv, self.Y) # TODO: GPU
+        Kxx = self.kernel_xx(self.X, self.theta, add_sigma2_n = True)
+        self.Kxx_inv = np.linalg.inv(Kxx)
+        self.Kxx_inv_Y = np.dot(self.Kxx_inv, self.Y)
 
 
     def save(self, save_to):
@@ -318,50 +278,8 @@ class GPR():
         else:
             return data
 
-    def define_kernel(self):
-        """Prepare the Kernel.  For now, only the `RBF` kernel_mode is supprted.
-        """
-
-        if self.kernel_mode == 'RBF':
-            Nx = self.training_data.shape[0]
-
-            with open(self.kernel_fn, 'r') as f:
-                kernel_code_template = Template(f.read())
-
-            max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(pycuda.autoinit.device)
-            device = pycuda.autoinit.device
-            block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
-            max_blocks_per_grid = max(max_grid_dim)
-
-            if self.verbose:
-                print("max_threads_per_block", max_threads_per_block)
-                print("max_block_dim", max_block_dim)
-                print("max_grid_dim", max_grid_dim)
-                print("max_blocks_per_grid", max_blocks_per_grid)
-                print("block_dim", block_dim)
-                print("grid_dim", grid_dim)
-
-            # Substitute in template to get kernel code
-            kernel_code = kernel_code_template.substitute(
-                max_threads_per_block   = max_threads_per_block,
-                max_blocks_per_grid     = max_blocks_per_grid,
-                B = Nx)
-
-            # Compile the kernel
-            mod = compiler.SourceModule(kernel_code)
-
-            # retrieve the kernel functions
-            self.kernel_xx_gpu = mod.get_function("kernel_xx")
-            self.kernel_xp_gpu = mod.get_function("kernel_xp")
-
-        else:
-            raise HistoryMatchingError(f'Bad kernel mode, kernel_mode = {self.kernel_mode}')
-
-
     def kernel_xx(self, X, theta, add_sigma2_n = True, deriv=-1):
-        """Compute the Kxx kernel using (SLOW) CPU-based calculations.
-
-        This function really only remains for computers that do not have access to an NVidia GPU and for testing GPU calculations.
+        """Compute the Kxx kernel using CPU-based calculations.
 
         Args:
             X: (2D ndarray) points of dimension N x D
@@ -399,9 +317,7 @@ class GPR():
         return ckernels.kernel_xx(X, theta, sigma2_n, add_sigma2_n, deriv)
 
     def kernel_xp(self, X, P, theta):
-        """Compute the Kxp kernel using (SLOW) CPU-based calculations.
-
-        This function really only remains for computers that do not have access to an NVidia GPU and for testing GPU calculations.
+        """Compute the Kxp kernel using CPU-based calculations.
 
         Args:
             X: (2D ndarray) points of dimension N x D
@@ -409,133 +325,6 @@ class GPR():
             theta: (1D ndarray) hyperparameters
         """
         return ckernels.kernel_xp(X,P,theta)
-
-    def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True, deriv=-1):
-        """Compute the Kxx kernel or derivatives using (FAST) GPU-based calculations.
-
-        Args:
-            X: (2D ndarray) points of dimension N x D.
-            theta: (1D ndarray, optional with default True) hyperparameters.
-            add_sigma2_n: (boolean) if True, add observation variance, sigma2_n, to the diagonal.
-            deriv: (int) if negative, return the kernel.  If positive between 0 and D-1, compute the partial derivative of the Kxx kernel with respect to the deriv^th hyperparameter.
-        """
-
-        Nx = X.shape[0]
-
-        # Do not add sigma2_n to sigma2_f deriv
-        if deriv == 0 and add_sigma2_n!=False:
-            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
-
-        if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
-            if self.fixed_sigma_n:
-                return np.eye(Nx)
-            else:
-                # No deriv wrt sigma2_n if the user has specified sigma2_n via GPR
-                return np.zeros((Nx,Nx))
-
-        # TODO: Can use from before...?
-        block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
-        X_gpu = gpuarray.to_gpu(X.astype(np.float32))
-        theta_gpu = gpuarray.to_gpu(theta.astype(np.float32))
-
-        # Create empty gpu array for the result
-        Kxx_gpu = gpuarray.empty((Nx, Nx), np.float32)
-
-        # Call the kernel on the card
-        self.kernel_xx_gpu(
-            Kxx_gpu,            # <-- Output
-            X_gpu, theta_gpu,   # <-- Inputs
-            np.uint32(Nx),      # <-- N
-            np.uint32(self.D),  # <-- D
-            np.int32(deriv),      # <-- Negative for no derivative
-            np.uint8(X.flags.f_contiguous), # FORTRAN (column) contiguous
-            block = block_dim,
-            grid = grid_dim
-        )
-
-        Kxx = Kxx_gpu.get()
-
-        if add_sigma2_n:
-            if self.fixed_sigma_n:
-                sigma2_n = theta[1]
-            else:
-                Xcols = self.basis.param_info.index.values
-
-                Xdf = pd.DataFrame(data=np.array(X), index=range(X.shape[0]), columns=Xcols) # ['Beta'], basis.param_info.index.values.tolist()
-                # TODO: Cache
-                sigma2_n = np.exp( self.sigma2_n.evaluate(Xdf)['Mean']) # TODO: internalize untransform_var # TODO: Just mean, or mean plus K sigma?
-                if self.normalize_y:
-                    sigma2_n /= self.normalizer_std**2
-
-            # Add sigma_n^2 to the diagonal, observation noise
-            Kxx[np.diag_indices(Nx)] += sigma2_n
-
-        if self.debug and deriv < 0:
-            # Test on CPU
-            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
-            if not np.allclose(Kxx_cpu, Kxx):
-                print('Kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
-                print('Kxx_gpu_wrapper(GPU):\n', Kxx)
-                raise HistoryMatchingError("CPU and GPU results don't match!")
-
-        return Kxx
-
-
-    def kxp_gpu_wrapper(self, X, P, theta):
-        """Compute the Kxp kernel or derivatives using (FAST) GPU-based calculations.
-
-        Args:
-            X: (2D ndarray) points of dimension N x D.
-            P: (2D ndarray) points of dimension P x D.
-            theta: (1D ndarray, optional with default True) hyperparameters.
-        """
-
-        if self.use_gpu:
-            Nx = X.shape[0]
-            Np = P.shape[0]
-            block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Np))
-
-            if X.flags.f_contiguous: # Fortran column-major
-                # Convert to C contiguous (row major)
-                X_gpu = gpuarray.to_gpu(np.ascontiguousarray(X).astype(np.float32))
-            else:
-                X_gpu = gpuarray.to_gpu(X.astype(np.float32))
-
-            if P.flags.f_contiguous:
-                # Convert to C contiguous (row major)
-                P_gpu = gpuarray.to_gpu(np.ascontiguousarray(P).astype(np.float32))
-            else:
-                P_gpu = gpuarray.to_gpu(P.astype(np.float32))
-
-            theta_gpu = gpuarray.to_gpu(theta.astype(np.float32))
-
-            # create empty gpu array for the result
-            Kxp_gpu = gpuarray.empty((Nx, Np), np.float32)
-
-            # call the kernel on the card
-            self.kernel_xp_gpu(
-                Kxp_gpu,                   # <-- Output
-                X_gpu, P_gpu, theta_gpu,   # <-- Inputs
-                np.uint32(Nx),   # <-- Nx
-                np.uint32(Np),   # <-- Nx
-                np.uint32(self.D),  # <-- D
-                block = block_dim,
-                grid = grid_dim
-            )
-
-            if self.debug:
-                # Test on CPU
-                Kxp_cpu = self.kernel_xp(X, P, theta)
-                if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                    print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-                    print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                    raise HistoryMatchingError("CPU and GPU results don't match!")
-
-            return Kxp_gpu.get()
-
-        Kxp_cpu = self.kernel_xp(X, P, theta)
-        return Kxp_cpu
-
 
     def cross_validation(self, theta, X, Y, P):
         """Compute the LOO cross validation score.  OLD, use the one _with_grad.
@@ -553,22 +342,8 @@ class GPR():
 
         Y_mean = np.nanmean(Y, axis=1)
 
-        KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-        if self.debug:
-            # Compare to CPU
-            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-            if not np.allclose(KXX_cpu, KXX):
-                print('loo_cross_validation(CPU XX):\n', KXX_cpu)
-                print('loo_cross_validation(GPU XX):\n', KXX)
-                raise HistoryMatchingError("CPU and GPU results don't match!")
-
-        if self.use_gpu:
-            KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
-            linalg.init()
-            KXX_inv = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver').get()
-        else:
-            KXX_inv = np.linalg.inv(KXX) # self.?
-
+        KXX = self.kernel_xx(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
+        KXX_inv = np.linalg.inv(KXX) # self.?
         KXX_inv_Y = np.dot(KXX_inv, Y)
 
         ll = 0
@@ -607,26 +382,8 @@ class GPR():
         Y_mean = np.nanmean(Y, axis=1)
         D = len(theta)
 
-        if self.use_gpu:
-            KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-            if self.debug:
-                # Compare to CPU
-                KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-                if not np.allclose(KXX_cpu, KXX):
-                    print('loo_cross_validation(CPU XX):\n', KXX_cpu)
-                    print('loo_cross_validation(GPU XX):\n', KXX)
-                    raise HistoryMatchingError("CPU and GPU results don't match!")
-        else:
-            KXX = self.kernel_xx(X, theta, add_sigma2_n = True)
-
-        if self.use_gpu:
-            KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
-            linalg.init()
-            KXX_inv_gpu = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver')
-            KXX_inv = KXX_inv_gpu.get()
-        else:
-            KXX_inv = np.linalg.inv(KXX) # self.?
-
+        KXX = self.kernel_xx(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
+        KXX_inv = np.linalg.inv(KXX) #TODO: self.?
         KXX_inv_Y = np.dot(KXX_inv, Y).squeeze()
 
         sigma2 = np.reciprocal(np.diag(KXX_inv))
@@ -636,19 +393,10 @@ class GPR():
         ll -= 0.5*np.log(2*np.pi) * Y.shape[0]
 
         dLLOO_dtheta = np.empty_like(theta)
-        if self.use_gpu:
-            linalg.init()
 
         for j in range(D):
-            # TODO: Could compute some from KXX without calling kxx_gpu_wrapper
-            if self.use_gpu:
-                dK_dthetaj = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = False, deriv = j) # Do not want sigma2_n here!
-                # Get these as gpu arrays from the kernel function
-                dK_dthetaj_gpu = gpuarray.to_gpu(np.asarray(dK_dthetaj, np.float64))
-                Zj = linalg.dot(KXX_inv_gpu, dK_dthetaj_gpu).get()
-            else:
-                dK_dthetaj = self.kernel_xx(X, theta, add_sigma2_n = False, deriv = j) # Do not want sigma2_n here!
-                Zj = np.dot(KXX_inv, dK_dthetaj) # This is the slow part
+            dK_dthetaj = self.kernel_xx(X, theta, add_sigma2_n = False, deriv = j) # Do not want sigma2_n here!
+            Zj = np.dot(KXX_inv, dK_dthetaj) # This is the slow part
 
             # Fancy Einstein summations to compute only the diagonal elements!
             dLLOO_dthetaj = np.multiply(KXX_inv_Y, np.dot(Zj, KXX_inv_Y))
@@ -851,25 +599,8 @@ class GPR():
             print('Y',self.Y.shape,' flags:\n', self.Y.flags)
             print('P',P.shape,' flags:\n', P.flags)
 
-        Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
-            if not np.allclose(Kxp_cpu, Kxp):
-                print('evaluate(CPU XP):\n', Kxp_cpu)
-                print('evaluate(GPU XP):\n', Kxp)
-                raise HistoryMatchingError("CPU and GPU results don't match!")
-
-        if self.use_gpu:
-            Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
-            if self.debug:
-                Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
-                if not np.allclose(Kpp_cpu, Kpp):
-                    print('evaluate(CPU PP):\n', Kpp_cpu)
-                    print('evaluate(GPU PP):\n', Kpp)
-                    raise HistoryMatchingError("CPU and GPU results don't match!")
-        else:
-            Kpp = self.kernel_xx(P, self.theta, add_sigma2_n = False)
-
+        Kxp = self.kernel_xp(self.X, P, self.theta)
+        Kpp = self.kernel_xx(P, self.theta, add_sigma2_n = False) # For latent distribution
         f = np.dot(Kxp.T, self.Kxx_inv_Y)
 
         if self.debug:
@@ -877,13 +608,7 @@ class GPR():
 
         # NOTE: Just computing diagonal elements of:
         #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
-        if self.use_gpu:
-            # : Reuse gpu arrays to reduce to_gpu transfers
-            Kxx_inv_gpu = gpuarray.to_gpu(np.asarray(self.Kxx_inv, np.float64))
-            Kxp_gpu = gpuarray.to_gpu(np.asarray(Kxp, np.float64))
-            tmp = linalg.dot(Kxx_inv_gpu, Kxp_gpu).get() # Need .copy() on gpu arrays?
-        else:
-            tmp = np.dot(self.Kxx_inv, Kxp)
+        tmp = np.dot(self.Kxx_inv, Kxp)
 
         covf = np.diag(Kpp) - np.einsum('ji,ji->i', Kxp, tmp)
 
