@@ -18,6 +18,11 @@ import seaborn as sns
 import skcuda.misc as misc
 
 from history_matching.error import *
+import scipy.optimize as spo
+from string import Template
+from scipy.stats import norm
+
+import ckernels
 
 plt.rcParams['image.cmap'] = 'jet'
 
@@ -68,7 +73,6 @@ class GPC():
         self.D = len(self.Xcols)
 
         self.theta = None # Kernel/model hyperparameters
-        self.kernel_xx_gpu = None
 
         self.kernel_params = kernel_params
         self.define_kernel(self.kernel_params)
@@ -123,40 +127,7 @@ class GPC():
 
 
     def define_kernel(self, params):
-        if self.kernel_mode == 'RBF':
-            Nx = self.training_data.shape[0]
-
-            with open(self.kernel_fn, 'r') as f:
-                kernel_code_template = Template(f.read())
-
-            max_threads_per_block, max_block_dim, max_grid_dim = misc.get_dev_attrs(pycuda.autoinit.device)
-            block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
-            max_blocks_per_grid = max(max_grid_dim)
-
-            if self.verbose:
-                print("max_threads_per_block", max_threads_per_block)
-                print("max_block_dim", max_block_dim)
-                print("max_grid_dim", max_grid_dim)
-                print("max_blocks_per_grid", max_blocks_per_grid)
-                print("block_dim", block_dim)
-                print("grid_dim", grid_dim)
-
-            # Substitute in template to get kernel code
-            kernel_code = kernel_code_template.substitute(
-                max_threads_per_block   = max_threads_per_block,
-                max_blocks_per_grid     = max_blocks_per_grid,
-                B = Nx)
-
-            # Compile the kernel
-            mod = compiler.SourceModule(kernel_code)
-
-            # retrieve the kernel functions
-            self.kernel_xx_gpu = mod.get_function("kernel_xx")
-            self.kernel_xp_gpu = mod.get_function("kernel_xp")
-
-        else:
-            raise HistoryMatchingError('Bad kernel mode, kernel_mode={self.kernel_mode}')
-
+        #TODO: Is this needed?
         if params is not None:
             if len(params)!=1+self.D:
                 raise HistoryMatchingError("Params must be 1 longer than the dimension!")
@@ -165,129 +136,12 @@ class GPC():
             self.theta = params
 
 
-    def kernel_xx(self, X, theta):
-        # NOTE: Slow, use GPU acceleration instead.
-        sigma2_f = theta[0]
-
-        N = X.shape[0]
-
-        kxx = np.zeros([N,N], dtype=np.float32)
-        for i in range(N):
-            # Off-diagonal
-            for j in range(i+1,N):
-                dX = X[i,:]-X[j,:]
-                r2 = 0
-                for d in range(self.D):
-                    r2 += dX[d] * dX[d]/theta[1+d]
-                kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
-                kxx[j,i] = kxx[i,j]
-
-            # Diagonal:
-            kxx[i,i] = sigma2_f
-
-        return kxx
-
+    def kernel_xx(self, X, theta, deriv=-1):
+        sigma2_n = np.zeros(X.shape[0])
+        return ckernels.kernel_xx(X, theta, sigma2_n, False, deriv)
 
     def kernel_xp(self, X, P, theta):
-        # NOTE: Slow, use GPU acceleration instead.
-        sigma2_f = theta[0]
-
-        Nx = X.shape[0]
-        Np = P.shape[0]
-        D = X.shape[1]
-
-        kxp = np.zeros([Nx,Np])
-        for i in range(Nx):
-            for j in range(Np):
-                dX = X[i,:]-P[j,:]
-                r2 = 0
-                for d in range(D):
-                    r2 += dX[d] * dX[d]/theta[1+d]
-                kxp[i,j] = sigma2_f * np.exp( -r2 / 2. )
-
-        return kxp
-
-
-    def kxx_gpu_wrapper(self, X, theta, deriv=-1):
-        Nx = X.shape[0]
-        # Use from before...?
-        block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
-
-        X_gpu = gpuarray.to_gpu(X.astype(np.float32))
-
-        theta_extended = np.concatenate( (np.array(theta[:1]), np.array([0]), np.array(theta[1:])) ) # Kernel code needs sigma2_n
-        theta_gpu = gpuarray.to_gpu(theta_extended.astype(np.float32))
-
-        # create empty gpu array for the result
-        Kxx_gpu = gpuarray.empty((Nx, Nx), np.float32)
-
-        # call the kernel on the card
-        self.kernel_xx_gpu(
-            Kxx_gpu,            # <-- Output
-            X_gpu, theta_gpu,   # <-- Inputs
-            np.uint32(Nx),      # <-- N
-            np.uint32(self.D),  # <-- D
-            np.uint32(deriv),   # <- for dK/dtheta_i.  Negative for no deriv.
-            np.uint8(X.flags.f_contiguous), # FORTRAN (column) contiguous
-            block = block_dim,
-            grid = grid_dim
-        )
-
-        Kxx = Kxx_gpu.get()
-
-        if self.debug:
-            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32))
-            if not np.allclose(Kxx_cpu, Kxx):
-                print('kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
-                print('kxx_gpu_wrapper(GPU):\n', Kxx)
-                raise HistoryMatchingError("GPU and CPU results didn't match!")
-
-        return Kxx
-
-
-    def kxp_gpu_wrapper(self, X, P, theta):
-        Nx = X.shape[0]
-        Np = P.shape[0]
-        block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Np))
-
-        if X.flags.f_contiguous: # Fortran column-major
-            # Convert to C contiguous (row major)
-            X_gpu = gpuarray.to_gpu(np.ascontiguousarray(X).astype(np.float32))
-        else:
-            X_gpu = gpuarray.to_gpu(X.astype(np.float32))
-
-        if P.flags.f_contiguous:
-            # Convert to C contiguous (row major)
-            P_gpu = gpuarray.to_gpu(np.ascontiguousarray(P).astype(np.float32))
-        else:
-            P_gpu = gpuarray.to_gpu(P.astype(np.float32))
-
-        theta_extended = np.concatenate( (np.array(theta[:1]), np.array([0]), np.array(theta[1:])) ) # Kernel code needs sigma2_n
-        theta_gpu = gpuarray.to_gpu(theta_extended.astype(np.float32))
-
-        # create empty gpu array for the result
-        Kxp_gpu = gpuarray.empty((Nx, Np), np.float32)
-
-        # call the kernel on the card
-        self.kernel_xp_gpu(
-            Kxp_gpu,                   # <-- Output
-            X_gpu, P_gpu, theta_gpu,   # <-- Inputs
-            np.uint32(Nx),   # <-- Nx
-            np.uint32(Np),   # <-- Nx
-            np.uint32(self.D),  # <-- D
-            block = block_dim,
-            grid = grid_dim
-        )
-
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(X, P, theta)
-            if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-                print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                raise HistoryMatchingError("GPU and CPU results didn't match!")
-
-        return Kxp_gpu.get()
-
+        return ckernels.kernel_xp(X, P, theta)
 
     def assign_rep(self, sample):
         sample = sample.drop('index', axis=1).reset_index()
@@ -309,7 +163,7 @@ class GPC():
         N = len(y)
 
         X = self.training_data[self.Xcols_scaled].values
-        K = self.kxx_gpu_wrapper(X, theta)  # This is for f, no sigma2_n
+        K = self.kernel_xx(X, theta) # This is for f, no sigma2_n
 
         # Initialize
         nu = np.zeros(N)
@@ -450,7 +304,7 @@ class GPC():
 
         X = self.training_data[self.Xcols_scaled].values
 
-        K = self.kxx_gpu_wrapper(X, theta)  # This is for f, no sigma2_n
+        K = self.kernel_xx(X, theta) # This is for f, no sigma2_n
 
         for i in range(maxiter):
             if self.verbose: print('---[ %d ]------------------------------------'%i)
@@ -583,7 +437,7 @@ class GPC():
                 # theta_0 is sigma2_f
                 C = K / theta[0]
             else:
-                C = self.kxx_gpu_wrapper(X, theta, deriv=j+1) # +1 because no sigma2_n
+                C = self.kernel_xx(X, theta, deriv=j+1) # +1 because no sigma2_n
 
             s1_part_1 = 0.5 * np.dot(np.transpose(a), np.dot(C, a))
             s1 = s1_part_1 - 0.5 * np.trace( np.dot(R,C) ) # <-- WARNING, INEFFICIENT!  COMPUTE DIAG OF MATRIX PROD ONLY!
@@ -620,7 +474,7 @@ class GPC():
         if self.verbose: print('y:', y)
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
-        KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
+        KXX = self.kernel_xx(X, theta) # This is for f
 
         if self.verbose: print('---[ PREDICT ]------------------------------------')
         if self.verbose: print('f_hat:', f_hat)
@@ -651,11 +505,11 @@ class GPC():
         for idx, p_series in P.iterrows():
             if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
-            KXp = self.kxp_gpu_wrapper(X, p, theta)
+            KXp = self.kernel_xp(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f) # MEAN (vector of length 1)
 
             v = np.linalg.solve(L, np.dot(sqrtW, KXp))
-            Kpp = self.kxx_gpu_wrapper(p, theta) # For latent distribution, don't add sigma2_n
+            Kpp = self.kernel_xx(p, theta) # For latent distribution, don't add sigma2_n
             V = Kpp - np.dot(np.transpose(v),v) # VARIANCE (matrix of size 1x1)
 
             def logistic(f):
@@ -708,7 +562,7 @@ class GPC():
         if self.verbose: print('y:', y)
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
-        KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
+        KXX = self.kernel_xx(X, theta) # This is for f
 
         if self.verbose: print('---[ PREDICT ]------------------------------------')
 
@@ -726,11 +580,11 @@ class GPC():
         for idx, p_series in P.iterrows():
             if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
-            KXp = self.kxp_gpu_wrapper(X, p, theta)
+            KXp = self.kernel_xp(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), nu-z) # MEAN (vector of length 1)
 
             v = np.linalg.solve(L, np.dot(sqrtStilde, KXp))
-            Kpp = self.kxx_gpu_wrapper(p, theta) # For latent distribution, don't add sigma2_n
+            Kpp = self.kernel_xx(p, theta) # For latent distribution, don't add sigma2_n
             V = Kpp - np.dot(np.transpose(v),v) # VARIANCE (matrix of size 1x1)
 
             mu = f_bar_star[0]
