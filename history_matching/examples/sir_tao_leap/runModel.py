@@ -29,7 +29,6 @@ Output:
 
 """
 # Python libraries (native, 3rd party)
-import numpy
 import pandas
 import matplotlib
 from matplotlib import pyplot as plt

@@ -20,12 +20,10 @@
 import pandas
 import numpy
 import os
-import re
 import time
 import datetime
 import warnings
 import matplotlib
-from matplotlib import pyplot as plt
 matplotlib.pyplot.switch_backend('TKAgg')
 
 

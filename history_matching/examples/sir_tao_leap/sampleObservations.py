@@ -18,7 +18,6 @@ Output:
 
 """
 import pandas
-import random
 
 
 

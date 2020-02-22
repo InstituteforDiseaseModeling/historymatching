@@ -1,21 +1,16 @@
 # http://nbviewer.jupyter.org/github/SheffieldML/notebook/blob/master/background/BayesianLinearRegression.ipynb
 
 import json
-import patsy
 import os
 
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
 from statsmodels import graphics
+import statsmodels.api as sm
 
 from history_matching.basis import Basis
 
-import numpy as np, pandas as pd, seaborn as sns
 from matplotlib import pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.gridspec as gridspec
-import scipy
 from scipy import stats
+import numpy as np, pandas as pd, seaborn as sns
 
 class GLM(object):
     """Generalized Linear Modeling (GLM).
@@ -64,27 +59,19 @@ class GLM(object):
 
         self.fitted_model = fitted_model
 
-        if family == 'Poisson':
-            if self.verbose:
-                print('Using Poisson family')
-            self.glmfam = sm.families.Poisson()
-        elif family == 'Binomial':
-            if self.verbose:
-                print('Using Binomial family')
-            self.glmfam = sm.families.Binomial()
-        elif family == 'Gamma':
-            if self.verbose:
-                print('Using Gamma family')
-            self.glmfam = sm.families.Gamma()
-        elif family == 'NegativeBinomial':
-            alpha = 1.9
-            if self.verbose:
-                print('Using NegativeBinomial family, alpha = ', alpha)
-            self.glmfam = sm.families.NegativeBinomial(alpha=alpha) # Does strange things with float vs int values of alpha!
-        else:
-            if self.verbose:
-                print('Using Gaussian family')
-            self.glmfam = sm.families.Gaussian()
+        glms = {
+            "Poisson": sm.families.Poisson(),
+            "Binomial": sm.families.Binomial(),
+            "Gamma": sm.families.Gamma(),
+            "NegativeBinomial": sm.families.NegativeBinomial(alpha=1.9), # Does strange things with float vs int values of alpha!
+            "Gaussian": sm.families.Gaussian()
+        }
+
+        if not family in glms:
+            raise Exception(f"Invalid glm family '{family}'!")
+        if self.verbose:
+            print(f"Using {family} family")
+        self.glmfam = glms[family]
 
         if self.fitted_model is not None:
             print(self.fitted_model.summary()) # Should work, but was causing errors with some versions of statsmodels.
@@ -153,12 +140,12 @@ class GLM(object):
         with open(save_meta_to, 'w') as fout:
             json.dump(
                 {
-                    'Basis'         : self.basis.serialize(),
-                    'Ycol'          : self.Ycol,
-                    'Training_Data' : self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
+                    'Basis': self.basis.serialize(),
+                    'Ycol': self.Ycol,
+                    'Training_Data': self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
                     'Reference_Value': self.reference_value,
-                    'D'             : self.D,
-                    'Family'        : self.family,
+                    'D': self.D,
+                    'Family': self.family,
                 }, fout, indent=4)
 
     def evaluate(self, data):
@@ -186,7 +173,7 @@ class GLM(object):
                 maxiter parameter passed to the statsmodels `fit` function.
         """
 
-        (response_matrix, data_matrix) = self.basis.generate_dmatrices(self.training_data, self.Ycol, scaleX=True)
+        response_matrix, data_matrix = self.basis.generate_dmatrices(self.training_data, self.Ycol, scaleX=True)
         self.model = sm.GLM(response_matrix, data_matrix, family=self.glmfam)
 
         if self.verbose:

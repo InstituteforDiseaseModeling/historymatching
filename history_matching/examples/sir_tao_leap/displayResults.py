@@ -18,7 +18,6 @@ from getObservations    import getObservations
 from sampleObservations import sampleObservations
 from sirTaoLeap         import sirTaoLeap
 from dataframePlot      import dataframePlot
-from historyPlot        import historyPlot
 
 
 

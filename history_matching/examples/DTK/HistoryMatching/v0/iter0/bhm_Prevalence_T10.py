@@ -3,8 +3,6 @@ import pandas as pd
 import os, re
 import json
 import numpy as np
-from functools import partial
-from scipy.stats import beta
 
 force_optimize_glm = False
 force_optimize_gpr = False

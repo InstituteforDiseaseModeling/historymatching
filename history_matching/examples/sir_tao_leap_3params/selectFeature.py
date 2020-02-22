@@ -43,7 +43,6 @@ Output:
     
 """
 import numpy
-import pandas
 import warnings
 
 

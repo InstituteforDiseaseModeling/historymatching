@@ -1,10 +1,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from history_matching.gpc import GPC
-from scipy.stats import norm
 
 #np.random.seed(0) # Fix random seed for reproducibility
 

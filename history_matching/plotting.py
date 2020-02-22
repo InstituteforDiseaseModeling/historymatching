@@ -1,11 +1,14 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+import os
+
+from history_matching.basis import Basis
 from matplotlib.ticker import FormatStrFormatter
 import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from history_matching.basis import Basis
-import os
+
+
 
 def plot_implausibility(data, Xcols, column, thresh):
     scaled = data[column] / data[column].max()

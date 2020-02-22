@@ -28,7 +28,6 @@ Outputs:
                   of parameter generated.
 
 """
-import numpy
 import pandas
 import matplotlib
 from matplotlib import pyplot as plt

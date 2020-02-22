@@ -4,7 +4,7 @@ from history_matching.basis import Basis
 
 import pandas as pd
 import os
-import re, time
+import re
 import json
 import numpy as np
 import glob

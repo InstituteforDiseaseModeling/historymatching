@@ -1,7 +1,6 @@
 """ Plots for history file in SIR Tao-Leap calibration example
 
 """
-import numpy
 import pandas
 import matplotlib
 from matplotlib import pyplot as plt

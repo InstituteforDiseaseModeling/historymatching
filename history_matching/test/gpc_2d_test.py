@@ -94,9 +94,7 @@ proposal['Implausibility'] = (proposal['Logit-Mean'] - logit_target)**2 / propos
 # PLOT
 ############### 2D
 
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
 fig = plt.figure(figsize=(10,10))
 ax1 = fig.add_subplot(1,2,1, projection='3d')
 ax2 = fig.add_subplot(1,2,2, projection='3d')

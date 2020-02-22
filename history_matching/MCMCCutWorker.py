@@ -1,8 +1,9 @@
 import multiprocessing as mp
-import sys
-import pandas as pd
+
 from pyDOE import lhs
-import copy
+import pandas as pd
+
+
 
 class MCMCCutWorker(mp.Process):
 
@@ -90,14 +91,14 @@ class MCMCCutWorker(mp.Process):
             plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
 
-            plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
+            plausible_candidates[ f'Implausibility_{it}_{cut_name}' ] = \
                 abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
                 np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
 
-            plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
-            cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
+            plausible_candidates[ f'Implausible_{it}_{cut_name}' ] = plausible_candidates[ f'Implausibility_{it}_{cut_name}' ] > self.hm_params[cut]['implausibility_threshold']
+            cols += [f'Implausibility_{it}_{cut_name}', f'Implausible_{it}_{cut_name}']
 
-            new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+            new_candidates['Implausible'] |= plausible_candidates[ f'Implausible_{it}_{cut_name}' ]
 
         return new_candidates['Implausible']
 
@@ -155,8 +156,8 @@ class MCMCCutWorker(mp.Process):
 
             del new_candidates
 
-            print('Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates']))
+            print('Plausible candidates: New = {0}, Tot = {1}'.format(stats['num_new_plausible_candidates'], stats['num_plausible_candidates']))
 
         rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
-        print('Rejected %.1f%% [%d / %d]' % (rejected_percent, sum(candidates['Implausible']), candidates.shape[0]))
+        print('Rejected {0:.1f} [{1} / {2}]'.format(rejected_percent, sum(candidates['Implausible']), candidates.shape[0]))
 

@@ -1,8 +1,6 @@
 """ Plots for Pandas DataFrames
 
 """
-import numpy
-import pandas
 import matplotlib
 from matplotlib import pyplot as plt
 matplotlib.pyplot.switch_backend('TKAgg')

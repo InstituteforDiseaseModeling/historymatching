@@ -1,6 +1,5 @@
 import pandas as pd
 import os, sys
-import json
 import errno
 
 from dtk.utils.analyzers.BaseShelveAnalyzer import BaseShelveAnalyzer
