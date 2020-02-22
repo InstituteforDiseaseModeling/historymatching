@@ -279,7 +279,7 @@ class GPR():
             return data
 
     def kernel_xx(self, X, theta, add_sigma2_n = True, deriv=-1):
-        """Compute the Kxx kernel using CPU-based calculations.
+        """Compute the Kxx kernel.
 
         Args:
             X: (2D ndarray) points of dimension N x D
@@ -498,7 +498,6 @@ class GPR():
         maxls : int, optional
             Maximum number of line search steps (per iteration). Default is 20.
         '''
-
 
         idx = self.training_data.index.names    # Save index
         self.training_data.reset_index(inplace=True)
