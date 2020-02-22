@@ -133,7 +133,7 @@ xInfo = pandas.DataFrame( {  'Name': [ 'beta',  'gamma'  ],
                              'Max' : [ maxBeta, maxGamma ]
                           } ).set_index('Name')
 
-glmBasis = Basis.polynomial_basis( params       = xInfo.index.values,
+glmBasis = Basis.make_polynomial_basis( params       = xInfo.index.values,
                                    intercept    = True,
                                    first_order  = True,
                                    second_order = False,
@@ -141,7 +141,7 @@ glmBasis = Basis.polynomial_basis( params       = xInfo.index.values,
                                    param_info   = xInfo
                                   )
 
-gprBasis = Basis.polynomial_basis( params      = xInfo.index.values,
+gprBasis = Basis.make_polynomial_basis( params      = xInfo.index.values,
                                    intercept   = False,
                                    first_order = True,
                                    param_info  = xInfo

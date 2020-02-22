@@ -101,7 +101,7 @@ class GLM(object):
                 else:
                     # Backwards compatibility
                     Xcols = config['Xcols']
-                    basis = Basis.polynomial_basis(
+                    basis = Basis.make_polynomial_basis(
                         params = Xcols,
                         intercept = True,
                         first_order = config['First_Order_Basis_Terms'],
@@ -267,7 +267,7 @@ class GLM(object):
 
         figs = {}
 
-        basis = Basis.identity_basis(params=self.basis.param_info.index.unique().tolist(), param_info=self.basis.param_info)
+        basis = Basis.make_identity_basis(params=self.basis.param_info.index.unique().tolist(), param_info=self.basis.param_info)
         Xcols = basis.get_terms()
         dmat = basis.generate_dmatrix(self.training_data, scaleX=True)
 

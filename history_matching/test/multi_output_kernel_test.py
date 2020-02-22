@@ -67,7 +67,7 @@ data = pd.merge(samples, data, left_index=True, right_index=True)
 
 data.index.name = 'Sample_Id'
 
-b = Basis.identity_basis(['Beta', 'Gamma'], param_info)
+b = Basis.make_identity_basis(['Beta', 'Gamma'], param_info)
 
 g1 = GPR(b, 'Y1', data, param_info,
             kernel_mode = 'RBF',

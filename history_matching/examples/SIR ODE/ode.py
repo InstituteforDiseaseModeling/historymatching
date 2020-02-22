@@ -124,7 +124,7 @@ f2.savefig(os.path.join(figdir, 'Infected_beta_sweep_4.%s'%fmt))
 ### GPR
 params = ['Beta']
 param_info = pd.DataFrame({'Name':['Beta'], 'Min':[0], 'Max':[1]}).set_index('Name')
-basis = Basis.polynomial_basis(
+basis = Basis.make_polynomial_basis(
             params,
             intercept = False,
             first_order = True,

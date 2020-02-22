@@ -166,7 +166,7 @@ class GPR_MO():
                 else:
                     # Backwards compatibility
                     Xcols = config['Xcols']
-                    basis = Basis.polynomial_basis(
+                    basis = Basis.make_polynomial_basis(
                         params = Xcols,
                         intercept = False,
                         first_order = True,

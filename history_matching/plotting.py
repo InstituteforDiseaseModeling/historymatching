@@ -277,7 +277,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
 
     figs = {}
 
-    basis = Basis.identity_basis(params=param_info.index.unique().tolist(), param_info=param_info)
+    basis = Basis.make_identity_basis(params=param_info.index.unique().tolist(), param_info=param_info)
     Xcols = basis.get_terms()
 
     reverse_param_dict = {v:k for k,v in basis.param_dict.items()}

@@ -24,7 +24,7 @@ def plt_sample(**kwargs):
     plt.plot(pt[param_name], 0, 'r^', lw=2, ms=10)
 
 g = sns.FacetGrid(s.reset_index(), col='Variable', col_wrap=5, sharex=False, sharey=False, size=3, aspect=1, palette=None, row_order=None, col_order=None, hue_order=None, hue_kws=None, dropna=True, legend_out=True, despine=True, margin_titles=False, xlim=None, ylim=None, subplot_kws=None, gridspec_kws=None)
-print 'Mapping'
+print('Mapping')
 g = g.map_dataframe(plt_hist)
 
 # SHOW THE LOCATION OF ONE POINT:
