@@ -65,8 +65,7 @@ class Basis():
         """
 
         param_dict = Basis.make_param_dict(params)
-        params_patsy = param_dict.values()
-        model_terms = [Term([LookupFactor(x)]) for x in params_patsy] # X
+        model_terms = [Term([LookupFactor(x)]) for x in param_dict.values()] # X
         return cls(model_terms, param_dict, param_info)
 
 
