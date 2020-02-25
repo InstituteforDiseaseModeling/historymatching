@@ -1,0 +1,2 @@
+class HistoryMatchingError(Exception):
+  pass

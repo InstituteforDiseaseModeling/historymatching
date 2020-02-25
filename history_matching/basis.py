@@ -7,6 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
+from history_matching.error import *
+
 class Basis():
     """Class to support polynomial basis, data matrix generation, and parameter name handling.
     """
@@ -265,9 +267,8 @@ class Basis():
         except patsy.PatsyError as e:
             if pd.isnull(data).any().any():
                 print(data[data.isnull().any(axis=1)])
-                raise Exception('Data contains Null/None/NaN, see data above.')
-            else:
-                raise e
+                print('Data contains Null/None/NaN, see data above.')
+                raise HistoryMatchingError("Data contains Null/None/NaN")
         return dmat
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
@@ -357,7 +358,7 @@ class Basis():
         print('Non-Zero:', len(params), 'of', self.D)
 
         if len(params) == 0:
-            raise ValueError('In regularize, no parameters had a non-zero coefficient.  Try making alpha smaller.')
+            raise HistoryMatchingError('In regularize, no parameters had a non-zero coefficient.  Try making alpha smaller.')
 
         terms = params.index.values.tolist()
         if 'Intercept' in terms:
