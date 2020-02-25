@@ -75,6 +75,3 @@ class GPCTest(unittest.TestCase):
         theta = [2, 0.1, 0.1]
         ret = g.find_posterior_mode(theta, f_guess=None, tol_grad=1e-6, maxiter=10000)
         self.assertTrue( np.allclose(ret['f_hat'], np.dot(ret['K'], ret['d_df_log_p_y_given_f']), atol=1e-5) )
-
-
-unittest.main()

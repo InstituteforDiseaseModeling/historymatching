@@ -263,13 +263,12 @@ class Basis():
         md = ModelDesc([], self.model_terms)
         try:
             dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
-        except Exception as e:
-            print(str(e))
+        except patsy.PatsyError as e:
             if pd.isnull(data).any().any():
-                #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
                 print(data[data.isnull().any(axis=1)])
-                print('Data contains Null/None/NaN, see data above.')
-                exit()
+                raise Exception('Data contains Null/None/NaN, see data above.')
+            else:
+                raise e
         return dmat
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
