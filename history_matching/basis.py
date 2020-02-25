@@ -292,7 +292,8 @@ class Basis():
         data = data.rename(columns=self.param_dict)
         md = ModelDesc(response_terms, self.model_terms)
 
-        (response_matrix, data_matrix) = dmatrices(md, data=data, return_type='dataframe')
+        #TODO: Should this have an NA_action?
+        response_matrix, data_matrix = dmatrices(md, data=data, return_type='dataframe')
         return response_matrix, data_matrix
 
     def get_terms(self):
