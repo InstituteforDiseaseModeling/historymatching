@@ -1,4 +1,5 @@
 import itertools
+import re
 
 from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
 import patsy # TODO: Cleanup
@@ -111,43 +112,52 @@ class Basis():
 
         # First order
         if order>=1:
-            model_terms += [LookupFactor(x) for x in params_patsy] # X
+            model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X
+
+        high_terms = []
 
         # Second order
-        if sorder>=2:
-            model_terms += ['%s*%s'%x for x in combosr(Xcols, 2)]
+        if order>=2:
+            high_terms += ['%s*%s'%x for x in comboswr(params_patsy, 2)]
 
         # Third order
         if order>=3:
-            model_terms += ['%s*%s*%s'%x for x in combosr(Xcols, 3)]
+            high_terms += ['%s*%s*%s'%x for x in comboswr(params_patsy, 3)]
 
         # Fourth order
-        if forder>=4:
-            model_terms += ['%s*%s*%s*%s'%x for x in combosr(Xcols, 4)]
+        if order>=4:
+            high_terms += ['%s*%s*%s*%s'%x for x in comboswr(params_patsy, 4)]
 
         # Fifth order
         if order>=5:
-            model_terms += ['%s*%s*%s*%s*%s'%x for x in combosr(Xcols, 5)]
+            high_terms += ['%s*%s*%s*%s*%s'%x for x in comboswr(params_patsy, 5)]
 
         if order>=6:
             # Some sixth order
-            model_terms += ['%s**6'%x for x in params_patsy] # X^6
+            high_terms += ['%s**6'%x for x in params_patsy] # X^6
 
-            model_terms += ['%s**5*%s'%x for x in combos(params_patsy, 2)] # X^5*Y
-            model_terms += ['%s*%s**5'%x for x in combos(params_patsy, 2)] # X*Y^5
+            high_terms += ['%s**5*%s'%x for x in comboswr(params_patsy, 2)] # X^5*Y
+            high_terms += ['%s*%s**5'%x for x in comboswr(params_patsy, 2)] # X*Y^5
 
-            model_terms += ['%s**3*%s*%s*%s'%x for x in combos(params_patsy, 4)] # W^3*X*Y*Z
-            model_terms += ['%s*%s**3*%s*%s'%x for x in combos(params_patsy, 4)] # W*X^3*Y*Z
-            model_terms += ['%s*%s*%s**3*%s'%x for x in combos(params_patsy, 4)] # W*X*Y^3*Z
-            model_terms += ['%s*%s*%s*%s**3'%x for x in combos(params_patsy, 4)] # W*X*Y*Z^3
+            high_terms += ['%s**3*%s*%s*%s'%x for x in comboswr(params_patsy, 4)] # W^3*X*Y*Z
+            high_terms += ['%s*%s**3*%s*%s'%x for x in comboswr(params_patsy, 4)] # W*X^3*Y*Z
+            high_terms += ['%s*%s*%s**3*%s'%x for x in comboswr(params_patsy, 4)] # W*X*Y^3*Z
+            high_terms += ['%s*%s*%s*%s**3'%x for x in comboswr(params_patsy, 4)] # W*X*Y*Z^3
 
             # Some seventh?! order
-            model_terms += ['%s**7'%x for x in params_patsy] # X^7
+            high_terms += ['%s**7'%x for x in params_patsy] # X^7
 
-            model_terms += ['%s**6*%s'%x for x in combos(params_patsy, 2)] # X^6*Y
-            model_terms += ['%s*%s**6'%x for x in combos(params_patsy, 2)] # X*Y^6
+            high_terms += ['%s**6*%s'%x for x in comboswr(params_patsy, 2)] # X^6*Y
+            high_terms += ['%s*%s**6'%x for x in comboswr(params_patsy, 2)] # X*Y^6
 
-        model_terms = [Term([EvalFactor(x)]) if isinstance(x,str) else Term([x]) for x in model_terms]
+        #Replace multiple multiplications with exponent notation
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1\*\1", r"\g<1>**7", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1",     r"\g<1>**6", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1",         r"\g<1>**5", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1",             r"\g<1>**4", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1",                 r"\g<1>**3", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1",                     r"\g<1>**2", x) for x in high_terms]
+        model_terms += [Term([EvalFactor(x)]) for x in high_terms]
 
         # Intercept
         if intercept:
@@ -233,6 +243,7 @@ class Basis():
                 print(data[data.isnull().any(axis=1)])
                 print('Data contains Null/None/NaN, see data above.')
                 raise HistoryMatchingError("Data contains Null/None/NaN")
+        dmat = dmat.reindex(sorted(dmat.columns), axis=1) #Sort by column name
         return dmat
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
