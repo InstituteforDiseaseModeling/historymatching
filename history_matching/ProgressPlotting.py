@@ -177,7 +177,6 @@ class ProgressPlotting():
         plt.scatter(x.loc[~implausible], y.loc[~implausible], 5, color='g')
 
         plt.show()
-        exit()
 
 
 

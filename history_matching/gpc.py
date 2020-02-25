@@ -565,7 +565,6 @@ class GPC():
         C = np.linalg.solve(L, np.dot(sqrtW, K))
 
         #print(np.diag(K - np.dot(np.transpose(C),C)) - np.diag(K - np.dot(K,np.linalg.solve(np.linalg.inv(W)+K,K))))
-        #exit()
 
         N = f_hat.shape[0]
         # L is good
@@ -640,7 +639,6 @@ class GPC():
         ###
         #Bslow = np.eye(N) + np.dot(sqrtW, np.dot(KXX, sqrtW))
         #print( np.allclose(B, Bslow) )
-        #exit()
         ###
 
         L = np.linalg.cholesky(B)
