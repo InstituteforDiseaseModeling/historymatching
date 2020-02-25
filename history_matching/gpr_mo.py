@@ -251,12 +251,12 @@ class GPR_MO():
         Args:
             hyperparameters:
         """
-
-        assert( len(lengthscales2) == self.D )
+        if len(lengthscales2)!=self.D:
+            raise HistoryMatchingError("lengthscales2 must have the same length as the dimension!")
 
         self.sigma2_f = sigma2_f
         self.sigma2_n = sigma2_n
-        if ~isinstance(lengthscales2, list):
+        if not isinstance(lengthscales2, list):
             lengthscales2 = lengthscales2.tolist()
         self.lengthscales2 = lengthscales2
         self.b = b
@@ -417,8 +417,9 @@ class GPR_MO():
 
         Nx = X.shape[0]
 
-        if deriv >= 0:
-            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+        # Do not add sigma2_n to sigma2_f deriv
+        if deriv >= 0 and add_sigma2_n!=False:
+            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:
@@ -512,8 +513,9 @@ class GPR_MO():
 
         Nx = X.shape[0]
 
-        if deriv == 0:
-            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+        # Do not add sigma2_n to sigma2_f deriv
+        if deriv==0 and add_sigma2_n!=False:
+            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:

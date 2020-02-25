@@ -236,6 +236,7 @@ class GPR():
         """Resets hyperparameters (theta).
         """
         # Set the kernel/model hyperparameters
+        #TODO(dklein): This does more than just reset theta - why?
         self.theta = None
         self.Kxx_inv_Y = None
         self.Kxx_inv = None
@@ -249,8 +250,8 @@ class GPR():
             theta: (1D numpy array)
                 As in __init__.
         """
-
-        assert( len(theta) == 2+self.D )
+        if len(theta)!=2+self.D:
+            raise HistoryMatchingError("Length of theta must be 2 greater than the dimension!")
         self.theta = theta
         self.update_cache()
 
@@ -391,8 +392,9 @@ class GPR():
 
         Nx = X.shape[0]
 
-        if deriv >= 0:
-            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+        # Do not add sigma2_n to sigma2_f deriv
+        if deriv >= 0 and add_sigma2_n!=False:
+            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:
@@ -486,8 +488,9 @@ class GPR():
 
         Nx = X.shape[0]
 
-        if deriv == 0:
-            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+        # Do not add sigma2_n to sigma2_f deriv
+        if deriv == 0 and add_sigma2_n!=False:
+            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:

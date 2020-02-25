@@ -236,6 +236,8 @@ class Basis():
             y = [x-min] / [max-min]
         where parameter ranges come from param_info that was passed in previously.
         """
+        if self.param_info is None:
+            raise HistoryMatchingError("Basis must have param_info to do scaling!")
 
         for col in data.columns.tolist():
             if col in self.param_info.index:
@@ -257,7 +259,6 @@ class Basis():
 
         data = data.copy()
         if scaleX:
-            assert(self.param_info is not None)
             data = self.scale_data(data)
         data = data.rename(columns=self.param_dict)
 
@@ -286,7 +287,6 @@ class Basis():
 
         data = data.copy()
         if scaleX:
-            assert(self.param_info is not None)
             data = self.scale_data(data)
 
         data = data.rename(columns=self.param_dict)
@@ -332,7 +332,6 @@ class Basis():
         print(f'User selected alpha = {alpha}')
 
         if scaleX:
-            assert(self.param_info is not None)
             inputs = self.scale_data(inputs.copy())
 
         Ycol = 'Sim_Result'
@@ -391,7 +390,6 @@ class Basis():
     def plot_regularize(self, inputs, results, alpha, scaleX = False, title = None):
 
         if scaleX:
-            assert(self.param_info is not None)
             inputs = self.scale_data(inputs.copy())
 
         Ycol = 'Sim_Result'

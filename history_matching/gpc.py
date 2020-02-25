@@ -158,7 +158,8 @@ class GPC():
             raise HistoryMatchingError('Bad kernel mode, kernel_mode={self.kernel_mode}')
 
         if params is not None:
-            assert( len(params) == 1+self.D )
+            if len(params)!=1+self.D:
+                raise HistoryMatchingError("Params must be 1 longer than the dimension!")
             if isinstance(params,list):
                 params = np.array(params)
             self.theta = params
@@ -435,16 +436,17 @@ class GPC():
     def find_posterior_mode(self, theta, f_guess=None, tol_grad=1e-6, maxiter=100):
         # Mode finding for Laplace GPC.  Algorithm 3.1 from "Gaussian Process for Machine Learning", p46
 
+        if f_guess:
+            if not isinstance(f_guess, np.ndarray):
+                raise HistoryMatchingError("f_guess must be a NumPy ndarray!")
+            if f_guess.shape[0]!=y.shape[0]:
+                raise HistoryMatchingError("f_guess must have the same length as y!")
+
         y = self.training_data[self.Ycol].values
         if self.verbose:
             print('y:', y)
         N = len(y)
-        if f_guess is not None:
-            f_hat = f_guess
-            assert( isinstance(f_hat, np.ndarray) )
-            assert(f_hat.shape[0] == y.shape[0])
-        else:
-            f_hat = np.zeros_like( y )
+        f_hat = f_guess if f_guess is not None else np.zeros_like( y )
 
         X = self.training_data[self.Xcols_scaled].values
 

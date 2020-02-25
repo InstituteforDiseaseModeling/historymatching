@@ -12,6 +12,7 @@ import seaborn as sns
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
 from history_matching.plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
+from history_matching.error import *
 
 # TODO: Error plot
 # TODO: Reference plot
@@ -347,8 +348,9 @@ class HistoryMatching():
             optimizer_options: (dict) Dictionary to be passed to the optimization algorithm within the GPR code.
             kwargs: (dict) Additional arguments to pass to the GPR class.
         """
-
-        assert( method in ['CrossValidation'] ) # Supporint only CV for now
+        methods = ['CrossValidation'] # Supporing only CV for now
+        if method not in methods:
+            raise HistoryMatchingError(f"method must be one of {methods}")
 
         gpr_model_fn = os.path.join(self.gprdir, 'model.json')
 
@@ -382,9 +384,10 @@ class HistoryMatching():
 
             if isinstance(lengthscale_guess, int) or isinstance(lengthscale_guess, float):
                 lengthscale_guess = basis.D*[lengthscale_guess]
-            else:
-                assert( isinstance(lengthscale_guess, list) )
-                assert( len(lengthscale_guess) == basis.D )
+            elif not isinstance(lengthscale_guess,list):
+                raise HistoryMatchingError("lengthscale_guess must be a list!")
+            elif len(lengthscale_guess)!=basis.D:
+                raise HistoryMatchingError("lengthscale_guess must be the same length as the basis dimension!")
 
             if os.path.isfile(gpr_model_fn):
                 timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")

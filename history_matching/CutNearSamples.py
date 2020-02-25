@@ -6,6 +6,8 @@ from history_matching import HistoryMatching
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
 
+from history_matching.error import *
+
 class CutNearSamples():
 
     def __init__(self, cut_dir, iteration, seeds, blur_fraction_of_range = 0.1, saveto_hd5 = None):
@@ -13,9 +15,10 @@ class CutNearSamples():
         self.iteration = iteration
         self.seeds = seeds # Center points for MVNs
         self.blur_fraction_of_range = blur_fraction_of_range # Points are displaced before kernel density estimation, which is then resamples.  This parameter determines the fration of the parameter range from which a U( -blur_fraction_of_range * RANGE, blur_fraction_of_range * RANGE) random perturbation is selected.  Bigger numbers mean a higher rejection rate because perturbed samples will be farther from their seeds.
-        assert(blur_fraction_of_range > 0)
-        assert(blur_fraction_of_range < 1)
-
+        
+        #TODO: Can these be <= ?
+        if not 0<blur_fraction_of_range<1:
+            raise HistoryMatchingError("blur_fraction_of_range must be in the range (0,1)")
 
         self.param_info = None
         self.Xcols_all_orig = None
@@ -27,8 +30,9 @@ class CutNearSamples():
 
         if saveto_hd5 == None:
             self.saveto_hd5 = 'Candidates_NS_for_iter%d.hd5'%(self.iteration+1)
+        elif os.path.splitext(saveto_hd5)[1].lower() not in ['hd5', 'hdf']:
+            raise HistoryMatchingError("saveto_hd5 must end with 'hd5' or 'hdf'!")
         else:
-            assert( os.path.splitext(saveto_hd5)[1].lower() in ['hd5', 'hdf'] )
             self.saveto_hd5 = saveto_hd5
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations

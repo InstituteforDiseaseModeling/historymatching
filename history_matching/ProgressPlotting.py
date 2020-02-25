@@ -2,6 +2,7 @@ import os
 import time
 
 from history_matching import HistoryMatching
+from history_matching.error import *
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
 import matplotlib.pyplot as plt
@@ -182,6 +183,7 @@ class ProgressPlotting():
 
     def plot(self, variables = None):
 
+        #TODO(dklein): D is not used - why? Can this block be dropped?
         D = self.samples.shape[1]
         if variables is not None:
             for v in variabls:
