@@ -51,7 +51,7 @@ class MCMCCutWorker(mp.Process):
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration %d. cut %s' % (it,cut_name) )
+                print(f'Reading iteration {it}. cut {cut_name}')
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
                 print('\t Desired Result:', hm.desired_result)
                 print('\t Desired Result Var:', hm.desired_result_var)
@@ -85,7 +85,7 @@ class MCMCCutWorker(mp.Process):
                 print('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
 
-            print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
+            print('Performing cut: iteration {it}, cut {cut_name}')
             plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
             plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']

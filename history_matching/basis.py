@@ -329,7 +329,7 @@ class Basis():
         Returns: The predicted results at the inputs.
         """
 
-        print('User selected alpha = %f' % alpha)
+        print(f'User selected alpha = {alpha}')
 
         if scaleX:
             assert(self.param_info is not None)
@@ -405,7 +405,7 @@ class Basis():
         num_params = np.zeros_like(alpha)
         bic = np.zeros_like(alpha)
         for i,a in enumerate(alpha):
-            print('Regularize: ', i,' of ', len(alpha))
+            print(f'Regularize: {i} of {len(alpha)}')
             fit = model.fit_regularized(alpha=a, refit=True)
 
             params = pd.Series(fit.params, index=data_matrix.columns)
