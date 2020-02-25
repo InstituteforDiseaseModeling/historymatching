@@ -1,17 +1,17 @@
+from string import Template
 import json
 import os
 import sys
 
-from history_matching.basis import Basis
-from history_matching.error import *
-
-from string import Template
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.optimize as spo
 import seaborn as sns
+
+from history_matching.basis import Basis
+from history_matching.error import *
 
 try:
     from pycuda import compiler, gpuarray
@@ -21,9 +21,9 @@ try:
 except ImportError as e:
     print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
 except RuntimeError as e:
-    print("Runtime error starting cuda, message was:\n", e.message)
+    print("Runtime error starting cuda, message was: ", e)
 except Exception as e:
-    print("Unknown CUDA error. Falling back to CPU",e)
+    print("Unknown CUDA error. Falling back to CPU", e)
 
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
 
@@ -34,16 +34,16 @@ class GPR_MO():
     """
 
     def __init__(self, basis, Ycols, training_data, param_info,
-            kernel_mode = 'RBF',
-            sigma2_f = None,
-            sigma2_n = None,
-            lengthscales2 = None,
-            b = None,
-            #is_poisson = False, # Not currently supported
-            normalize_y = True,
-            verbose = False,
-            debug = False,
-            **kwargs
+                 kernel_mode = 'RBF',
+                 sigma2_f = None,
+                 sigma2_n = None,
+                 lengthscales2 = None,
+                 b = None,
+                 #is_poisson = False, # Not currently supported
+                 normalize_y = True,
+                 verbose = False,
+                 debug = False,
+                 **kwargs
         ):
         """Initialize the GPR_MO class.
 
@@ -207,6 +207,10 @@ class GPR_MO():
 
 
 
+    def vprint(self, *args, **kwargs):
+        self.vprint(*args, *kwargs)
+
+
     def makeB(self, b):
         return np.array( [
             [b[0], b[0]*b[1]],
@@ -283,7 +287,7 @@ class GPR_MO():
         theta = [self.sigma2_f, self.sigma2_n] + self.lengthscales2
         print('THETA:', theta)
 
-        add_sigma2_n = True if self.R == 1 else False
+        add_sigma2_n = self.R==1
         if self.use_gpu:
             try:
                 Kxx = self.kxx_gpu_wrapper(self.X, theta, add_sigma2_n = add_sigma2_n)  # Y is noisy
@@ -379,13 +383,12 @@ class GPR_MO():
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            if self.verbose:
-                print("max_threads_per_block", max_threads_per_block)
-                print("max_block_dim", max_block_dim)
-                print("max_grid_dim", max_grid_dim)
-                print("max_blocks_per_grid", max_blocks_per_grid)
-                print("block_dim", block_dim)
-                print("grid_dim", grid_dim)
+            self.vprint("max_threads_per_block", max_threads_per_block)
+            self.vprint("max_block_dim", max_block_dim)
+            self.vprint("max_grid_dim", max_grid_dim)
+            self.vprint("max_blocks_per_grid", max_blocks_per_grid)
+            self.vprint("block_dim", block_dim)
+            self.vprint("grid_dim", grid_dim)
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -448,9 +451,9 @@ class GPR_MO():
                     r2 += dX[d] * dX[d]/theta[2+d]
                 Kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
 
-                if (deriv > 1): # Lengthscale derivatives
-                    d = deriv-2;
-                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d]);
+                if deriv > 1: # Lengthscale derivatives
+                    d = deriv-2
+                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d])
 
                 Kxx[j,i] = Kxx[i,j]
 
@@ -824,6 +827,7 @@ class GPR_MO():
         # Set hyperparameters (theta) to optimal values
 
         if log_transform:
+            #TODO(dklein): The variable `x` is unused - why is this?
             x = np.maximum(np.minimum(ret.x, np.log(sys.float_info.max)), np.log(sys.float_info.min))
             log_sigma2_f = ret.x[0]
             log_sigma2_n = ret.x[1]
@@ -831,11 +835,12 @@ class GPR_MO():
             b = ret.x[-2:]
             self.set_hyperparameters( np.exp(log_sigma2_f), np.exp(log_sigma2_n), np.exp(log_lengthscales2), b )
         else:
-            sigma2_f = ret.x[0]
-            sigma2_n = ret.x[1]
-            lengthscales2 = ret.x[2:-2]
-            b = ret.x[-2:]
-            self.set_hyperparameters( sigma2_f, sigma2_n, lengthscales2, b )
+            self.set_hyperparameters(
+                sigma2_f      = ret.x[0],
+                sigma2_n      = ret.x[1],
+                lengthscales2 = ret.x[2:-2],
+                b             = ret.x[-2:]
+            )
 
 
     def evaluate(self, data):
@@ -851,10 +856,9 @@ class GPR_MO():
             Var_Latent: Variance of the latent function.  Does not include observation noise.
             Var_Predictive: Variance of the predictive function.  Includes observation noise.
         """
-
+        #TODO(dklein): Is the `and` in the following conditional intentional?
         if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
-            if self.verbose:
-                print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
+            self.vprint('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
             self.update_cache()
 
         P = self.basis.generate_dmatrix( data, scaleX = True).values
@@ -1023,8 +1027,8 @@ class GPR_MO():
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
                     print(row, col, row*self.D+col, fixed_inputs)
 
-                    (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
-                    (col_min, col_max) = (self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max())
+                    row_min, row_max = self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max()
+                    col_min, col_max = self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max()
                     x1 = np.linspace(row_min, row_max, res)
                     x2 = np.linspace(col_min, col_max, res)
                     X1, X2 = np.meshgrid(x1, x2)
@@ -1095,6 +1099,7 @@ class GPR_MO():
         ax.set_xlabel(self.Ycols_orig)
         ax.set_ylabel('Predicted')
 
+        #TODO(dklein): Do we need this?
         '''
         ax = ax2
         ax.scatter(x=train[self.Ycols_orig], y=train['Z_Score'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
