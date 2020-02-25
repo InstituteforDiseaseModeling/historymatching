@@ -8,6 +8,5 @@ from .gpr import GPR
 from .gpr_mo import GPR_MO
 
 from .CutNearSamples import CutNearSamples
-from .VariableSelection import VariableSelection
 from .MCMCCut import MCMCCut
 from .MCMCCutWorker import MCMCCutWorker
