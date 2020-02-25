@@ -65,8 +65,7 @@ class Basis():
         """
 
         param_dict = Basis.make_param_dict(params)
-        params_patsy = param_dict.values()
-        model_terms = [Term([LookupFactor(x)]) for x in params_patsy] # X
+        model_terms = [Term([LookupFactor(x)]) for x in param_dict.values()] # X
         return cls(model_terms, param_dict, param_info)
 
 
@@ -292,7 +291,8 @@ class Basis():
         data = data.rename(columns=self.param_dict)
         md = ModelDesc(response_terms, self.model_terms)
 
-        (response_matrix, data_matrix) = dmatrices(md, data=data, return_type='dataframe')
+        #TODO: Should this have an NA_action?
+        response_matrix, data_matrix = dmatrices(md, data=data, return_type='dataframe')
         return response_matrix, data_matrix
 
     def get_terms(self):
@@ -328,7 +328,7 @@ class Basis():
         Returns: The predicted results at the inputs.
         """
 
-        print('User selected alpha = %f' % alpha)
+        print(f'User selected alpha = {alpha}')
 
         if scaleX:
             assert(self.param_info is not None)
@@ -404,7 +404,7 @@ class Basis():
         num_params = np.zeros_like(alpha)
         bic = np.zeros_like(alpha)
         for i,a in enumerate(alpha):
-            print('Regularize: ', i,' of ', len(alpha))
+            print(f'Regularize: {i} of {len(alpha)}')
             fit = model.fit_regularized(alpha=a, refit=True)
 
             params = pd.Series(fit.params, index=data_matrix.columns)

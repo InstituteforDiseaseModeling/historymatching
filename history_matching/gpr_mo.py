@@ -20,6 +20,8 @@ except ImportError as e:
     print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
 except RuntimeError as e:
     print("Runtime error starting cuda, message was:\n", e.message)
+except Exception as e:
+    print("Unknown CUDA error. Falling back to CPU",e)
 
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
 
