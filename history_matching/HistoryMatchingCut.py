@@ -2,12 +2,13 @@ import json
 import os
 import time
 
-from history_matching.glm import GLM
-from history_matching.gpr import GPR
-from history_matching.HistoryMatching import HistoryMatching
 from pyDOE import lhs
 import numpy as np
 import pandas as pd
+
+from history_matching.glm import GLM
+from history_matching.gpr import GPR
+from history_matching.HistoryMatching import HistoryMatching
 
 class HistoryMatchingCut():
 
@@ -25,7 +26,7 @@ class HistoryMatchingCut():
         self.gpr_all = {}
         self.cuts = []
 
-        if saveto_hd5 == None:
+        if saveto_hd5 is None:
             self.saveto_hd5 = 'Candidates_for_iter%d.hd5'%(self.iteration+1)
         elif os.path.splitext(saveto_hd5)[1].lower() not in ['hd5', 'hdf']:
             raise HistoryMatchingError("saveto_hd5 must end with 'hd5' or 'hdf'!")
@@ -36,18 +37,19 @@ class HistoryMatchingCut():
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration', it, '. cut', cut_name)
+                print(f'Reading iteration {it}. cut {cut_name}')
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print('\t Desired Result:', hm.desired_result)
+                print('\t Desired Result:    ', hm.desired_result)
                 print('\t Desired Result Var:', hm.desired_result_var)
-                print('\t Discrepancy Var:', hm.discrepancy_var)
-                print('\t Imp Thresh:', hm.implausibility_threshold)
+                print('\t Discrepancy Var:   ', hm.discrepancy_var)
+                print('\t Imp Thresh:        ', hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
 
                     #self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
                     self.Xcols_all_orig = self.param_info.index.get_level_values('Name').unique().tolist()
+                    # TODO(dklein): This variable is unused. Do we need it?
                     candidates = pd.DataFrame( columns=self.Xcols_all_orig )
 
                 self.hm_params[(it, cut_name)] = {
@@ -68,7 +70,7 @@ class HistoryMatchingCut():
 
         cols = []
         for cut in self.cuts:
-            (it, cut_name) = cut
+            it, cut_name = cut
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
@@ -81,18 +83,19 @@ class HistoryMatchingCut():
             t = time.time()
             plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
             if self.debug:
-                print('GLM:', time.time()-t); t=time.time()
+                print('GLM:', time.time()-t); 
+            t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
             if self.debug:
-                print('GPR:', time.time()-t); t=time.time()
+                print('GPR:', time.time()-t);
             plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
 
-            plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
+            plausible_candidates[f'Implausibility_{it}_{cut_name}'] = \
                 abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
                 np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
 
-            plausible_candidates[ f'Implausible_{it}_{cut_name}' ] = plausible_candidates[ f'Implausibility_{it}_{cut_name}' ] > self.hm_params[cut]['implausibility_threshold']
+            plausible_candidates[f'Implausible_{it}_{cut_name}'] = plausible_candidates[f'Implausibility_{it}_{cut_name}'] > self.hm_params[cut]['implausibility_threshold']
             cols += [f'Implausibility_{it}_{cut_name}', f'Implausible_{it}_{cut_name}']
 
             new_candidates['Implausible'] |= plausible_candidates[ f'Implausible_{it}_{cut_name}' ]
@@ -118,7 +121,7 @@ class HistoryMatchingCut():
 
             t = time.time()
             lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
-            print('LHS Sampling (', nSamples,'):', time.time() - t)
+            print(f'LHS Sampling ({nSamples}):', time.time() - t)
 
             t = time.time()
             for i, xc in enumerate(self.Xcols_all_orig):
@@ -174,8 +177,8 @@ class HistoryMatchingCut():
             'Num Implausible': num_trials-non_implausible_candidates.shape[0]
         }
 
-        (d, filename) = os.path.split(self.saveto_hd5)
-        (name, ext) = os.path.splitext(filename)
+        d, filename = os.path.split(self.saveto_hd5)
+        name, _ = os.path.splitext(filename)
         stats_fn = os.path.join(d, name + '_stats.json')
         with open(stats_fn, 'w') as f:
             json.dump(stats, f)
@@ -183,6 +186,7 @@ class HistoryMatchingCut():
         csv_fn = os.path.join(d, name + '.csv')
         non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn, index=False)
 
+        # TODO(dklein): Do we need this?
         '''
         writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
         non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)

@@ -1,17 +1,17 @@
+from string import Template
+import json
 import os
 import sys
-import json
 
-from history_matching.basis import Basis
-from history_matching.error import *
-
-from string import Template
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.optimize as spo
 import seaborn as sns
+
+from history_matching.basis import Basis
+from history_matching.error import *
 
 try:
     from pycuda import compiler, gpuarray
@@ -35,15 +35,15 @@ class GPR():
     """
 
     def __init__(self, basis, Ycol, training_data, param_info,
-            kernel_mode = 'RBF',
-            theta = None,
-            #is_poisson = False, # Not currently supported
-            normalize_y = True,
-            sigma2_n = None,
-            fig_type = 'pdf',
-            verbose = False,
-            debug = False,
-            **kwargs
+                 kernel_mode = 'RBF',
+                 theta = None,
+                 #is_poisson = False, # Not currently supported
+                 normalize_y = True,
+                 sigma2_n = None,
+                 fig_type = 'pdf',
+                 verbose = False,
+                 debug = False,
+                 **kwargs
         ):
         """Initialize the GPR class.
 
@@ -90,7 +90,7 @@ class GPR():
             device = pycuda.autoinit.device
             print('Autoinit GPU device name:', device.name())
             self.use_gpu = True
-        except Exception as e:
+        except Exception as _:
             self.use_gpu = False
 
         if self.use_gpu:
@@ -213,6 +213,7 @@ class GPR():
         """
         if len(theta)!=2+self.D:
             raise HistoryMatchingError("Length of theta must be 2 greater than the dimension!")
+
         self.theta = theta
         self.update_cache()
 
@@ -275,8 +276,7 @@ class GPR():
         """
         if self.normalize_y:
             return (data - self.normalizer_mean)/self.normalizer_std
-        else:
-            return data
+        return data
 
     def inverse_normalize_mean(self, data):
         """Reverse the normalization calculation for the mean.
@@ -286,8 +286,7 @@ class GPR():
         """
         if self.normalize_y:
             return data*self.normalizer_std + self.normalizer_mean
-        else:
-            return data
+        return data
 
     def inverse_normalize_var(self, data):
         """Reverse the normalization calculation for the variance.
@@ -297,8 +296,7 @@ class GPR():
         """
         if self.normalize_y:
             return data * (self.normalizer_std**2)
-        else:
-            return data
+        return data
 
     def define_kernel(self):
         """Prepare the Kernel.  For now, only the `RBF` kernel_mode is supprted.
@@ -384,9 +382,9 @@ class GPR():
                     r2 += dX[d] * dX[d]/theta[2+d]
                 Kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
 
-                if (deriv > 1): # Lengthscale derivatives
-                    d = deriv-2;
-                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d]);
+                if deriv > 1: # Lengthscale derivatives
+                    d = deriv-2
+                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d])
 
                 Kxx[j,i] = Kxx[i,j]
 
@@ -456,9 +454,8 @@ class GPR():
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:
                 return np.eye(Nx)
-            else:
-                # No deriv wrt sigma2_n if the user has specified sigma2_n via GPR
-                return np.zeros((Nx,Nx))
+            # No deriv wrt sigma2_n if the user has specified sigma2_n via GPR
+            return np.zeros((Nx,Nx))
 
         # TODO: Can use from before...?
         block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
@@ -578,7 +575,7 @@ class GPR():
         num_partitions = int(max(P)+1)
         num_points = len(P)
 
-        Y_mean = np.nanmean(Y, axis=1)
+        Y_mean = np.nanmean(Y, axis=1) # TODO(dklein): This variable is unused. Do we need it?
 
         KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
         if self.debug:
@@ -627,11 +624,11 @@ class GPR():
         """
 
         if log_transform:
-            theta_log = theta
+            theta_log = theta # TODO(dklein): This variable is unused. Do we need it?
             theta = np.maximum(np.minimum(theta, np.log(sys.float_info.max)), np.log(sys.float_info.min))
             theta = np.exp(theta) # TEMP
 
-        Y_mean = np.nanmean(Y, axis=1)
+        Y_mean = np.nanmean(Y, axis=1) # TODO(dklein): This variable is unused. Do we need it?
         D = len(theta)
 
         if self.use_gpu:
@@ -682,7 +679,7 @@ class GPR():
             dLLOO_dthetaj -= 0.5 * np.multiply( \
                     (1 + np.divide(np.square(KXX_inv_Y), np.diag(KXX_inv))), \
                     np.einsum('ij,ji->i', Zj, KXX_inv)
-                )
+            )
             dLLOO_dtheta[j] = np.sum( np.multiply(dLLOO_dthetaj, sigma2) )
 
             if self.debug:
@@ -694,8 +691,8 @@ class GPR():
                 Zj_alpha = np.dot(Zj, alpha)
                 Zj_Kinv = np.dot(Zj, KXX_inv)
                 mysum = 0
-                for i in range(len(alpha)):
-                    mysum += (alpha[i] * Zj_alpha[i] - 0.5 * (1 + alpha[i]**2 / KXX_inv[i,i]) * (Zj_Kinv[i,i])) /  KXX_inv[i,i]
+                for i, a in enumerate(alpha):
+                    mysum += (a * Zj_alpha[i] - 0.5 * (1 + a**2 / KXX_inv[i,i]) * (Zj_Kinv[i,i])) /  KXX_inv[i,i]
                 assert( np.abs(mysum - dLLOO_dtheta[j]) < 1e-6 )
 
         if log_transform:
@@ -722,7 +719,7 @@ class GPR():
         return sample
 
 
-    def optimize_hyperparameters(self, x0, bounds, optimize_sigma2_n=True, log_transform=False, optimizer_options={}):
+    def optimize_hyperparameters(self, x0, bounds, optimize_sigma2_n=True, log_transform=False, optimizer_options=None):
         """Optimize the hyperparameter vector, theta, with respect to the training data.
 
         Note that while each input may be simulated multiple times, here the mean of the outputs for each Saimple_Id are used.
@@ -735,6 +732,7 @@ class GPR():
             optimizer_options: (dict) Options to pass along to the optimization algorithm.  Through scipy-optimize, you can see these options e.g. for l-bfgs-b via spo.show_options(solver='minimize', method='l-bfgs-b')
         """
 
+        # TODO(dklein): Do we need the following block here?
         # Optimizer options for L-BFGS-B:
         '''
         print(spo.show_options(solver='minimize', method='l-bfgs-b'))
@@ -776,6 +774,8 @@ class GPR():
         maxls : int, optional
             Maximum number of line search steps (per iteration). Default is 20.
         '''
+        if optimizer_options is None:
+            optimizer_options = {}
 
 
         idx = self.training_data.index.names    # Save index
@@ -785,6 +785,7 @@ class GPR():
         for i,s in enumerate(samples):
             self.training_data.loc[ self.training_data['Sample_Id']==s, 'Sample_Index'] = i
 
+        # TODO(dklein): Do we need the following block here?
         '''
         # Old way from using K-fold cross-validation
         if K <= 1:
@@ -795,6 +796,7 @@ class GPR():
             self.training_data['Partition'] = np.floor(self.training_data['Sample_Index']%K).astype(int)
         '''
 
+        # TODO(dklein): This variable is unused. Do we need it?
         num_params = 2 + self.D # sigma2_n, sigma2_f, lengthscale^2 0, lengthscale^2 1, ..., lengthscale^2 D-1
 
         # Computing the mean here:
@@ -803,6 +805,7 @@ class GPR():
         X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         Y = self.training_data.reset_index().groupby('Sample_Id').apply(self.assign_rep).pivot('Sample_Id', 'Replicate', self.Ycol).values
 
+        # TODO(dklein): Do we need the following block here?
         '''
         # Maximize LOO cross-validation error
         # Old way from before using jacobian
@@ -846,7 +849,7 @@ class GPR():
 
         if log_transform:
             x = np.maximum(np.minimum(ret.x, np.log(sys.float_info.max)), np.log(sys.float_info.min))
-            self.set_theta( np.exp(x) )
+            self.set_theta(np.exp(x))
         else:
             self.set_theta(ret.x)
 
@@ -968,7 +971,7 @@ class GPR():
 
                     # Circle some interesting samples
                     if samples_to_circle.shape[0] > 0:
-                        for idx, pt in samples_to_circle_dmat.iterrows():
+                        for _, pt in samples_to_circle_dmat.iterrows():
                             plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
                     plt.autoscale(tight=True)
@@ -1021,8 +1024,8 @@ class GPR():
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
                     print(row, col, row*self.D+col, fixed_inputs)
 
-                    (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
-                    (col_min, col_max) = (self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max())
+                    row_min, row_max = self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max()
+                    col_min, col_max = self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max()
                     x1 = np.linspace(row_min, row_max, res)
                     x2 = np.linspace(col_min, col_max, res)
                     X1, X2 = np.meshgrid(x1, x2)
@@ -1093,6 +1096,7 @@ class GPR():
         ax.set_xlabel(self.Ycol_orig)
         ax.set_ylabel('Predicted')
 
+        #TODO(dklein): Can the below be removed?
         '''
         ax = ax2
         ax.scatter(x=train[self.Ycol_orig], y=train['Z_Score'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)

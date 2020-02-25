@@ -1,12 +1,11 @@
-import os
-import json
-
 from collections import deque
 from functools import partial
+from string import Template
+import json
+import os
+
 from pycuda import compiler, gpuarray
 from scipy.stats import norm
-from string import Template
-
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -30,13 +29,13 @@ plt.rcParams['image.cmap'] = 'jet'
 class GPC():
 
     def __init__(self, Xcols, Ycol, training_data, param_info,
-            kernel_mode = 'RBF',
-            kernel_params = None,
-            fig_type = 'pdf',
-            verbose = False,
-            debug = False,
-            **kwargs
-        ):
+                 kernel_mode = 'RBF',
+                 kernel_params = None,
+                 fig_type = 'pdf',
+                 verbose = False,
+                 debug = False,
+                 **kwargs
+    ):
 
 
         self.use_laplace_approximation = True
@@ -97,24 +96,27 @@ class GPC():
         )
 
 
+    def vprint(self, *args, **kwargs):
+        if self.verbose:
+            print(*args, *kwargs)
+
     def set_training_data(self, new_training_data):
         self.training_data = new_training_data.copy()
         self.define_kernel(self.kernel_params)
 
         for xc in self.Xcols:
-            xc_new = xc+' (scaled)'
             self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
 
     def save(self, save_to = None):
         save_dict = {
-                    'Xcols'         : self.Xcols,
-                    'Ycol'          : self.Ycol,
-                    'Kernel_Mode'   : self.kernel_mode,
-                    'Kernel_Params' : self.theta.tolist(),
-                    'Training_Data' : self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
-                    'Param_Info'        : self.param_info.reset_index().to_json(orient='split')
-                }
+            'Xcols'         : self.Xcols,
+            'Ycol'          : self.Ycol,
+            'Kernel_Mode'   : self.kernel_mode,
+            'Kernel_Params' : self.theta.tolist(),
+            'Training_Data' : self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
+            'Param_Info'        : self.param_info.reset_index().to_json(orient='split')
+        }
 
         if save_to:
             with open(save_to, 'w') as fout:
@@ -299,7 +301,7 @@ class GPC():
         # Algorithm 3.5: "Expectation Propagation for binary classification" from "Gaussian Process for Machine Learning", p58
         # TODO: WIP!
 
-        # TODO: Pass in 
+        # TODO: Pass in
         mu_tol = 1e-6
         Sigma_tol = 1e-6
 
@@ -325,14 +327,14 @@ class GPC():
         while not done:
             prev_mu = mu
             prev_Sigma = Sigma
-            prev_tau = tau
-            prev_nu = nu
+            prev_tau = tau # TODO(dklein): This is unused. Is that bad?
+            prev_nu = nu # TODO(dklein): This is unused. Is that bad?
             for i in range(N):
                 #print(it, ' ', i,' ', '-'*80)
                 sigma2_i = Sigma[i,i] # Not sure on this one
                 tau_minus_i = 1/sigma2_i - tau[i]
                 nu_minus_i = mu[i]/sigma2_i - nu[i]
-                assert(tau_minus_i > 0)
+                assert tau_minus_i > 0
 
                 den = tau_minus_i * (tau_minus_i+1)
                 sqrt_den = np.sqrt( den )
@@ -354,6 +356,8 @@ class GPC():
                 mu_minus_i_vec[i] = nu_minus_i / tau_minus_i
 
             Stilde = np.diag(tau)
+
+            #TODO(dklein): What is this?
             '''
             sqrtStilde = np.diag(np.sqrt(tau))
             B = np.eye(N) + np.dot(sqrtStilde, np.dot(K, sqrtStilde))
@@ -373,6 +377,7 @@ class GPC():
             SigmaMIL = K - np.dot(K, np.linalg.solve( np.linalg.inv(Stilde)+K, K) )
             #print('Sigma MIL %f'%(time.time()-t), SigmaMIL)
 
+            #TODO(dklein): What is this?
             '''
             import scipy as sp
             t = time.time()
@@ -453,22 +458,22 @@ class GPC():
         K = self.kxx_gpu_wrapper(X, theta)  # This is for f, no sigma2_n
 
         for i in range(maxiter):
-            if self.verbose: print('---[ %d ]------------------------------------'%i)
-            if self.verbose: print('f_hat:', f_hat)
+            self.vprint('---[ %d ]------------------------------------'%i)
+            self.vprint('f_hat:', f_hat)
 
             pi = 1.0/(1.0+np.exp(-f_hat))
-            if self.verbose: print('pi:', pi)
+            self.vprint('pi:', pi)
 
             t = (y+1)/2.0
-            if self.verbose: print('t:', t)
-            if self.verbose: print('Computing W ...')
+            self.vprint('t:', t)
+            self.vprint('Computing W ...')
 
             d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
 
             W = np.diag( -d2_df2_log_p_y_given_f ) # NOTE: Using logit (3.15)
             sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
-            if self.verbose: print('Computing B ...')
+            self.vprint('Computing B ...')
             #B = np.eye(N) + np.dot(sqrtW, np.dot(K, sqrtW))
             ### Dan's method for B:
             w = np.sqrt( -d2_df2_log_p_y_given_f )
@@ -476,28 +481,28 @@ class GPC():
             B = np.eye(N) + np.multiply(K, w_outer)
             ###
 
-            if self.verbose: print('Computing L ...')
+            self.vprint('Computing L ...')
             L = np.linalg.cholesky(B)
 
-            if self.verbose: print('Computing b ...')
+            self.vprint('Computing b ...')
             d_df_log_p_y_given_f = t - pi
             b = np.dot(W, f_hat) + d_df_log_p_y_given_f
-            if self.verbose: print('b:', b)
+            self.vprint('b:', b)
 
-            if self.verbose: print('Computing W12_K_b ...')
+            self.vprint('Computing W12_K_b ...')
             W12_K_b = np.dot(sqrtW, np.dot(K,b))
 
-            if self.verbose: print('Computing L_slash_W12_K_b ...')
+            self.vprint('Computing L_slash_W12_K_b ...')
             L_slash_W12_K_b = np.linalg.solve(L, W12_K_b)
 
-            if self.verbose: print('Computing Lt_slash_L_slash_W12_K_b ...')
+            self.vprint('Computing Lt_slash_L_slash_W12_K_b ...')
             Lt_slash_L_slash_W12_K_b = np.linalg.solve(np.transpose(L), L_slash_W12_K_b)
 
-            if self.verbose: print('Computing a ...')
+            self.vprint('Computing a ...')
             a = b - np.dot(sqrtW, Lt_slash_L_slash_W12_K_b)
 
-            if self.verbose: print('a:', a)
-            if self.verbose: print('Computing f_hat ...')
+            self.vprint('a:', a)
+            self.vprint('Computing f_hat ...')
             f_hat = np.dot(K, a)
 
             #####log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y, f_hat)))
@@ -513,7 +518,7 @@ class GPC():
             if i == maxiter - 1:
                 print('WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad)
 
-        if self.verbose: print(theta, '--> log_q_y_given_X_theta: %f (%d f_hat-iterations)' % (log_q_y_given_X_theta, i))
+        self.vprint(theta, '--> log_q_y_given_X_theta: %f (%d f_hat-iterations)' % (log_q_y_given_X_theta, i))
 
         return {
             'f_hat': f_hat,
@@ -616,22 +621,22 @@ class GPC():
 
     def laplace_predict(self, theta, f_hat, P):
         y = self.training_data[self.Ycol].values
-        if self.verbose: print('y:', y)
+        self.vprint('y:', y)
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
         KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
-        if self.verbose: print('---[ PREDICT ]------------------------------------')
-        if self.verbose: print('f_hat:', f_hat)
+        self.vprint('---[ PREDICT ]------------------------------------')
+        self.vprint('f_hat:', f_hat)
         pi = 1.0/(1.0+np.exp(-f_hat))
-        if self.verbose: print('pi:', pi)
+        self.vprint('pi:', pi)
         t = (y+1)/2.0
-        if self.verbose: print('t:', t)
+        self.vprint('t:', t)
 
         d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
         sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
-        if self.verbose: print('Computing B ...')
+        self.vprint('Computing B ...')
         ### Dan's method for B:
         w = np.sqrt( -d2_df2_log_p_y_given_f )
         w_outer = np.outer(w,w)
@@ -645,9 +650,9 @@ class GPC():
         d_df_log_p_y_given_f = t-pi
 
         # p-specific code begins here:
-        ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz' 
+        ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz'
         for idx, p_series in P.iterrows():
-            if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
+            self.vprint(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f) # MEAN (vector of length 1)
@@ -670,7 +675,7 @@ class GPC():
             mean_trapz = np.trapz(mean_integrand, x=fstar) # Average prediction (better)
             var_integrand = np.multiply( (logistic(fstar) - mean_trapz)**2, np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
             var_trapz = np.trapz(var_integrand, x=fstar) # Average prediction (better)
-            #print('TRAPZ', time.time()-tz)
+            print('TRAPZ', time.time()-tz)
 
             '''
             ### Monte Carlo
@@ -687,11 +692,11 @@ class GPC():
 
             logi = logistic(mu) # MAP prediction
 
-            if self.verbose: print('MEAN:', mu)
-            if self.verbose: print('VAR:', sigma2)
-            if self.verbose: print('LOGIS:', logi)
-            #if self.verbose: print('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
-            if self.verbose: print('TRAPZ:', 'mean=%f, var=%f'%(mean_trapz, var_trapz))
+            self.vprint('MEAN:', mu)
+            self.vprint('VAR:', sigma2)
+            self.vprint('LOGIS:', logi)
+            #self.vprint('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
+            self.vprint('TRAPZ:', 'mean=%f, var=%f'%(mean_trapz, var_trapz))
 
             ret = pd.concat([ret, pd.DataFrame({'Mean-Transformed':[mu], 'Var-Transformed':[sigma2], 'Mean': [mean_trapz], 'Var': [var_trapz]})])
         ret.index = P.index.copy()
@@ -703,14 +708,14 @@ class GPC():
         logZep, nu, tau = self.expectation_propagation(theta)
 
         y = self.training_data[self.Ycol].values
-        if self.verbose: print('y:', y)
+        self.vprint('y:', y)
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
         KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
-        if self.verbose: print('---[ PREDICT ]------------------------------------')
+        self.vprint('---[ PREDICT ]------------------------------------')
 
-        if self.verbose: print('Computing B ...')
+        self.vprint('Computing B ...')
         sqrtStilde = np.diag(np.sqrt(tau))
         B = np.eye(N) + np.dot(sqrtStilde, np.dot(KXX, sqrtStilde))
         L = np.linalg.cholesky(B)
@@ -722,7 +727,7 @@ class GPC():
 
         ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var'])
         for idx, p_series in P.iterrows():
-            if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
+            self.vprint(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), nu-z) # MEAN (vector of length 1)
@@ -853,12 +858,11 @@ class GPC():
 
         # Normalize data
         for xc in self.Xcols:
-            xc_new = xc+' (scaled)'
             data[xc+' (scaled)'] = (data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
         # PREDICT:
         if self.use_laplace_approximation:
-            if True:
+            if True: #TODO(dklein): Why is there a conditional here?
                 f_hat = self.find_posterior_mode(self.theta)['f_hat']
                 np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
             else:
@@ -939,7 +943,7 @@ class GPC():
 
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
-                    self.debug=False;
+                    self.debug=False
                     #print('WARNING: DEBUG!\n')
                     self.verbose=False
 

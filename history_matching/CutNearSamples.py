@@ -39,12 +39,12 @@ class CutNearSamples():
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration %d. cut %s' % (it,cut_name) )
+                print('Reading iteration {it}. cut {cut_name}')
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print('\t Desired Result:', hm.desired_result)
+                print('\t Desired Result:    ', hm.desired_result)
                 print('\t Desired Result Var:', hm.desired_result_var)
-                print('\t Discrepancy Var:', hm.discrepancy_var)
-                print('\t Imp Thresh:', hm.implausibility_threshold)
+                print('\t Discrepancy Var:   ', hm.discrepancy_var)
+                print('\t Imp Thresh:        ', hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
@@ -70,7 +70,7 @@ class CutNearSamples():
 
         cols = []
         for cut in self.cuts:
-            (it, cut_name) = cut
+            it, cut_name = cut
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
@@ -78,20 +78,20 @@ class CutNearSamples():
                 print('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
 
-            print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
+            print(f'Performing cut: iteration {it}, cut {cut_name}')
             plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
             plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
 
-            plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
+            plausible_candidates[f'Implausibility_{it}_{cut_name}'] = \
                 abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
                 np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
 
-            plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
-            cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
+            plausible_candidates[f'Implausible_{it}_{cut_name}'] = plausible_candidates[f'Implausibility_{it}_{cut_name}'] > self.hm_params[cut]['implausibility_threshold']
+            cols += [f'Implausibility_{it}_{cut_name}', f'Implausible_{it}_{cut_name}']
 
-            new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+            new_candidates['Implausible'] |= plausible_candidates[f'Implausible_{it}_{cut_name}']
 
         return new_candidates['Implausible']
 
@@ -102,9 +102,8 @@ class CutNearSamples():
             v = self.param_info.loc[col_name]
             v_range = self.blur_fraction_of_range * (v['Max']-v['Min'])
 
-            values = col_series.values
-            right_range = (v['Max'] - values) / v_range
-            left_range = 1.0/self.blur_fraction_of_range - right_range # (values - v['Min']) / v_range
+            right_range = (v['Max'] - col_series.values) / v_range
+            left_range = 1.0/self.blur_fraction_of_range - right_range # (values - v['Min']) / v_range   #TODO(dklein): Should this be commented out?
 
             blur_range = np.minimum(np.minimum(1.0, right_range), left_range)
 
@@ -126,9 +125,8 @@ class CutNearSamples():
             v = self.param_info.loc[col_name]
             v_range = (v['Max']-v['Min'])
 
-            values = col_series.values
-            right_range = (v['Max'] - values)
-            left_range = (values - v['Min'])
+            right_range = v['Max'] - col_series.values
+            left_range  = col_series.values - v['Min']
 
             blur_range = np.minimum(np.minimum(self.blur_fraction_of_range*v_range, right_range), left_range)
 
@@ -136,7 +134,7 @@ class CutNearSamples():
 
         return sample
 
-
+        #TODO(dklein): What is the purpose of the code below? Can it be removed?
         '''
         print 'Drawing %d samples:'%nSamples
 
@@ -238,7 +236,7 @@ class CutNearSamples():
                 print('new_candidates.  now %d:' % new_candidates.shape[0])
 
 
-            print('Testing (%d):'%nSamples)
+            print(f'Testing ({nSamples}):')
 
             plausibility = self.test_plausibility(new_candidates, constraint)
 
@@ -271,7 +269,7 @@ class CutNearSamples():
         }
 
         d, filename = os.path.split(self.saveto_hd5)
-        name, ext = os.path.splitext(filename)
+        name, _ = os.path.splitext(filename)
         stats_fn = os.path.join(d, name + '_stats.json')
         with open(stats_fn, 'w') as f:
             json.dump(stats, f)

@@ -1,5 +1,4 @@
 import datetime
-import errno
 import os
 import pathlib
 
@@ -9,10 +8,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from history_matching.error import *
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
-from history_matching.plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
-from history_matching.error import *
+from history_matching.plotting import plot_data, plot_errors # <-- TODO: Fix names
 
 # TODO: Error plot
 # TODO: Reference plot
@@ -21,20 +20,21 @@ class HistoryMatching():
     """Main class to support history matching.
     """
 
-    def __init__(self,
-        cut_name,           # Name for this cut
-        param_info,         # Parameter definitions
-        inputs,
-        results,
-        desired_result,
-        iteration,  # Current iteration, needed?
-        implausibility_threshold = 3,
-        discrepancy_var = 0,
-        desired_result_var = 0,
-        training_fraction = 0.75,
-        fig_type = 'pdf',
-        use_glm = True,      # Disable the glm by setting to False
-        verbose = False
+    def __init__(
+            self,
+            cut_name,           # Name for this cut
+            param_info,         # Parameter definitions
+            inputs,
+            results,
+            desired_result,
+            iteration,  # Current iteration, needed?
+            implausibility_threshold = 3,
+            discrepancy_var = 0,
+            desired_result_var = 0,
+            training_fraction = 0.75,
+            fig_type = 'pdf',
+            use_glm = True,      # Disable the glm by setting to False
+            verbose = False
     ):
         """ Initialize a history matching object.
 
@@ -74,6 +74,9 @@ class HistoryMatching():
         self.fig_type = fig_type
         self.verbose = verbose
 
+        self.glm_model = None
+        self.gpr_model = None
+
         self.results.name = 'Sim_Result'
         self.Ycol = self.results.name
         if 'Train' in self.inputs.columns:
@@ -91,7 +94,7 @@ class HistoryMatching():
             nTrain = int(round(self.training_fraction * nSamp))
             nTest = nSamp - nTrain
 
-            # TODO: Fix REPLICATES!!!
+            # TODO(dklein): Fix REPLICATES!!!
             data_tmp = self.data.reset_index()
             data_tmp.rename(columns={'Sample_Id': 'Sample_Orig'}, inplace=True)
             data_tmp.index.name='Sample_Id'
@@ -125,17 +128,17 @@ class HistoryMatching():
 
         config_fn = os.path.join(cut_dir, cut_name, 'history_matching_config.xlsx')
         with pd.ExcelFile(config_fn) as xls:
-            hm_params = pd.read_excel(xls, 'History_Matching_Params', index_col=0, na_values=['NA'])
-            cut_name = hm_params.loc['cut_name'].values[0]
+            hm_params                = pd.read_excel(xls, 'History_Matching_Params', index_col=0, na_values=['NA'])
+            cut_name                 = hm_params.loc['cut_name'].values[0]
             implausibility_threshold = hm_params.loc['implausibility_threshold'].values[0]
-            discrepancy_var = hm_params.loc['discrepancy_var'].values[0]
-            desired_result_var = hm_params.loc['desired_result_var'].values[0] if 'desired_result_var' in hm_params else 0
-            training_fraction = hm_params.loc['training_fraction'].values[0]
-            desired_result = hm_params.loc['desired_result'].values[0]
-            iteration = hm_params.loc['iteration'].values[0]
+            discrepancy_var          = hm_params.loc['discrepancy_var'].values[0]
+            desired_result_var       = hm_params.loc['desired_result_var'].values[0] if 'desired_result_var' in hm_params else 0
+            training_fraction        = hm_params.loc['training_fraction'].values[0]
+            desired_result           = hm_params.loc['desired_result'].values[0]
+            iteration                = hm_params.loc['iteration'].values[0]
 
-            inputs = pd.read_excel(xls, 'Inputs', index_col=0)
-            results = pd.read_excel(xls, 'Results', index_col=[0,1]).squeeze() # NOTE: was series, now DF
+            inputs     = pd.read_excel(xls, 'Inputs', index_col=0)
+            results    = pd.read_excel(xls, 'Results', index_col=[0,1]).squeeze() # NOTE: was series, now DF
             param_info = pd.read_excel(xls, 'Param_Info', index_col=0)
 
         return cls(
@@ -160,13 +163,13 @@ class HistoryMatching():
 
         config_fn = os.path.join(self.cutdir, 'history_matching_config.xlsx')
         hm_params = pd.Series({
-            'cut_name'                  : self.cut_name,
-            'implausibility_threshold'  : self.implausibility_threshold,
-            'discrepancy_var'           : self.discrepancy_var,
-            'desired_result_var'        : self.desired_result_var,
-            'training_fraction'         : self.training_fraction,
-            'desired_result'            : self.desired_result,
-            'iteration'                 : self.iteration
+            'cut_name':                 self.cut_name,
+            'implausibility_threshold': self.implausibility_threshold,
+            'discrepancy_var':          self.discrepancy_var,
+            'desired_result_var':       self.desired_result_var,
+            'training_fraction':        self.training_fraction,
+            'desired_result':           self.desired_result,
+            'iteration':                self.iteration
         }, name='Value')
         hm_params.index.name = 'Parameter'
 
@@ -201,14 +204,15 @@ class HistoryMatching():
         if test:
             self.test_data = func(self.test_data)
 
-    def glm(self,
-        basis,
-        force_optimize_glm = False,
-        glm_fit_maxiter = 100000,
-        family = 'Poisson', # e.g. Poisson, Gaussian
-        plot = True,
-        plot_data = False,
-        **kwargs
+    def glm(
+            self,
+            basis,
+            force_optimize_glm = False,
+            glm_fit_maxiter = 100000,
+            family = 'Poisson', # e.g. Poisson, Gaussian
+            plot = True,
+            plot_data = False,
+            **kwargs
     ):
         """Perform Generalized Linear Modeling (GLM).
 
@@ -227,10 +231,7 @@ class HistoryMatching():
             print('use_glm is False, why are you calling glm?')
             return
 
-        if 'verbose' in kwargs:
-            verbose = kwargs['verbose']
-        else:
-            verbose = self.verbose
+        verbose = kwargs.get('verbose', self.verbose)
 
         # Files to store the model and parameters
         glm_model_fn = os.path.join(self.glmdir, 'model.json')
@@ -263,9 +264,9 @@ class HistoryMatching():
         test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
 
         # Plot the errors and save to errors_glm.pdf
-        figs = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
+        figs = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index())
         for key, fig in figs.items():
-            fig.savefig( os.path.join(self.glmdir, key+'.'+self.fig_type) );
+            fig.savefig( os.path.join(self.glmdir, key+'.'+self.fig_type) )
             plt.close(fig)
 
         if plot:
@@ -281,10 +282,22 @@ class HistoryMatching():
                 #cp = test_mean.loc[[2110]]
                 figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
 
-            fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed'+'.'+self.fig_type) ); plt.close(fig)
-            fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals'+'.'+self.fig_type) );  plt.close(fig)
-            fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals'+'.'+self.fig_type) ); plt.close(fig)
-            fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ'+'.'+self.fig_type) );                 plt.close(fig)
+            fig = self.glm_model.plot_fitted_vs_observed()
+            fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed'+'.'+self.fig_type) )
+            plt.close(fig)
+
+            fig = self.glm_model.plot_pearson_residuals()
+            fig.savefig( os.path.join(self.glmdir, 'pearson_residuals'+'.'+self.fig_type) )
+            plt.close(fig)
+
+            fig = self.glm_model.plot_deviance_redisuals()
+            fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals'+'.'+self.fig_type) )
+            plt.close(fig)
+
+            fig = self.glm_model.plot_QQ()
+            fig.savefig( os.path.join(self.glmdir, 'QQ'+'.'+self.fig_type) )
+            plt.close(fig)
+
             #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram'+'.'+self.fig_type) );          plt.close(fig)
             #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit'+'.'+self.fig_type) );                plt.close(fig)
 
@@ -306,23 +319,25 @@ class HistoryMatching():
         return self.glm_model
 
 
-    def gpr(self, basis,
-        force_optimize_gpr = True,
-        method = 'CrossValidation',
-        verbose = False,
-        plot = True,
-        plot_data = False,
-        sigma2_f_guess = 2,
-        sigma2_f_bounds = (0.005,10),
-        sigma2_n_guess = 0.10,
-        sigma2_n_bounds = (0.01,10),
-        lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
-        lengthscale_bounds = (0.01,1),
-        normalize_y = True,
-        optimize_sigma2_n = True,
-        log_transform = False,
-        optimizer_options= {},
-        **kwargs
+    def gpr(
+            self,
+            basis,
+            force_optimize_gpr = True,
+            method = 'CrossValidation',
+            verbose = False,
+            plot = True,
+            plot_data = False,
+            sigma2_f_guess = 2,
+            sigma2_f_bounds = (0.005,10),
+            sigma2_n_guess = 0.10,
+            sigma2_n_bounds = (0.01,10),
+            lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
+            lengthscale_bounds = (0.01,1),
+            normalize_y = True,
+            optimize_sigma2_n = True,
+            log_transform = False,
+            optimizer_options=None,
+            **kwargs
     ):
         """Perform Gaussian Process Regression modeling.
 
@@ -352,6 +367,9 @@ class HistoryMatching():
         if method not in methods:
             raise HistoryMatchingError(f"method must be one of {methods}")
 
+        if optimizer_options is None:
+            optimizer_options = {}
+
         gpr_model_fn = os.path.join(self.gprdir, 'model.json')
 
         if plot_data:
@@ -363,7 +381,7 @@ class HistoryMatching():
             print("Loading GPR from", gpr_model_fn)
             self.gpr_model = GPR.from_config(gpr_model_fn)
             if plot_data:
-                figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
+                figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True) # TODO(dklein): This is unused. Is that bad?
         else:
             if self.use_glm:
                 Ycol = 'Yerr'
@@ -382,7 +400,7 @@ class HistoryMatching():
                 debug = False, # Debug is really for testing the code
                 **kwargs)
 
-            if isinstance(lengthscale_guess, int) or isinstance(lengthscale_guess, float):
+            if isinstance(lengthscale_guess, (int,float)):
                 lengthscale_guess = basis.D*[lengthscale_guess]
             elif not isinstance(lengthscale_guess,list):
                 raise HistoryMatchingError("lengthscale_guess must be a list!")
@@ -391,7 +409,7 @@ class HistoryMatching():
 
             if os.path.isfile(gpr_model_fn):
                 timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-                backup_fn = os.path.join(self.gprdir, 'model_%s.json'%timestamp)
+                backup_fn = os.path.join(self.gprdir, f'model_{timestamp}.json')
                 print('Backing up gpr model to', backup_fn)
                 copyfile(gpr_model_fn, backup_fn)
 
@@ -407,7 +425,7 @@ class HistoryMatching():
             self.gpr_model.optimize_hyperparameters(
                 x0 = x0,
                 bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
-                #eps = eps,
+                #eps = eps, #TODO(dklein): Can this be removed?
                 optimize_sigma2_n = optimize_sigma2_n,
                 log_transform = log_transform,
                 optimizer_options = optimizer_options
@@ -454,8 +472,9 @@ class HistoryMatching():
 
         if plot:
             print('Plotting')
-            fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive');
-            fig.savefig( os.path.join(self.gprdir, 'gpr'+'.'+self.fig_type) );             plt.close(fig)
+            fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive')
+            fig.savefig(os.path.join(self.gprdir, f'gpr.{self.fig_type}'))
+            plt.close(fig)
 
             '''' # Useful debugging
             if False:
@@ -466,22 +485,22 @@ class HistoryMatching():
                 fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent'+'.'+self.fig_type) );    plt.close(fig_std_latent) # SLOW
             '''
 
-            fig = self.gpr_model.plot_histogram();
-            fig.savefig( os.path.join(self.gprdir, 'histogram'+'.'+self.fig_type) );
+            fig = self.gpr_model.plot_histogram()
+            fig.savefig( os.path.join(self.gprdir, 'histogram'+'.'+self.fig_type) )
             plt.close(fig)
 
-            Ymean = self.training_data['Mean_Err'] + self.training_data['Yglm']
-            Yvar = self.training_data['Var_Err_Predictive']
+            Ymean = self.training_data['Mean_Err'] + self.training_data['Yglm'] # TODO(dklein): This is unused. Is that bad?
+            Yvar = self.training_data['Var_Err_Predictive'] # TODO(dklein): This is unused. Is that bad?
             #self.training_data['Sim_Result']
             fig, ax = plt.subplots(figsize=(16,10))
             ax.errorbar(
-                x=self.training_data['Sim_Result'], 
-                y=self.training_data['Mean_Err'] + self.training_data['Yglm'], 
+                x=self.training_data['Sim_Result'],
+                y=self.training_data['Mean_Err'] + self.training_data['Yglm'],
                 yerr=2*np.sqrt(self.training_data['Var_Err_Predictive']),
                 fmt='o', c='c', lw=0.5)
             ax.errorbar(
-                x=self.test_data['Sim_Result'], 
-                y=self.test_data['Mean_Err'] + self.test_data['Yglm'], 
+                x=self.test_data['Sim_Result'],
+                y=self.test_data['Mean_Err'] + self.test_data['Yglm'],
                 yerr=2*np.sqrt(self.test_data['Var_Err_Predictive']),
                 fmt='o', c='m', lw=0.5)
             ax.margins(x=0,y=0.05)
@@ -489,7 +508,7 @@ class HistoryMatching():
             ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
             ax.set_xlabel('Simulation Result')
             ax.set_ylabel('Predicted')
-            fig.savefig( os.path.join(self.gprdir, 'emulation'+'.'+self.fig_type) );
+            fig.savefig( os.path.join(self.gprdir, 'emulation'+'.'+self.fig_type) )
             plt.close(fig)
 
         return self.gpr_model
@@ -509,14 +528,16 @@ class HistoryMatching():
 
         #plt.tight_layout()
 
-        fig.savefig( os.path.join(self.cutdir, 'emulation'+'.'+self.fig_type) ); plt.close(fig)
+        fig.savefig( os.path.join(self.cutdir, 'emulation'+'.'+self.fig_type) )
+        plt.close(fig)
 
 
-    def calc_and_plot_implausibility(self,
-        plot = False,
-        do_plot_data = False,
-        plot_data_highlight = pd.DataFrame(),
-        log_scale = False
+    def calc_and_plot_implausibility(
+            self,
+            plot = False,
+            do_plot_data = False,
+            plot_data_highlight = pd.DataFrame(),
+            log_scale = False
     ):
         """Calculate and plot implausibility.
 
@@ -527,18 +548,20 @@ class HistoryMatching():
             log_scale: (tuple) Lower and upper bounds for sigma2_f, e.g. like (0.005,10).
         """
 
-        self.training_data['Implausibility'] = \
-                    abs( self.training_data['Mean_Estimate'] - self.desired_result ) / \
-                    np.sqrt(self.training_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
-        self.training_data['Implausible'] = self.training_data[ 'Implausibility' ] > self.implausibility_threshold
+        td = self.training_data #Make a pointer to reduce visual noise below
+
+        td['Implausibility'] = \
+                    abs( td['Mean_Estimate'] - self.desired_result ) / \
+                    np.sqrt(td['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+        td['Implausible'] = td[ 'Implausibility' ] > self.implausibility_threshold
 
         self.test_data['Implausibility'] = \
                     abs( self.test_data['Mean_Estimate'] - self.desired_result ) / \
                     np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
         self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > self.implausibility_threshold
 
-        self.training_data['Z_Noisy'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Predictive'])
-        self.training_data['Z_Noiseless'] = (self.training_data[self.Ycol] - self.training_data['Mean_Estimate']) / np.sqrt(self.training_data['Var_Err_Latent'])
+        td['Z_Noisy'] = (td[self.Ycol] - td['Mean_Estimate']) / np.sqrt(td['Var_Err_Predictive'])
+        td['Z_Noiseless'] = (td[self.Ycol] - td['Mean_Estimate']) / np.sqrt(td['Var_Err_Latent'])
 
         self.test_data['Z_Noisy'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
             np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
@@ -546,11 +569,12 @@ class HistoryMatching():
             np.sqrt(self.test_data['Var_Err_Latent'] + self.discrepancy_var + self.desired_result_var)
 
         if plot:
-            train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
+            train_mean = td.reset_index().groupby(['Sample_Id']).mean()
             test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
-            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
-            fig.savefig( os.path.join(self.combineddir, 'implausibility'+'.'+self.fig_type) );  plt.close(fig)
+            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result)
+            fig.savefig(os.path.join(self.combineddir, f'implausibility.{self.fig_type}'))
+            plt.close(fig)
 
             if do_plot_data:
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
@@ -558,4 +582,3 @@ class HistoryMatching():
 
                 pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
                 plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale)
-
