@@ -9,6 +9,7 @@ setup(name='HistoryMatching',
       author_email='dklein@idmod.org',
       url='https://github.com/InstituteforDiseaseModeling/history_matching',
       packages=['history_matching'],
+      python_requires='>=3.6',
       install_requires=[ # Required packages -- install via pip install -e .
         "matplotlib",
         "numpy",
@@ -29,6 +30,21 @@ setup(name='HistoryMatching',
                 "openpyxl",
                 ],
       },
-      zip_safe=False
-     )
+      zip_safe=False,
+      classifiers=[
+          "Programming Language :: Python :: 3 :: Only",
+          "Programming Language :: Python :: 3.6",
+          "Programming Language :: Python :: 3.7",
+          "Programming Language :: Python :: 3.8",
+          "Programming Language :: C++",
+          "Operating System :: Unix",
+          "Operating System :: MacOS",
+          "Operating System :: POSIX",
+          "Operating System :: POSIX :: Linux",
+          #TODO: Need a License
+          "Development Status :: 2 - Pre-Alpha",
+          "Intended Audience :: Science/Research",
+          "Topic :: Scientific/Engineering :: Information Analysis"
+      ]
+)
 
