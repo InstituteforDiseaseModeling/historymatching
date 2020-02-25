@@ -44,8 +44,8 @@ g = GPC(['x'], 'y', data, param_info,
         )
 
 fig, ax = plt.subplots(1,1)
-ax.plot(x, kxx[N/2,:], 'k', lw=2)
-ax.plot(x, dkxx_dtheta0[N/2,:], 'r')
-ax.plot(x, dkxx_dtheta1[N/2,:], 'b')
+ax.plot(x, kxx[N//2,:], 'k', lw=2)
+ax.plot(x, dkxx_dtheta0[N//2,:], 'r')
+ax.plot(x, dkxx_dtheta1[N//2,:], 'b')
 plt.show()
 
