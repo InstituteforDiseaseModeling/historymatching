@@ -1,12 +1,12 @@
 import multiprocessing as mp
-import logging
-from history_matching.MCMCCutWorker import MCMCCutWorker
 import os
-from pyDOE import lhs
-import pandas as pd
-import numpy as np
-from history_matching import HistoryMatching, quick_read
 import random
+
+from history_matching import quick_read
+from history_matching.MCMCCutWorker import MCMCCutWorker
+import logging
+
+
 
 class MCMCCut():
 
@@ -41,4 +41,3 @@ class MCMCCut():
 
         for j in jobs:
             j.join()
-

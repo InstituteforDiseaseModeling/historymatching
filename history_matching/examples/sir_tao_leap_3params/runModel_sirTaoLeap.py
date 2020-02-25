@@ -4,8 +4,6 @@ Event-driven simulation of an SIR model based on Gillespie's tao-leap method.
 
 """
 # Python libraries (native, 3rd party)
-import numpy
-import pandas
 import matplotlib
 from matplotlib import pyplot as plt
 matplotlib.pyplot.switch_backend('TKAgg')

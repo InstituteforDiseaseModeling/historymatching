@@ -1,16 +1,15 @@
-import json
-import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 import time
-from pyDOE import lhs
-import pandas as pd
-import numpy as np
+
 from history_matching import HistoryMatching
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 
-import statsmodels.api as sm
+
 
 class ProgressPlotting():
 
@@ -33,7 +32,7 @@ class ProgressPlotting():
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration %d. cut %s' % (it,cut_name) )
+                print(f'Reading iteration {it}. cut {cut_name}')
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
                 print('\t Desired Result:', hm.desired_result)
                 print('\t Desired Result Var:', hm.desired_result_var)
@@ -71,7 +70,7 @@ class ProgressPlotting():
         for cut in self.cuts:
             (it, cut_name) = cut
 
-            print('Testing implausibility: iteration %d, cut %s' % (it,cut_name) )
+            print(f'Testing implausibility: iteration {it}, cut {cut_name}' )
             t = time.time()
             points['Yglm'] = self.glm_all[cut].evaluate(points)
             if self.debug:
@@ -82,18 +81,18 @@ class ProgressPlotting():
             points['Mean_Estimate'] = points['Yglm'] + ret['Mean']
             points['Var_Predictive'] = ret['Var_Predictive']
 
-            points[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
+            points[ f'Implausibility_{it}_{cut_name}' ] = \
                 abs( points['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
                 np.sqrt(points['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
 
 
-            points[ 'Implausible_%d_%s'%(it, cut_name) ] = points[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
-            cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
+            points[ f'Implausible_{it}_{cut_name}' ] = points[ f'Implausibility_{it}_{cut_name}' ] > self.hm_params[cut]['implausibility_threshold']
+            cols += [f'Implausibility_{it}_{cut_name}', f'Implausible_{it}_{cut_name}']
 
-            result['Implausible'] |= points[ 'Implausible_%d_%s'%(it, cut_name) ]
+            result['Implausible'] |= points[ f'Implausible_{it}_{cut_name}' ]
             result['Min Implausibility'] = pd.concat([
                     result['Min Implausibility'],
-                    points[ 'Implausibility_%d_%s'%(it, cut_name) ]
+                    points[ f'Implausibility_{it}_{cut_name}' ]
                 ], axis=1) \
                 .min(axis=1)
 

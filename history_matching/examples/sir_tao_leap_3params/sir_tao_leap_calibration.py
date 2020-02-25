@@ -20,12 +20,10 @@
 import pandas
 import numpy
 import os
-import re
 import time
 import datetime
 import warnings
 import matplotlib
-from matplotlib import pyplot as plt
 matplotlib.pyplot.switch_backend('TKAgg')
 
 
@@ -138,7 +136,7 @@ xInfo = pandas.DataFrame( {  'Name': modelParams_name,
                              'Max' : modelParams_max
                           } ).set_index('Name')
 
-glmBasis = Basis.polynomial_basis( params       = xInfo.index.values,
+glmBasis = Basis.make_polynomial_basis( params       = xInfo.index.values,
                                    intercept    = True,
                                    first_order  = True,
                                    second_order = False,
@@ -146,7 +144,7 @@ glmBasis = Basis.polynomial_basis( params       = xInfo.index.values,
                                    param_info   = xInfo
                                   )
 
-gprBasis = Basis.polynomial_basis( params      = xInfo.index.values,
+gprBasis = Basis.make_polynomial_basis( params      = xInfo.index.values,
                                    intercept   = False,
                                    first_order = True,
                                    param_info  = xInfo

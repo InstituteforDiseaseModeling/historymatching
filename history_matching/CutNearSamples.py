@@ -1,6 +1,5 @@
 import json
 import os
-from pyDOE import lhs
 import pandas as pd
 import numpy as np
 from history_matching import HistoryMatching
@@ -267,8 +266,8 @@ class CutNearSamples():
             'Num Implausible': num_trials-non_implausible_candidates.shape[0]
         }
 
-        (d, filename) = os.path.split(self.saveto_hd5)
-        (name, ext) = os.path.splitext(filename)
+        d, filename = os.path.split(self.saveto_hd5)
+        name, ext = os.path.splitext(filename)
         stats_fn = os.path.join(d, name + '_stats.json')
         with open(stats_fn, 'w') as f:
             json.dump(stats, f)

@@ -1,4 +1,4 @@
-import os, json
+import os
 import numpy as np
 from history_matching.gpr import GPR
 import matplotlib.pyplot as plt

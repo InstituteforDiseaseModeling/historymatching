@@ -1,31 +1,19 @@
-import numpy as np
-import time
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.gridspec as gridspec
-import matplotlib as mpl
-import seaborn as sns
+import json
 import os
 import sys
-import copy
-import json
 
-from multiprocessing import Pool
-from functools import partial
-#from normalizer import UserStandardize
-
-import scipy.optimize as spo
-from string import Template
 from history_matching.basis import Basis
-
-import scipy.linalg
+from string import Template
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.optimize as spo
+import seaborn as sns
 
 try:
-    from pycuda import driver, compiler, gpuarray, tools
+    from pycuda import compiler, gpuarray
     import pycuda.autoinit
-    import pycuda.driver as drv
-    from pycuda.compiler import SourceModule
     import skcuda.misc as misc
     import skcuda.linalg as linalg
 except ImportError as e:
@@ -178,7 +166,7 @@ class GPR_MO():
                 else:
                     # Backwards compatibility
                     Xcols = config['Xcols']
-                    basis = Basis.polynomial_basis(
+                    basis = Basis.make_polynomial_basis(
                         params = Xcols,
                         intercept = False,
                         first_order = True,
@@ -321,18 +309,18 @@ class GPR_MO():
         with open(save_to, 'w') as fout:
             json.dump(
                 {
-                    'Basis'         : self.basis.serialize(),
-                    'Ycols'          : self.Ycols_orig,
-                    'Kernel_Mode'   : self.kernel_mode,
-                    'sigma2_f' : self.sigma2_f.tolist(),
-                    'sigma2_n' : self.sigma2_n.tolist(),
-                    'lengthscales2' : self.lengthscales2.tolist(),
-                    'b' : self.b.tolist(),
+                    'Basis': self.basis.serialize(),
+                    'Ycols': self.Ycols_orig,
+                    'Kernel_Mode': self.kernel_mode,
+                    'sigma2_f': self.sigma2_f.tolist(),
+                    'sigma2_n': self.sigma2_n.tolist(),
+                    'lengthscales2': self.lengthscales2.tolist(),
+                    'b': self.b.tolist(),
                     'Normalizer_Mean': self.normalizer_mean,
                     'Normalizer_Std': self.normalizer_std,
-                    'Normalize_Y'   : self.normalize_y,
-                    'Training_Data' : self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycols]]
-                    'Param_Info'    : self.param_info.reset_index().to_json(orient='split')
+                    'Normalize_Y': self.normalize_y,
+                    'Training_Data': self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycols]]
+                    'Param_Info': self.param_info.reset_index().to_json(orient='split')
                 }, fout, indent=4)
 
     def normalize(self, data):
@@ -1052,7 +1040,6 @@ class GPR_MO():
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
                         print('Unable to plot mean contour')
-                        pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycols], s=25, cmap='jet')
 
@@ -1061,7 +1048,6 @@ class GPR_MO():
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
                         print('Unable to plot std contour')
-                        pass
 
                     if col == self.D-1:
                         ax.set_xlabel( self.Xcols[row] )

@@ -1,12 +1,13 @@
 import json
 import os
 import time
-from pyDOE import lhs
-import pandas as pd
-import numpy as np
-from history_matching.HistoryMatching import HistoryMatching
+
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
+from history_matching.HistoryMatching import HistoryMatching
+from pyDOE import lhs
+import numpy as np
+import pandas as pd
 
 class HistoryMatchingCut():
 
@@ -75,7 +76,7 @@ class HistoryMatchingCut():
                 print('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
 
-            print('Performing cut: iteration', it, ', cut', cut_name)
+            print(f'Performing cut: iteration {it} cut {cut_name}')
             t = time.time()
             plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
             if self.debug:
@@ -90,10 +91,10 @@ class HistoryMatchingCut():
                 abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
                 np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
 
-            plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
-            cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
+            plausible_candidates[ f'Implausible_{it}_{cut_name}' ] = plausible_candidates[ f'Implausibility_{it}_{cut_name}' ] > self.hm_params[cut]['implausibility_threshold']
+            cols += [f'Implausibility_{it}_{cut_name}', f'Implausible_{it}_{cut_name}']
 
-            new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+            new_candidates['Implausible'] |= plausible_candidates[ f'Implausible_{it}_{cut_name}' ]
 
         return new_candidates['Implausible']
 

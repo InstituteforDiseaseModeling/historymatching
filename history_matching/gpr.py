@@ -1,31 +1,19 @@
-import numpy as np
-import time
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.gridspec as gridspec
-import matplotlib as mpl
-import seaborn as sns
 import os
 import sys
-import copy
 import json
 
-from multiprocessing import Pool
-from functools import partial
-#from normalizer import UserStandardize
-
-import scipy.optimize as spo
-from string import Template
 from history_matching.basis import Basis
-
-import scipy.linalg
+from string import Template
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.optimize as spo
+import seaborn as sns
 
 try:
-    from pycuda import driver, compiler, gpuarray, tools
+    from pycuda import compiler, gpuarray
     import pycuda.autoinit
-    import pycuda.driver as drv
-    from pycuda.compiler import SourceModule
     import skcuda.misc as misc
     import skcuda.linalg as linalg
 except ImportError as e:
@@ -111,6 +99,7 @@ class GPR():
         self.basis = basis
         self.D = self.basis.D
         self.Ycol = Ycol
+        self.fig_type = fig_type
 
         self.kernel_mode = kernel_mode
 
@@ -169,7 +158,7 @@ class GPR():
                 else:
                     # Backwards compatibility
                     Xcols = config['Xcols']
-                    basis = Basis.polynomial_basis(
+                    basis = Basis.make_polynomial_basis(
                         params = Xcols,
                         intercept = False,
                         first_order = True,
@@ -1086,7 +1075,6 @@ class GPR():
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
                         print('Unable to plot mean contour')
-                        pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25, cmap='jet')
 
@@ -1095,7 +1083,6 @@ class GPR():
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
                         print('Unable to plot std contour')
-                        pass
 
                     if col == self.D-1:
                         ax.set_xlabel( self.Xcols[row] )

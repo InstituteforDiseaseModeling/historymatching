@@ -3,8 +3,6 @@ import pandas as pd
 import os, re
 import json
 import numpy as np
-from functools import partial
-from scipy.stats import beta
 
 force_optimize_glm = False
 force_optimize_gpr = False
@@ -90,7 +88,7 @@ try:
         basis_glm = Basis.deserialize(config['Basis'])
         fitted_values = pd.read_json(config['Fitted_Values'], orient='split').set_index(['Sample_Id', 'Sim_Id']).squeeze()
 except:
-    basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
+    basis_glm = Basis.make_polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
 
     basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-4,0, 25), scaleX=True)
     alpha_glm = float(input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
@@ -138,13 +136,13 @@ hm.glm(
 )
 
 # Choose GPR inputs
-#basis_gpr = Basis.identity_basis(params=['LOG Environmental Exposure Period', 'LOG Acute Infectiousness'], param_info=param_info)
+#basis_gpr = Basis.make_identity_basis(params=['LOG Environmental Exposure Period', 'LOG Acute Infectiousness'], param_info=param_info)
 try:
     with open(os.path.join('Cuts', cut_name, 'basis_gpr.json')) as data_file:
         config = json.load( data_file )
         basis_gpr = Basis.deserialize(config['Basis'])
 except:
-    basis_gpr = Basis.polynomial_basis(params=param_names, intercept = False, first_order=True, param_info=param_info)
+    basis_gpr = Basis.make_polynomial_basis(params=param_names, intercept = False, first_order=True, param_info=param_info)
 
     results_err = results - fitted_values
 

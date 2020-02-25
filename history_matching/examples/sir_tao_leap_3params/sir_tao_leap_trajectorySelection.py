@@ -6,8 +6,6 @@ Selection of trajectories for the SIR Tao-Leap calibration example
 # Python libraries (native, 3rd party)
 import pandas
 import numpy
-from scipy import stats
-import math
 import matplotlib
 from matplotlib import pyplot as plt
 matplotlib.pyplot.switch_backend('TKAgg')   # Using this on Windows 10 (?)
@@ -16,11 +14,8 @@ from collections import Counter
 
 # Python libraries (internal)
 from getObservations     import getObservations
-from sampleObservations  import sampleObservations
-from sirTaoLeap          import sirTaoLeap
 from runModel_sirTaoLeap import runModel_sirTaoLeapIncidence
 from dataframePlot       import dataframePlot
-from historyPlot         import historyPlot
 
 
 

@@ -189,9 +189,7 @@ ax1.set_title('Negative log marginal likelihood wrt l2, s2=%f'%sigma2_f)
 ############### 2D
 
 # THETA PLOT
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
 fig = plt.figure()
 ax1 = fig.add_subplot(1,2,1, projection='3d')
 ax2 = fig.add_subplot(1,2,2) #, projection='3d')

@@ -21,8 +21,6 @@ Output:
 
 # Python libraries (native, 3rd party)
 import numpy
-import math
-import pandas
 
 
 def getSampleFromObservation( y, pos ):

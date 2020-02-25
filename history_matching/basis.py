@@ -48,7 +48,7 @@ class Basis():
 
 
     @classmethod
-    def identity_basis(cls, params, param_info=None):
+    def make_identity_basis(cls, params, param_info=None):
         """This constructor builds the `identity` basis, in which X1-->x1, X2-->x2, ...
 
         Args:
@@ -71,7 +71,7 @@ class Basis():
 
 
     @classmethod
-    def polynomial_basis(cls,
+    def make_polynomial_basis(cls,
             params,
             intercept = True,
             first_order = True,

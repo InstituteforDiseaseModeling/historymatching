@@ -1,26 +1,21 @@
+import os
+import json
+
+from collections import deque
+from functools import partial
+from pycuda import compiler, gpuarray
+from scipy.stats import norm
+from string import Template
+
+import matplotlib.gridspec as gridspec
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.gridspec as gridspec
-import seaborn as sns
-import os
-import copy
-import json
-import time
-
-from multiprocessing import Pool
-from functools import partial
-from collections import deque
-
-import scipy.optimize as spo
-from pycuda import driver, compiler, gpuarray, tools
 import pycuda.autoinit
-import pycuda.driver as drv
-from pycuda.compiler import SourceModule
-from string import Template
+import scipy.optimize as spo
+import seaborn as sns
 import skcuda.misc as misc
-from scipy.stats import norm
 
 plt.rcParams['image.cmap'] = 'jet'
 
@@ -959,7 +954,6 @@ class GPC():
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
                         print('Unable to plot mean contour')
-                        pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25)
 
@@ -968,7 +962,6 @@ class GPC():
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
                         print('Unable to plot std contour')
-                        pass
 
                     if col == self.D-1:
                         ax.set_xlabel( self.Xcols[row] )

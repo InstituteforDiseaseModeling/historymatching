@@ -3,13 +3,12 @@ import math
 import random
 import pandas as pd
 from pyDOE import lhs
-import numpy as np
 
 from dtk.utils.core.DTKConfigBuilder import DTKConfigBuilder
 from simtools.ModBuilder import ModBuilder, ModFn
 from dtk.utils.builders.TemplateHelper import TemplateHelper
 from dtk.utils.builders.ConfigTemplate import ConfigTemplate
-from dtk.utils.builders.TaggedTemplate import CampaignTemplate, DemographicsTemplate
+from dtk.utils.builders.TaggedTemplate import CampaignTemplate
 from history_matching import quick_read
 
 iteration = int(re.search(r'iter(\d+)', os.getcwd()).group(1))

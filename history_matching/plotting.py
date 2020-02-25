@@ -1,11 +1,14 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+import os
+
+from history_matching.basis import Basis
 from matplotlib.ticker import FormatStrFormatter
 import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from history_matching.basis import Basis
-import os
+
+
 
 def plot_implausibility(data, Xcols, column, thresh):
     scaled = data[column] / data[column].max()
@@ -274,7 +277,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
 
     figs = {}
 
-    basis = Basis.identity_basis(params=param_info.index.unique().tolist(), param_info=param_info)
+    basis = Basis.make_identity_basis(params=param_info.index.unique().tolist(), param_info=param_info)
     Xcols = basis.get_terms()
 
     reverse_param_dict = {v:k for k,v in basis.param_dict.items()}

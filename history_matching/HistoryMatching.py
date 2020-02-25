@@ -1,12 +1,13 @@
-import pandas as pd
-import numpy as np
-import os, errno
-import matplotlib.pyplot as plt
-import seaborn as sns
-from pyDOE import lhs
-from shutil import copyfile
 import datetime
+import errno
+import os
 import pathlib
+
+from shutil import copyfile
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
@@ -301,6 +302,8 @@ class HistoryMatching():
         self.test_data = self.test_data.join(test_mean['Yglm'])
         self.test_data['Yerr'] = self.test_data[self.Ycol] - self.test_data['Yglm']
 
+        return self.glm_model
+
 
     def gpr(self, basis,
         force_optimize_gpr = True,
@@ -485,6 +488,8 @@ class HistoryMatching():
             ax.set_ylabel('Predicted')
             fig.savefig( os.path.join(self.gprdir, 'emulation'+'.'+self.fig_type) );
             plt.close(fig)
+
+        return self.gpr_model
 
 
 
