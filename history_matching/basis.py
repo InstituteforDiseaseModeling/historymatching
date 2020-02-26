@@ -70,7 +70,7 @@ class Basis():
         """
 
         param_dict = Basis.make_param_dict(params)
-        model_terms = [Term([LookupFactor(x)]) for x in param_dict.values()] # X
+        model_terms = [Term([LookupFactor(x)]) for x in param_dict.values()] # X identity matrix
         return cls(model_terms, param_dict, param_info)
 
 
@@ -107,24 +107,26 @@ class Basis():
 
         model_terms = []
 
-        combos = itertools.combinations
-        comboswr = lambda x,degree: list(itertools.combinations_with_replacement(x, degree))
-
         if order>=1: # First order
             model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X matrix identity
 
-        high_terms = []
+        #This generates all of the terms in a polynomial of the given `degree`
+        #with variable list `x`.
+        comboswr = lambda x,degree: list(itertools.combinations_with_replacement(x, degree))
 
-        if order>=2: # First order
+        # Nonlinear terms need an additional transformation, so we collect them in this variable
+        high_terms = [] 
+
+        if order>=2: # Second order
             high_terms += ['%s*%s'%x for x in comboswr(params_patsy, 2)]
 
-        if order>=3: # First order
+        if order>=3: # Third order
             high_terms += ['%s*%s*%s'%x for x in comboswr(params_patsy, 3)]
 
-        if order>=4: # First order
+        if order>=4: # Fourth order
             high_terms += ['%s*%s*%s*%s'%x for x in comboswr(params_patsy, 4)]
 
-        if order>=5: # First order
+        if order>=5: # Fifth order
             high_terms += ['%s*%s*%s*%s*%s'%x for x in comboswr(params_patsy, 5)]
 
         if order>=6: # Some sixth order
@@ -144,16 +146,18 @@ class Basis():
             high_terms += ['%s**6*%s'%x for x in itertools.combinations(params_patsy, 2)] # X^6*Y
             high_terms += ['%s*%s**6'%x for x in itertools.combinations(params_patsy, 2)] # X*Y^6
 
-        #Replace multiple multiplications with exponent notation
+        #Replace multiple multiplications with exponent notation for aesthetic
+        #purposes
         high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1\*\1", r"\g<1>**7", x) for x in high_terms]
         high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1",     r"\g<1>**6", x) for x in high_terms]
         high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1",         r"\g<1>**5", x) for x in high_terms]
         high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1",             r"\g<1>**4", x) for x in high_terms]
         high_terms = [re.sub(r"([^*]+)\*\1\*\1",                 r"\g<1>**3", x) for x in high_terms]
         high_terms = [re.sub(r"([^*]+)\*\1",                     r"\g<1>**2", x) for x in high_terms]
+
+        # Transform the nonlinear terms into patsy form
         model_terms += [Term([EvalFactor(x)]) for x in high_terms]
 
-        # Intercept
         if intercept:
             model_terms += [Term([])]
 
