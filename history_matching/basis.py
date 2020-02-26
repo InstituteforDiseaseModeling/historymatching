@@ -110,45 +110,39 @@ class Basis():
         combos = itertools.combinations
         comboswr = lambda x,degree: list(itertools.combinations_with_replacement(x, degree))
 
-        # First order
-        if order>=1:
-            model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X
+        if order>=1: # First order
+            model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X matrix identity
 
         high_terms = []
 
-        # Second order
-        if order>=2:
+        if order>=2: # First order
             high_terms += ['%s*%s'%x for x in comboswr(params_patsy, 2)]
 
-        # Third order
-        if order>=3:
+        if order>=3: # First order
             high_terms += ['%s*%s*%s'%x for x in comboswr(params_patsy, 3)]
 
-        # Fourth order
-        if order>=4:
+        if order>=4: # First order
             high_terms += ['%s*%s*%s*%s'%x for x in comboswr(params_patsy, 4)]
 
-        # Fifth order
-        if order>=5:
+        if order>=5: # First order
             high_terms += ['%s*%s*%s*%s*%s'%x for x in comboswr(params_patsy, 5)]
 
-        if order>=6:
-            # Some sixth order
+        if order>=6: # Some sixth order
             high_terms += ['%s**6'%x for x in params_patsy] # X^6
 
-            high_terms += ['%s**5*%s'%x for x in comboswr(params_patsy, 2)] # X^5*Y
-            high_terms += ['%s*%s**5'%x for x in comboswr(params_patsy, 2)] # X*Y^5
+            high_terms += ['%s**5*%s'%x for x in itertools.combinations(params_patsy, 2)] # X^5*Y
+            high_terms += ['%s*%s**5'%x for x in itertools.combinations(params_patsy, 2)] # X*Y^5
 
-            high_terms += ['%s**3*%s*%s*%s'%x for x in comboswr(params_patsy, 4)] # W^3*X*Y*Z
-            high_terms += ['%s*%s**3*%s*%s'%x for x in comboswr(params_patsy, 4)] # W*X^3*Y*Z
-            high_terms += ['%s*%s*%s**3*%s'%x for x in comboswr(params_patsy, 4)] # W*X*Y^3*Z
-            high_terms += ['%s*%s*%s*%s**3'%x for x in comboswr(params_patsy, 4)] # W*X*Y*Z^3
+            high_terms += ['%s**3*%s*%s*%s'%x for x in itertools.combinations(params_patsy, 4)] # W^3*X*Y*Z
+            high_terms += ['%s*%s**3*%s*%s'%x for x in itertools.combinations(params_patsy, 4)] # W*X^3*Y*Z
+            high_terms += ['%s*%s*%s**3*%s'%x for x in itertools.combinations(params_patsy, 4)] # W*X*Y^3*Z
+            high_terms += ['%s*%s*%s*%s**3'%x for x in itertools.combinations(params_patsy, 4)] # W*X*Y*Z^3
 
             # Some seventh?! order
             high_terms += ['%s**7'%x for x in params_patsy] # X^7
 
-            high_terms += ['%s**6*%s'%x for x in comboswr(params_patsy, 2)] # X^6*Y
-            high_terms += ['%s*%s**6'%x for x in comboswr(params_patsy, 2)] # X*Y^6
+            high_terms += ['%s**6*%s'%x for x in itertools.combinations(params_patsy, 2)] # X^6*Y
+            high_terms += ['%s*%s**6'%x for x in itertools.combinations(params_patsy, 2)] # X*Y^6
 
         #Replace multiple multiplications with exponent notation
         high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1\*\1", r"\g<1>**7", x) for x in high_terms]
