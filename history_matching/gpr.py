@@ -156,12 +156,12 @@ class GPR():
             print(f'from_config: {config_fn}')
             data_file = open(os.path.join(config_fn))
         except Exception as e:
-            raise HistoryMatchingError(f"Unable to open GPR_MO config file '{config_fn}'")
+            raise HistoryMatchingError(f"Unable to open GPR config file '{config_fn}'")
 
         try:
             config = json.load( data_file )
         except Exception as e:
-            raise HistoryMatchingError(f"Unable to decode content of GPR_MO config file '{config_fn}'")
+            raise HistoryMatchingError(f"Unable to decode content of GPR config file '{config_fn}'")
 
 
         if 'Basis' in config:
@@ -192,29 +192,6 @@ class GPR():
             normalizer_std = config['Normalizer_Std'],
             normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
         )
-
-        #TODO: Drop this?
-        '''
-        instance = cls(
-            basis = basis,
-            Ycol = config['Ycol'],
-            training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
-            param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
-            kernel_mode = config['Kernel_Mode'],
-            theta = np.array(config['Kernel_Params']),
-            normalizer_mean = config['Normalizer_Mean'],
-            normalizer_std = config['Normalizer_Std'],
-            normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
-        )
-
-        train_mean = instance.training_data.reset_index().groupby('Sample_Id').mean()
-        X = instance.basis.generate_dmatrix( train_mean, scaleX = True).values
-        Y = instance.training_data.reset_index().groupby('Sample_Id').apply(instance.assign_rep).pivot('Sample_Id', 'Replicate', instance.Ycol).values
-        print(instance.cross_validation_with_grad(instance.theta, X, Y, optimize_sigma2_n=True, log_transform=False))
-        exit()
-
-        return instance
-        '''
 
     def set_training_data(self, new_training_data):
         """Set the training data for GPR, will normalize if needed

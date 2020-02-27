@@ -183,13 +183,6 @@ class ProgressPlotting():
 
     def plot(self, variables = None):
 
-        #TODO(dklein): D is not used - why? Can this block be dropped?
-        D = self.samples.shape[1]
-        if variables is not None:
-            for v in variabls:
-                assert(v in self.samples.columns)
-            D = len(variables)
-
         implausibility = self.test_plausibility(self.samples, constraint=None)
 
         #fig = plt.subplots(D, D-1, figsize=(16,10))
