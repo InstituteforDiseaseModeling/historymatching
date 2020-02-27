@@ -17,6 +17,8 @@ import scipy.optimize as spo
 import seaborn as sns
 import skcuda.misc as misc
 
+from history_matching.error import *
+
 plt.rcParams['image.cmap'] = 'jet'
 
 # NOTE theta = [sigma_f^2, l_1^2, l_2^2, ..., l_D^2] # NOTE: no sigma_n^2
@@ -55,7 +57,7 @@ class GPC():
         for xc in self.Xcols:
             if xc not in self.training_data.columns:
                 print('Cannot find columns %s in the training data, which has columns:'%xs, self.training_data.columns)
-                raise Exception('Missing column')
+                raise HistoryMatchingError('Missing column')
             xc_new = xc+' (scaled)'
             self.Xcols_scaled.append(xc_new)
             self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
@@ -80,8 +82,7 @@ class GPC():
                 config = json.load( data_file )
                 return GPC.from_dict(config)
         except EnvironmentError:
-            print("Unable to load GPC from_config file", config_fn)
-            raise
+            raise HistoryMatchingError(f"Unable to load GPC from_config file {config_fn}")
 
 
     @classmethod
@@ -154,11 +155,11 @@ class GPC():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print('Bad kernel mode, kernel_mode=%s'%self.kernel_mode)
-            raise
+            raise HistoryMatchingError('Bad kernel mode, kernel_mode={self.kernel_mode}')
 
         if params is not None:
-            assert( len(params) == 1+self.D )
+            if len(params)!=1+self.D:
+                raise HistoryMatchingError("Params must be 1 longer than the dimension!")
             if isinstance(params,list):
                 params = np.array(params)
             self.theta = params
@@ -239,7 +240,7 @@ class GPC():
             if not np.allclose(Kxx_cpu, Kxx):
                 print('kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
                 print('kxx_gpu_wrapper(GPU):\n', Kxx)
-                raise
+                raise HistoryMatchingError("GPU and CPU results didn't match!")
 
         return Kxx
 
@@ -283,7 +284,7 @@ class GPC():
             if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
                 print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
                 print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                raise
+                raise HistoryMatchingError("GPU and CPU results didn't match!")
 
         return Kxp_gpu.get()
 
@@ -435,16 +436,17 @@ class GPC():
     def find_posterior_mode(self, theta, f_guess=None, tol_grad=1e-6, maxiter=100):
         # Mode finding for Laplace GPC.  Algorithm 3.1 from "Gaussian Process for Machine Learning", p46
 
+        if f_guess:
+            if not isinstance(f_guess, np.ndarray):
+                raise HistoryMatchingError("f_guess must be a NumPy ndarray!")
+            if f_guess.shape[0]!=y.shape[0]:
+                raise HistoryMatchingError("f_guess must have the same length as y!")
+
         y = self.training_data[self.Ycol].values
         if self.verbose:
             print('y:', y)
         N = len(y)
-        if f_guess is not None:
-            f_hat = f_guess
-            assert( isinstance(f_hat, np.ndarray) )
-            assert(f_hat.shape[0] == y.shape[0])
-        else:
-            f_hat = np.zeros_like( y )
+        f_hat = f_guess if f_guess is not None else np.zeros_like( y )
 
         X = self.training_data[self.Xcols_scaled].values
 

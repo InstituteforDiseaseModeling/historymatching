@@ -27,8 +27,9 @@ class HistoryMatchingCut():
 
         if saveto_hd5 == None:
             self.saveto_hd5 = 'Candidates_for_iter%d.hd5'%(self.iteration+1)
+        elif os.path.splitext(saveto_hd5)[1].lower() not in ['hd5', 'hdf']:
+            raise HistoryMatchingError("saveto_hd5 must end with 'hd5' or 'hdf'!")
         else:
-            assert( os.path.splitext(saveto_hd5)[1].lower() in ['.hd5', '.hdf'] )
             self.saveto_hd5 = saveto_hd5
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations

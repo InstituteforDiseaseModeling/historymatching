@@ -68,7 +68,7 @@ class GLM(object):
         }
 
         if not family in glms:
-            raise Exception(f"Invalid glm family '{family}'!")
+            raise HistoryMatchingError(f"Invalid glm family '{family}'!")
         if self.verbose:
             print(f"Using {family} family")
         self.glmfam = glms[family]
@@ -122,8 +122,7 @@ class GLM(object):
                     fitted_model = fitted_model
                 )
         except EnvironmentError:
-            print("Unable to load GLM from_config file", meta_fn, fitted_fn)
-            raise
+            raise HistoryMatchingError("Unable to load GLM from_config file", meta_fn, fitted_fn)
 
 
     def save(self, save_meta_to, save_fitted_to):

@@ -3,6 +3,8 @@ import os
 import sys
 
 from history_matching.basis import Basis
+from history_matching.error import *
+
 from string import Template
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -159,46 +161,50 @@ class GPR_MO():
         """
 
         try:
-            print('from_config:', config_fn)
-            with open(os.path.join(config_fn)) as data_file:
-                config = json.load( data_file )
+            print(f'from_config: {config_fn}')
+            data_file = open(os.path.join(config_fn))
+        except Exception as e:
+            raise HistoryMatchingError(f"Unable to open GPR_MO config file '{config_fn}'")
 
-                if 'Basis' in config:
-                    basis = Basis.deserialize(config['Basis'])
-                else:
-                    # Backwards compatibility
-                    Xcols = config['Xcols']
-                    basis = Basis.make_polynomial_basis(
-                        params = Xcols,
-                        intercept = False,
-                        first_order = True,
-                        second_order = False,
-                        third_order = False,
-                        fourth_order = False,
-                        fifth_order = False,
-                        higher_order = False,
-                        param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
-                    )
+        try:
+            config = json.load( data_file )
+        except Exception as e:
+            raise HistoryMatchingError(f"Unable to decode content of GPR_MO config file '{config_fn}'")
 
-                return cls(
-                    basis = basis,
-                    Ycols = config['Ycols'],
-                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
-                    param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
-                    kernel_mode = config['Kernel_Mode'],
+        if 'Basis' in config:
+            basis = Basis.deserialize(config['Basis'])
+        else:
+            # Backwards compatibility
+            Xcols = config['Xcols']
+            basis = Basis.make_polynomial_basis(
+                params = Xcols,
+                intercept = False,
+                first_order = True,
+                second_order = False,
+                third_order = False,
+                fourth_order = False,
+                fifth_order = False,
+                higher_order = False,
+                param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
+            )
 
-                    sigma2_f = np.array(config['sigma2_f']),
-                    sigma2_n = np.array(config['sigma2_n']),
-                    lengthscales2 = np.array(config['lengthscales2']),
-                    b = np.array(config['b']),
+        return cls(
+            basis = basis,
+            Ycols = config['Ycols'],
+            training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
+            param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
+            kernel_mode = config['Kernel_Mode'],
 
-                    normalizer_mean = config['Normalizer_Mean'],
-                    normalizer_std = config['Normalizer_Std'],
-                    normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
-                )
-        except EnvironmentError:
-            print('Unable to load GPR_MO from_config file', config_fn)
-            raise
+            sigma2_f = np.array(config['sigma2_f']),
+            sigma2_n = np.array(config['sigma2_n']),
+            lengthscales2 = np.array(config['lengthscales2']),
+            b = np.array(config['b']),
+
+            normalizer_mean = config['Normalizer_Mean'],
+            normalizer_std = config['Normalizer_Std'],
+            normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
+        )
+
 
 
     def makeB(self, b):
@@ -245,12 +251,12 @@ class GPR_MO():
         Args:
             hyperparameters:
         """
-
-        assert( len(lengthscales2) == self.D )
+        if len(lengthscales2)!=self.D:
+            raise HistoryMatchingError("lengthscales2 must have the same length as the dimension!")
 
         self.sigma2_f = sigma2_f
         self.sigma2_n = sigma2_n
-        if ~isinstance(lengthscales2, list):
+        if not isinstance(lengthscales2, list):
             lengthscales2 = lengthscales2.tolist()
         self.lengthscales2 = lengthscales2
         self.b = b
@@ -395,8 +401,7 @@ class GPR_MO():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print('Bad kernel mode, kernel_mode =',self.kernel_mode)
-            raise
+            raise HistoryMatchingError(f'Bad kernel mode, kernel_mode = {self.kernel_mode}')
 
 
     def kernel_xx(self, X, theta, add_sigma2_n = True, deriv=-1):
@@ -412,8 +417,9 @@ class GPR_MO():
 
         Nx = X.shape[0]
 
-        if deriv >= 0:
-            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+        # Do not add sigma2_n to sigma2_f deriv
+        if deriv >= 0 and add_sigma2_n!=False:
+            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:
@@ -507,8 +513,9 @@ class GPR_MO():
 
         Nx = X.shape[0]
 
-        if deriv == 0:
-            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+        # Do not add sigma2_n to sigma2_f deriv
+        if deriv==0 and add_sigma2_n!=False:
+            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:
@@ -560,7 +567,7 @@ class GPR_MO():
             if not np.allclose(Kxx_cpu, Kxx):
                 print('Kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
                 print('Kxx_gpu_wrapper(GPU):\n', Kxx)
-                raise
+                raise HistoryMatchingError("CPU and GPU results don't match!")
 
         return Kxx
 
@@ -613,7 +620,7 @@ class GPR_MO():
                 if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
                     print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
                     print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                    raise
+                    raise HistoryMatchingError("CPU and GPU results don't match!")
 
             return Kxp_gpu.get()
 
@@ -650,7 +657,7 @@ class GPR_MO():
                 if not np.allclose(Kxx_cpu, Kxx):
                     print('loo_cross_validation(CPU xx):\n', Kxx_cpu)
                     print('loo_cross_validation(GPU xx):\n', Kxx)
-                    raise
+                    raise HistoryMatchingError("CPU and GPU results don't match!")
         else:
             add_sigma2_n = True if R == 1 else False
             Kxx = self.kernel_xx(X, theta, add_sigma2_n = add_sigma2_n)
@@ -865,7 +872,7 @@ class GPR_MO():
             if not np.allclose(Kxp_cpu, Kxp):
                 print('evaluate(CPU xp):\n', Kxp_cpu)
                 print('evaluate(GPU xp):\n', Kxp)
-                raise
+                raise HistoryMatchingError("CPU and GPU results don't match!")
 
         if self.use_gpu:
             Kpp = self.kxx_gpu_wrapper(P, theta, add_sigma2_n = False) # For latent distribution
@@ -874,7 +881,7 @@ class GPR_MO():
                 if not np.allclose(Kpp_cpu, Kpp):
                     print('evaluate(CPU pp):\n', Kpp_cpu)
                     print('evaluate(GPU pp):\n', Kpp)
-                    raise
+                    raise HistoryMatchingError("CPU and GPU results don't match!")
         else:
             Kpp = self.kernel_xx(P, theta, add_sigma2_n = False)
 

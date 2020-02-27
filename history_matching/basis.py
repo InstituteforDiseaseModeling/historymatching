@@ -7,6 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
+from history_matching.error import *
+
 class Basis():
     """Class to support polynomial basis, data matrix generation, and parameter name handling.
     """
@@ -234,6 +236,8 @@ class Basis():
             y = [x-min] / [max-min]
         where parameter ranges come from param_info that was passed in previously.
         """
+        if self.param_info is None:
+            raise HistoryMatchingError("Basis must have param_info to do scaling!")
 
         for col in data.columns.tolist():
             if col in self.param_info.index:
@@ -255,7 +259,6 @@ class Basis():
 
         data = data.copy()
         if scaleX:
-            assert(self.param_info is not None)
             data = self.scale_data(data)
         data = data.rename(columns=self.param_dict)
 
@@ -265,9 +268,8 @@ class Basis():
         except patsy.PatsyError as e:
             if pd.isnull(data).any().any():
                 print(data[data.isnull().any(axis=1)])
-                raise Exception('Data contains Null/None/NaN, see data above.')
-            else:
-                raise e
+                print('Data contains Null/None/NaN, see data above.')
+                raise HistoryMatchingError("Data contains Null/None/NaN")
         return dmat
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
@@ -285,7 +287,6 @@ class Basis():
 
         data = data.copy()
         if scaleX:
-            assert(self.param_info is not None)
             data = self.scale_data(data)
 
         data = data.rename(columns=self.param_dict)
@@ -331,7 +332,6 @@ class Basis():
         print(f'User selected alpha = {alpha}')
 
         if scaleX:
-            assert(self.param_info is not None)
             inputs = self.scale_data(inputs.copy())
 
         Ycol = 'Sim_Result'
@@ -357,7 +357,7 @@ class Basis():
         print('Non-Zero:', len(params), 'of', self.D)
 
         if len(params) == 0:
-            raise ValueError('In regularize, no parameters had a non-zero coefficient.  Try making alpha smaller.')
+            raise HistoryMatchingError('In regularize, no parameters had a non-zero coefficient.  Try making alpha smaller.')
 
         terms = params.index.values.tolist()
         if 'Intercept' in terms:
@@ -390,7 +390,6 @@ class Basis():
     def plot_regularize(self, inputs, results, alpha, scaleX = False, title = None):
 
         if scaleX:
-            assert(self.param_info is not None)
             inputs = self.scale_data(inputs.copy())
 
         Ycol = 'Sim_Result'

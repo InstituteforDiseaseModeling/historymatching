@@ -3,6 +3,8 @@ import sys
 import json
 
 from history_matching.basis import Basis
+from history_matching.error import *
+
 from string import Template
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -151,62 +153,45 @@ class GPR():
         """
 
         try:
-            print('from_config:', config_fn)
-            with open(os.path.join(config_fn)) as data_file:
-                config = json.load( data_file )
+            print(f'from_config: {config_fn}')
+            data_file = open(os.path.join(config_fn))
+        except Exception as e:
+            raise HistoryMatchingError(f"Unable to open GPR config file '{config_fn}'")
 
-                if 'Basis' in config:
-                    basis = Basis.deserialize(config['Basis'])
-                else:
-                    # Backwards compatibility
-                    Xcols = config['Xcols']
-                    basis = Basis.make_polynomial_basis(
-                        params = Xcols,
-                        intercept = False,
-                        first_order = True,
-                        second_order = False,
-                        third_order = False,
-                        fourth_order = False,
-                        fifth_order = False,
-                        higher_order = False,
-                        param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
-                    )
+        try:
+            config = json.load( data_file )
+        except Exception as e:
+            raise HistoryMatchingError(f"Unable to decode content of GPR config file '{config_fn}'")
 
-                return cls(
-                    basis = basis,
-                    Ycol = config['Ycol'],
-                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
-                    param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
-                    kernel_mode = config['Kernel_Mode'],
-                    theta = np.array(config['Kernel_Params']),
-                    normalizer_mean = config['Normalizer_Mean'],
-                    normalizer_std = config['Normalizer_Std'],
-                    normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
-                )
-                '''
-                instance = cls(
-                    basis = basis,
-                    Ycol = config['Ycol'],
-                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
-                    param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
-                    kernel_mode = config['Kernel_Mode'],
-                    theta = np.array(config['Kernel_Params']),
-                    normalizer_mean = config['Normalizer_Mean'],
-                    normalizer_std = config['Normalizer_Std'],
-                    normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
-                )
 
-                train_mean = instance.training_data.reset_index().groupby('Sample_Id').mean()
-                X = instance.basis.generate_dmatrix( train_mean, scaleX = True).values
-                Y = instance.training_data.reset_index().groupby('Sample_Id').apply(instance.assign_rep).pivot('Sample_Id', 'Replicate', instance.Ycol).values
-                print(instance.cross_validation_with_grad(instance.theta, X, Y, optimize_sigma2_n=True, log_transform=False))
-                exit()
+        if 'Basis' in config:
+            basis = Basis.deserialize(config['Basis'])
+        else:
+            # Backwards compatibility
+            Xcols = config['Xcols']
+            basis = Basis.make_polynomial_basis(
+                params = Xcols,
+                intercept = False,
+                first_order = True,
+                second_order = False,
+                third_order = False,
+                fourth_order = False,
+                fifth_order = False,
+                higher_order = False,
+                param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
+            )
 
-                return instance
-                '''
-        except EnvironmentError:
-            print('Unable to load GPR from_config file', config_fn)
-            raise
+        return cls(
+            basis = basis,
+            Ycol = config['Ycol'],
+            training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
+            param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
+            kernel_mode = config['Kernel_Mode'],
+            theta = np.array(config['Kernel_Params']),
+            normalizer_mean = config['Normalizer_Mean'],
+            normalizer_std = config['Normalizer_Std'],
+            normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
+        )
 
     def set_training_data(self, new_training_data):
         """Set the training data for GPR, will normalize if needed
@@ -228,6 +213,7 @@ class GPR():
         """Resets hyperparameters (theta).
         """
         # Set the kernel/model hyperparameters
+        #TODO(dklein): This does more than just reset theta - why?
         self.theta = None
         self.Kxx_inv_Y = None
         self.Kxx_inv = None
@@ -241,8 +227,8 @@ class GPR():
             theta: (1D numpy array)
                 As in __init__.
         """
-
-        assert( len(theta) == 2+self.D )
+        if len(theta)!=2+self.D:
+            raise HistoryMatchingError("Length of theta must be 2 greater than the dimension!")
         self.theta = theta
         self.update_cache()
 
@@ -367,8 +353,7 @@ class GPR():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print('Bad kernel mode, kernel_mode =',self.kernel_mode)
-            raise
+            raise HistoryMatchingError(f'Bad kernel mode, kernel_mode = {self.kernel_mode}')
 
 
     def kernel_xx(self, X, theta, add_sigma2_n = True, deriv=-1):
@@ -384,8 +369,9 @@ class GPR():
 
         Nx = X.shape[0]
 
-        if deriv >= 0:
-            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+        # Do not add sigma2_n to sigma2_f deriv
+        if deriv >= 0 and add_sigma2_n!=False:
+            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:
@@ -479,8 +465,9 @@ class GPR():
 
         Nx = X.shape[0]
 
-        if deriv == 0:
-            assert(add_sigma2_n == False) # Do not add sigma2_n to sigma2_f deriv
+        # Do not add sigma2_n to sigma2_f deriv
+        if deriv == 0 and add_sigma2_n!=False:
+            raise HistoryMatchingError("If deriv>=0, then add_sigma2_n must be False!")
 
         if deriv == 1: # Assuming add_sigma2_n is True when taking deriv wrt sigma2_n, otherwise it would be zeros(Nx) ...
             if self.fixed_sigma_n:
@@ -532,7 +519,7 @@ class GPR():
             if not np.allclose(Kxx_cpu, Kxx):
                 print('Kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
                 print('Kxx_gpu_wrapper(GPU):\n', Kxx)
-                raise
+                raise HistoryMatchingError("CPU and GPU results don't match!")
 
         return Kxx
 
@@ -585,7 +572,7 @@ class GPR():
                 if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
                     print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
                     print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                    raise
+                    raise HistoryMatchingError("CPU and GPU results don't match!")
 
             return Kxp_gpu.get()
 
@@ -616,7 +603,7 @@ class GPR():
             if not np.allclose(KXX_cpu, KXX):
                 print('loo_cross_validation(CPU XX):\n', KXX_cpu)
                 print('loo_cross_validation(GPU XX):\n', KXX)
-                raise
+                raise HistoryMatchingError("CPU and GPU results don't match!")
 
         if self.use_gpu:
             KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
@@ -671,7 +658,7 @@ class GPR():
                 if not np.allclose(KXX_cpu, KXX):
                     print('loo_cross_validation(CPU XX):\n', KXX_cpu)
                     print('loo_cross_validation(GPU XX):\n', KXX)
-                    raise
+                    raise HistoryMatchingError("CPU and GPU results don't match!")
         else:
             KXX = self.kernel_xx(X, theta, add_sigma2_n = True)
 
@@ -913,7 +900,7 @@ class GPR():
             if not np.allclose(Kxp_cpu, Kxp):
                 print('evaluate(CPU XP):\n', Kxp_cpu)
                 print('evaluate(GPU XP):\n', Kxp)
-                raise
+                raise HistoryMatchingError("CPU and GPU results don't match!")
 
         if self.use_gpu:
             Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
@@ -922,7 +909,7 @@ class GPR():
                 if not np.allclose(Kpp_cpu, Kpp):
                     print('evaluate(CPU PP):\n', Kpp_cpu)
                     print('evaluate(GPU PP):\n', Kpp)
-                    raise
+                    raise HistoryMatchingError("CPU and GPU results don't match!")
         else:
             Kpp = self.kernel_xx(P, self.theta, add_sigma2_n = False)
 
