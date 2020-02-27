@@ -5,7 +5,7 @@ from history_matching.basis import Basis
 import pandas as pd
 import os
 import re
-import json
+import pickle
 import numpy as np
 import glob
 
@@ -67,10 +67,10 @@ print(' *','\n * '.join(param_names))
 
 # Choose GLM inputs
 try:
-    with open(os.path.join('Cuts', cut_name, 'basis_glm.json')) as data_file:
-        config = json.load( data_file )
-        basis_glm = Basis.deserialize(config['Basis'])
-        fitted_values = pd.read_json(config['Fitted_Values'], orient='split').set_index(['Sample_Id', 'Sim_Id']).squeeze()
+    with open(os.path.join('Cuts', cut_name, 'basis_glm.pickle'), 'rb') as data_file:
+        config = pickle.load( data_file )
+        basis_glm = config['Basis']
+        fitted_values = config['Fitted_Values']
 except:
     basis_glm = Basis.make_polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info, verbose = True)
 
@@ -82,17 +82,17 @@ except:
 
     print(type(basis_glm.get_terms()))
     print('Regularization for GLM selected:\n', ' *','\n * '.join(basis_glm.get_terms()))
-    with open(os.path.join('Cuts', cut_name, 'basis_glm.json'), 'w') as fout:
-        json.dump( {
-            'Basis': basis_glm.serialize(),
-            'Fitted_Values': fitted_values.reset_index().to_json(orient='split')
-        }, fout, indent=4)
+    with open(os.path.join('Cuts', cut_name, 'basis_glm.pickle'), 'wb') as fout:
+        pickle.dump( {
+            'Basis': basis_glm.
+            'Fitted_Values': fitted_values
+        }, fout)
 
 # Choose GPR inputs
 try:
-    with open(os.path.join('Cuts', cut_name, 'basis_gpr.json')) as data_file:
-        config = json.load( data_file )
-        basis_gpr = Basis.deserialize(config['Basis'])
+    with open(os.path.join('Cuts', cut_name, 'basis_gpr.pickle'), 'rb') as data_file:
+        config = pickle.load( data_file )
+        basis_gpr = config['Basis']
 except:
     basis_gpr = Basis.make_polynomial_basis(params=param_names, intercept = False, first_order=True, param_info=param_info)
     results_err = results - fitted_values
@@ -102,8 +102,8 @@ except:
 
     basis_gpr.regularize(inputs, results_err, alpha = alpha_gpr, scaleX=True)
     print('Regularization for GPR selected:\n', ' *','\n * '.join(basis_gpr.get_terms()))
-    with open(os.path.join('Cuts', cut_name, 'basis_gpr.json'), 'w') as fout:
-        json.dump( { 'Basis': basis_gpr.serialize(), }, fout, indent=4)
+    with open(os.path.join('Cuts', cut_name, 'basis_gpr.pickle'), 'wb') as fout:
+        pickle.dump({'Basis': basis_gpr}, fout)
 
 
 #basis_gpr = Basis.make_identity_basis(params=['Protection per Infection', 'Symptomatic Fraction', 'LOG Contact Exposure Period', 'LOG Environmental Exposure Period', 'LOG Acute Infectiousness'], param_info=param_info)

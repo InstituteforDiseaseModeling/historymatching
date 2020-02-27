@@ -1,6 +1,7 @@
 import datetime
 import os
 import pathlib
+import pickle
 
 from shutil import copyfile
 import matplotlib.pyplot as plt
@@ -234,16 +235,15 @@ class HistoryMatching():
         verbose = kwargs.get('verbose', self.verbose)
 
         # Files to store the model and parameters
-        glm_model_fn = os.path.join(self.glmdir, 'model.json')
-        mean_params_fn = os.path.join(self.glmdir, 'params.p')
+        glm_model_fn = os.path.join(self.glmdir, 'glm.pickle')
 
         # TODO: Ask user if they want mean, although I'm not sure statsmodels works without it!
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         test_mean = self.test_data.reset_index().groupby('Sample_Id').mean()
 
-        if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
-            print("Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn)
-            self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
+        if not force_optimize_glm and os.path.isfile(glm_model_fn):
+            print(f"Loading GLM from {glm_model_fn}...")
+            self.glm_model = pickle.load(open(glm_model_fn, 'rb'))
         else:
             self.glm_model = GLM(
                 basis = basis,
@@ -256,7 +256,7 @@ class HistoryMatching():
             if self.verbose:
                 print("Fitting the GLM")
             self.glm_model.fit(maxiter=glm_fit_maxiter)
-            self.glm_model.save(glm_model_fn, mean_params_fn)
+            pickle.dump(self.glm_model, open(glm_model_fn, 'wb'))
 
         if self.verbose:
             print('Evaluating training and test data') # Store results in Yglm
@@ -370,7 +370,7 @@ class HistoryMatching():
         if optimizer_options is None:
             optimizer_options = {}
 
-        gpr_model_fn = os.path.join(self.gprdir, 'model.json')
+        gpr_model_fn = os.path.join(self.gprdir, 'gpr.pickle')
 
         if plot_data:
             pairdir = os.path.join(self.gprdir, 'PairwiseResults')
@@ -379,7 +379,7 @@ class HistoryMatching():
 
         if not force_optimize_gpr and os.path.isfile(gpr_model_fn):
             print("Loading GPR from", gpr_model_fn)
-            self.gpr_model = GPR.from_config(gpr_model_fn)
+            self.gpr_model = pickle.load(open(gpr_model_fn,'rb'))
             if plot_data:
                 figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True) # TODO(dklein): This is unused. Is that bad?
         else:
@@ -416,7 +416,7 @@ class HistoryMatching():
             #TODO: Check guess within bounds
             x0 = np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess)
             self.gpr_model.theta = x0
-            self.gpr_model.save(gpr_model_fn)
+            pickle.dump(self.gpr_model, open(gpr_model_fn, 'wb'))
 
             if plot_data:
                 figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
@@ -429,7 +429,8 @@ class HistoryMatching():
                 log_transform = log_transform,
                 optimizer_options = optimizer_options
             )
-            self.gpr_model.save(gpr_model_fn) # Save the model to file
+            #TODO(dklein): Why do we save both here and above?
+            pickle.dump(self.gpr_model, open(gpr_model_fn, 'wb'))
 
 
         # Taking the mean prior to evaluation because it is unnecessary to evaluate each point more than once as the GP output will always be the same
@@ -467,7 +468,7 @@ class HistoryMatching():
         # Add test data to gpr training
         gpr_model_with_test_fn = os.path.join(self.gprdir, 'model_with_test_data.json')
         self.gpr_model.set_training_data(pd.concat([self.training_data, self.test_data]))
-        self.gpr_model.save(gpr_model_with_test_fn)
+        pickle.dump(self.gpr_model, open(gpr_model_with_test_fn, 'wb'))
 
         if plot:
             print('Plotting')

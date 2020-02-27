@@ -2,6 +2,7 @@
 
 import json
 import os
+import pickle
 
 from matplotlib import pyplot as plt
 from scipy import stats
@@ -84,62 +85,9 @@ class GLM:
             print('BIC:', self.fitted_model.bic)
             print('ITERATION:', self.fitted_model.fit_history['iteration'])
 
-
-    @classmethod
-    def from_config(cls, meta_fn, fitted_fn):
-        """Restore a GLM instance from a saved configuration files.
-
-        Args:
-            meta_fn: (str)
-                JSON file containing configuration such as the serialized basis, column names, order, etc.
-            fitted_fn: (str)
-                Contains the saved (pickled) statsmodel.
-        """
-
-        try:
-            fitted_model = sm.load(fitted_fn)
-            with open(os.path.join(meta_fn)) as data_file:
-                config = json.load(data_file)
-                basis = Basis.deserialize(config['Basis'])
-
-                return cls(
-                    basis = basis,
-                    Ycol = config['Ycol'],
-                    training_data = pd.read_json(config['Training_Data'], orient='split').set_index('Sample_Id'),
-                    reference_value = config['Reference_Value'],
-                    family = config['Family'],
-                    fitted_model = fitted_model
-                )
-        except EnvironmentError:
-            raise HistoryMatchingError("Unable to load GLM from_config file", meta_fn, fitted_fn)
-
-
     def vprint(self, *args, **kwargs):
         if self.verbose:
             print(*args, *kwargs)
-            
-
-    def save(self, save_meta_to, save_fitted_to):
-        """Save a GLM instance to configuration files.
-
-        Args:
-            save_meta_to: (str)
-                JSON filename to contain configuration such as the serialized basis, column names, order, etc.
-            save_fitted_to: (str)
-                Filename to contains the saved (pickled) statsmodel.
-        """
-
-        self.fitted_model.save(save_fitted_to)
-        with open(save_meta_to, 'w') as fout:
-            json.dump(
-                {
-                    'Basis': self.basis.serialize(),
-                    'Ycol': self.Ycol,
-                    'Training_Data': self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
-                    'Reference_Value': self.reference_value,
-                    'D': self.D,
-                    'Family': self.family,
-                }, fout, indent=4)
 
     def evaluate(self, data):
         """Evaluate the GLM and return the mean prediction.
@@ -156,7 +104,6 @@ class GLM:
         mean = self.fitted_model.predict(dmat, transform=False)
 
         return mean
-
 
     def fit(self, maxiter=1000):
         """Fit the GLM.

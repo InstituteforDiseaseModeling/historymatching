@@ -4,7 +4,6 @@ import re
 from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
 import patsy # TODO: Cleanup
 
-# For regularized selection:
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -164,17 +163,19 @@ class Basis():
         return cls(model_terms, param_dict, param_info, verbose)
 
 
-    @classmethod
-    def deserialize(cls, state):
-        """ Helper to read basis from file.
+
+
+    def __setstate__(self, state):
+        """Load from a pickled state.
 
         Args:
-            state: (dict) Contents of file produced by serialize.
+            state: (dict) Dictionary produced by `__getstate__()`
 
         Returns: Instance of Basis class.
         """
+        self.__dict__ = state               #Set object attributes
 
-        terms = state['Terms']
+        terms = state['model_terms']        #Patsy doesn't pickle, we handle it
 
         if 'Intercept' in terms:
             intercept_term = [Term([])]
@@ -182,23 +183,17 @@ class Basis():
         else:
             intercept_term = []
 
-        return cls(
-            model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms],
-            param_dict = state['Param_Dict'],
-            param_info = pd.read_json( state['Param_Info'], orient='split' ).set_index('Name')
-        )
+        #Patsy-ify the saved terms
+        self.model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms]
 
-
-    def serialize(self):
-        """ Helper to write Basis to file.
+    def __getstate__(self):
+        """Save to a pickled state"
+        Returns: Dictionary containing informtaion to pickle.
         """
-
-        return {
-            'Terms' : self.get_terms(),
-            'Param_Dict' : self.param_dict,
-            'Param_Info' : self.param_info.reset_index().to_json(orient='split')
-        }
-
+        d = self.__dict__.copy()            #Shallow copy dictionary
+        #Replace bad patsy serialization with our own (preserves self.__dict__)
+        d['model_terms'] = self.get_terms() 
+        return d                            #Return data to pickle
 
     def scale_data(self, data):
         """ Helper to scale data.
