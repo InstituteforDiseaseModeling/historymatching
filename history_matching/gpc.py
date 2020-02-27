@@ -327,8 +327,6 @@ class GPC():
         while not done:
             prev_mu = mu
             prev_Sigma = Sigma
-            prev_tau = tau # TODO(dklein): This is unused. Is that bad?
-            prev_nu = nu # TODO(dklein): This is unused. Is that bad?
             for i in range(N):
                 #print(it, ' ', i,' ', '-'*80)
                 sigma2_i = Sigma[i,i] # Not sure on this one
@@ -862,12 +860,7 @@ class GPC():
 
         # PREDICT:
         if self.use_laplace_approximation:
-            if True: #TODO(dklein): Why is there a conditional here?
-                f_hat = self.find_posterior_mode(self.theta)['f_hat']
-                np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
-            else:
-                f_hat = np.genfromtxt('f_hat.csv', delimiter=',')
-
+            f_hat = self.find_posterior_mode(self.theta)['f_hat']
             ret = self.laplace_predict(self.theta, f_hat, data[self.Xcols_scaled])
         else:
             ret = self.ep_predict(self.theta, data[self.Xcols_scaled])

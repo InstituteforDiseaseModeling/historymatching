@@ -425,7 +425,6 @@ class HistoryMatching():
             self.gpr_model.optimize_hyperparameters(
                 x0 = x0,
                 bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
-                #eps = eps, #TODO(dklein): Can this be removed?
                 optimize_sigma2_n = optimize_sigma2_n,
                 log_transform = log_transform,
                 optimizer_options = optimizer_options
@@ -489,9 +488,6 @@ class HistoryMatching():
             fig.savefig( os.path.join(self.gprdir, 'histogram'+'.'+self.fig_type) )
             plt.close(fig)
 
-            Ymean = self.training_data['Mean_Err'] + self.training_data['Yglm'] # TODO(dklein): This is unused. Is that bad?
-            Yvar = self.training_data['Var_Err_Predictive'] # TODO(dklein): This is unused. Is that bad?
-            #self.training_data['Sim_Result']
             fig, ax = plt.subplots(figsize=(16,10))
             ax.errorbar(
                 x=self.training_data['Sim_Result'],
