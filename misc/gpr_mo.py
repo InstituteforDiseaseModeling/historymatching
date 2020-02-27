@@ -856,8 +856,7 @@ class GPR_MO():
             Var_Latent: Variance of the latent function.  Does not include observation noise.
             Var_Predictive: Variance of the predictive function.  Includes observation noise.
         """
-        #TODO(dklein): Is the `and` in the following conditional intentional?
-        if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
+        if None in [self.X, self.Y, self.Kxx_inv, self.Kxx_inv_Y]: # if no cache
             self.vprint('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
             self.update_cache()
 
@@ -1098,17 +1097,6 @@ class GPR_MO():
         ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
         ax.set_xlabel(self.Ycols_orig)
         ax.set_ylabel('Predicted')
-
-        #TODO(dklein): Do we need this?
-        '''
-        ax = ax2
-        ax.scatter(x=train[self.Ycols_orig], y=train['Z_Score'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
-        ax.scatter(x=test[self.Ycols_orig], y=test['Z_Score'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
-        ax.set_xlabel(self.Ycols_orig)
-        ax.set_ylabel('Z-Score')
-        ax.margins(x=0,y=0.05)
-        '''
-
         plt.tight_layout()
 
         return fig

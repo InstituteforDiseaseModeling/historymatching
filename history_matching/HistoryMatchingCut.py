@@ -49,8 +49,6 @@ class HistoryMatchingCut():
 
                     #self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
                     self.Xcols_all_orig = self.param_info.index.get_level_values('Name').unique().tolist()
-                    # TODO(dklein): This variable is unused. Do we need it?
-                    candidates = pd.DataFrame( columns=self.Xcols_all_orig )
 
                 self.hm_params[(it, cut_name)] = {
                     'desired_result':hm.desired_result,
@@ -185,15 +183,6 @@ class HistoryMatchingCut():
 
         csv_fn = os.path.join(d, name + '.csv')
         non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn, index=False)
-
-        # TODO(dklein): Do we need this?
-        '''
-        writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
-        non_implausible_candidates[self.Xcols_all_orig].to_excel(writer, sheet_name='Values', index=False)
-        non_implausible_candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='NonImplausible')
-        candidates.set_index(self.Xcols_all_orig).to_excel(writer, sheet_name='All')
-        writer.save()
-        '''
 
         print('Rejected {0:.1f}% [{1:d} / {2:d}]'.format(rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials))
 
