@@ -5,7 +5,6 @@ from .HistoryMatchingCut import HistoryMatchingCut
 from .ProgressPlotting import ProgressPlotting
 from .glm import GLM
 from .gpr import GPR
-from .gpr_mo import GPR_MO
 
 from .CutNearSamples import CutNearSamples
 from .MCMCCut import MCMCCut
