@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd
 from history_matching.basis import Basis
+from history_matching.error import HistoryMatchingError
 
 class BasisTest(unittest.TestCase):
 
@@ -15,7 +16,7 @@ class BasisTest(unittest.TestCase):
         b = Basis.make_identity_basis(params=data.keys())
         self.assertEqual(b.param_dict, {'x':'x','y':'y','z':'z'})
         self.assertTrue((b.generate_dmatrix(data)==data).all().all())
-        self.assertRaises(AssertionError, b.generate_dmatrix, data, scaleX=True) #Didn't provide param_info
+        self.assertRaises(HistoryMatchingError, b.generate_dmatrix, data, scaleX=True) #Didn't provide param_info
 
     def test_none_value(self):
         data = pd.DataFrame({'x':[1,2,3],'y':[4,None,6],'z':[7,8,9]})
@@ -32,7 +33,7 @@ class BasisTest(unittest.TestCase):
         b = Basis.make_polynomial_basis(params=data.keys(), intercept=True, first_order=False)
         self.assertEqual(b.param_dict, {'x':'x','y':'y','z':'z'})
         intercept_frame = pd.DataFrame({'Intercept': [1,1,1]})
-        self.assertRaises(AssertionError, b.generate_dmatrix, data, scaleX=True) #Didn't provide param_info
+        self.assertRaises(HistoryMatchingError, b.generate_dmatrix, data, scaleX=True) #Didn't provide param_info
         self.assertTrue((b.generate_dmatrix(data)==intercept_frame).all().all())
 
     def test_polynomial_first(self):
@@ -40,7 +41,7 @@ class BasisTest(unittest.TestCase):
         b = Basis.make_polynomial_basis(params=data.keys(), intercept=True, first_order=True)
         self.assertEqual(b.param_dict, {'x':'x','y':'y','z':'z'})
         intercept_frame = pd.DataFrame({'Intercept': [1,1,1]})
-        self.assertRaises(AssertionError, b.generate_dmatrix, data, scaleX=True) #Didn't provide param_info
+        self.assertRaises(HistoryMatchingError, b.generate_dmatrix, data, scaleX=True) #Didn't provide param_info
         self.assertTrue((b.generate_dmatrix(data)==pd.concat([intercept_frame, data], axis=1)).all().all())
 
     def test_polynomial_second(self):
@@ -48,7 +49,7 @@ class BasisTest(unittest.TestCase):
         b = Basis.make_polynomial_basis(params=data.keys(), intercept=True, first_order=True, second_order=True)
         self.assertEqual(b.param_dict, {'x':'x','y':'y','z':'z'})
         ans = {'Intercept': {0: 1.0, 1: 1.0, 2: 1.0}, 'x': {0: 1.0, 1: 2.0, 2: 3.0}, 'y': {0: 4.0, 1: 5.0, 2: 6.0}, 'z': {0: 7.0, 1: 8.0, 2: 9.0}, 'x ** 2': {0: 1.0, 1: 4.0, 2: 9.0}, 'y ** 2': {0: 16.0, 1: 25.0, 2: 36.0}, 'z ** 2': {0: 49.0, 1: 64.0, 2: 81.0}, 'x * y': {0: 4.0, 1: 10.0, 2: 18.0}, 'x * z': {0: 7.0, 1: 16.0, 2: 27.0}, 'y * z': {0: 28.0, 1: 40.0, 2: 54.0}}
-        self.assertRaises(AssertionError, b.generate_dmatrix, data, scaleX=True) #Didn't provide param_info
+        self.assertRaises(HistoryMatchingError, b.generate_dmatrix, data, scaleX=True) #Didn't provide param_info
         self.assertTrue((b.generate_dmatrix(data)==pd.DataFrame(ans)).all().all())
 
     def test_polynomial_third(self):
