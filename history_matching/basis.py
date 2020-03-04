@@ -1,10 +1,13 @@
-import patsy # TODO: Cleanup
-from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
 import itertools
+import re
+
+from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
+import patsy # TODO: Cleanup
+
 # For regularized selection:
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import statsmodels.api as sm
 
 from history_matching.error import *
@@ -67,7 +70,7 @@ class Basis():
         """
 
         param_dict = Basis.make_param_dict(params)
-        model_terms = [Term([LookupFactor(x)]) for x in param_dict.values()] # X
+        model_terms = [Term([LookupFactor(x)]) for x in param_dict.values()] # X identity matrix
         return cls(model_terms, param_dict, param_info)
 
 
@@ -75,12 +78,7 @@ class Basis():
     def make_polynomial_basis(cls,
             params,
             intercept = True,
-            first_order = True,
-            second_order = False,
-            third_order = False,
-            fourth_order = False,
-            fifth_order = False,
-            higher_order = False,
+            order = 1,
             param_info = None,
             verbose = False
     ):
@@ -89,12 +87,9 @@ class Basis():
         Args:
             params: (str) List of parameters, by name, to include in the basis.
             intercept: (bool) Set True to include a constant in the basis.
-            first_order: (bool) Set True to include first-order terms.
-            second_order: (bool) Set True to include second-order terms.
-            third_order: (bool) Set True to include third-order terms.
-            fourth_order: (bool) Set True to include fourth-order terms.
-            fifth_order: (bool) Set True to include fifth-order terms.
-            higher_order: (bool) Set True to include some sixth and seventh order terms.
+            order: (int) A number 0-6 indicating what order of polynomial should
+                         be used for fitting.
+                         6 includes only some sixth and seventh order terms.
             param_info:  (Pandas dataframe)
                 Columns include:
                 * Name: The name of the parameter, must match column name in training_data.
@@ -110,85 +105,61 @@ class Basis():
         param_dict = Basis.make_param_dict(params)
         params_patsy = param_dict.values()
 
-        # Intercept
-        if intercept:
-            model_terms = [Term([])]
-        else:
-            model_terms = []
+        model_terms = []
 
-        # First order
-        if first_order:
-            model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X
+        if order>=1: # First order
+            model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X matrix identity
 
-        # Second order
-        if second_order:
-            model_terms += [Term([EvalFactor('%s**2'%x)]) for x in params_patsy] # X^2
-            model_terms += [Term([EvalFactor('%s*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y
+        #This generates all of the terms in a polynomial of the given `degree`
+        #with variable list `x`.
+        comboswr = lambda x,degree: list(itertools.combinations_with_replacement(x, degree))
 
-        # Third order
-        if third_order:
-            model_terms += [Term([EvalFactor('%s**3'%x)]) for x in params_patsy] # X^3
+        # Nonlinear terms need an additional transformation, so we collect them in this variable
+        high_terms = [] 
 
-            model_terms += [Term([EvalFactor('%s*%s**2'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^2
-            model_terms += [Term([EvalFactor('%s**2*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^2*Y
+        if order>=2: # Second order
+            high_terms += ['%s*%s'%x for x in comboswr(params_patsy, 2)]
 
-            model_terms += [Term([EvalFactor('%s*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 3)] # X*Y*Z
+        if order>=3: # Third order
+            high_terms += ['%s*%s*%s'%x for x in comboswr(params_patsy, 3)]
 
-        # Fourth order
-        if fourth_order:
-            model_terms += [Term([EvalFactor('%s**4'%x)]) for x in params_patsy] # X^4
-            model_terms += [Term([EvalFactor('%s**3*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^3*Y
-            model_terms += [Term([EvalFactor('%s*%s**3'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^3
+        if order>=4: # Fourth order
+            high_terms += ['%s*%s*%s*%s'%x for x in comboswr(params_patsy, 4)]
 
-            model_terms += [Term([EvalFactor('%s**2*%s**2'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^2*Y^2
+        if order>=5: # Fifth order
+            high_terms += ['%s*%s*%s*%s*%s'%x for x in comboswr(params_patsy, 5)]
 
-            model_terms += [Term([EvalFactor('%s**2*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 3)] # X^2*Y*Z
-            model_terms += [Term([EvalFactor('%s*%s**2*%s'%x)]) for x in itertools.combinations(params_patsy, 3)] # X*Y^2*Z
-            model_terms += [Term([EvalFactor('%s*%s*%s**2'%x)]) for x in itertools.combinations(params_patsy, 3)] # X*Y*Z^2
+        if order>=6: # Some sixth order
+            high_terms += ['%s**6'%x for x in params_patsy] # X^6
 
-            model_terms += [Term([EvalFactor('%s*%s*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 4)] # W*X*Y*Z
+            high_terms += ['%s**5*%s'%x for x in itertools.combinations(params_patsy, 2)] # X^5*Y
+            high_terms += ['%s*%s**5'%x for x in itertools.combinations(params_patsy, 2)] # X*Y^5
 
-        # Fifth order
-        if fifth_order:
-            model_terms += [Term([EvalFactor('%s**5'%x)]) for x in params_patsy] # X^5
-            model_terms += [Term([EvalFactor('%s**4*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^4*Y
-            model_terms += [Term([EvalFactor('%s*%s**4'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^4
-
-            model_terms += [Term([EvalFactor('%s**3*%s**2'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^3*Y^2
-            model_terms += [Term([EvalFactor('%s**2*%s**3'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^2*Y^3
-
-            model_terms += [Term([EvalFactor('%s**3*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 3)] # X^3*Y*Z
-            model_terms += [Term([EvalFactor('%s*%s**3*%s'%x)]) for x in itertools.combinations(params_patsy, 3)] # X*Y^3*Z
-            model_terms += [Term([EvalFactor('%s*%s*%s**3'%x)]) for x in itertools.combinations(params_patsy, 3)] # X*Y*Z^3
-
-            model_terms += [Term([EvalFactor('%s**2*%s*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 4)] # W^2*X*Y*Z
-            model_terms += [Term([EvalFactor('%s*%s**2*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 4)] # W*X^2*Y*Z
-            model_terms += [Term([EvalFactor('%s*%s*%s**2*%s'%x)]) for x in itertools.combinations(params_patsy, 4)] # W*X*Y^2*Z
-            model_terms += [Term([EvalFactor('%s*%s*%s*%s**2'%x)]) for x in itertools.combinations(params_patsy, 4)] # W*X*Y*Z^2
-
-            model_terms += [Term([EvalFactor('%s**2*%s**2*%s'%x)]) for x in itertools.combinations(params_patsy, 3)] # X^2*Y^2*Z
-            model_terms += [Term([EvalFactor('%s**2*%s*%s**2'%x)]) for x in itertools.combinations(params_patsy, 3)] # X^2*Y*Z^2
-            model_terms += [Term([EvalFactor('%s*%s**2*%s**2'%x)]) for x in itertools.combinations(params_patsy, 3)] # X*Y^2*Z^2
-
-            model_terms += [Term([EvalFactor('%s*%s*%s*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 5)] # V*W*X*Y*Z
-
-        if higher_order:
-            # Some sixth order
-            model_terms += [Term([EvalFactor('%s**6'%x)]) for x in params_patsy] # X^6
-
-            model_terms += [Term([EvalFactor('%s**5*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^5*Y
-            model_terms += [Term([EvalFactor('%s*%s**5'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^5
-
-            model_terms += [Term([EvalFactor('%s**3*%s*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 4)] # W^3*X*Y*Z
-            model_terms += [Term([EvalFactor('%s*%s**3*%s*%s'%x)]) for x in itertools.combinations(params_patsy, 4)] # W*X^3*Y*Z
-            model_terms += [Term([EvalFactor('%s*%s*%s**3*%s'%x)]) for x in itertools.combinations(params_patsy, 4)] # W*X*Y^3*Z
-            model_terms += [Term([EvalFactor('%s*%s*%s*%s**3'%x)]) for x in itertools.combinations(params_patsy, 4)] # W*X*Y*Z^3
+            high_terms += ['%s**3*%s*%s*%s'%x for x in itertools.combinations(params_patsy, 4)] # W^3*X*Y*Z
+            high_terms += ['%s*%s**3*%s*%s'%x for x in itertools.combinations(params_patsy, 4)] # W*X^3*Y*Z
+            high_terms += ['%s*%s*%s**3*%s'%x for x in itertools.combinations(params_patsy, 4)] # W*X*Y^3*Z
+            high_terms += ['%s*%s*%s*%s**3'%x for x in itertools.combinations(params_patsy, 4)] # W*X*Y*Z^3
 
             # Some seventh?! order
-            model_terms += [Term([EvalFactor('%s**7'%x)]) for x in params_patsy] # X^7
+            high_terms += ['%s**7'%x for x in params_patsy] # X^7
 
-            model_terms += [Term([EvalFactor('%s**6*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^6*Y
-            model_terms += [Term([EvalFactor('%s*%s**6'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^6
+            high_terms += ['%s**6*%s'%x for x in itertools.combinations(params_patsy, 2)] # X^6*Y
+            high_terms += ['%s*%s**6'%x for x in itertools.combinations(params_patsy, 2)] # X*Y^6
+
+        #Replace multiple multiplications with exponent notation for aesthetic
+        #purposes
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1\*\1", r"\g<1>**7", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1",     r"\g<1>**6", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1",         r"\g<1>**5", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1",             r"\g<1>**4", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1\*\1",                 r"\g<1>**3", x) for x in high_terms]
+        high_terms = [re.sub(r"([^*]+)\*\1",                     r"\g<1>**2", x) for x in high_terms]
+
+        # Transform the nonlinear terms into patsy form
+        model_terms += [Term([EvalFactor(x)]) for x in high_terms]
+
+        if intercept:
+            model_terms += [Term([])]
 
         return cls(model_terms, param_dict, param_info, verbose)
 
@@ -270,6 +241,7 @@ class Basis():
                 print(data[data.isnull().any(axis=1)])
                 print('Data contains Null/None/NaN, see data above.')
                 raise HistoryMatchingError("Data contains Null/None/NaN")
+        dmat = dmat.reindex(sorted(dmat.columns), axis=1) #Sort by column name
         return dmat
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
