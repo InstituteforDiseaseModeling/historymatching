@@ -31,6 +31,7 @@ class MCMCCutWorker(mp.Process):
         self.gpr_all = gpr_all
         '''
 
+        # TODO(dklein): Why are these not imported at the top level?
         import os
         from history_matching import HistoryMatching
         from glm import GLM
@@ -45,7 +46,7 @@ class MCMCCutWorker(mp.Process):
 
         self.param_info = param_info
         self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
-        candidates = pd.DataFrame( columns=self.Xcols_all_orig )
+        candidates = pd.DataFrame( columns=self.Xcols_all_orig ) # TODO(dklein): This is unused. Is that bad?
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
@@ -104,7 +105,7 @@ class MCMCCutWorker(mp.Process):
 
 
     def run(self):
-        self.logger.info( 'x0:\n%s' % self.x0.to_string() )
+        self.logger.info('x0:\n{0}'.format(self.x0.to_string()))
 
         candidates = pd.DataFrame()
 
@@ -135,6 +136,7 @@ class MCMCCutWorker(mp.Process):
             new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
             #new_candidates['Implausible'] = False
 
+            # TODO(dklein): Do we need this?
             '''
             for cut in self.cuts:
                 (it, cut_name) = cut

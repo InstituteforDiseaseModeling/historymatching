@@ -2,10 +2,10 @@ import multiprocessing as mp
 import os
 import random
 
-from history_matching import quick_read
-from history_matching.MCMCCutWorker import MCMCCutWorker
 import logging
 
+from history_matching import quick_read
+from history_matching.MCMCCutWorker import MCMCCutWorker
 
 
 class MCMCCut():

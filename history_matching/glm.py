@@ -3,22 +3,26 @@
 import json
 import os
 
+from matplotlib import pyplot as plt
+from scipy import stats
 from statsmodels import graphics
+import numpy as np
+import pandas as pd
+import seaborn as sns
 import statsmodels.api as sm
 
 from history_matching.basis import Basis
 
-from matplotlib import pyplot as plt
-from scipy import stats
-import numpy as np, pandas as pd, seaborn as sns
 
-class GLM(object):
+
+class GLM:
     """Generalized Linear Modeling (GLM).
 
     This class implementes Generalized Linear Modeling using statsmodels as the engine.
     """
 
-    def __init__(self,
+    def __init__(
+            self,
             basis,
             Ycol,
             training_data = None,
@@ -27,7 +31,7 @@ class GLM(object):
             fig_type = 'pdf',
             fitted_model = None,
             verbose = True
-        ):
+    ):
         """Initialize the GLM class.
 
         Args:
@@ -56,6 +60,7 @@ class GLM(object):
         self.family = family
         self.fig_type = fig_type
         self.verbose = verbose
+        self.model = None
 
         self.fitted_model = fitted_model
 
@@ -69,8 +74,8 @@ class GLM(object):
 
         if not family in glms:
             raise HistoryMatchingError(f"Invalid glm family '{family}'!")
-        if self.verbose:
-            print(f"Using {family} family")
+        self.vprint(f"Using {family} family")
+
         self.glmfam = glms[family]
 
         if self.fitted_model is not None:
@@ -94,7 +99,7 @@ class GLM(object):
         try:
             fitted_model = sm.load(fitted_fn)
             with open(os.path.join(meta_fn)) as data_file:
-                config = json.load( data_file )
+                config = json.load(data_file)
 
                 if 'Basis' in config:
                     basis = Basis.deserialize(config['Basis'])
@@ -110,13 +115,13 @@ class GLM(object):
                         fourth_order = config['Fourth_Order_Basis_Terms'],
                         fifth_order = config['Fifth_Order_Basis_Terms'],
                         higher_order = config['Higher_Order_Basis_Terms'],
-                        param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name')
+                        param_info = pd.read_json(config['Param_Info'], orient='split').set_index('Name')
                     )
 
                 return cls(
                     basis = basis,
                     Ycol = config['Ycol'],
-                    training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
+                    training_data = pd.read_json(config['Training_Data'], orient='split').set_index('Sample_Id'),
                     reference_value = config['Reference_Value'],
                     family = config['Family'],
                     fitted_model = fitted_model
@@ -124,6 +129,11 @@ class GLM(object):
         except EnvironmentError:
             raise HistoryMatchingError("Unable to load GLM from_config file", meta_fn, fitted_fn)
 
+
+    def vprint(self, *args, **kwargs):
+        if self.verbose:
+            print(*args, *kwargs)
+            
 
     def save(self, save_meta_to, save_fitted_to):
         """Save a GLM instance to configuration files.
@@ -159,7 +169,7 @@ class GLM(object):
         """
 
         dmat = self.basis.generate_dmatrix(data, scaleX=True)
-        mean = self.fitted_model.predict( dmat, transform=False )
+        mean = self.fitted_model.predict(dmat, transform=False)
 
         return mean
 
@@ -175,15 +185,13 @@ class GLM(object):
         response_matrix, data_matrix = self.basis.generate_dmatrices(self.training_data, self.Ycol, scaleX=True)
         self.model = sm.GLM(response_matrix, data_matrix, family=self.glmfam)
 
-        if self.verbose:
-            print('Fitting the model, please wait ...')
+        self.vprint('Fitting the model, please wait ...')
         self.fitted_model = self.model.fit(maxiter=maxiter)
 
-        if self.verbose:
-            print(self.fitted_model.summary())
-            print('AIC:', self.fitted_model.aic)
-            print('BIC:', self.fitted_model.bic)
-            print('ITERATION:', self.fitted_model.fit_history['iteration'])
+        self.vprint(self.fitted_model.summary())
+        self.vprint('AIC:', self.fitted_model.aic)
+        self.vprint('BIC:', self.fitted_model.bic)
+        self.vprint('ITERATION:', self.fitted_model.fit_history['iteration'])
 
     def plot_fitted_vs_observed(self):
         """Generates a plot of the fitted values vs the observed values from the training data.
@@ -191,7 +199,7 @@ class GLM(object):
         Returns: A matplotlib figure handle.
         """
 
-        fig, ax = plt.subplots(figsize=(16,6))
+        fig, ax = plt.subplots(figsize=(16, 6))
         y = self.training_data[self.Ycol]
         ax.scatter(y, self.fitted_model.mu, marker='+')
         #line_fit = sm.OLS(y, sm.add_constant(yhat, prepend=True)).fit()
@@ -199,7 +207,7 @@ class GLM(object):
 
         ax.set_title('Model Fit Plot')
         ax.set_xlabel('Observed values')
-        ax.set_ylabel('Fitted values');
+        ax.set_ylabel('Fitted values')
 
         return fig
 
@@ -231,7 +239,7 @@ class GLM(object):
         resid = self.fitted_model.resid_deviance.copy()
         resid_std = stats.zscore(resid)
         ax.hist(resid_std)#, bins=25)
-        ax.set_title('Standardized deviance residuals');
+        ax.set_title('Standardized deviance residuals')
 
         return fig
 
@@ -247,7 +255,7 @@ class GLM(object):
         return fig
 
 
-    def plot_data_multiD(self, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True):
+    def plot_data_multiD(self, circle_points=pd.DataFrame(), saveto_dir=None, log_scale=True):
         """Generates many pair-wise scatter plots of the training data.
 
         Args:
@@ -262,7 +270,7 @@ class GLM(object):
 
         scaled = (self.training_data[self.Ycol]-self.training_data[self.Ycol].min()) / (self.training_data[self.Ycol].max()-self.training_data[self.Ycol].min())
         if log_scale:
-            scaled = np.log( 10*scaled+1 )
+            scaled = np.log(10*scaled+1)
 
         figs = {}
 
@@ -273,40 +281,41 @@ class GLM(object):
         if circle_points.shape[0] > 0:
             cp_dmat = basis.generate_dmatrix(circle_points, scaleX=True)
 
-        reverse_param_dict = {v:k for k,v in basis.param_dict.items()}
+        reverse_param_dict = {v:k for k, v in basis.param_dict.items()}
 
-        for row in range(len(Xcols)):
-            for col in range(len(Xcols)):
-                if col > row:
-                    fn = '%s-%s' % (Xcols[row], Xcols[col]) + '.'+self.fig_type
-                    fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+        for rowi, row in enumerate(Xcols):
+            for coli, col in enumerate(Xcols):
+                if coli > rowi:
+                    fn = '{row}-{col}.{self.fig_type}'
+                    fig = plt.figure(figsize=(6, 6)) #GPy.plotting.plotting_library().figure()
 
-                    x_name = reverse_param_dict[ Xcols[row] ]
-                    y_name = reverse_param_dict[ Xcols[col] ]
-                    x = dmat[ Xcols[row] ] * (basis.param_info.loc[x_name]['Max'] - basis.param_info.loc[x_name]['Min']) + basis.param_info.loc[x_name]['Min']
-                    y = dmat[ Xcols[col] ] * (basis.param_info.loc[y_name]['Max'] - basis.param_info.loc[y_name]['Min']) + basis.param_info.loc[y_name]['Min']
+                    x_name = reverse_param_dict[row]
+                    y_name = reverse_param_dict[col]
+                    x = dmat[row] * (basis.param_info.loc[x_name]['Max'] - basis.param_info.loc[x_name]['Min']) + basis.param_info.loc[x_name]['Min']
+                    y = dmat[col] * (basis.param_info.loc[y_name]['Max'] - basis.param_info.loc[y_name]['Min']) + basis.param_info.loc[y_name]['Min']
 
                     plt.scatter(x, y, 100*scaled, c=100*scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k')
 
                     if circle_points.shape[0] > 0:
-                        for idx, pt in cp_dmat.iterrows():
-                            plt.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+                        for _, pt in cp_dmat.iterrows():
+                            plt.scatter(pt[row], pt[col], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
                     #plt.autoscale(tight=True)
                     plt.xlim(basis.param_info.loc[x_name][['Min', 'Max']])
                     plt.ylim(basis.param_info.loc[y_name][['Min', 'Max']])
-                    plt.xlabel( x_name )
-                    plt.ylabel( y_name )
+                    plt.xlabel(x_name)
+                    plt.ylabel(y_name)
                     plt.tight_layout()
                     if saveto_dir is not None:
-                        fig.savefig( os.path.join(saveto_dir, fn) ); plt.close(fig)
+                        fig.savefig(os.path.join(saveto_dir, fn))
+                        plt.close(fig)
                     else:
                         figs[fn] = fig
 
         return figs
 
 
-    def plot_data_1D(self, circle_points=pd.DataFrame(), saveto_dir = None, log_scale=True):
+    def plot_data_1D(self, circle_points=None, saveto_dir=None, log_scale=True):
         """For 1D data, plots a scatter of output (y) vs input (x).
 
         Args:
@@ -318,23 +327,25 @@ class GLM(object):
 
         Returns: a dictionary of matplotlib figure handles with keys indicating the parameter names via the filename which would be used to save the figure.
         """
+        if circle_points is None:
+            circle_points = pd.DataFrame()
 
         # TODO: Save and log scale!
         scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
 
         Xcols = self.basis.get_terms()[0] # Not tested!
-        fig = plt.figure(figsize=(6,8)) #GPy.plotting.plotting_library().figure()
-        x = self.training_data[ Xcols ]
+        fig = plt.figure(figsize=(6, 8)) # GPy.plotting.plotting_library().figure()
+        x = self.training_data[Xcols]
         y = self.training_data[self.Ycol]
 
         plt.scatter(x, y, s=15, c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
 
-        for idx, pt in circle_points.iterrows():
-            plt.scatter(pt[ Xcols ], pt[ self.Ycol ], s=25, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+        for _, pt in circle_points.iterrows():
+            plt.scatter(pt[Xcols], pt[self.Ycol], s=25, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
         plt.autoscale(tight=True)
-        plt.xlabel( Xcols )
-        plt.ylabel( self.Ycol )
+        plt.xlabel(Xcols)
+        plt.ylabel(self.Ycol)
         plt.tight_layout()
 
         return {Xcols: fig}
@@ -355,11 +366,10 @@ class GLM(object):
         Returns: a dictionary of matplotlib figure handles with keys indicating the parameter names via the filename which would be used to save the figure.
         """
 
-        '''
-        if self.D > 1:
-            return self.plot_data_multiD(**kwargs)
-        return self.plot_data_1D(**kwargs)
-        '''
+        # TODO(dklein): What's going on here?
+        # if self.D > 1:
+        #     return self.plot_data_multiD(**kwargs)
+        # return self.plot_data_1D(**kwargs)
 
         # 1D not working, do multiD:
         return self.plot_data_multiD(**kwargs)
@@ -372,7 +382,7 @@ class GLM(object):
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
+        sns.distplot(self.training_data[self.Ycol], rug=True, ax=ax)
 
         return fig
 
@@ -391,13 +401,13 @@ class GLM(object):
         d_by_sample = self.training_data.reset_index().set_index('Sample_Id')
         n_samples = len(d_by_sample.index.unique())
 
-        axes.plot( 2 * [self.reference_value], [0,n_samples], 'r-') # , axes=axes[0,0]
+        axes.plot(2*[self.reference_value], [0, n_samples], 'r-') # , axes=axes[0,0]
 
         sim_cases_range = self.training_data.reset_index().groupby('Sample_Id')[self.Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
         sim_cases_range['Fitted_Model_Mean'] = self.fitted_model.mu
-        for idx,s in sim_cases_range.iterrows():
-            axes.plot( [s['Min'], s['Max']], [idx,idx], 'b-', linewidth=0.5 )
-            axes.plot( [s['Mean'], s['Fitted_Model_Mean']], [idx,idx], 'g-', linewidth=0.25 )
+        for idx, s in sim_cases_range.iterrows():
+            axes.plot([s['Min'], s['Max']], [idx, idx], 'b-', linewidth=0.5)
+            axes.plot([s['Mean'], s['Fitted_Model_Mean']], [idx, idx], 'g-', linewidth=0.25)
         axes.scatter(d[self.Ycol], d['Sample_Id'], c='k', marker='|', alpha=1, linewidths=0.5)
 
         axes.scatter(self.fitted_model.mu, d['Sample_Id'], c='g', marker='+', alpha=1, linewidths=0.5)
@@ -454,22 +464,22 @@ class GLM(object):
         test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         exp_ids = list(set(train_exps + test_exps))
 
-        fig, ax = plt.subplots(figsize=(16,10))
+        fig, ax = plt.subplots(figsize=(16, 10))
         ax.plot(train[self.Ycol], train['Yglm'], 'c+', ms=10, mew=1)
         ax.plot(test[self.Ycol], test['Yglm'], 'm+', ms=10, mew=1)
-        ax.margins(x=0,y=0.05)
+        ax.margins(x=0, y=0.05)
         xlim = ax.get_xlim()
-        ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
+        ax.plot([xlim[0], xlim[1]], [xlim[0], xlim[1]], 'r-')
         ax.set_xlabel('Simulation Result')
         ax.set_ylabel('Predicted')
 
         figs['GLM Predicted vs Actual'] = fig
 
-        for i, exp_id in enumerate(exp_ids):
-            fig, ax = plt.subplots(figsize=(16,10))
+        for exp_id in exp_ids:
+            fig, ax = plt.subplots(figsize=(16, 10))
             data_all = []
             cols = []
-            if exp_id in train_exps: 
+            if exp_id in train_exps:
                 data_all.append(_tr.loc[exp_id])
                 cols.append('c')
             if exp_id in test_exps:
@@ -482,7 +492,7 @@ class GLM(object):
                 ax.plot(data['Sample'], data['Yglm'], 'k.', ms=5, linewidth=1)
                 ax.set_title(exp_id)
 
-            ax.margins(x=0,y=0.05)
+            ax.margins(x=0, y=0.05)
             ax.set_xlabel('Sample')
 
             figs['GLM expId ' + str(exp_id)] = fig
