@@ -34,3 +34,13 @@ On each iteration, beginning with iter0, run the python scripts in the following
 # Limitations
 
 The package uses GPU acceleration based on CUDA, and thus only works on a computer with a modern NVIDIA graphics card.
+
+# Setting up a dev environment
+
+Install the necessary packages:
+
+    pip3 install pre-commit pylint
+
+Set up pre-commit hooks:
+
+    pre-commit install
