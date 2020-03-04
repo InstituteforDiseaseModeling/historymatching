@@ -150,46 +150,6 @@ class GPR_MO():
         else:
             self.set_hyperparameters(sigma2_f, sigma2_n, lengthscales2, b)
 
-
-    @classmethod
-    def from_config(cls, config_fn):
-        """Restore a GPR_MO instance from a saved configuration file.
-
-        Args:
-            config_fn: (str)
-                Path to the configuration file.
-        """
-
-        try:
-            print(f'from_config: {config_fn}')
-            data_file = open(os.path.join(config_fn))
-        except Exception as e:
-            raise HistoryMatchingError(f"Unable to open GPR_MO config file '{config_fn}'")
-
-        try:
-            config = json.load( data_file )
-        except Exception as e:
-            raise HistoryMatchingError(f"Unable to decode content of GPR_MO config file '{config_fn}'")
-
-        basis = Basis.deserialize(config['Basis'])
-
-        return cls(
-            basis = basis,
-            Ycols = config['Ycols'],
-            training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
-            param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
-            kernel_mode = config['Kernel_Mode'],
-
-            sigma2_f = np.array(config['sigma2_f']),
-            sigma2_n = np.array(config['sigma2_n']),
-            lengthscales2 = np.array(config['lengthscales2']),
-            b = np.array(config['b']),
-
-            normalizer_mean = config['Normalizer_Mean'],
-            normalizer_std = config['Normalizer_Std'],
-            normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
-        )
-
     def vprint(self, *args, **kwargs):
         self.vprint(*args, *kwargs)
 
@@ -291,31 +251,6 @@ class GPR_MO():
             self.Kxx_inv = np.linalg.inv(Kxx)
 
         self.Kxx_inv_Y = np.dot(self.Kxx_inv, self.Y.flatten('F')) # TODO: GPU
-
-
-    def save(self, save_to):
-        """Save GPR_MO instance to file.
-
-        Args:
-            save_to: (str) Filename.
-        """
-
-        with open(save_to, 'w') as fout:
-            json.dump(
-                {
-                    'Basis': self.basis.serialize(),
-                    'Ycols': self.Ycols_orig,
-                    'Kernel_Mode': self.kernel_mode,
-                    'sigma2_f': self.sigma2_f.tolist(),
-                    'sigma2_n': self.sigma2_n.tolist(),
-                    'lengthscales2': self.lengthscales2.tolist(),
-                    'b': self.b.tolist(),
-                    'Normalizer_Mean': self.normalizer_mean,
-                    'Normalizer_Std': self.normalizer_std,
-                    'Normalize_Y': self.normalize_y,
-                    'Training_Data': self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycols]]
-                    'Param_Info': self.param_info.reset_index().to_json(orient='split')
-                }, fout, indent=4)
 
     def normalize(self, data):
         """If normalize_y is True, normalize some data by subtracting the mean and dividing by the standard deviation.

@@ -142,41 +142,6 @@ class GPR():
         else:
             self.set_theta(theta)
 
-
-    @classmethod
-    def from_config(cls, config_fn):
-        """Restore a GPR instance from a saved configuration file.
-
-        Args:
-            config_fn: (str)
-                Path to the configuration file.
-        """
-
-        try:
-            print(f'from_config: {config_fn}')
-            data_file = open(os.path.join(config_fn))
-        except Exception as e:
-            raise HistoryMatchingError(f"Unable to open GPR config file '{config_fn}'")
-
-        try:
-            config = json.load( data_file )
-        except Exception as e:
-            raise HistoryMatchingError(f"Unable to decode content of GPR config file '{config_fn}'")
-
-        basis = Basis.deserialize(config['Basis'])
-
-        return cls(
-            basis = basis,
-            Ycol = config['Ycol'],
-            training_data = pd.read_json( config['Training_Data'], orient='split' ).set_index('Sample_Id'),
-            param_info = pd.read_json( config['Param_Info'], orient='split' ).set_index('Name'),
-            kernel_mode = config['Kernel_Mode'],
-            theta = np.array(config['Kernel_Params']),
-            normalizer_mean = config['Normalizer_Mean'],
-            normalizer_std = config['Normalizer_Std'],
-            normalize_y = config['Normalize_Y'] if 'Normalize_Y' in config else True
-        )
-
     def set_training_data(self, new_training_data):
         """Set the training data for GPR, will normalize if needed
 
@@ -245,28 +210,6 @@ class GPR():
             self.Kxx_inv = np.linalg.inv(Kxx)
 
         self.Kxx_inv_Y = np.dot(self.Kxx_inv, self.Y) # TODO: GPU
-
-
-    def save(self, save_to):
-        """Save GPR instance to file.
-
-        Args:
-            save_to: (str) Filename.
-        """
-
-        with open(save_to, 'w') as fout:
-            json.dump(
-                {
-                    'Basis'         : self.basis.serialize(),
-                    'Ycol'          : self.Ycol_orig,
-                    'Kernel_Mode'   : self.kernel_mode,
-                    'Kernel_Params' : self.theta.tolist(),
-                    'Normalizer_Mean': self.normalizer_mean,
-                    'Normalizer_Std': self.normalizer_std,
-                    'Normalize_Y'   : self.normalize_y,
-                    'Training_Data' : self.training_data.reset_index().to_json(orient='split'), # [self.Xcols + [self.Ycol]]
-                    'Param_Info'        : self.param_info.reset_index().to_json(orient='split')
-                }, fout, indent=4)
 
     def normalize(self, data):
         """If normalize_y is True, normalize some data by subtracting the mean and dividing by the standard deviation.

@@ -4,7 +4,6 @@ import re
 from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
 import patsy # TODO: Cleanup
 
-# For regularized selection:
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -39,7 +38,6 @@ class Basis():
         self.param_info = param_info # To normalize data to [0,1].  Should be here?
         self.verbose = verbose
 
-
     @staticmethod
     def make_param_dict(param_names):
         """Static helper method to transform parameter names into a dictionary in which the keys are the original parameter names and the values are patsy-safe strings
@@ -50,7 +48,6 @@ class Basis():
 
         # Return mapping from original parameter name to patsy-safe name
         return {p:p.replace(':','').replace('&',' ').replace(' ', '_').replace('-','_') for p in param_names}
-
 
     @classmethod
     def make_identity_basis(cls, params, param_info=None):
@@ -159,46 +156,39 @@ class Basis():
         model_terms += [Term([EvalFactor(x)]) for x in high_terms]
 
         if intercept:
-            model_terms += [Term([])]
+            model_terms = [Term([])] + model_terms
 
         return cls(model_terms, param_dict, param_info, verbose)
 
-
-    @classmethod
-    def deserialize(cls, state):
-        """ Helper to read basis from file.
+    def __setstate__(self, state):
+        """Load from a pickled state.
 
         Args:
-            state: (dict) Contents of file produced by serialize.
+            state: (dict) Dictionary produced by `__getstate__()`
 
         Returns: Instance of Basis class.
         """
+        self.__dict__ = state               #Set object attributes
 
-        terms = state['Terms']
+        terms = state['model_terms']        #Patsy doesn't pickle, we handle it
 
-        if 'Intercept' in terms:
-            intercept_term = [Term([])]
-            terms.remove('Intercept')
-        else:
-            intercept_term = []
+        self.model_terms = []
+        for t in terms:
+            if t=='Intercept':
+                self.model_terms.append(Term([]))
+            elif '*' in t:
+                self.model_terms.append(Term([EvalFactor(t)]))
+            else:
+                self.model_terms.append(Term([LookupFactor(t)]))
 
-        return cls(
-            model_terms = intercept_term + [Term([EvalFactor(t)]) for t in terms],
-            param_dict = state['Param_Dict'],
-            param_info = pd.read_json( state['Param_Info'], orient='split' ).set_index('Name')
-        )
-
-
-    def serialize(self):
-        """ Helper to write Basis to file.
+    def __getstate__(self):
+        """Save to a pickled state"
+        Returns: Dictionary containing informtaion to pickle.
         """
-
-        return {
-            'Terms' : self.get_terms(),
-            'Param_Dict' : self.param_dict,
-            'Param_Info' : self.param_info.reset_index().to_json(orient='split')
-        }
-
+        d = self.__dict__.copy()            #Shallow copy dictionary
+        #Replace bad patsy serialization with our own (preserves self.__dict__)
+        d['model_terms'] = self.get_terms() 
+        return d                            #Return data to pickle
 
     def scale_data(self, data):
         """ Helper to scale data.
@@ -216,7 +206,6 @@ class Basis():
             elif self.verbose:
                 print('Basis: Unable to scale', col)
         return data
-
 
     def generate_dmatrix(self, data, scaleX = False):
         """Generate data matrix.
@@ -288,7 +277,6 @@ class Basis():
 
         return terms
 
-
     def regularize(self, inputs, results, alpha, scaleX = False):
         """Performs a lasso L1 regularization to select important terms.
 
@@ -344,7 +332,6 @@ class Basis():
 
         return fit.predict(data_matrix)
 
-
     def fit(self, inputs, results, scaleX = False):
         """Fits an ordinary least-squares model.
 
@@ -357,7 +344,6 @@ class Basis():
         """
 
         return self.regularize(inputs, results, 0, scaleX)
-
 
     def plot_regularize(self, inputs, results, alpha, scaleX = False, title = None):
 
