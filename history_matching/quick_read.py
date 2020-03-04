@@ -1,4 +1,5 @@
-import hashlib, os
+import hashlib
+import os
 import pandas as pd
 
 def md5(fname):
@@ -14,7 +15,7 @@ def quick_read(excel_fn, sheetname, force_read=False, **kwargs):
     excel_md5 = md5(excel_fn)
 
     filename = os.path.splitext(excel_fn)[0]
-    hdf_fn = os.path.join( '%s_%s.hd5'%(filename, excel_md5) )
+    hdf_fn = os.path.join(f'{filename}_{excel_md5}.hd5')
     if not force_read and os.path.isfile(hdf_fn):
         print('Reading', sheetname, 'from', hdf_fn)
         store = pd.HDFStore(hdf_fn)
