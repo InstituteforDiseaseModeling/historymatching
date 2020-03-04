@@ -7,5 +7,3 @@ from .glm import GLM
 from .gpr import GPR
 
 from .CutNearSamples import CutNearSamples
-from .MCMCCut import MCMCCut
-from .MCMCCutWorker import MCMCCutWorker
