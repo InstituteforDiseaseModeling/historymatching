@@ -98,3 +98,12 @@ class TestCKernels(unittest.TestCase):
             pret = timeify(lambda:kernel_xx(X,theta,sigma2_n,True,deriv), "kernel_xx")
             cret = timeify(lambda:ckernels.kernel_xx(X,theta,sigma2_n,True,deriv), "ckernels.kernel_xx")
             self.assertIsNone(np.testing.assert_array_equal(pret, cret))
+
+    def test_kernel_xp_time(self):
+        Nx   = 10000
+        Np   = 25000
+        D    = 100
+        X     = np.random.random((Nx,D))
+        P     = np.random.random((Np,D))
+        theta = np.random.random(D+2)
+        cret = timeify(lambda:ckernels.kernel_xp(X,P,theta), "ckernels.kernel_xp (BIG)")
