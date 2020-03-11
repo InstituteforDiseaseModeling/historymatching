@@ -151,7 +151,7 @@ setup(name='HistoryMatching',
           "Development Status :: 2 - Pre-Alpha",
           "Intended Audience :: Science/Research",
           "Topic :: Scientific/Engineering :: Information Analysis"
-      ]
+      ],
       ext_modules=ext_modules,
       cmdclass={'build_ext': BuildExt}
 )
