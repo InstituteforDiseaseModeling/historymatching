@@ -211,8 +211,6 @@ class HistoryMatching():
             force_optimize_glm = False,
             glm_fit_maxiter = 100000,
             family = 'Poisson', # e.g. Poisson, Gaussian
-            plot = True,
-            plot_data = False,
             **kwargs
     ):
         """Perform Generalized Linear Modeling (GLM).
@@ -224,8 +222,6 @@ class HistoryMatching():
             force_optimize_glm: (bool) Set True to force optimization of the GLM parameters even when results from a previous optimization exist.
             glm_fit_maxiter: (int) Maximum number of iterations during parameter optimization.
             family: (str) GLM family from statsmodels.  Examples include `Poisson` and `Gaussian.`
-            plot: (bool) Set True to produce informative diagnostic plots.
-            plot_data: (bool) Set True to visualize the data in many pairwise plots.  Note plot must also be true for plot_data to produce results.  Results will be saved to a folder named PairwiseResults.
         """
 
         if not self.use_glm:
@@ -262,45 +258,6 @@ class HistoryMatching():
             print('Evaluating training and test data') # Store results in Yglm
         train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
         test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
-
-        # Plot the errors and save to errors_glm.pdf
-        figs = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index())
-        for key, fig in figs.items():
-            fig.savefig( os.path.join(self.glmdir, key+'.'+self.fig_type) )
-            plt.close(fig)
-
-        if plot:
-            print('Plotting')
-
-            if plot_data:
-                # TODO: Save plots as they are made
-                pairdir = os.path.join(self.glmdir, 'PairwiseResults')
-                if not os.path.exists( pairdir):
-                    os.mkdir( pairdir )
-                cp = pd.DataFrame() # To not circle a point, pass in an empty data frame.
-                #print(test_mean.loc[[2110]])
-                #cp = test_mean.loc[[2110]]
-                figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
-
-            fig = self.glm_model.plot_fitted_vs_observed()
-            fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed'+'.'+self.fig_type) )
-            plt.close(fig)
-
-            fig = self.glm_model.plot_pearson_residuals()
-            fig.savefig( os.path.join(self.glmdir, 'pearson_residuals'+'.'+self.fig_type) )
-            plt.close(fig)
-
-            fig = self.glm_model.plot_deviance_redisuals()
-            fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals'+'.'+self.fig_type) )
-            plt.close(fig)
-
-            fig = self.glm_model.plot_QQ()
-            fig.savefig( os.path.join(self.glmdir, 'QQ'+'.'+self.fig_type) )
-            plt.close(fig)
-
-            #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram'+'.'+self.fig_type) );          plt.close(fig)
-            #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit'+'.'+self.fig_type) );                plt.close(fig)
-
 
         train_mean = train_mean.reset_index().set_index('Sample_Id')
         test_mean = test_mean.reset_index().set_index('Sample_Id')
@@ -509,7 +466,6 @@ class HistoryMatching():
             plt.close(fig)
 
         return self.gpr_model
-
 
 
     def plot(self):

@@ -186,14 +186,12 @@ class GLM:
         return fig
 
 
-    def plot_data_multiD(self, circle_points=pd.DataFrame(), saveto_dir=None, log_scale=True):
+    def plot_data_multiD(self, circle_points=None, saveto_dir=None, log_scale=True):
         """Generates many pair-wise scatter plots of the training data.
 
         Args:
             circle_points: (Pandas DataFrame)
                 A data frame like training_data.  Each entry will be marked with a black x's in the figures.  Good for debugging large Z scores.
-            saveto_dir: (str)
-                If not None, figures will be saved to this directory.  The user may need to create the output directory.
             log_scale:  (boolean, default is False) transforms size and color using log(10 * normalized_y_value + 1)
 
         Returns: a dictionary of matplotlib figure handles with keys indicating the parameter names via the filename which would be used to save the figure.
@@ -209,7 +207,7 @@ class GLM:
         Xcols = basis.get_terms()
         dmat = basis.generate_dmatrix(self.training_data, scaleX=True)
 
-        if circle_points.shape[0] > 0:
+        if circle_points is not None:
             cp_dmat = basis.generate_dmatrix(circle_points, scaleX=True)
 
         reverse_param_dict = {v:k for k, v in basis.param_dict.items()}
@@ -218,30 +216,26 @@ class GLM:
             for coli, col in enumerate(Xcols):
                 if coli > rowi:
                     fn = '{row}-{col}.{self.fig_type}'
-                    fig = plt.figure(figsize=(6, 6)) #GPy.plotting.plotting_library().figure()
+                    fig, axes = plt.subplots()
 
                     x_name = reverse_param_dict[row]
                     y_name = reverse_param_dict[col]
                     x = dmat[row] * (basis.param_info.loc[x_name]['Max'] - basis.param_info.loc[x_name]['Min']) + basis.param_info.loc[x_name]['Min']
                     y = dmat[col] * (basis.param_info.loc[y_name]['Max'] - basis.param_info.loc[y_name]['Min']) + basis.param_info.loc[y_name]['Min']
 
-                    plt.scatter(x, y, 100*scaled, c=100*scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k')
+                    axes.scatter(x, y, 100*scaled, c=100*scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k')
 
-                    if circle_points.shape[0] > 0:
-                        for _, pt in cp_dmat.iterrows():
-                            plt.scatter(pt[row], pt[col], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+                    if circle_points is not None:
+                        for idx, pt in cp_dmat.iterrows():
+                            axes.scatter(pt[ Xcols[row] ], pt[ Xcols[col] ], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
-                    #plt.autoscale(tight=True)
-                    plt.xlim(basis.param_info.loc[x_name][['Min', 'Max']])
-                    plt.ylim(basis.param_info.loc[y_name][['Min', 'Max']])
-                    plt.xlabel(x_name)
-                    plt.ylabel(y_name)
-                    plt.tight_layout()
-                    if saveto_dir is not None:
-                        fig.savefig(os.path.join(saveto_dir, fn))
-                        plt.close(fig)
-                    else:
-                        figs[fn] = fig
+                    #axes.autoscale(tight=True)
+                    axes.set_xlim(basis.param_info.loc[x_name][['Min', 'Max']])
+                    axes.set_ylim(basis.param_info.loc[y_name][['Min', 'Max']])
+                    axes.set_xlabel( x_name )
+                    axes.set_ylabel( y_name )
+                    fig.tight_layout()
+                    figs[fn] = fig
 
         return figs
 
