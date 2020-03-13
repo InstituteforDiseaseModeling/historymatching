@@ -154,7 +154,6 @@ hm.gpr(
     #lengthscale_guess = [0.04313128, 0.2, 0.14240553, 0.01418867, 0.2, 0.17683428],
     lengthscale_guess = 0.15,
     lengthscale_bounds = (0.001, 0.2),
-    verbose = True,
     optimizer_options = {
         'eps': 5e-3,
         'disp': True,

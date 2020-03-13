@@ -1,5 +1,6 @@
 from string import Template
 import json
+import logging
 import os
 import sys
 
@@ -41,7 +42,6 @@ class GPR():
                  normalize_y = True,
                  sigma2_n = None,
                  fig_type = 'pdf',
-                 verbose = False,
                  debug = False,
                  **kwargs
         ):
@@ -80,7 +80,6 @@ class GPR():
                 If the responses should be normalized
             sigma_n: (None or instance of GPR)
                 For typical homoscedastic GPR, leave as None.  The kernel hyperparamter, sigma2_n, will be optimized.  Alternatively for heteroscedastic GPR, provide an instance of a GPR with the same input dimensions for which the optut is the log of the variance.
-            verbose: (boolean, optional with default False)
             debug: (boolean, optional with default False)
             normalizer_mean (float, optional):  Allows specification or recovery of the mean of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
@@ -124,7 +123,6 @@ class GPR():
         self.normalizer = True #UserStandardize(mean=self.normalizer_mean, std=self.normalizer_std)
         self.poisson = False #is_poisson
 
-        self.verbose = verbose
         self.debug = debug
 
         # Heteroscedastic GP setup
@@ -189,8 +187,7 @@ class GPR():
 
         """
 
-        if self.debug:
-            print('Updating cache of Kxx_inv and Kxx_inv_Y')
+        logging.getLogger("HistoryMatching").info('Updating cache of Kxx_inv and Kxx_inv_Y')
 
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
@@ -256,13 +253,13 @@ class GPR():
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            if self.verbose:
-                print("max_threads_per_block", max_threads_per_block)
-                print("max_block_dim", max_block_dim)
-                print("max_grid_dim", max_grid_dim)
-                print("max_blocks_per_grid", max_blocks_per_grid)
-                print("block_dim", block_dim)
-                print("grid_dim", grid_dim)
+            log = logging.getLogger("HistoryMatching")
+            log.info(f"max_threads_per_block: {max_threads_per_block}")
+            log.info(f"max_block_dim:         {max_block_dim}")
+            log.info(f"max_grid_dim:          {max_grid_dim}")
+            log.info(f"max_blocks_per_grid:   {max_blocks_per_grid}")
+            log.info(f"block_dim:             {block_dim}")
+            log.info(f"grid_dim:              {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -753,16 +750,16 @@ class GPR():
         """
 
         if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
-            if self.verbose:
-                print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
+            logging.getLogger("HistoryMatching").info("No cache for Kxx_inv or Kxx_inv_Y")
             self.update_cache()
 
         P = self.basis.generate_dmatrix( data, scaleX = True).values
 
         if self.debug:
-            print('X',self.X.shape,' flags:\n', self.X.flags)
-            print('Y',self.Y.shape,' flags:\n', self.Y.flags)
-            print('P',P.shape,' flags:\n', P.flags)
+            log = logging.getLogger("HistoryMatching")
+            log.info('X',self.X.shape,' flags:\n', self.X.flags)
+            log.info('Y',self.Y.shape,' flags:\n', self.Y.flags)
+            log.info('P',P.shape,' flags:\n', P.flags)
 
         Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
         if self.debug:
@@ -785,8 +782,7 @@ class GPR():
 
         f = np.dot(Kxp.T, self.Kxx_inv_Y)
 
-        if self.debug:
-            print('Using cache for covf')
+        log = logging.getLogger("HistoryMatching").info('Using cache for covf')
 
         # NOTE: Just computing diagonal elements of:
         #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
@@ -921,7 +917,6 @@ class GPR():
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
                     self.debug=False
-                    self.verbose=False
 
                     ret = self.evaluate( Xdf )
 

@@ -1,5 +1,6 @@
 from collections import deque
 from functools import partial
+import logging
 from string import Template
 import json
 import os
@@ -32,7 +33,6 @@ class GPC():
                  kernel_mode = 'RBF',
                  kernel_params = None,
                  fig_type = 'pdf',
-                 verbose = False,
                  debug = False,
                  **kwargs
     ):
@@ -61,8 +61,6 @@ class GPC():
             self.Xcols_scaled.append(xc_new)
             self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
-
-        self.verbose = verbose
         self.debug = debug
         self.D = len(self.Xcols)
 
@@ -94,11 +92,6 @@ class GPC():
             kernel_mode = config['Kernel_Mode'],
             kernel_params = np.array(config['Kernel_Params']),
         )
-
-
-    def vprint(self, *args, **kwargs):
-        if self.verbose:
-            print(*args, *kwargs)
 
     def set_training_data(self, new_training_data):
         self.training_data = new_training_data.copy()
@@ -135,13 +128,13 @@ class GPC():
             block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            if self.verbose:
-                print("max_threads_per_block", max_threads_per_block)
-                print("max_block_dim", max_block_dim)
-                print("max_grid_dim", max_grid_dim)
-                print("max_blocks_per_grid", max_blocks_per_grid)
-                print("block_dim", block_dim)
-                print("grid_dim", grid_dim)
+            log = logging.getLogger("HistoryMatching")
+            log.info(f"max_threads_per_block: {max_threads_per_block}")
+            log.info(f"max_block_dim:         {max_block_dim}")
+            log.info(f"max_grid_dim:          {max_grid_dim}")
+            log.info(f"max_blocks_per_grid:   {max_blocks_per_grid}")
+            log.info(f"block_dim:             {block_dim}")
+            log.info(f"grid_dim:              {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -306,8 +299,7 @@ class GPC():
         Sigma_tol = 1e-6
 
         y = self.training_data[self.Ycol].values
-        if self.verbose:
-            print('y:', y)
+        logging.getLogger("HistoryMatching").info(f"y: {y}")
         N = len(y)
 
         X = self.training_data[self.Xcols_scaled].values
@@ -430,8 +422,7 @@ class GPC():
 
         logZep = logZep_terms_1_and_4 + logZep_terms_5b_and_2 + logZep_term_5a + logZep_term_3
 
-        if self.verbose:
-            print(theta, '-->', -logZep)
+        logging.getLogger("HistoryMatching").info(f"theta --> {-logZep}")
 
         return -logZep, nu, tau
 
@@ -446,8 +437,7 @@ class GPC():
                 raise HistoryMatchingError("f_guess must have the same length as y!")
 
         y = self.training_data[self.Ycol].values
-        if self.verbose:
-            print('y:', y)
+        logging.getLogger("HistoryMatching").info(f"y: {y}")
         N = len(y)
         f_hat = f_guess if f_guess is not None else np.zeros_like( y )
 
@@ -593,8 +583,7 @@ class GPC():
             s3 = b - np.dot(K, np.dot(R,b))
             d_dtheta_logZ[j] = s1 + np.dot(np.transpose(s2), s3) #s1 seems good, s2 is good
 
-
-        if self.verbose: print('d_dtheta_logZ:', d_dtheta_logZ)
+        logging.getLogger("HistoryMatching").info(f'd_dtheta_logZ: {d_dtheta_logZ}')
 
         return -logZ, -d_dtheta_logZ, f_hat # Careful with sign
 
@@ -938,7 +927,6 @@ class GPC():
 
                     self.debug=False
                     #print('WARNING: DEBUG!\n')
-                    self.verbose=False
 
                     ret = self.evaluate( Xdf )
 

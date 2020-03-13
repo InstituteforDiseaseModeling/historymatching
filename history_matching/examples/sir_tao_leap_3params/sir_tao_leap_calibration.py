@@ -305,7 +305,6 @@ while (it < maxIter):
                 force_optimize_gpr = True,
                 optimize_sigma2_n = True,
                 log_transform = True,
-                verbose = verbose,
                 optimizer_options = { 'eps'    : 1e-3,
                                       'disp'   : False,
                                       'maxiter': int(1e5),

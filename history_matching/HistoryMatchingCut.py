@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 
@@ -18,8 +19,6 @@ class HistoryMatchingCut():
 
         self.param_info = None
         self.Xcols_all_orig = None
-
-        self.debug = False
 
         self.hm_params = {}
         self.glm_all = {}
@@ -80,12 +79,10 @@ class HistoryMatchingCut():
             print(f'Performing cut: iteration {it} cut {cut_name}')
             t = time.time()
             plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
-            if self.debug:
-                print('GLM:', time.time()-t); 
+            logging.getLogger("HistoryMatching").info('GLM:', time.time()-t)
             t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
-            if self.debug:
-                print('GPR:', time.time()-t);
+            logging.getLogger("HistoryMatching").info('GPR:', time.time()-t)
             plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
 

@@ -30,9 +30,7 @@ class GPCTest(unittest.TestCase):
         g = GPC(['x'], 'y', data, param_info,
                     kernel_mode = 'RBF',
                     #kernel_params = [0.001, 0.04],
-                    kernel_params = [40, 0.14], # Sigma_f^2 and lengthscale^2
-                    verbose = False,
-                    debug = False
+                    kernel_params = [40, 0.14] # Sigma_f^2 and lengthscale^2
                 )
 
         ### Test find posterior mode against eq 3.17
@@ -67,8 +65,6 @@ class GPCTest(unittest.TestCase):
         g = GPC(['x', 'y'], 'z', data, param_info,
                     kernel_mode = 'RBF',
                     kernel_params = [20.57666683, 0.20004966, 1.96484556], # Sigma_f^2 and lengthscale_x^2 lengthscale_y^2
-                    verbose = False,
-                    debug = False
                 )
 
         ### Test find posterior mode against eq 3.17

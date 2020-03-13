@@ -5,8 +5,7 @@ analyzers = [
         name = 'Dan ;)',
         weight = 135,
         force_apply = True,
-        basedir = '.',
-        verbose = True
+        basedir = '.'
     )
 ]
 

@@ -1,4 +1,5 @@
 import itertools
+import logging
 import re
 
 from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
@@ -15,7 +16,7 @@ class Basis():
     """Class to support polynomial basis, data matrix generation, and parameter name handling.
     """
 
-    def __init__(self, model_terms, param_dict, param_info=None, verbose=False):
+    def __init__(self, model_terms, param_dict, param_info=None):
         """Create and instance of the Basis class.
 
         Args:
@@ -29,14 +30,12 @@ class Basis():
                 * Max: Maximum value of parameter.
                 * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
                 * Source: (optional) Source from which parameter ranges came from
-            verbose: (bool)
         """
 
         self.model_terms = model_terms
         self.param_dict = param_dict
         self.D = len(self.model_terms)
         self.param_info = param_info # To normalize data to [0,1].  Should be here?
-        self.verbose = verbose
 
     @staticmethod
     def make_param_dict(param_names):
@@ -77,7 +76,6 @@ class Basis():
             intercept = True,
             order = 1,
             param_info = None,
-            verbose = False
     ):
         """This constructor builds a `polynmial` basis, in which [X1, X1, ...]-->[X1, X1^2, X2, X2^2, X1*X2, ...]
 
@@ -94,7 +92,6 @@ class Basis():
                 * Max: Maximum value of parameter.
                 * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
                 * Source: (optional) Source from which parameter ranges came from
-            verbose: (bool)
 
         Returns: Instance of Basis class.
         """
@@ -158,7 +155,7 @@ class Basis():
         if intercept:
             model_terms = [Term([])] + model_terms
 
-        return cls(model_terms, param_dict, param_info, verbose)
+        return cls(model_terms, param_dict, param_info)
 
     def __setstate__(self, state):
         """Load from a pickled state.
@@ -203,8 +200,8 @@ class Basis():
         for col in data.columns.tolist():
             if col in self.param_info.index:
                 data[col] = (data[col] - self.param_info.loc[col,'Min'])/(self.param_info.loc[col,'Max']-self.param_info.loc[col,'Min'])
-            elif self.verbose:
-                print('Basis: Unable to scale', col)
+            else:
+                logging.getLogger("HistoryMatching").info('Basis: Unable to scale', col)
         return data
 
     def generate_dmatrix(self, data, scaleX = False):
@@ -307,10 +304,10 @@ class Basis():
         else:
             fit = model.fit()
 
-        if self.verbose:
-            print('SUMMARY:\n', fit.summary())
-            print('AIC:', fit.aic)
-            print('BIC:', fit.bic)
+        log = logging.getLogger("HistoryMatching")
+        log.info('SUMMARY:\n', fit.summary())
+        log.info('AIC:', fit.aic)
+        log.info('BIC:', fit.bic)
 
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]

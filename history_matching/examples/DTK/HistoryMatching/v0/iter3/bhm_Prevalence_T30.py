@@ -175,7 +175,6 @@ hm.gpr(
     optimize_sigma2_n = True,
     log_transform = False,
 
-    verbose = True,
     optimizer_options = {
         'eps': 5e-3,
         'disp': True,

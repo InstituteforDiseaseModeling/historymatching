@@ -72,7 +72,7 @@ try:
         basis_glm = config['Basis']
         fitted_values = config['Fitted_Values']
 except:
-    basis_glm = Basis.make_polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info, verbose = True)
+    basis_glm = Basis.make_polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
 
     basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-3,1, 25), scaleX=True)
     alpha_glm = float(input('What would you like to use for the GLM regularization parameter, alpha_glm = '))
@@ -152,7 +152,6 @@ hm.gpr(
     #lengthscale_guess = [0.04313128, 0.2, 0.14240553, 0.01418867, 0.2, 0.17683428],
     lengthscale_guess = 0.1,
     lengthscale_bounds = (0.001, 0.5),
-    verbose = True,
     optimizer_options = {
         'eps': 5e-3,
         'disp': True,

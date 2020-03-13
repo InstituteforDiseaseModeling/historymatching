@@ -30,8 +30,7 @@ class GLM:
             reference_value = 0,
             family = 'Poisson', # 'Poisson', 'NegativeBinomial', 'Gaussian'
             fig_type = 'pdf',
-            fitted_model = None,
-            verbose = True
+            fitted_model = None
     ):
         """Initialize the GLM class.
 
@@ -50,7 +49,6 @@ class GLM:
             reference_value: (float) The reference value from data, used in plotting only
             family: (str) The family of generalized linear model to use.  Options include 'Poisson', 'Binomial', 'Gamma', 'NegativeBinomial', and 'Gaussian'.  Note that NegativeBinomial is currently hard-coded to use alpha=1.9.
             fitted_model: (GLM) When restoring from cache, this enables file-based configuration.
-            verbose: (boolean, optional with default True)
         """
 
         self.training_data = training_data
@@ -60,7 +58,6 @@ class GLM:
         self.D = self.basis.D
         self.family = family
         self.fig_type = fig_type
-        self.verbose = verbose
         self.model = None
 
         self.fitted_model = fitted_model
@@ -84,10 +81,6 @@ class GLM:
             print('AIC:', self.fitted_model.aic)
             print('BIC:', self.fitted_model.bic)
             print('ITERATION:', self.fitted_model.fit_history['iteration'])
-
-    def vprint(self, *args, **kwargs):
-        if self.verbose:
-            print(*args, *kwargs)
 
     def evaluate(self, data):
         """Evaluate the GLM and return the mean prediction.

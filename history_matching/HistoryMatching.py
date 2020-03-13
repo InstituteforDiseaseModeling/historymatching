@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import pathlib
 import pickle
@@ -35,7 +36,6 @@ class HistoryMatching():
             training_fraction = 0.75,
             fig_type = 'pdf',
             use_glm = True,      # Disable the glm by setting to False
-            verbose = False
     ):
         """ Initialize a history matching object.
 
@@ -51,7 +51,6 @@ class HistoryMatching():
             desired_result_var: (float) Constant variance to include in implausibility calculations for variance in the desired result.  This typically comes from a confidence interval in survey data.
             discrepatraining_fraction: (float) The fraction of the inputs and results to use a training data. NOTE: You can also specify training data by including a boolean column named `Train` in the inputs or results data frames.
             use_glm: (bool) Set False to disable the GLM, in which case the results will be modeled purely using GPR.
-            verbose: (bool) Set True to see more details.
 
         Returns:
             Class instance.
@@ -73,7 +72,6 @@ class HistoryMatching():
         self.iteration = iteration
         self.use_glm = use_glm
         self.fig_type = fig_type
-        self.verbose = verbose
 
         self.glm_model = None
         self.gpr_model = None
@@ -232,8 +230,6 @@ class HistoryMatching():
             print('use_glm is False, why are you calling glm?')
             return
 
-        verbose = kwargs.get('verbose', self.verbose)
-
         # Files to store the model and parameters
         glm_model_fn = os.path.join(self.glmdir, 'glm.pickle')
 
@@ -250,16 +246,14 @@ class HistoryMatching():
                 Ycol = self.Ycol,
                 training_data = train_mean,
                 reference_value = self.desired_result,
-                family = family,
-                verbose = verbose)
+                family = family)
 
-            if self.verbose:
-                print("Fitting the GLM")
+            logging.getLogger("HistoryMatching").info("Fitting the GLM")
             self.glm_model.fit(maxiter=glm_fit_maxiter)
             pickle.dump(self.glm_model, open(glm_model_fn, 'wb'))
 
-        if self.verbose:
-            print('Evaluating training and test data') # Store results in Yglm
+        logging.getLogger("HistoryMatching").info("Evaluating training and test data")
+        # Store results in Yglm
         train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
         test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
 
@@ -324,7 +318,6 @@ class HistoryMatching():
             basis,
             force_optimize_gpr = True,
             method = 'CrossValidation',
-            verbose = False,
             plot = True,
             plot_data = False,
             sigma2_f_guess = 2,
@@ -359,7 +352,6 @@ class HistoryMatching():
             lengthscale_bounds: (tuple) Range for lengthscale, e.g. (0.01,1).
             normalize_y: (bool) Set True to normalize the outputs (recommended).
             method: (str) Must be 'CrossValidation' for now.
-            verbose: (bool) Set True to see lots of output.
             optimizer_options: (dict) Dictionary to be passed to the optimization algorithm within the GPR code.
             kwargs: (dict) Additional arguments to pass to the GPR class.
         """
@@ -396,8 +388,6 @@ class HistoryMatching():
                 kernel_mode = 'RBF',
                 kernel_params = None,
                 normalize_y = normalize_y,
-                verbose = verbose,
-                debug = False, # Debug is really for testing the code
                 **kwargs)
 
             if isinstance(lengthscale_guess, (int,float)):

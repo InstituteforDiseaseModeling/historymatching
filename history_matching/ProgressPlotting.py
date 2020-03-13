@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 
@@ -20,8 +21,6 @@ class ProgressPlotting():
 
         self.param_info = None
         self.Xcols_all_orig = None
-
-        self.verbose = False
 
         self.hm_params = {}
         self.glm_all = {}
@@ -75,13 +74,12 @@ class ProgressPlotting():
 
             t = time.time()
             points['Yglm'] = self.glm_all[cut].evaluate(points)
-            if self.verbose:
-                print('GLM:', time.time()-t)
+            logging.getLogger("HistoryMatching").info('GLM:', time.time()-t)
 
             t = time.time()
             ret = self.gpr_all[cut].evaluate(points)
-            if self.verbose:
-                print('GPR:', time.time()-t)
+            logging.getLogger("HistoryMatching").info('GPR:', time.time()-t)
+
             points['Mean_Estimate'] = points['Yglm'] + ret['Mean']
             points['Var_Predictive'] = ret['Var_Predictive']
 

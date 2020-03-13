@@ -153,8 +153,7 @@ g = GPR(basis, Ycol, training_data, param_info,
         theta = None,   # kernel_params
         #is_poisson = False,
         normalize_y = True,
-        verbose = True,
-        debug = False
+        verbose = True
     )
 sigma2_f_guess = 1
 sigma2_n_guess = 1
