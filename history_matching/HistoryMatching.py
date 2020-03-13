@@ -17,6 +17,15 @@ from history_matching.plotting import plot_data, plot_errors # <-- TODO: Fix nam
 # TODO: Error plot
 # TODO: Reference plot
 
+def mkdir_if_needed(path):
+    """Utility to make a directory, but only if needed.
+    """
+
+    # TODO: Move to helper
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    return path
+
+
 class HistoryMatching():
     """Main class to support history matching.
     """
@@ -108,10 +117,10 @@ class HistoryMatching():
             print("--> Testing  with", nTest," unique parameter configurations (", nTest*nRep, "simulations including replicates)")
 
         # Dir prep
-        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name) )
-        self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
-        self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
-        self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
+        self.cutdir = mkdir_if_needed(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name) )
+        self.glmdir = mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
+        self.gprdir = mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
+        self.combineddir = mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
 
 
     @classmethod
@@ -180,16 +189,6 @@ class HistoryMatching():
             self.results.to_frame().to_excel(writer, sheet_name='Results', merge_cells=False)
             self.param_info.to_excel(writer, sheet_name='Param_Info')
             #writer.save()
-
-
-    @staticmethod
-    def mkdir_if_needed(path):
-        """Utility to make a directory, but only if needed.
-        """
-
-        # TODO: Move to helper
-        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-        return path
 
     def filter(self, func, train=False, test=False):
         """Utility to allow the user to filter training and test data.  For example, you could keep only data where the result is greater than zero.
@@ -574,8 +573,8 @@ class HistoryMatching():
             plt.close(fig)
 
             if do_plot_data:
-                pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
+                pairdir = mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
                 plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale, desired_result=self.desired_result)
 
-                pairdir = HistoryMatching.mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
+                pairdir = mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
                 plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale)
