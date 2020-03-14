@@ -44,3 +44,11 @@ Install the necessary packages:
 Set up pre-commit hooks:
 
     pre-commit install
+
+# Logging
+
+Verbose output can be viewed by configuring your enviornment to display
+HistoryMatching's log messages. You can do this by adding the following to your
+code:
+
+    logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
