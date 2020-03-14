@@ -44,3 +44,10 @@ Install the necessary packages:
 Set up pre-commit hooks:
 
     pre-commit install
+
+# Running tests
+
+To run tests use:
+```bash
+nosetests -s --with-coverage --cover-package=history_matching .
+```
