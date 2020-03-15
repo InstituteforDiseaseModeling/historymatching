@@ -164,6 +164,7 @@ class Basis():
 
         return terms
 
+    #TODO: What is this for? Looks like it should be a constructor
     def regularize(self, inputs, results, alpha, scaleX = False):
         """Performs a lasso L1 regularization to select important terms.
 
