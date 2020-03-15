@@ -1,9 +1,7 @@
 import itertools
 import re
 
-from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
-import patsy # TODO: Cleanup
-
+from sklearn.preprocessing import PolynomialFeatures
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,13 +13,10 @@ class Basis():
     """Class to support polynomial basis, data matrix generation, and parameter name handling.
     """
 
-    def __init__(self, model_terms, param_dict, param_info=None, verbose=False):
+    def __init__(self, order, intercept, param_info=None, verbose=False):
         """Create and instance of the Basis class.
 
         Args:
-            model_terms: (list) basis model terms.
-                This argument is typically only used in deserialization.
-            param_dict: (dict) Parameters in a dictionary form that maps original parameter names to patsy-safe parameter names.  The helper function make_param_dict generates this mapping.
             param_info:  (Pandas dataframe) used to normalize data
                 Columns include:
                 * Name: The name of the parameter, must match column name in training_data.
@@ -31,23 +26,11 @@ class Basis():
                 * Source: (optional) Source from which parameter ranges came from
             verbose: (bool)
         """
-
-        self.model_terms = model_terms
-        self.param_dict = param_dict
-        self.D = len(self.model_terms)
+        self.order = order
+        self.intercept = intercept
+        # self.D = len(self.model_terms)
         self.param_info = param_info # To normalize data to [0,1].  Should be here?
         self.verbose = verbose
-
-    @staticmethod
-    def make_param_dict(param_names):
-        """Static helper method to transform parameter names into a dictionary in which the keys are the original parameter names and the values are patsy-safe strings
-
-        Args:
-            param_names: (list) The original parameter names.
-        """
-
-        # Return mapping from original parameter name to patsy-safe name
-        return {p:p.replace(':','').replace('&',' ').replace(' ', '_').replace('-','_') for p in param_names}
 
     @classmethod
     def make_identity_basis(cls, params, param_info=None):
@@ -66,10 +49,7 @@ class Basis():
         Returns: Instance of Basis class.
         """
 
-        param_dict = Basis.make_param_dict(params)
-        model_terms = [Term([LookupFactor(x)]) for x in param_dict.values()] # X identity matrix
-        return cls(model_terms, param_dict, param_info)
-
+        return cls(order=1, intercept=False, param_info=param_info)
 
     @classmethod
     def make_polynomial_basis(cls,
@@ -99,96 +79,7 @@ class Basis():
         Returns: Instance of Basis class.
         """
 
-        param_dict = Basis.make_param_dict(params)
-        params_patsy = param_dict.values()
-
-        model_terms = []
-
-        if order>=1: # First order
-            model_terms += [Term([LookupFactor(x)]) for x in params_patsy] # X matrix identity
-
-        #This generates all of the terms in a polynomial of the given `degree`
-        #with variable list `x`.
-        comboswr = lambda x,degree: list(itertools.combinations_with_replacement(x, degree))
-
-        # Nonlinear terms need an additional transformation, so we collect them in this variable
-        high_terms = [] 
-
-        if order>=2: # Second order
-            high_terms += ['%s*%s'%x for x in comboswr(params_patsy, 2)]
-
-        if order>=3: # Third order
-            high_terms += ['%s*%s*%s'%x for x in comboswr(params_patsy, 3)]
-
-        if order>=4: # Fourth order
-            high_terms += ['%s*%s*%s*%s'%x for x in comboswr(params_patsy, 4)]
-
-        if order>=5: # Fifth order
-            high_terms += ['%s*%s*%s*%s*%s'%x for x in comboswr(params_patsy, 5)]
-
-        if order>=6: # Some sixth order
-            high_terms += ['%s**6'%x for x in params_patsy] # X^6
-
-            high_terms += ['%s**5*%s'%x for x in itertools.combinations(params_patsy, 2)] # X^5*Y
-            high_terms += ['%s*%s**5'%x for x in itertools.combinations(params_patsy, 2)] # X*Y^5
-
-            high_terms += ['%s**3*%s*%s*%s'%x for x in itertools.combinations(params_patsy, 4)] # W^3*X*Y*Z
-            high_terms += ['%s*%s**3*%s*%s'%x for x in itertools.combinations(params_patsy, 4)] # W*X^3*Y*Z
-            high_terms += ['%s*%s*%s**3*%s'%x for x in itertools.combinations(params_patsy, 4)] # W*X*Y^3*Z
-            high_terms += ['%s*%s*%s*%s**3'%x for x in itertools.combinations(params_patsy, 4)] # W*X*Y*Z^3
-
-            # Some seventh?! order
-            high_terms += ['%s**7'%x for x in params_patsy] # X^7
-
-            high_terms += ['%s**6*%s'%x for x in itertools.combinations(params_patsy, 2)] # X^6*Y
-            high_terms += ['%s*%s**6'%x for x in itertools.combinations(params_patsy, 2)] # X*Y^6
-
-        #Replace multiple multiplications with exponent notation for aesthetic
-        #purposes
-        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1\*\1", r"\g<1>**7", x) for x in high_terms]
-        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1\*\1",     r"\g<1>**6", x) for x in high_terms]
-        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1\*\1",         r"\g<1>**5", x) for x in high_terms]
-        high_terms = [re.sub(r"([^*]+)\*\1\*\1\*\1",             r"\g<1>**4", x) for x in high_terms]
-        high_terms = [re.sub(r"([^*]+)\*\1\*\1",                 r"\g<1>**3", x) for x in high_terms]
-        high_terms = [re.sub(r"([^*]+)\*\1",                     r"\g<1>**2", x) for x in high_terms]
-
-        # Transform the nonlinear terms into patsy form
-        model_terms += [Term([EvalFactor(x)]) for x in high_terms]
-
-        if intercept:
-            model_terms = [Term([])] + model_terms
-
-        return cls(model_terms, param_dict, param_info, verbose)
-
-    def __setstate__(self, state):
-        """Load from a pickled state.
-
-        Args:
-            state: (dict) Dictionary produced by `__getstate__()`
-
-        Returns: Instance of Basis class.
-        """
-        self.__dict__ = state               #Set object attributes
-
-        terms = state['model_terms']        #Patsy doesn't pickle, we handle it
-
-        self.model_terms = []
-        for t in terms:
-            if t=='Intercept':
-                self.model_terms.append(Term([]))
-            elif '*' in t:
-                self.model_terms.append(Term([EvalFactor(t)]))
-            else:
-                self.model_terms.append(Term([LookupFactor(t)]))
-
-    def __getstate__(self):
-        """Save to a pickled state"
-        Returns: Dictionary containing informtaion to pickle.
-        """
-        d = self.__dict__.copy()            #Shallow copy dictionary
-        #Replace bad patsy serialization with our own (preserves self.__dict__)
-        d['model_terms'] = self.get_terms() 
-        return d                            #Return data to pickle
+        return cls(order=order, intercept=intercept, param_info=param_info, verbose=verbose)
 
     def scale_data(self, data):
         """ Helper to scale data.
@@ -220,18 +111,23 @@ class Basis():
         data = data.copy()
         if scaleX:
             data = self.scale_data(data)
-        data = data.rename(columns=self.param_dict)
 
-        md = ModelDesc([], self.model_terms)
+        if self.order==0:
+            return pd.DataFrame({'1':np.ones(len(data.columns))})
+
+        polyfit = PolynomialFeatures(self.order, interaction_only=False, include_bias=self.intercept)
         try:
-            dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
-        except patsy.PatsyError as e:
+            dmatrix = pd.DataFrame(polyfit.fit_transform(data))
+        except ValueError as e:
             if pd.isnull(data).any().any():
                 print(data[data.isnull().any(axis=1)])
                 print('Data contains Null/None/NaN, see data above.')
-                raise HistoryMatchingError("Data contains Null/None/NaN")
-        dmat = dmat.reindex(sorted(dmat.columns), axis=1) #Sort by column name
-        return dmat
+                raise HistoryMatchingError("Input contains NaN, infinity or a value too large for float64")
+
+        dmatrix.columns = polyfit.get_feature_names(data.columns)
+        dmatrix = dmatrix.reindex(sorted(dmatrix.columns), axis=1)
+
+        return dmatrix
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
         """Generates the data and response matrices.
@@ -250,7 +146,6 @@ class Basis():
         if scaleX:
             data = self.scale_data(data)
 
-        data = data.rename(columns=self.param_dict)
         md = ModelDesc(response_terms, self.model_terms)
 
         #TODO: Should this have an NA_action?
