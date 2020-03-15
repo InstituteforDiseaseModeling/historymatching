@@ -140,19 +140,8 @@ class Basis():
         Return: (response matrix, data matrix)
         """
 
-        response_terms = [Term([LookupFactor(Ycol)])]
-
-        data = data.copy()
-        if scaleX:
-            data = self.scale_data(data)
-
-        md = ModelDesc(response_terms, self.model_terms)
-
-        #TODO: Should this have an NA_action?
-        response_matrix, data_matrix = dmatrices(md, data=data, return_type='dataframe')
-        
-        data_matrix = data_matrix.reindex(sorted(data_matrix.columns), axis=1)
-
+        response_matrix = data[[Ycol]]
+        data_matrix = self.generate_dmatrix(data, scaleX = scaleX)
         return response_matrix, data_matrix
 
     def get_terms(self):
