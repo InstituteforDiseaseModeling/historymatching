@@ -255,6 +255,9 @@ class Basis():
 
         #TODO: Should this have an NA_action?
         response_matrix, data_matrix = dmatrices(md, data=data, return_type='dataframe')
+        
+        data_matrix = data_matrix.reindex(sorted(data_matrix.columns), axis=1)
+
         return response_matrix, data_matrix
 
     def get_terms(self):
