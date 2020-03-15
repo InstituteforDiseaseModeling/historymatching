@@ -144,7 +144,7 @@ class MCMCCutWorker(mp.Process):
                 stats[cut]['cut_implausible'] += new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ].sum()
                 stats[cut]['newly_implausible'] += sum(new_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] & ~new_candidates['Implausible'])
                 stats[cut]['num'] += new_candidates.shape[0]
-                print('--> Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name, 
+                print('--> Iteration %d, cut %s: Implausible=%.1f%%, Newly_Implausible=%.1f%%'%(it, cut_name,
                     100.*stats[cut]['cut_implausible']/float(stats[cut]['num']),
                     100.*stats[cut]['newly_implausible']/float(stats[cut]['num'])))
 
@@ -162,4 +162,3 @@ class MCMCCutWorker(mp.Process):
 
         rejected_percent = (100 * sum(candidates['Implausible']) / float(candidates.shape[0]))
         print('Rejected {0:.1f} [{1} / {2}]'.format(rejected_percent, sum(candidates['Implausible']), candidates.shape[0]))
-
