@@ -91,6 +91,7 @@ class Basis():
         if self.param_info is None:
             raise HistoryMatchingError("Basis must have param_info to do scaling!")
 
+        # TODO(dkelin): Why can't scaling information be calculated directly from the data?
         for col in data.columns.tolist():
             if col in self.param_info.index:
                 data[col] = (data[col] - self.param_info.loc[col,'Min'])/(self.param_info.loc[col,'Max']-self.param_info.loc[col,'Min'])
@@ -164,7 +165,7 @@ class Basis():
 
         return terms
 
-    #TODO: What is this for? Looks like it should be a constructor
+    # TODO(dklein): What is this for? Looks like it should be a constructor
     def regularize(self, inputs, results, alpha, scaleX = False):
         """Performs a lasso L1 regularization to select important terms.
 
