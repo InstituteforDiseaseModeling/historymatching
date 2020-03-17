@@ -133,8 +133,6 @@ class GLM:
         fig, ax = plt.subplots(figsize=(16, 6))
         y = self.training_data[self.Ycol]
         ax.scatter(y, self.fitted_model.mu, marker='+')
-        #line_fit = sm.OLS(y, sm.add_constant(yhat, prepend=True)).fit()
-        #abline_plot(model_results=line_fit, ax=ax)
 
         ax.set_title('Model Fit Plot')
         ax.set_xlabel('Observed values')
@@ -151,8 +149,7 @@ class GLM:
 
         fig, ax = plt.subplots()
         ax.scatter(self.fitted_model.mu, self.fitted_model.resid_pearson, marker='+')
-        #ax.hlines(0, 0, 1)
-        #ax.set_xlim(0, 1)
+        
         ax.set_title('Residual Dependence Plot')
         ax.set_ylabel('Pearson Residuals')
         ax.set_xlabel('Fitted values')
@@ -169,7 +166,7 @@ class GLM:
         fig, ax = plt.subplots()
         resid = self.fitted_model.resid_deviance.copy()
         resid_std = stats.zscore(resid)
-        ax.hist(resid_std)#, bins=25)
+        ax.hist(resid_std)
         ax.set_title('Standardized deviance residuals')
 
         return fig
@@ -218,7 +215,7 @@ class GLM:
             for coli, col in enumerate(Xcols):
                 if coli > rowi:
                     fn = '{row}-{col}.{self.fig_type}'
-                    fig = plt.figure(figsize=(6, 6)) #GPy.plotting.plotting_library().figure()
+                    fig = plt.figure(figsize=(6, 6)) 
 
                     x_name = reverse_param_dict[row]
                     y_name = reverse_param_dict[col]
@@ -231,7 +228,6 @@ class GLM:
                         for _, pt in cp_dmat.iterrows():
                             plt.scatter(pt[row], pt[col], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
-                    #plt.autoscale(tight=True)
                     plt.xlim(basis.param_info.loc[x_name][['Min', 'Max']])
                     plt.ylim(basis.param_info.loc[y_name][['Min', 'Max']])
                     plt.xlabel(x_name)
@@ -262,10 +258,10 @@ class GLM:
             circle_points = pd.DataFrame()
 
         # TODO: Save and log scale!
-        scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
+        scaled = np.log(1+self.training_data[self.Ycol])
 
         Xcols = self.basis.get_terms()[0] # Not tested!
-        fig = plt.figure(figsize=(6, 8)) # GPy.plotting.plotting_library().figure()
+        fig = plt.figure(figsize=(6, 8))
         x = self.training_data[Xcols]
         y = self.training_data[self.Ycol]
 
@@ -326,13 +322,12 @@ class GLM:
         """
 
         fig, axes = plt.subplots(figsize=(16, 16))
-        #sns.despine(left=True)
 
         d = self.training_data.reset_index()
         d_by_sample = self.training_data.reset_index().set_index('Sample_Id')
         n_samples = len(d_by_sample.index.unique())
 
-        axes.plot(2*[self.reference_value], [0, n_samples], 'r-') # , axes=axes[0,0]
+        axes.plot(2*[self.reference_value], [0, n_samples], 'r-')
 
         sim_cases_range = self.training_data.reset_index().groupby('Sample_Id')[self.Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
         sim_cases_range['Fitted_Model_Mean'] = self.fitted_model.mu
@@ -427,8 +422,5 @@ class GLM:
             ax.set_xlabel('Sample')
 
             figs['GLM expId ' + str(exp_id)] = fig
-
-        #ax.set_ylabel(self.Ycol)
-        #plt.tight_layout()
 
         return figs

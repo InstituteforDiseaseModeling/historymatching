@@ -42,7 +42,6 @@ class ProgressPlotting():
                 if self.param_info is None:
                     self.param_info = hm.param_info
 
-                    #self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
                     self.Xcols_all_orig = self.param_info.index.get_level_values('Name').unique().tolist()
                     candidates = pd.DataFrame(columns=self.Xcols_all_orig) #TODO(dklein): This variable isn't used. Do you want it?
 
@@ -183,7 +182,6 @@ class ProgressPlotting():
 
         implausibility = self.test_plausibility(self.samples, constraint=None)
 
-        #fig = plt.subplots(D, D-1, figsize=(16,10))
         g = sns.PairGrid(self.samples)
         g.map_upper(self.plot_implausibility, data=implausibility)
         #g.map_upper(plt.scatter)

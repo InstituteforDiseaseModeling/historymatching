@@ -186,7 +186,6 @@ class GPR():
         """Update the internal cache of X, Y, Kxx_inv, and Kxx_inv_Y.
 
         When evaluating many points, these somewhat-slow to calculate properties do not change, co we compute and cache them here.
-
         """
 
         if self.debug:
@@ -532,7 +531,7 @@ class GPR():
             linalg.init()
             KXX_inv = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver').get()
         else:
-            KXX_inv = np.linalg.inv(KXX) # self.?
+            KXX_inv = np.linalg.inv(KXX) # TODO: self.?
 
         KXX_inv_Y = np.dot(KXX_inv, Y)
 
@@ -846,7 +845,7 @@ class GPR():
             for col in range(self.D):
                 if col > row:
                     fn = '%s-%s' % (Xcols[row], Xcols[col]) +'.'+self.fig_type
-                    fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+                    fig = plt.figure(figsize=(6,6)) 
 
                     x = X[Xcols[row]]
                     y = X[Xcols[col]]
@@ -877,7 +876,7 @@ class GPR():
         Returns: Matplotlib figure handle
         """
 
-        fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
+        fig, ax = plt.subplots(nrows=1, ncols=1)
         sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
 
         return fig
@@ -902,8 +901,8 @@ class GPR():
             for col in range(self.D):
                 if col > row:
                     gs = gridspec.GridSpec(self.D-1, self.D-1)
-                    ax = fig.add_subplot(gs[col-1,row]) # , projection='3d'
-                    ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row]) # , projection='3d'
+                    ax = fig.add_subplot(gs[col-1,row]) 
+                    ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row])
 
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
                     print(row, col, row*self.D+col, fixed_inputs)
@@ -927,7 +926,6 @@ class GPR():
 
                     Y_mean = np.reshape(ret['Mean'], [res,res])
                     Y_std_latent = np.reshape( np.sqrt(ret['Var_Latent']), [res, res])
-                    #Y_std_predictive = np.reshape( np.sqrt(ret['Var_Predictive']), [res, res])
 
                     try:
                         CS = ax.contour(X1, X2, Y_mean, zorder=100)
@@ -947,7 +945,7 @@ class GPR():
                         ax.set_xlabel( self.Xcols[row] )
                     if row == 0:
                         ax.set_ylabel( self.Xcols[col] )
-        #plt.tight_layout()
+
         return (fig, fig_std_latent)
 
 

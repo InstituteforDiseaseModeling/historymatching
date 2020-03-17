@@ -92,7 +92,7 @@ class HistoryMatching():
         if 'Train' in self.inputs.columns:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id')
             self.data['Train'] = self.data['Train'].astype(bool)  # Annoying that I have to cast this!
-            self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)#.sort_index()
+            self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)
             self.training_data = self.data.loc[True]
             self.test_data = self.data.loc[False]
             print('Using train/test split as specified by user')
@@ -277,8 +277,6 @@ class HistoryMatching():
                 if not os.path.exists( pairdir):
                     os.mkdir( pairdir )
                 cp = pd.DataFrame() # To not circle a point, pass in an empty data frame.
-                #print(test_mean.loc[[2110]])
-                #cp = test_mean.loc[[2110]]
                 figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
 
             fig = self.glm_model.plot_fitted_vs_observed()
@@ -512,7 +510,7 @@ class HistoryMatching():
 
 
     def plot(self):
-        fig, ax = plt.subplots(figsize=(10,6)) # , sharex='col', sharey='row')
+        fig, ax = plt.subplots(figsize=(10,6))
 
         ax.errorbar(x=self.test_data[self.Ycol], y=self.test_data['Mean_Err'] + self.test_data['Yglm'], yerr=2*np.sqrt(self.test_data['Var_Err_Predictive']), fmt='o', c='m', lw=0.5)
         ax.errorbar(x=self.training_data[self.Ycol], y=self.training_data['Mean_Err'] + self.training_data['Yglm'], yerr=2*np.sqrt(self.training_data['Var_Err_Predictive']), fmt='o', c='c', lw=0.5)
@@ -521,8 +519,6 @@ class HistoryMatching():
         ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
         ax.set_xlabel(self.Ycol)
         ax.set_ylabel('Predicted')
-
-        #plt.tight_layout()
 
         fig.savefig( os.path.join(self.cutdir, 'emulation'+'.'+self.fig_type) )
         plt.close(fig)

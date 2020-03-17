@@ -26,12 +26,12 @@ def plot_implausibility(data, Xcols, column, thresh):
         xg = data.loc[good, Xcols[row]]
         yg = data.loc[good, Xcols[col]]
         sg = scaled[good]
-        plt.scatter(xg, yg, s=np.maximum(3, 20*sg), lw=0, c='g', alpha=0.5) #TODO(dklein): Do we need this: `, facecolors='none', edgecolors='g'`
+        plt.scatter(xg, yg, s=np.maximum(3, 20*sg), lw=0, c='g', alpha=0.5)
 
         xb = data.loc[good==False, Xcols[row]]
         yb = data.loc[good==False, Xcols[col]]
         sb = scaled[good==False]
-        plt.scatter(xb, yb, s=np.maximum(3, 20*sb), lw=0, c='r', alpha=0.5) #TODO(dklein): Do we need this: `, facecolors='none', edgecolors='r'`
+        plt.scatter(xb, yb, s=np.maximum(3, 20*sb), lw=0, c='r', alpha=0.5)
 
         plt.autoscale(tight=True)
         if col == D-1:
@@ -66,19 +66,19 @@ def plot_implausibility_by_iter(data, Xcols):
 
                     x = data.loc[first_only, Xcols[row]]
                     y = data.loc[first_only, Xcols[col]]
-                    h1 = plt.scatter(x, y, s=size, lw=0, c=col_first_only, alpha=0.5) #, facecolors='none', edgecolors='g' #TODO(dklein): Do we need this?
+                    h1 = plt.scatter(x, y, s=size, lw=0, c=col_first_only, alpha=0.5)
 
                     x = data.loc[second_only, Xcols[row]]
                     y = data.loc[second_only, Xcols[col]]
-                    h2 = plt.scatter(x, y, s=size, lw=0, c=col_second_only, alpha=0.5) #, facecolors='none', edgecolors='g' #TODO(dklein): Do we need this?
+                    h2 = plt.scatter(x, y, s=size, lw=0, c=col_second_only, alpha=0.5)
 
                     x = data.loc[neither, Xcols[row]]
                     y = data.loc[neither, Xcols[col]]
-                    h3 = plt.scatter(x, y, s=size, lw=0, c=col_neither, alpha=0.5) #, facecolors='none', edgecolors='g' #TODO(dklein): Do we need this?
+                    h3 = plt.scatter(x, y, s=size, lw=0, c=col_neither, alpha=0.5)
 
                     x = data.loc[both, Xcols[row]]
                     y = data.loc[both, Xcols[col]]
-                    h4 = plt.scatter(x, y, s=size, lw=0, c=col_both, alpha=0.5) #, facecolors='none', edgecolors='g' #TODO(dklein): Do we need this?
+                    h4 = plt.scatter(x, y, s=size, lw=0, c=col_both, alpha=0.5)
 
                     plt.autoscale(tight=True)
                     if col == D-1:
@@ -101,7 +101,7 @@ def joint_plot(data, data_mean, Ycol, desired_result, log_x=False):
     first_sample = data.reset_index('Sim_Id').index.unique().min()
     last_sample = data.reset_index('Sim_Id').index.unique().max()
 
-    plt.plot(2 * [desired_result], [first_sample, last_sample], 'y-', linewidth=0.1) # , axes=axes[0,0]
+    plt.plot(2 * [desired_result], [first_sample, last_sample], 'y-', linewidth=0.1)
 
     sim_cases_range = data.reset_index().groupby('Sample')[Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
     if 'Yglm' in data_mean.columns:
@@ -298,7 +298,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir=N
         for col in range(len(Xcols)):
             if col > row:
                 fn = f'{Xcols[row]}-{Xcols[col]}.pdf'
-                fig = plt.figure(figsize=(6, 6)) #GPy.plotting.plotting_library().figure()
+                fig = plt.figure(figsize=(6, 6))
 
                 for true_or_false, ec in zip([False, True], ['k', 'r']):
                     if true_or_false not in td.index:
@@ -323,7 +323,6 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir=N
                     for _, pt in circle_points.iterrows():
                         plt.scatter(pt[Xcols[row]], pt[Xcols[col]], s=65, facecolors='none', edgecolors='k', alpha=1, linewidths=1.0, marker='s')
 
-                #plt.autoscale(tight=True)
                 plt.xlim(basis.param_info.loc[Xcols[row]][['Min', 'Max']])
                 plt.ylim(basis.param_info.loc[Xcols[col]][['Min', 'Max']])
                 plt.xlabel(Xcols[row])

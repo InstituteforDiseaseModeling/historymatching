@@ -36,11 +36,7 @@ class GPC():
                  debug = False,
                  **kwargs
     ):
-
-
         self.use_laplace_approximation = True
-
-        #sns.set_style("whitegrid")
 
         cur_dir = os.path.dirname(os.path.realpath(__file__))
         self.kernel_fn = os.path.join(cur_dir, 'kernel.c')
@@ -423,11 +419,6 @@ class GPC():
         den = np.sqrt(1+tau_minus_i_vec)
         logZep_term_3 = np.sum( np.log( norm.cdf( np.multiply(num, np.reciprocal(den)))) )
 
-        #print('logZep_terms_1_and_4', logZep_terms_1_and_4)
-        #print('logZep_terms_5b_and_2', logZep_terms_5b_and_2)
-        #print('logZep_term_5a', logZep_term_5a)
-        #print('logZep_term_3', logZep_term_3)
-
         logZep = logZep_terms_1_and_4 + logZep_terms_5b_and_2 + logZep_term_5a + logZep_term_3
 
         if self.verbose:
@@ -566,8 +557,6 @@ class GPC():
         R = np.dot(sqrtW, np.linalg.solve(np.transpose(L), L_slash_sqrtW)) # <-- good
 
         C = np.linalg.solve(L, np.dot(sqrtW, K))
-
-        #print(np.diag(K - np.dot(np.transpose(C),C)) - np.diag(K - np.dot(K,np.linalg.solve(np.linalg.inv(W)+K,K))))
 
         N = f_hat.shape[0]
         # L is good
@@ -837,7 +826,7 @@ class GPC():
 
 
         self.theta = ret.x # Length scales now on 0-1 range
-        #self.theta = np.abs(ret.x) + 1e-6 # Length scales now on 0-1 range
+        #self.theta = np.abs(ret.x) + 1e-6 # Length scales now on 0-1 range (TODO(dklein): ????)
 
         f_hat = self.find_posterior_mode(self.theta)['f_hat']
         np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
@@ -878,8 +867,6 @@ class GPC():
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
-                    #gs = gridspec.GridSpec(self.D-1, self.D-1)
-                    #ax = fig.add_subplot(gs[col-1,row])
                     fn = '%s-%s' % (self.Xcols[row], self.Xcols[col]) + '.' + self.fig_type
                     figs[fn] = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
 
@@ -901,7 +888,7 @@ class GPC():
 
 
     def plot_histogram(self):
-        fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
+        fig, ax = plt.subplots(nrows=1, ncols=1)
         sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
 
         return fig
@@ -916,8 +903,8 @@ class GPC():
             for col in range(self.D):
                 if col > row:
                     gs = gridspec.GridSpec(self.D-1, self.D-1)
-                    ax = fig.add_subplot(gs[col-1,row]) # , projection='3d'
-                    ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row]) # , projection='3d'
+                    ax = fig.add_subplot(gs[col-1,row])
+                    ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row])
 
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
                     print(row, col, row*self.D+col, fixed_inputs)
@@ -925,7 +912,7 @@ class GPC():
                     # TODO: Real parameter ranges here, not just 0-1
                     (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
                     (col_min, col_max) = (self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max())
-                    # sim_cases_range = data.reset_index().groupby('Sample')['Sim_Cases'].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
+
                     x1 = np.linspace(row_min, row_max, res)
                     x2 = np.linspace(col_min, col_max, res)
                     X1, X2 = np.meshgrid(x1, x2)
@@ -944,7 +931,6 @@ class GPC():
 
                     Y_mean = np.reshape(ret['Mean'], [res,res])
                     Y_std_latent = np.reshape( np.sqrt(ret['Var_Latent']), [res, res])
-                    #Y_std_predictive = np.reshape( np.sqrt(ret['Var_Predictive']), [res, res])
 
                     try:
                         CS = ax.contour(X1, X2, Y_mean, zorder=100)
@@ -964,7 +950,7 @@ class GPC():
                         ax.set_xlabel( self.Xcols[row] )
                     if row == 0:
                         ax.set_ylabel( self.Xcols[col] )
-        #plt.tight_layout()
+
         return (fig, fig_std_latent)
 
     def plot_errors(self, train, test, mean_col, var_predictive_col, truth_col=None, figsize=(16,10)):

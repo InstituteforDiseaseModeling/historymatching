@@ -151,7 +151,7 @@ class CutNearSamples():
             print('-'*80)
             max_nSamples = 25000 #5000 # TODO: Make parameter
             # Min here to avoid running out of GPU ram!
-            if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
+            if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0: #TODO(dklein): ??
                 nSamples = min(max_nSamples, num_desired_candidates)
             else:
                 nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / ((1+stats['num_plausible_candidates'])/float(stats['num_candidates'])))))
