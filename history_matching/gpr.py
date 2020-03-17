@@ -12,6 +12,7 @@ import seaborn as sns
 
 from history_matching.basis import Basis
 from history_matching.error import *
+import history_matching.kernels as kernels
 
 try:
     from pycuda import compiler, gpuarray
@@ -43,6 +44,7 @@ class GPR():
                  fig_type = 'pdf',
                  verbose = False,
                  debug = False,
+                 cpu_gpu = "gpu",
                  **kwargs
         ):
         """Initialize the GPR class.
@@ -126,6 +128,8 @@ class GPR():
 
         self.verbose = verbose
         self.debug = debug
+
+        self.cpu_gpu = "gpu"
 
         # Heteroscedastic GP setup
         self.fixed_sigma_n = True
@@ -275,7 +279,6 @@ class GPR():
 
             # retrieve the kernel functions
             self.kernel_xx_gpu = mod.get_function("kernel_xx")
-            self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
             raise HistoryMatchingError(f'Bad kernel mode, kernel_mode = {self.kernel_mode}')
@@ -349,34 +352,6 @@ class GPR():
         return Kxx
 
 
-    def kernel_xp(self, X, P, theta):
-        """Compute the Kxp kernel using (SLOW) CPU-based calculations.
-
-        This function really only remains for computers that do not have access to an NVidia GPU and for testing GPU calculations.
-
-        Args:
-            X: (2D ndarray) points of dimension N x D
-            P: (2D ndarray) points of dimension P x D
-            theta: (1D ndarray) hyperparameters
-        """
-
-        sigma2_f = theta[0]
-
-        Nx = X.shape[0]
-        Np = P.shape[0]
-        D = X.shape[1]
-
-        kxp = np.zeros([Nx,Np])
-        for i in range(Nx):
-            for j in range(Np):
-                dX = X[i,:]-P[j,:]
-                r2 = 0
-                for d in range(D):
-                    r2 += dX[d] * dX[d]/theta[2+d]
-                kxp[i,j] = sigma2_f * np.exp( -r2 / 2. )
-
-        return kxp
-
 
     def kxx_gpu_wrapper(self, X, theta, add_sigma2_n = True, deriv=-1):
         """Compute the Kxx kernel or derivatives using (FAST) GPU-based calculations.
@@ -447,61 +422,6 @@ class GPR():
 
         return Kxx
 
-
-    def kxp_gpu_wrapper(self, X, P, theta):
-        """Compute the Kxp kernel or derivatives using (FAST) GPU-based calculations.
-
-        Args:
-            X: (2D ndarray) points of dimension N x D.
-            P: (2D ndarray) points of dimension P x D.
-            theta: (1D ndarray, optional with default True) hyperparameters.
-        """
-
-        if self.use_gpu:
-            Nx = X.shape[0]
-            Np = P.shape[0]
-            block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Np))
-
-            if X.flags.f_contiguous: # Fortran column-major
-                # Convert to C contiguous (row major)
-                X_gpu = gpuarray.to_gpu(np.ascontiguousarray(X).astype(np.float32))
-            else:
-                X_gpu = gpuarray.to_gpu(X.astype(np.float32))
-
-            if P.flags.f_contiguous:
-                # Convert to C contiguous (row major)
-                P_gpu = gpuarray.to_gpu(np.ascontiguousarray(P).astype(np.float32))
-            else:
-                P_gpu = gpuarray.to_gpu(P.astype(np.float32))
-
-            theta_gpu = gpuarray.to_gpu(theta.astype(np.float32))
-
-            # create empty gpu array for the result
-            Kxp_gpu = gpuarray.empty((Nx, Np), np.float32)
-
-            # call the kernel on the card
-            self.kernel_xp_gpu(
-                Kxp_gpu,                   # <-- Output
-                X_gpu, P_gpu, theta_gpu,   # <-- Inputs
-                np.uint32(Nx),   # <-- Nx
-                np.uint32(Np),   # <-- Nx
-                np.uint32(self.D),  # <-- D
-                block = block_dim,
-                grid = grid_dim
-            )
-
-            if self.debug:
-                # Test on CPU
-                Kxp_cpu = self.kernel_xp(X, P, theta)
-                if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                    print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-                    print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                    raise HistoryMatchingError("CPU and GPU results don't match!")
-
-            return Kxp_gpu.get()
-
-        Kxp_cpu = self.kernel_xp(X, P, theta)
-        return Kxp_cpu
 
 
     def cross_validation(self, theta, X, Y, P):
@@ -764,13 +684,7 @@ class GPR():
             print('Y',self.Y.shape,' flags:\n', self.Y.flags)
             print('P',P.shape,' flags:\n', P.flags)
 
-        Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
-            if not np.allclose(Kxp_cpu, Kxp):
-                print('evaluate(CPU XP):\n', Kxp_cpu)
-                print('evaluate(GPU XP):\n', Kxp)
-                raise HistoryMatchingError("CPU and GPU results don't match!")
+        Kxp = kernels.kernel_xp(self.X, P, sigma2_f=self.theta[0], theta=self.theta[2:], mode=self.cpu_gpu)
 
         if self.use_gpu:
             Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution

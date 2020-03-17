@@ -17,6 +17,7 @@ import seaborn as sns
 import skcuda.misc as misc
 
 from history_matching.error import *
+import history_matching.kernels as kernels
 
 plt.rcParams['image.cmap'] = 'jet'
 
@@ -34,6 +35,7 @@ class GPC():
                  fig_type = 'pdf',
                  verbose = False,
                  debug = False,
+                 cpu_gpu = "gpu",
                  **kwargs
     ):
 
@@ -68,6 +70,8 @@ class GPC():
 
         self.theta = None # Kernel/model hyperparameters
         self.kernel_xx_gpu = None
+
+        self.cpu_gpu = cpu_gpu
 
         self.kernel_params = kernel_params
         self.define_kernel(self.kernel_params)
@@ -154,7 +158,6 @@ class GPC():
 
             # retrieve the kernel functions
             self.kernel_xx_gpu = mod.get_function("kernel_xx")
-            self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
             raise HistoryMatchingError('Bad kernel mode, kernel_mode={self.kernel_mode}')
@@ -189,25 +192,6 @@ class GPC():
 
         return kxx
 
-
-    def kernel_xp(self, X, P, theta):
-        # NOTE: Slow, use GPU acceleration instead.
-        sigma2_f = theta[0]
-
-        Nx = X.shape[0]
-        Np = P.shape[0]
-        D = X.shape[1]
-
-        kxp = np.zeros([Nx,Np])
-        for i in range(Nx):
-            for j in range(Np):
-                dX = X[i,:]-P[j,:]
-                r2 = 0
-                for d in range(D):
-                    r2 += dX[d] * dX[d]/theta[1+d]
-                kxp[i,j] = sigma2_f * np.exp( -r2 / 2. )
-
-        return kxp
 
 
     def kxx_gpu_wrapper(self, X, theta, deriv=-1):
@@ -246,49 +230,6 @@ class GPC():
 
         return Kxx
 
-
-    def kxp_gpu_wrapper(self, X, P, theta):
-        Nx = X.shape[0]
-        Np = P.shape[0]
-        block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Np))
-
-        if X.flags.f_contiguous: # Fortran column-major
-            # Convert to C contiguous (row major)
-            X_gpu = gpuarray.to_gpu(np.ascontiguousarray(X).astype(np.float32))
-        else:
-            X_gpu = gpuarray.to_gpu(X.astype(np.float32))
-
-        if P.flags.f_contiguous:
-            # Convert to C contiguous (row major)
-            P_gpu = gpuarray.to_gpu(np.ascontiguousarray(P).astype(np.float32))
-        else:
-            P_gpu = gpuarray.to_gpu(P.astype(np.float32))
-
-        theta_extended = np.concatenate( (np.array(theta[:1]), np.array([0]), np.array(theta[1:])) ) # Kernel code needs sigma2_n
-        theta_gpu = gpuarray.to_gpu(theta_extended.astype(np.float32))
-
-        # create empty gpu array for the result
-        Kxp_gpu = gpuarray.empty((Nx, Np), np.float32)
-
-        # call the kernel on the card
-        self.kernel_xp_gpu(
-            Kxp_gpu,                   # <-- Output
-            X_gpu, P_gpu, theta_gpu,   # <-- Inputs
-            np.uint32(Nx),   # <-- Nx
-            np.uint32(Np),   # <-- Nx
-            np.uint32(X.shape[1]),  # <-- D
-            block = block_dim,
-            grid = grid_dim
-        )
-
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(X, P, theta)
-            if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-                print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                raise HistoryMatchingError("GPU and CPU results didn't match!")
-
-        return Kxp_gpu.get()
 
 
     def assign_rep(self, sample):
@@ -652,7 +593,7 @@ class GPC():
         for idx, p_series in P.iterrows():
             self.vprint(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
-            KXp = self.kxp_gpu_wrapper(X, p, theta)
+            KXp = kernels.kernel_xp(X, p, sigma2_f=theta[0], theta=theta[1:], mode=self.cpu_gpu)
             f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f) # MEAN (vector of length 1)
 
             v = np.linalg.solve(L, np.dot(sqrtW, KXp))
@@ -727,7 +668,7 @@ class GPC():
         for idx, p_series in P.iterrows():
             self.vprint(idx, 'x_star is', p_series['x (scaled)'])
             p = p_series.as_matrix()[np.newaxis,:]
-            KXp = self.kxp_gpu_wrapper(X, p, theta)
+            KXp = kernels.kernel_xp(X, p, sigma2_f=theta[0], theta=theta[1:], mode=self.cpu_gpu)
             f_bar_star = np.dot(np.transpose(KXp), nu-z) # MEAN (vector of length 1)
 
             v = np.linalg.solve(L, np.dot(sqrtStilde, KXp))
