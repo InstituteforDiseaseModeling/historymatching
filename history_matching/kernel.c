@@ -68,7 +68,31 @@ __global__ void kernel_xp(float *kxp, float *X, float *P, float *theta, unsigned
         float r2 = 0;
         for( int d=0; d<D; d++) {
             // Assuming C contiguous (column major order)
-            r2 += (X[D*i+d]-P[D*j+d]) * (X[D*i+d]-P[D*j+d]) / theta[2+d];
+            const auto dX = (X[D*i+d]-P[D*j+d]);
+            r2 += dX * dX / theta[2+d];
+        }
+
+        kxp[idx] = sigma2_f * exp( -r2 / 2.0 );
+    }
+}
+
+
+__global__ void kernel_xp2(float *kxp, float *X, float *P, float *theta, const float sigma2_f, const unsigned int Nx, const unsigned int Np, const unsigned int D) {
+
+    // Obtain the linear index corresponding to the current thread:
+    unsigned int idx = blockIdx.y*${max_threads_per_block}*${max_blocks_per_grid}+
+                       blockIdx.x*${max_threads_per_block}+threadIdx.x;
+
+    if( idx < Nx*Np ) {
+        // Convert the linear index to subscripts:
+        const unsigned int i = idx/Np;
+        const unsigned int j = idx%Np;
+
+        float r2 = 0;
+        for( int d=0; d<D; d++) {
+            // Assuming C contiguous (column major order)
+            const auto dX = (X[D*i+d]-P[D*j+d]);
+            r2 += dX * dX / theta[d];
         }
 
         kxp[idx] = sigma2_f * exp( -r2 / 2.0 );

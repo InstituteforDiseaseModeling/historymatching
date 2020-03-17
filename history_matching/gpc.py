@@ -276,7 +276,7 @@ class GPC():
             X_gpu, P_gpu, theta_gpu,   # <-- Inputs
             np.uint32(Nx),   # <-- Nx
             np.uint32(Np),   # <-- Nx
-            np.uint32(self.D),  # <-- D
+            np.uint32(X.shape[1]),  # <-- D
             block = block_dim,
             grid = grid_dim
         )
