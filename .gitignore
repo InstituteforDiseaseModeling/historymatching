@@ -35,3 +35,6 @@ deprecate/
 
 # Helper
 *.ignore.*
+
+# Code coverage
+.coverage
