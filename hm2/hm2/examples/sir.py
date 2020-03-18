@@ -69,13 +69,3 @@ class SIR:
             'per_infected':    P  [:,1],
             'per_recovered':   P  [:,2],
         })
-
-
-    def plot(self, figsize=(16,10)):
-        fig, ax = plt.subplots(figsize=figsize)
-        T, X, P = self.sim()
-
-        plt.plot(T, P)
-        plt.legend(['S', 'I', 'R'])
-
-        return fig, ax

@@ -1,4 +1,4 @@
-from hm2.sir import SIR
+from hm2.examples.sir import SIR
 import hm2.sampling
 import hm2.boilerplate
 import pandas as pd
@@ -75,6 +75,8 @@ hm2.boilerplate.time_analysis(
   replicates=1
 )
 
+
+sys.exit(0)
 
 
 ################################################3
