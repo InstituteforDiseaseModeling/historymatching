@@ -68,7 +68,7 @@ class SIRWrapper(hm2.boilerplate.ModelWrapper):
       results = model.sim()
       results['prevalence'] = results['per_infected']
       results['Stdev'] = 1 #Junk value TODO
-      return results
+      return results, None
 
 
 

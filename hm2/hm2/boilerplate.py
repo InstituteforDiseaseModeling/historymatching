@@ -4,6 +4,8 @@ import pandas as pd
 
 from .error import HistoryMatchingError
 
+
+
 class ModelWrapper(abc.ABC):
   @classmethod
   @abc.abstractmethod
@@ -82,24 +84,28 @@ def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
 
     for replicate in range(1):
       model_run_results = wrapped_model.run(model)
-      assert 'time' in model_run_results
+      if not isinstance(model_run_results, tuple) or len(model_run_results)!=2:
+        raise HistoryMatchingError("Wrapped model must return a tuple with a `time_points` and a `summary_points` DataFrame!")
+      model_run_tp_results, model_run_su_results = model_run_results
+      if not 'time' in model_run_tp_results:
+        raise HistoryMatchingError("Wrapped model's `time_points` DataFrame did not include `time` column.")
 
       # Ensure that the model run returns modeled observations for all our
       # matched observations
-      name_check = set(observation_names)-set(model_run_results.columns)
+      name_check = set(observation_names)-set(model_run_tp_results.columns)
       if name_check:
-        raise Exception(f'Model output is missing columns: {list(name_check)}. Found columns: {model_run_results.columns.tolist()}')
+        raise HistoryMatchingError(f'Model output is missing columns: {list(name_check)}. Found columns: {model_run_tp_results.columns.tolist()}')
 
       #Set the index so we can quickly find nearest times
-      model_run_results.set_index('time')
+      model_run_tp_results.set_index('time')
 
       # Because time in the model may proceed stochastically, the time vector
       # may not contain the exact observation time we require. Instead let's
       # find the closest ones to each observation.
       for _, obs in observations.iterrows():
-        closest_time_index = model_run_results.index.get_loc(obs['time'], method='nearest')
-        model_observation  = model_run_results.iloc[closest_time_index]
-        model_time         = model_run_results.index[closest_time_index]
+        closest_time_index = model_run_tp_results.index.get_loc(obs['time'], method='nearest')
+        model_observation  = model_run_tp_results.iloc[closest_time_index]
+        model_time         = model_run_tp_results.index[closest_time_index]
 
         formatted_model_observation = [
           parameter_sample['sample_id'],
