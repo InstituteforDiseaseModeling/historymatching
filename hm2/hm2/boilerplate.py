@@ -44,6 +44,7 @@ class ModelWrapper(abc.ABC):
 
 
 
+#TODO: Add summary observations argument
 def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
   """Perform a time analysis TODO
 
