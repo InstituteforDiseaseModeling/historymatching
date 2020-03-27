@@ -1,6 +1,48 @@
+import abc
+
 import pandas as pd
 
-def time_analysis(parameter_samples, observations, init_func, run_func, replicates=1):
+from .error import HistoryMatchingError
+
+class ModelWrapper(abc.ABC):
+  @classmethod
+  @abc.abstractmethod
+  def init(cls, **kwargs):
+    """Function that returns an initialized model.
+
+    Args:
+      kwargs - Named arguments corresponding to the parameter settings to be 
+       used in a set of runs of the model.
+
+    Returns: A model initialized with `kwargs`. The model is treated as
+             an opaque object which is passed to other methods.
+    """
+    pass
+
+  @staticmethod
+  @abc.abstractmethod
+  def run(model):
+    """Function that runs the initialized model.
+
+    Args:
+      model - A model returned by `init`.
+
+    Returns:
+      A tuple of DataFrames `(time_points, summary_points)`
+
+      Either value of the tuple may also be None
+
+      The `time_points` DataFrame has the form:
+          <time> <observation name 1> [observation name 2]
+
+      The `summary_points` DataFrame has the form:
+          <summary name> <summary value>
+    """
+    pass
+
+
+
+def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
   """Perform a time analysis TODO
 
   This function is not parallelized!
@@ -10,17 +52,12 @@ def time_analysis(parameter_samples, observations, init_func, run_func, replicat
                    [sample_id] <Parameter1> [Parameter2] [Parameter3] [...]
     observations - A DataFrame of the form:
                    <observation_id> <time> <value1> [value2] [value3] [...]
-    init_func  - Function that returns an initialized model. This function is 
-                 named arguments corresponding to the parameter settings to be 
-                 used in a set of runs of the model.
-                 We treat the return value of this function as an opaque object 
-                 which is passed as an argument to `run_func`.
-    run_func   - Function that runs the initialized model.
-                 Takes the result of `init_func`.
-                 Returns a DataFrame of the form:
-                   <time> <observation name 1> [observation name 2]
+    wrapped_model - A model instantiating the ModelWrapper class.
     replicates - Number of times to call `run_func` for each parameter setting
   """
+  if not isinstance(wrapped_model, ModelWrapper):
+    raise HistoryMatchingError("wrapped_model was not an instance of ModelWrapper!")
+
   parameter_samples = parameter_samples.copy()
 
   if 'sample_id' not in parameter_samples.columns:
@@ -41,10 +78,10 @@ def time_analysis(parameter_samples, observations, init_func, run_func, replicat
     # Drop `sample_id` value from dictionary leaving only parameters behind
     del parameter_sample_for_init['sample_id']
     # Initialize the model for these parameter settings
-    model = init_func(**parameter_sample_for_init)
+    model = wrapped_model.init(**parameter_sample_for_init)
 
     for replicate in range(1):
-      model_run_results = run_func(model)
+      model_run_results = wrapped_model.run(model)
       assert 'time' in model_run_results
 
       # Ensure that the model run returns modeled observations for all our

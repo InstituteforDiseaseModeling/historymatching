@@ -9,14 +9,19 @@ import hm2.boilerplate
 
 
 class SamplingTest(unittest.TestCase):
-    @staticmethod
-    def run_model_correctly(model):
-        results = model.sim()
-        results['prevalence'] = results['per_infected']
-        results['Stdev'] = 1 #Junk value TODO
-        return results
-
     def test_observations_missing_time(self):
+
+        class SIRWrapper(hm2.boilerplate.ModelWrapper):
+            @classmethod
+            def init(cls, **kwargs):
+                return SIR(**kwargs)
+            @staticmethod
+            def run(model):
+              results = model.sim()
+              results['prevalence'] = results['per_infected']
+              results['Stdev'] = 1 #Junk value TODO
+              return results
+
         #Observations is missing `time`
         observations = pd.DataFrame({
             'observation_id': [ 0,   1],
@@ -34,12 +39,22 @@ class SamplingTest(unittest.TestCase):
           hm2.boilerplate.time_analysis,
           parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
           observations = observations,
-          init_func=SIR,
-          run_func=self.run_model_correctly,
+          wrapped_model = SIRWrapper(),
           replicates=1
         )
 
     def test_observations_missing_observation_id(self):
+        class SIRWrapper(hm2.boilerplate.ModelWrapper):
+            @classmethod
+            def init(cls, **kwargs):
+                return SIR(**kwargs)
+            @staticmethod
+            def run(model):
+              results = model.sim()
+              results['prevalence'] = results['per_infected']
+              results['Stdev'] = 1 #Junk value TODO
+              return results
+
         #Observations is missing `observation_id`
         observations = pd.DataFrame({
             'time':           [ 3,  15],
@@ -57,18 +72,22 @@ class SamplingTest(unittest.TestCase):
           hm2.boilerplate.time_analysis,
           parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
           observations = observations,
-          init_func=SIR,
-          run_func=self.run_model_correctly,
+          wrapped_model=SIRWrapper(),
           replicates=1
         )
 
     def test_model_results_missing_time(self):
-        def run_model_without_time(model):
-            results = model.sim()
-            results['prevalence'] = results['per_infected']
-            results['Stdev'] = 1 #Junk value TODO
-            del results['time']
-            return results
+        class SIRWrapper(hm2.boilerplate.ModelWrapper):
+            @classmethod
+            def init(cls, **kwargs):
+                return SIR(**kwargs)
+            @staticmethod
+            def run(model): #Runs model but doesn't return time
+              results = model.sim()
+              results['prevalence'] = results['per_infected']
+              results['Stdev'] = 1 #Junk value TODO
+              del results['time']
+              return results
 
         observations = pd.DataFrame({
             'time':           [ 3,  15],
@@ -87,18 +106,22 @@ class SamplingTest(unittest.TestCase):
           hm2.boilerplate.time_analysis,
           parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
           observations = observations,
-          init_func=SIR,
-          run_func=run_model_without_time,
+          wrapped_model=SIRWrapper(),
           replicates=1
         )
 
     def test_model_results_missing_observation_name(self):
-        def run_model_without_time(model):
-            results = model.sim()
-            # Oh no, we forgot to include prevalence in the results!
-            # results['prevalence'] = results['per_infected']
-            results['Stdev'] = 1 #Junk value TODO
-            return results
+        class SIRWrapper(hm2.boilerplate.ModelWrapper):
+            @classmethod
+            def init(cls, **kwargs):
+                return SIR(**kwargs)
+            @staticmethod
+            def run(model):
+              results = model.sim()
+              # Oh no, we forgot to include prevalence in the results!
+              # results['prevalence'] = results['per_infected']
+              results['Stdev'] = 1 #Junk value TODO
+              return results
 
         observations = pd.DataFrame({
             'time':           [ 3,  15],
@@ -117,17 +140,21 @@ class SamplingTest(unittest.TestCase):
           hm2.boilerplate.time_analysis,
           parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
           observations = observations,
-          init_func=SIR,
-          run_func=run_model_without_time,
+          wrapped_model = SIRWrapper(),
           replicates=1
         )
 
     def test_time_analysis_returns_correct_columns(self):
-        def run_model_without_time(model):
-            results = model.sim()
-            results['prevalence'] = results['per_infected']
-            results['Stdev'] = 1 #Junk value TODO
-            return results
+        class SIRWrapper(hm2.boilerplate.ModelWrapper):
+            @classmethod
+            def init(cls, **kwargs):
+                return SIR(**kwargs)
+            @staticmethod
+            def run(model):
+              results = model.sim()
+              results['prevalence'] = results['per_infected']
+              results['Stdev'] = 1 #Junk value TODO
+              return results
 
         observations = pd.DataFrame({
             'time':           [ 3,  15],
@@ -145,19 +172,23 @@ class SamplingTest(unittest.TestCase):
         results = hm2.boilerplate.time_analysis(
           parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
           observations = observations,
-          init_func=SIR,
-          run_func=run_model_without_time,
+          wrapped_model = SIRWrapper(),
           replicates=1
         )
 
         self.assertEqual(results.columns.tolist(), ['sample_id', 'replicate', 'observation_id', 'time', 'prevalence', 'Stdev'])
 
     def test_time_analysis_automatically_adds_sample_id(self):
-        def run_model_without_time(model):
-            results = model.sim()
-            results['prevalence'] = results['per_infected']
-            results['Stdev'] = 1 #Junk value TODO
-            return results
+        class SIRWrapper(hm2.boilerplate.ModelWrapper):
+            @classmethod
+            def init(cls, **kwargs):
+                return SIR(**kwargs)
+            @staticmethod
+            def run(model):
+              results = model.sim()
+              results['prevalence'] = results['per_infected']
+              results['Stdev'] = 1 #Junk value TODO
+              return results
 
         observations = pd.DataFrame({
             'time':           [ 3,  15],
@@ -178,7 +209,6 @@ class SamplingTest(unittest.TestCase):
         results = hm2.boilerplate.time_analysis(
           parameter_samples = parameter_samples,
           observations = observations,
-          init_func=SIR,
-          run_func=run_model_without_time,
+          wrapped_model = SIRWrapper(),
           replicates=1
         )

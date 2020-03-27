@@ -29,7 +29,6 @@ class SIR:
 
         self.M = np.array( [[-1, 1, 0], [0, -1, 1]] ) # S-->I, I-->R
 
-
     def sim(self):
         """Run the simulation, given the parameters specified in the constructor
         """

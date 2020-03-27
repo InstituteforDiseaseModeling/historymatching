@@ -59,19 +59,23 @@ parameter_samples = hm2.sampling.latin_hypercube(param_info, n_samples_this_iter
 # ax.set_xlabel(param_info.index.values[0]);
 # ax.set_ylabel(param_info.index.values[1]);
 
-make_model = SIR
+class SIRWrapper(hm2.boilerplate.ModelWrapper):
+    @classmethod
+    def init(cls, **kwargs):
+        return SIR(args, kwargs)
+    @staticmethod
+    def run(model):
+      results = model.sim()
+      results['prevalence'] = results['per_infected']
+      results['Stdev'] = 1 #Junk value TODO
+      return results
 
-def run_model(model):
-  results = model.sim()
-  results['prevalence'] = results['per_infected']
-  results['Stdev'] = 1 #Junk value TODO
-  return results
+
 
 hm2.boilerplate.time_analysis(
   parameter_samples,
   observations,
-  make_model,
-  run_model,
+  SIRWrapper(),
   replicates=1
 )
 
