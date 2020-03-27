@@ -62,7 +62,7 @@ parameter_samples = hm2.sampling.latin_hypercube(param_info, n_samples_this_iter
 class SIRWrapper(hm2.boilerplate.ModelWrapper):
     @classmethod
     def init(cls, **kwargs):
-        return SIR(args, kwargs)
+        return SIR(**kwargs)
     @staticmethod
     def run(model):
       results = model.sim()
