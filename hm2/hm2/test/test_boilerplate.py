@@ -9,6 +9,35 @@ from hm2.error import HistoryMatchingError
 
 
 
+class ModelWrapperTest(unittest.TestCase):
+  def test_missing_init(self):
+    class SIRWrapper(hm2.boilerplate.ModelWrapper):
+        @classmethod
+        def init2(cls, **kwargs): #Init misnamed
+            return SIR(**kwargs)
+        @staticmethod
+        def run(model):
+          results = model.sim()
+          results['prevalence'] = results['per_infected']
+          results['Stdev'] = 1 #Junk value TODO
+          return results
+    self.assertRaises(TypeError, SIRWrapper)
+
+  def test_missing_run(self):
+    class SIRWrapper(hm2.boilerplate.ModelWrapper):
+        @classmethod
+        def init(cls, **kargs):
+            return SIR(**kwargs)
+        @staticmethod
+        def run2(model): #Run misnamed
+          results = model.sim()
+          results['prevalence'] = results['per_infected']
+          results['Stdev'] = 1 #Junk value TODO
+          return results
+    self.assertRaises(TypeError, SIRWrapper)
+
+    
+
 class BoilerplateTest(unittest.TestCase):
     def setUp(self):
         self.observations = pd.DataFrame({
