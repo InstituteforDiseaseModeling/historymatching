@@ -73,7 +73,8 @@ def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
   observation_names.remove('observation_id')
   observation_names.remove('time')
 
-  sim_results = []
+  sim_tp_results = []
+  sim_su_results = []
   for _, parameter_sample in parameter_samples.iterrows():
     # Convert parameter_sample to dictionary
     parameter_sample_for_init = parameter_sample.to_dict() 
@@ -83,10 +84,16 @@ def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
     model = wrapped_model.init(**parameter_sample_for_init)
 
     for replicate in range(1):
+      #Run the model
       model_run_results = wrapped_model.run(model)
+      #Ensure model returned the sorts of results we expected
       if not isinstance(model_run_results, tuple) or len(model_run_results)!=2:
         raise HistoryMatchingError("Wrapped model must return a tuple with a `time_points` and a `summary_points` DataFrame!")
       model_run_tp_results, model_run_su_results = model_run_results
+      if model_run_tp_results is not None and not isinstance(model_run_tp_results, pd.DataFrame): #TODO: Add test
+        raise HistoryMatchingError("Wrapped model's `time_points` DataFrame be a DataFrame or None")
+      if model_run_su_results is not None and not isinstance(model_run_su_results, pd.DataFrame): #TODO: Add test
+        raise HistoryMatchingError("Wrapped model's `summary_points` DataFrame be a DataFrame or None")
       if not 'time' in model_run_tp_results:
         raise HistoryMatchingError("Wrapped model's `time_points` DataFrame did not include `time` column.")
 
@@ -114,6 +121,9 @@ def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
           model_time
         ] + [model_observation[oname] for oname in observation_names]
 
-        sim_results.append(formatted_model_observation)
+        sim_tp_results.append(formatted_model_observation)
 
-  return pd.DataFrame(sim_results, columns=['sample_id','replicate','observation_id','time'] + observation_names)
+  sim_tp_results = pd.DataFrame(sim_tp_results, columns=['sample_id','replicate','observation_id','time'] + observation_names)
+
+  #TODO: Return sim_su_results as well
+  return sim_tp_results, None

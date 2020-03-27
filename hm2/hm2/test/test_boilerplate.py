@@ -154,14 +154,14 @@ class BoilerplateTest(unittest.TestCase):
               results['Stdev'] = 1 #Junk value TODO
               return results, None
 
-        results = hm2.boilerplate.time_analysis(
+        tp_results, su_results = hm2.boilerplate.time_analysis(
           parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
           observations = self.observations,
           wrapped_model = SIRWrapper(),
           replicates=1
         )
 
-        self.assertEqual(results.columns.tolist(), ['sample_id', 'replicate', 'observation_id', 'time', 'prevalence', 'Stdev'])
+        self.assertEqual(tp_results.columns.tolist(), ['sample_id', 'replicate', 'observation_id', 'time', 'prevalence', 'Stdev'])
 
     def test_time_analysis_automatically_adds_sample_id(self):
         class SIRWrapper(hm2.boilerplate.ModelWrapper):
