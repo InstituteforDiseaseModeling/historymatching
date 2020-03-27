@@ -5,10 +5,25 @@ import pandas as pd
 from hm2.examples.sir import SIR
 import hm2.sampling
 import hm2.boilerplate
+from hm2.error import HistoryMatchingError
 
 
 
-class SamplingTest(unittest.TestCase):
+class BoilerplateTest(unittest.TestCase):
+    def setUp(self):
+        self.observations = pd.DataFrame({
+            'time':           [ 3,  15],
+            'observation_id': [ 0,   1],
+            'prevalence':     [15,  40],
+            'Stdev':          [ 4, 2.3],
+        })
+
+        self.param_info = pd.DataFrame({
+            'name': ['beta', 'gamma'],
+            'min':  [  1e-6,    1e-6],
+            'max':  [  0.01,     0.5]
+        })
+
     def test_observations_missing_time(self):
 
         class SIRWrapper(hm2.boilerplate.ModelWrapper):
@@ -23,22 +38,12 @@ class SamplingTest(unittest.TestCase):
               return results
 
         #Observations is missing `time`
-        observations = pd.DataFrame({
-            'observation_id': [ 0,   1],
-            'prevalence':     [15,  40],
-            'Stdev':          [ 4, 2.3],
-        })
-
-        param_info = pd.DataFrame({
-            'name': ['beta', 'gamma'],
-            'min':  [  1e-6,    1e-6],
-            'max':  [  0.01,     0.5]
-        })
+        del self.observations['time']
 
         self.assertRaises(AssertionError,
           hm2.boilerplate.time_analysis,
-          parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
-          observations = observations,
+          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
+          observations = self.observations,
           wrapped_model = SIRWrapper(),
           replicates=1
         )
@@ -56,22 +61,12 @@ class SamplingTest(unittest.TestCase):
               return results
 
         #Observations is missing `observation_id`
-        observations = pd.DataFrame({
-            'time':           [ 3,  15],
-            'prevalence':     [15,  40],
-            'Stdev':          [ 4, 2.3],
-        })
-
-        param_info = pd.DataFrame({
-            'name': ['beta', 'gamma'],
-            'min':  [  1e-6,    1e-6],
-            'max':  [  0.01,     0.5]
-        })
+        del self.observations['observation_id']
 
         self.assertRaises(AssertionError,
           hm2.boilerplate.time_analysis,
-          parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
-          observations = observations,
+          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
+          observations = self.observations,
           wrapped_model=SIRWrapper(),
           replicates=1
         )
@@ -89,23 +84,10 @@ class SamplingTest(unittest.TestCase):
               del results['time']
               return results
 
-        observations = pd.DataFrame({
-            'time':           [ 3,  15],
-            'observation_id': [ 0,   1],
-            'prevalence':     [15,  40],
-            'Stdev':          [ 4, 2.3],
-        })
-
-        param_info = pd.DataFrame({
-            'name': ['beta', 'gamma'],
-            'min':  [  1e-6,    1e-6],
-            'max':  [  0.01,     0.5]
-        })
-
         self.assertRaises(AssertionError,
           hm2.boilerplate.time_analysis,
-          parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
-          observations = observations,
+          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
+          observations = self.observations,
           wrapped_model=SIRWrapper(),
           replicates=1
         )
@@ -123,23 +105,10 @@ class SamplingTest(unittest.TestCase):
               results['Stdev'] = 1 #Junk value TODO
               return results
 
-        observations = pd.DataFrame({
-            'time':           [ 3,  15],
-            'observation_id': [ 0,   1],
-            'prevalence':     [15,  40],
-            'Stdev':          [ 4, 2.3],
-        })
-
-        param_info = pd.DataFrame({
-            'name': ['beta', 'gamma'],
-            'min':  [  1e-6,    1e-6],
-            'max':  [  0.01,     0.5]
-        })
-
         self.assertRaises(Exception,
           hm2.boilerplate.time_analysis,
-          parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
-          observations = observations,
+          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
+          observations = self.observations,
           wrapped_model = SIRWrapper(),
           replicates=1
         )
@@ -156,22 +125,9 @@ class SamplingTest(unittest.TestCase):
               results['Stdev'] = 1 #Junk value TODO
               return results
 
-        observations = pd.DataFrame({
-            'time':           [ 3,  15],
-            'observation_id': [ 0,   1],
-            'prevalence':     [15,  40],
-            'Stdev':          [ 4, 2.3],
-        })
-
-        param_info = pd.DataFrame({
-            'name': ['beta', 'gamma'],
-            'min':  [  1e-6,    1e-6],
-            'max':  [  0.01,     0.5]
-        })
-
         results = hm2.boilerplate.time_analysis(
-          parameter_samples = hm2.sampling.latin_hypercube(param_info, 100),
-          observations = observations,
+          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
+          observations = self.observations,
           wrapped_model = SIRWrapper(),
           replicates=1
         )
@@ -190,25 +146,34 @@ class SamplingTest(unittest.TestCase):
               results['Stdev'] = 1 #Junk value TODO
               return results
 
-        observations = pd.DataFrame({
-            'time':           [ 3,  15],
-            'observation_id': [ 0,   1],
-            'prevalence':     [15,  40],
-            'Stdev':          [ 4, 2.3],
-        })
 
-        param_info = pd.DataFrame({
-            'name': ['beta', 'gamma'],
-            'min':  [  1e-6,    1e-6],
-            'max':  [  0.01,     0.5]
-        })
-
-        parameter_samples = hm2.sampling.latin_hypercube(param_info, 100)
+        parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
         del parameter_samples['sample_id']
 
         results = hm2.boilerplate.time_analysis(
           parameter_samples = parameter_samples,
-          observations = observations,
+          observations = self.observations,
+          wrapped_model = SIRWrapper(),
+          replicates=1
+        )
+
+    def test_bad_wrap(self):
+        class SIRWrapper: #Note that this is unwrapped
+            @classmethod
+            def init(cls, **kwargs):
+                return SIR(**kwargs)
+            @staticmethod
+            def run(model):
+              results = model.sim()
+              results['prevalence'] = results['per_infected']
+              results['Stdev'] = 1 #Junk value TODO
+              return results
+
+        parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
+
+        self.assertRaises(HistoryMatchingError, hm2.boilerplate.time_analysis,
+          parameter_samples = parameter_samples,
+          observations = self.observations,
           wrapped_model = SIRWrapper(),
           replicates=1
         )
