@@ -6,6 +6,19 @@ import statsmodels.api as sm
 
 
 
+def gfamily(family):
+    gfamilies = {
+        "poisson":  sm.families.Poisson,
+        "binomial": sm.families.Binomial,
+        "gamma":    sm.families.Gamma,
+        "gaussian": sm.families.Gaussian
+    }
+    if not family in gfamilies:
+        raise HistoryMatchingError(f"Invalid glm family '{family}'!")
+    return gfamilies[family]()
+
+
+
 class GLM:
     """Generalized Linear Modeling (GLM).
 
@@ -16,7 +29,7 @@ class GLM:
             self,
             polyorder,
             intercept,
-            family = 'poisson',
+            family,
     ):
         """Initialize the GLM class.
 
@@ -33,15 +46,8 @@ class GLM:
         self.alpha     = None
         self.model     = None
 
-        self.gfamilies = {
-            "poisson":  sm.families.Poisson(),
-            "binomial": sm.families.Binomial(),
-            "gamma":    sm.families.Gamma(),
-            "gaussian": sm.families.Gaussian()
-        }
-
-        if not family in glms:
-            raise HistoryMatchingError(f"Invalid glm family '{family}'!")
+        # Make this call only to check that the family exists
+        gfamily(family)
 
         self.polyfit = PolynomialFeatures(
           degree           = polyorder, 
@@ -59,7 +65,7 @@ class GLM:
         logger = logging.getLogger("HistoryMatching")
 
         data = self.polyfit.fit_transform(data)
-        self.model = sm.GLM(data, endog, family=self.gfamilies[self.family])
+        self.model = sm.GLM(data, endog, family=gfamily(self.family))
 
         logger.info("Fitting GLM...")
         self.model = self.model.fit(maxiter=maxiter)
@@ -83,4 +89,4 @@ class GLM:
         return self.fitted_model.predict(data, transform=False)
 
     def residuals(self, data, endog):
-        return self.predict(data) - endog
+        return endog-self.predict(data)
