@@ -49,7 +49,7 @@ class GLM:
           include_bias     = intercept
         )
 
-    def fit(self, data, y, maxiter=1000): #TODO: Rename y
+    def fit(self, data, endog, maxiter=1000):
         """Fit the GLM.
 
         Args:
@@ -59,7 +59,7 @@ class GLM:
         logger = logging.getLogger("HistoryMatching")
 
         data = self.polyfit.fit_transform(data)
-        self.model = sm.GLM(data, y, family=self.gfamilies[self.family])
+        self.model = sm.GLM(data, endog, family=self.gfamilies[self.family])
 
         logger.info("Fitting GLM...")
         self.model = self.model.fit(maxiter=maxiter)
@@ -81,3 +81,6 @@ class GLM:
         """
         data = self.polyfit.fit_transform(data)
         return self.fitted_model.predict(data, transform=False)
+
+    def residuals(self, data, endog):
+        return self.predict(data) - endog
