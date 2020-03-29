@@ -30,33 +30,17 @@ class GPR:
     def __init__(
             self,
             polyorder,
-            intercept,
-            family = 'poisson',
+            intercept
     ):
         """Initialize the GLM class.
 
         Args:
             polyorder: Order of polynomial expansion of the data features
             intercept: Whether to add an intercept feature
-            family: (str) The family of generalized linear model to use. 
-                          Options include 'poisson', 'binomial', 'gamma', 
-                          'negativebinomial', and 'gaussian'. 
         """
         self.polyorder = polyorder
         self.intercept = intercept
-        self.family    = family
-        self.alpha     = None
         self.model     = None
-
-        self.gfamilies = {
-            "poisson":  sm.families.Poisson(),
-            "binomial": sm.families.Binomial(),
-            "gamma":    sm.families.Gamma(),
-            "gaussian": sm.families.Gaussian()
-        }
-
-        if not family in glms:
-            raise HistoryMatchingError(f"Invalid glm family '{family}'!")
 
         self.polyfit = PolynomialFeatures(
           degree           = polyorder, 
@@ -136,7 +120,7 @@ class GPR:
         #     observed_pred = likelihood(model(test_x))
 
     def residuals(self, data, endog):
-        return self.predict(data) - endog
+        return endog-self.predict(data)
 
 
 
