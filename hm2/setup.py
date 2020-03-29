@@ -15,6 +15,9 @@ setup(name='hm2',
         "numpy",
         "pandas",
         "pyDOE",
+        "sklearn",
+        "statsmodels",
+        "gpytorch"
       ],
       classifiers=[
           "Programming Language :: Python :: 3 :: Only",
