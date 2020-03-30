@@ -1,12 +1,14 @@
 from pyDOE import lhs
 import pandas as pd
 
+from .data_validation import ParameterInfoFrame
+
 def latin_hypercube(param_info, samples):
   """
   Generate parameter hypercube given min and max values for parameters.
 
   Args:
-    param_info - DataFrame, e.g.:
+    param_info - A ParameterInfoFrame, e.g.:
 
                       param_info = pd.DataFrame({
                       'name': ['Beta', 'Gamma'],
@@ -16,13 +18,10 @@ def latin_hypercube(param_info, samples):
 
     samples - Number of samples to generate for each parameter
 
+  Returns: A ParameterSamplesFrame
   """
   # Calculate ranges
-  param_info = param_info.copy()
-  assert 'name' in param_info.columns
-  assert 'min'  in param_info.columns
-  assert 'max'  in param_info.columns
-  assert (param_info['min']<=param_info['max']).all()
+  param_info = ValidateParameterInfoFrame(param_info)
   param_info["range"] = param_info['max']-param_info['min']
   param_info.set_index('name')
 
