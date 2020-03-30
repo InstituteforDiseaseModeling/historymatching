@@ -26,7 +26,10 @@ with the `time` (e.g. `5` seconds) a particular `observation` (e.g.
 `300`) and an uncertainty expressed as a standard deviation `stdev` (e.g. `5`).
 Exact values have an uncertainty of `0`.
 
-Each observation must occur only once at each time point.
+`time` must be monotonically increasing.
+
+Each observation must occur only once at each time point. In other words,
+`(time,observation)` is a unique key.
 
 An example table is shown below.
 
@@ -57,23 +60,24 @@ Hadley Wickham writes in detail about the benefits of the tidy format
 [here](https://www.jstatsoft.org/index.php/jss/article/view/v059i10/v59i10.pdf).
 
 
-### TimeSummaryFrame
+### SummaryObservationsFrame
 
-A `TimeSummaryFrame` contains all observations which are not tied to specific
-time points. Each observation must have a unique `observation_id` which is
-associated a particular `observation` (e.g. `cumulative_infections`). The
-observation itself must have a `value` (e.g. `300`) and an uncertainty expressed
-as a standard deviation `stdev` (e.g. `5`). Exact values have an uncertainty of
-`0`. The data is, again, arranged in tidy format.
+A `SummaryObservationsFrame` contains all observations which are not tied to
+specific time points. Each observation has a name `observation` (e.g.
+`cumulative_infections`). The observation itself must have a `value` (e.g.
+`300`) and an uncertainty expressed as a standard deviation `stdev` (e.g. `5`).
+Exact values have an uncertainty of `0`. The data is, again, arranged in tidy
+format.
 
-Each observation must occur only once in the table.
+Each observation must occur only once in the table. In other words,
+`observation` is a unique key.
 
 An example table is shown below.
 
 ```
-observation_id              observation    value stdev
-             0    cumulative_infections     4500    50
-             1       days_of_quarantine       10     0
+          observation    value stdev
+cumulative_infections     4500    50
+   days_of_quarantine       10     0
 ```
 
 
@@ -101,7 +105,7 @@ explored are stored in a `ParameterSamplesFrame`. For a model with parameters
 `beta` and `gamma`, the frame would look like follows:
 
 ```
-sample_id      beta     gamma
+param_id      beta     gamma
         0  0.004407  0.316147
         1  0.005409  0.433025
         2  0.003196  0.123237
@@ -115,6 +119,63 @@ sample_id      beta     gamma
        99  0.000878  0.116639
 ```
 
-Note that all values in the `sample_id` column are unique.
+Note that all values in the `param_id` column are unique.
 
 
+
+TimeStandardAnalysisFrame
+-------------------------
+
+HistoryMatching requires matching simulated observations to actual observations
+in order for the emulator to learn to approximate the model. This process is
+fairly standard and so has been encapsulated in the `standard_analysis`
+function. This function returns a `TimeStandardAnalysisFrame` with the following
+tidy format:
+
+```
+param_id replicate time     observation value stdev  aobservation_id
+       0         0    3  mosquito_count  3105     0                0
+       0         0   15  mosquito_count  3092     0                1
+       0         1    3  mosquito_count  3104     0                0
+       0         1   15  mosquito_count  3093     0                1
+       1         0    3  mosquito_count  3404     0                0
+       1         0   15  mosquito_count  2993     0                1
+```
+
+Here, `param_id` identifies the parameter combination from a
+`ParameterSamplesFrame` used to parameterize the model. The model might be run
+many times for the same parameter combination, `replicate` indicates which time
+has been run, `observation` is the name of the modeled observation and `stdev`
+is its uncertainty as a standard deviation. `aobservation_id` indicates which of
+the actual observations the modeled observation is to be compared against. In
+the `standard_analysis` the actual observation is identified as the one occuring
+closest in time to the modeled observation.
+
+
+
+SummaryStandardAnalysisFrame
+----------------------------
+
+HistoryMatching requires matching simulated observations to actual observations
+in order for the emulator to learn to approximate the model. This process is
+fairly standard and so has been encapsulated in the `standard_analysis`
+function. This function returns a `SummaryStandardAnalysisFrame` with the following
+tidy format:
+
+```
+param_id replicate      observation value stdev
+       0         0  cumulative_infections  4532
+       0         0     days_of_quarantine    12
+       0         1  cumulative_infections  4498
+       0         1     days_of_quarantine     8
+       1         0  cumulative_infections  3700
+       1         0     days_of_quarantine    57
+```
+
+Here, `param_id` identifies the parameter combination from a
+`ParameterSamplesFrame` used to parameterize the model. The model might be run
+many times for the same parameter combination, `replicate` indicates which time
+has been run, `observation` is the name of the modeled observation (and its
+matching actual observation) and `stdev` is its uncertainty as a standard
+deviation. In the `standard_analysis` the actual observation is identified as
+having the same name as the modeled observation.

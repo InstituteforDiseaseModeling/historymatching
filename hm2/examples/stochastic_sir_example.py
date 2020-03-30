@@ -1,6 +1,7 @@
 from hm2.examples.sir import SIR
 import hm2.sampling
 import hm2.boilerplate
+import hm2.basis
 import pandas as pd
 import sys
 import code
@@ -9,11 +10,12 @@ import code
 #Observational Data
 ################################################3
 
-observations = pd.DataFrame({
-    'observation_id': [ 0,   1],
-    'time':           [ 3,  15],
-    'prevalence':     [15,  40],
-    'Stdev':          [ 4, 2.3],
+time_observations = pd.DataFrame({
+    'observation_id': [           0,            1],
+    'time':           [         3.0,         15.0],
+    'observation':    ['prevalence', 'prevalence'],
+    'value':          [          15,           40],
+    'stdev':          [           4,          2.3]
 })
 
 
@@ -67,15 +69,25 @@ class SIRWrapper(hm2.boilerplate.ModelWrapper):
     def run(model):
       results = model.sim()
       results['prevalence'] = results['per_infected']
-      results['Stdev'] = 1 #Junk value TODO
+      #Extract only the columns we have actual observations for
+      results = results[['time', 'prevalence']]
+      #Reshape DataFrame into the tidy form expected by HistoryMatching
+      results = pd.melt(results, id_vars='time', var_name='observation')
+      #We have no uncertainty about our results
+      results['stdev'] = 0
+      #Add observation ids
+      results['observation_id'] = list(range(len(results)))
+      #Sort by time
+      results.sort_values(by='time', inplace=True)
       return results, None
 
 
 
-hm2.boilerplate.time_analysis(
-  parameter_samples,
-  observations,
-  SIRWrapper(),
+runs = hm2.boilerplate.standard_analysis(
+  parameter_samples=parameter_samples,
+  time_observations=time_observations,
+  summary_observations=None,
+  wrapped_model=SIRWrapper(),
   replicates=1
 )
 

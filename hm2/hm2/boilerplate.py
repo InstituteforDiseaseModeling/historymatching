@@ -3,8 +3,8 @@ import abc
 import pandas as pd
 
 from .error import HistoryMatchingError
-from .data_validation import ValidateObservationsFrame, ValidateParameterSamplesFrame, ValidateWrappedModelResults
-
+from .data_validation import *
+from .utility import drop_key
 
 
 class ModelWrapper(abc.ABC):
@@ -45,75 +45,160 @@ class ModelWrapper(abc.ABC):
 
 
 
-#TODO: Add summary observations argument
-def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
+def _column_comparison(model_results, observations, obs_name):
+  """Determines if `model_results` and `observations` have the same values in
+  their `measurement` columns. Otherwise throws an error identifying what's
+  missing.
+
+  Returns: None
+  """
+  # Get the names of the properties that were observed
+  observation_names = set()
+  if observations is not None:
+    observation_names = set(observations['observation'].unique().tolist())
+
+  model_names = set()
+  if model_results is not None:
+    model_names = set(model_results['observation'].unique().tolist())
+
+  diff_tm = observation_names-model_names
+  diff_mt = model_names-observation_names
+  if diff_tm or diff_mt:
+    raise HistoryMatchingError(f'Model output is missing columns: {diff_tm}. Model {obs_name} is missing {diff_mt}.')
+
+
+
+def _generate_time_standard_analysis_frame(
+  param_id,
+  replicate,
+  results,
+  observations
+):
+  if results is None:
+    return None
+
+  # We don't care about the observation_id produced by the model
+  del results['observation_id']
+
+  # We don't care about the paticular observation values here, only when they
+  # took place and what quantity they were
+  observations = observations[['observation_id', 'time', 'observation']]
+
+  # Rename to match expected output.
+  observations = observations.rename(columns={"observation_id": "aobservation_id"})
+
+  # Left merge, matching each modeled and actual observation to its nearest
+  # analogue by time
+  temp = pd.merge_asof(results, observations, on='time', by='observation', direction='nearest')
+
+  # Add contextual information
+  temp['param_id'] = param_id
+  temp['replicate'] = replicate
+
+  return temp
+
+
+
+def _generate_summary_standard_analysis_frame(
+  param_id,
+  replicate,
+  results,
+  observations
+):
+  if results is None:
+    return None
+
+  # Everything needed to match to the observations data is already present: only
+  # the values of the `observation` column are necessary.
+
+  # Add contextual information
+  results['param_id'] = param_id
+  results['replicate'] = replicate
+
+  return results
+
+
+
+def standard_analysis(
+  parameter_samples,
+  time_observations,
+  summary_observations,
+  wrapped_model,
+  replicates=1
+):
   """Perform a time analysis TODO
 
   This function is not parallelized!
 
   Args:
-    parameter_samples - A DataFrame of the form:
-                   <sample_id> <Parameter1> [Parameter2] [Parameter3] [...]
-    observations - A DataFrame of the form:
-                   <observation_id> <time> <value1> [value2] [value3] [...]
+    parameter_samples - A ParameterSamplesFrame
+    time_observations - A TimeObservationsFrame (may be None)
+    summary_observations - A SummaryObservationsFrame (may be None)
     wrapped_model - A model instantiating the ModelWrapper class.
-    replicates - Number of times to call `run_func` for each parameter setting
+    replicates - Number of times to run the model for each parameter setting
   """
+  if time_observations is None and summary_observations is None:
+    raise HistoryMatchingError("time_analysis was passed None for both `time_observations` and `summary_observations`! At least one must be provided!")
   if not isinstance(wrapped_model, ModelWrapper):
     raise HistoryMatchingError("wrapped_model was not an instance of ModelWrapper!")
 
-  parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
-  observations      = ValidateObservationsFrame(observations)
+  parameter_samples    = ValidateParameterSamplesFrame(parameter_samples)
+  time_observations    = ValidateTimeObservationsFrame(time_observations)
+  summary_observations = ValidateTimeObservationsFrame(summary_observations)
 
-  # Get the names of the properties that were observed
-  observation_names = observations.columns.tolist()
-  observation_names.remove('observation_id')
-  observation_names.remove('time')
-
-  sim_tp_results = []
-  sim_su_results = []
+  aggregate_time_results = []
+  aggregate_summary_results = []
   for _, parameter_sample in parameter_samples.iterrows():
     # Convert parameter_sample to dictionary
-    parameter_sample_for_init = parameter_sample.to_dict() 
-    # Drop `sample_id` value from dictionary leaving only parameters behind
-    del parameter_sample_for_init['sample_id']
+    parameter_sample = parameter_sample.to_dict() 
     # Initialize the model for these parameter settings
-    model = wrapped_model.init(**parameter_sample_for_init)
+    model = wrapped_model.init(**drop_key(parameter_sample, 'param_id'))
 
-    for replicate in range(1):
+    for replicate in range(replicates):
       #Run the model
       results = wrapped_model.run(model)
       #Ensure model returned the sorts of results we expected
-      #TODO(r-barnes): Handle summary results
-      timepoint_results, _ = ValidateWrappedModelResults(results)
+      time_results, summary_results = ValidateWrappedModelResults(results)
 
-      # Ensure that the model run returns modeled observations for all our
-      # matched observations
-      name_check = set(observation_names)-set(timepoint_results.columns)
-      if name_check:
-        raise HistoryMatchingError(f'Model output is missing columns: {list(name_check)}. Found columns: {timepoint_results.columns.tolist()}')
+      # Ensure that the modeled and actual observations agree on what quantities
+      # were observed
+      _column_comparison(time_results, time_observations, "TimeObservationsFrame")
+      _column_comparison(summary_results, summary_observations, "SummaryObservationsFrame")
 
-      #Set the index so we can quickly find nearest times
-      timepoint_results.set_index('time')
+      # Ensure that time values are the same, so we can match them between
+      # modeled and actual observations
+      if time_results['time'].dtype!=time_observations['time'].dtype:
+        raise HistoryMatchingError(f"Data type of `time` differs between modeled and actual observations: {time_results['time'].dtype} vs {time_observations['time'].dtype}!")
 
-      # Because time in the model may proceed stochastically, the time vector
-      # may not contain the exact observation time we require. Instead let's
-      # find the closest ones to each observation.
-      for _, obs in observations.iterrows():
-        closest_time_index = timepoint_results.index.get_loc(obs['time'], method='nearest')
-        model_observation  = timepoint_results.iloc[closest_time_index]
-        model_time         = timepoint_results.index[closest_time_index]
+      # Match modeled and actual time observations
+      time_results = _generate_time_standard_analysis_frame(
+        parameter_sample['param_id'],
+        replicate,
+        time_results,
+        time_observations
+      )
 
-        formatted_model_observation = [
-          parameter_sample['sample_id'],
-          replicate,
-          obs['observation_id'],
-          model_time
-        ] + [model_observation[oname] for oname in observation_names]
+      # Match modeled and actual summary observations
+      summary_results = _generate_summary_standard_analysis_frame(
+        parameter_sample['param_id'],
+        replicate,
+        summary_results,
+        summary_observations
+      )
 
-        sim_tp_results.append(formatted_model_observation)
+      aggregate_time_results.append(time_results)
+      aggregate_summary_results.append(summary_results)
 
-  sim_tp_results = pd.DataFrame(sim_tp_results, columns=['sample_id','replicate','observation_id','time'] + observation_names)
+  # Now we condense the lists of paired observations into single dataframes
 
-  #TODO: Return sim_su_results as well
-  return sim_tp_results, None
+  if time_observations is None:
+    aggregate_time_results = None
+  else:
+    aggregate_time_results = pd.concat(aggregate_time_results, ignore_index=True)
+
+  if summary_observations is None:
+    aggregate_summary_results = None
+  else:
+    aggregate_summary_results = pd.concat(aggregate_summary_results, ignore_index=True)
+
+  return aggregate_time_results, aggregate_summary_results

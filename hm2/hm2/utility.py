@@ -25,3 +25,12 @@ class Scaler:
         "max": self._scaler.data_max_,
         "range": self._scaler.data_range_
     }))
+
+
+
+def drop_key(dic, key):
+  """Returns a copy of the dictionary `dic` with the key `key` removed"""
+  assert isinstance(dic, dict)
+  dic = dic.copy()
+  dic.pop(key)
+  return dic

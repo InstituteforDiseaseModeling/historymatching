@@ -1,7 +1,7 @@
 from pyDOE import lhs
 import pandas as pd
 
-from .data_validation import ParameterInfoFrame
+from .data_validation import ValidateParameterInfoFrame
 
 def latin_hypercube(param_info, samples):
   """
@@ -35,6 +35,6 @@ def latin_hypercube(param_info, samples):
   for index, row in param_info.iterrows():
       samples[row['name']][:] = row['min'] + samples[row['name']]*row['range']
 
-  samples['sample_id'] = list(range(len(samples)))
+  samples['param_id'] = list(range(len(samples)))
 
   return samples
