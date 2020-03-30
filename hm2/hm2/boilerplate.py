@@ -3,6 +3,7 @@ import abc
 import pandas as pd
 
 from .error import HistoryMatchingError
+from .data_validation import ValidateObservationsFrame, ValidateParameterSamplesFrame, ValidateWrappedModelResults
 
 
 
@@ -52,7 +53,7 @@ def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
 
   Args:
     parameter_samples - A DataFrame of the form:
-                   [sample_id] <Parameter1> [Parameter2] [Parameter3] [...]
+                   <sample_id> <Parameter1> [Parameter2] [Parameter3] [...]
     observations - A DataFrame of the form:
                    <observation_id> <time> <value1> [value2] [value3] [...]
     wrapped_model - A model instantiating the ModelWrapper class.
@@ -61,13 +62,8 @@ def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
   if not isinstance(wrapped_model, ModelWrapper):
     raise HistoryMatchingError("wrapped_model was not an instance of ModelWrapper!")
 
-  parameter_samples = parameter_samples.copy()
-
-  if 'sample_id' not in parameter_samples.columns:
-    parameter_samples['sample_id'] = list(range(len(parameter_samples)))
-
-  assert 'observation_id' in observations.columns
-  assert 'time' in observations.columns
+  parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+  observations      = ValidateObservationsFrame(observations)
 
   # Get the names of the properties that were observed
   observation_names = observations.columns.tolist()
@@ -86,34 +82,27 @@ def time_analysis(parameter_samples, observations, wrapped_model, replicates=1):
 
     for replicate in range(1):
       #Run the model
-      model_run_results = wrapped_model.run(model)
+      results = wrapped_model.run(model)
       #Ensure model returned the sorts of results we expected
-      if not isinstance(model_run_results, tuple) or len(model_run_results)!=2:
-        raise HistoryMatchingError("Wrapped model must return a tuple with a `time_points` and a `summary_points` DataFrame!")
-      model_run_tp_results, model_run_su_results = model_run_results
-      if model_run_tp_results is not None and not isinstance(model_run_tp_results, pd.DataFrame): #TODO: Add test
-        raise HistoryMatchingError("Wrapped model's `time_points` DataFrame be a DataFrame or None")
-      if model_run_su_results is not None and not isinstance(model_run_su_results, pd.DataFrame): #TODO: Add test
-        raise HistoryMatchingError("Wrapped model's `summary_points` DataFrame be a DataFrame or None")
-      if not 'time' in model_run_tp_results:
-        raise HistoryMatchingError("Wrapped model's `time_points` DataFrame did not include `time` column.")
+      #TODO(r-barnes): Handle summary results
+      timepoint_results, _ = ValidateWrappedModelResults(results)
 
       # Ensure that the model run returns modeled observations for all our
       # matched observations
-      name_check = set(observation_names)-set(model_run_tp_results.columns)
+      name_check = set(observation_names)-set(timepoint_results.columns)
       if name_check:
-        raise HistoryMatchingError(f'Model output is missing columns: {list(name_check)}. Found columns: {model_run_tp_results.columns.tolist()}')
+        raise HistoryMatchingError(f'Model output is missing columns: {list(name_check)}. Found columns: {timepoint_results.columns.tolist()}')
 
       #Set the index so we can quickly find nearest times
-      model_run_tp_results.set_index('time')
+      timepoint_results.set_index('time')
 
       # Because time in the model may proceed stochastically, the time vector
       # may not contain the exact observation time we require. Instead let's
       # find the closest ones to each observation.
       for _, obs in observations.iterrows():
-        closest_time_index = model_run_tp_results.index.get_loc(obs['time'], method='nearest')
-        model_observation  = model_run_tp_results.iloc[closest_time_index]
-        model_time         = model_run_tp_results.index[closest_time_index]
+        closest_time_index = timepoint_results.index.get_loc(obs['time'], method='nearest')
+        model_observation  = timepoint_results.iloc[closest_time_index]
+        model_time         = timepoint_results.index[closest_time_index]
 
         formatted_model_observation = [
           parameter_sample['sample_id'],
