@@ -4,6 +4,9 @@ import gpytorch
 import numpy as np
 import pandas as pd
 
+from .basis import BasisBase
+from .error import HistoryMatchingError
+
 
 
 class _ExactGPModel(gpytorch.models.ExactGP):
@@ -29,24 +32,18 @@ class GPR:
     """
     def __init__(
             self,
-            polyorder,
-            intercept
+            basis
     ):
         """Initialize the GLM class.
 
         Args:
-            polyorder: Order of polynomial expansion of the data features
-            intercept: Whether to add an intercept feature
+            basis: Feature generator inheriting from BasisBase
         """
-        self.polyorder = polyorder
-        self.intercept = intercept
-        self.model     = None
+        if not isinstance(basis,BasisBase):
+            raise HistoryMatchingError("`basis` must inherit from BasisBase!")
 
-        self.polyfit = PolynomialFeatures(
-          degree           = polyorder, 
-          interaction_only = False, 
-          include_bias     = intercept
-        )
+        self.basis = basis
+        self.model = None
 
     def fit(self, data, endog, maxiter=1000):
         """Fit the GLM.
@@ -55,9 +52,12 @@ class GPR:
             maxiter: (int)
                 maxiter parameter passed to the statsmodels `fit` function.
         """
+        if not isinstance(data, pd.DataFrame):
+          raise TypeError("data passed to GPR.fit must be a DataFrame!")
+
         logger = logging.getLogger("HistoryMatching")
 
-        data = self.polyfit.fit_transform(data)
+        data = self.basis.fit_transform(data)
 
         # Initialize likelihood and model
         likelihood = gpytorch.likelihoods.GaussianLikelihood()
@@ -96,6 +96,9 @@ class GPR:
         Returns:
             Predicted outputs at the inputs specified by data.
         """
+        if not isinstance(data, pd.DataFrame):
+          raise TypeError("data passed to GPR.predict must be a DataFrame!")
+
         data = self.polyfit.fit_transform(data)
 
 

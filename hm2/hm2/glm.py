@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-from sklearn.preprocessing import PolynomialFeatures
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+
+from .basis import BasisBase
+from .error import HistoryMatchingError
 
 
 
@@ -27,33 +29,27 @@ class GLM:
     """
     def __init__(
             self,
-            polyorder,
-            intercept,
+            basis,
             family,
     ):
         """Initialize the GLM class.
 
         Args:
-            polyorder: Order of polynomial expansion of the data features
-            intercept: Whether to add an intercept feature
+            basis: Feature generator inheriting from BasisBase
             family: (str) The family of generalized linear model to use. 
                           Options include 'poisson', 'binomial', 'gamma', 
                           'negativebinomial', and 'gaussian'. 
         """
-        self.polyorder = polyorder
-        self.intercept = intercept
-        self.family    = family
-        self.alpha     = None
-        self.model     = None
+        if not isinstance(basis,BasisBase):
+            raise HistoryMatchingError("`basis` must inherit from BasisBase!")
 
         # Make this call only to check that the family exists
         gfamily(family)
 
-        self.polyfit = PolynomialFeatures(
-          degree           = polyorder, 
-          interaction_only = False, 
-          include_bias     = intercept
-        )
+        self.basis  = basis
+        self.family = family
+        self.alpha  = None
+        self.model  = None
 
     def fit(self, data, endog, maxiter=1000):
         """Fit the GLM.
@@ -62,9 +58,12 @@ class GLM:
             maxiter: (int)
                 maxiter parameter passed to the statsmodels `fit` function.
         """
+        if not isinstance(data, pd.DataFrame):
+          raise TypeError("data passed to GLM.fit must be a DataFrame!")
+
         logger = logging.getLogger("HistoryMatching")
 
-        data = self.polyfit.fit_transform(data)
+        data = self.basis.fit_transform(data)
         self.model = sm.GLM(data, endog, family=gfamily(self.family))
 
         logger.info("Fitting GLM...")
@@ -85,7 +84,10 @@ class GLM:
         Returns:
             Predicted outputs at the inputs specified by data.
         """
-        data = self.polyfit.fit_transform(data)
+        if not isinstance(data, pd.DataFrame):
+          raise TypeError("data passed to GLM.predict must be a DataFrame!")
+
+        data = self.basis.fit_transform(data)
         return self.fitted_model.predict(data, transform=False)
 
     def residuals(self, data, endog):
