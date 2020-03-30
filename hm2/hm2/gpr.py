@@ -125,6 +125,7 @@ class GPR:
     def residuals(self, data, endog):
         return endog-self.predict(data)
 
+#TODO: Retrain with https://gpytorch.readthedocs.io/en/latest/models.html#gpytorch.models.ExactGP.get_fantasy_model
 
 
 #TODO
