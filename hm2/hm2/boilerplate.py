@@ -200,3 +200,15 @@ def standard_analysis(
   return aggregate_time_results, aggregate_summary_results
 
 
+
+def replicate_reducer(df, agg, has_time):
+  def helper(group):
+    group["value"] = group["value"].mean()
+    group["stdev"] = group["stdev"].std()
+    del group['replicate']
+    return group
+  grouping_keys = ['param_id', 'observation']
+  if has_time:
+    grouping_keys.append('aobservation_id')
+  ret = df.groupby(grouping_keys).apply(helper)
+  return ret
