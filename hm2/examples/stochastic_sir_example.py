@@ -1,10 +1,15 @@
+import code
+import sys
+
+import pandas as pd
+import numpy as np
+
 from hm2.examples.sir import SIR
 import hm2.sampling
 import hm2.boilerplate
 import hm2.basis
-import pandas as pd
-import sys
-import code
+
+
 
 ################################################3
 #Observational Data
@@ -89,19 +94,20 @@ runs = hm2.boilerplate.standard_analysis(
   time_observations=time_observations,
   summary_observations=None,
   wrapped_model=SIRWrapper(),
-  replicates=10
+  replicates=10,
+  cache_name="10runs"
 )
 
 runs = (
-  replicate_reducer(runs[0], {"default": (np.mean, np.mean)}, True)
-  replicate_reducer(runs[1], {"default": (np.mean, np.mean)}, False)
+  hm2.boilerplate.replicate_reducer(runs[0], {"default": (np.mean, np.mean)}, True),
+  hm2.boilerplate.replicate_reducer(runs[1], {"default": (np.mean, np.mean)}, False)
 )
 
 
 
+sys.exit(-1)
 
 
-sys.exit(0)
 
 
 ################################################3

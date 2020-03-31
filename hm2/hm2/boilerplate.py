@@ -1,6 +1,8 @@
 import abc
+import os
 
 import pandas as pd
+import pickle
 
 from .error import HistoryMatchingError
 from .data_validation import *
@@ -127,7 +129,8 @@ def standard_analysis(
   time_observations,
   summary_observations,
   wrapped_model,
-  replicates=1
+  replicates=1,
+  cache_name=""
 ):
   """Perform a time analysis TODO
 
@@ -139,7 +142,11 @@ def standard_analysis(
     summary_observations - A SummaryObservationsFrame (may be None)
     wrapped_model - A model instantiating the ModelWrapper class.
     replicates - Number of times to run the model for each parameter setting
+    cache_name - If specified, results are pickled to a file of this name
   """
+  if os.path.isfile(cache_name):
+    return pickle.load(open(cache_name, "rb" ))
+
   if time_observations is None and summary_observations is None:
     raise HistoryMatchingError("time_analysis was passed None for both `time_observations` and `summary_observations`! At least one must be provided!")
   if not isinstance(wrapped_model, ModelWrapper):
@@ -197,7 +204,12 @@ def standard_analysis(
   aggregate_time_results    = aggregator(aggregate_time_results)
   aggregate_summary_results = aggregator(aggregate_summary_results)
 
-  return aggregate_time_results, aggregate_summary_results
+  ret = aggregate_time_results, aggregate_summary_results
+
+  if cache_name:
+    return pickle.dump(ret, open(cache_name, "wb" ))
+
+  return ret
 
 
 
@@ -217,14 +229,16 @@ def replicate_reducer(df, agg, has_time):
 
   Return: The data frame with replicates aggregated.
   """
+  if df is None:
+    return None
 
   if agg=="mean":
     agg = {"default": (np.mean, np.mean)}
-  elif not isinstance(df,pd.DataFrame):
-    raise HistoryMatchingError("`df` argument to replicate_reducer must be a DataFrame or a recognized reducer name!")
+  elif not isinstance(agg,dict):
+    raise HistoryMatchingError("`agg` argument to replicate_reducer must be a dict or a recognized reducer name!")
 
-  if not isinstance(agg,dict):
-    raise HistoryMatchingError("`agg` argument to replicate_reducer must be a dict!")
+  if not isinstance(df,pd.DataFrame):
+    raise HistoryMatchingError("`df` argument to replicate_reducer must be a DataFrame!")
 
   # Function applied to each group
   def helper(group):
