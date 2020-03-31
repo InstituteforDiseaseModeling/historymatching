@@ -83,13 +83,22 @@ class SIRWrapper(hm2.boilerplate.ModelWrapper):
 
 
 
+# Make model runs and associate them with observations
 runs = hm2.boilerplate.standard_analysis(
   parameter_samples=parameter_samples,
   time_observations=time_observations,
   summary_observations=None,
   wrapped_model=SIRWrapper(),
-  replicates=1
+  replicates=10
 )
+
+runs = (
+  replicate_reducer(runs[0], {"default": (np.mean, np.mean)}, True)
+  replicate_reducer(runs[1], {"default": (np.mean, np.mean)}, False)
+)
+
+
+
 
 
 sys.exit(0)
