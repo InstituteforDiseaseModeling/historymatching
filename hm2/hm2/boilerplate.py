@@ -193,15 +193,10 @@ def standard_analysis(
       aggregate_summary_results.append(summary_results)
 
   # Now we condense the lists of paired observations into single dataframes
-
-  if time_observations is None:
-    aggregate_time_results = None
-  else:
-    aggregate_time_results = pd.concat(aggregate_time_results, ignore_index=True)
-
-  if summary_observations is None:
-    aggregate_summary_results = None
-  else:
-    aggregate_summary_results = pd.concat(aggregate_summary_results, ignore_index=True)
+  aggregator = lambda x: None if all(y is None for y in x) else pd.concat(x, ignore_index=True)
+  aggregate_time_results    = aggregator(aggregate_time_results)
+  aggregate_summary_results = aggregator(aggregate_summary_results)
 
   return aggregate_time_results, aggregate_summary_results
+
+
