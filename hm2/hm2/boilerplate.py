@@ -240,6 +240,11 @@ def replicate_reducer(df, agg, has_time):
   if not isinstance(df,pd.DataFrame):
     raise HistoryMatchingError("`df` argument to replicate_reducer must be a DataFrame!")
 
+  if has_time:
+    df = ValidateTimeStandardAnalysisFrame(df)
+  else:
+    df = ValidateSummaryStandardAnalysisFrame(df)
+
   # Function applied to each group
   def helper(group):
     observation_name = group['observation'].iloc[0]
