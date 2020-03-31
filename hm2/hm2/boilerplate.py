@@ -89,7 +89,10 @@ def _generate_time_standard_analysis_frame(
 
   # Left merge, matching each modeled and actual observation to its nearest
   # analogue by time
-  temp = pd.merge_asof(results, observations, on='time', by='observation', direction='nearest')
+  temp = pd.merge_asof(observations, results, on='time', by='observation', direction='nearest')
+
+  # No longer need the time
+  del temp['time']
 
   # Add contextual information
   temp['param_id'] = param_id
