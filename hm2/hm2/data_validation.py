@@ -113,8 +113,6 @@ def ValidateTimeStandardAnalysisFrame(df):
     raise HistoryMatchingError("TimeStandardAnalysisFrame must include `param_id` column!")
   if 'replicate' not in df.columns:
     raise HistoryMatchingError("TimeStandardAnalysisFrame must include `replicate` column!")
-  if 'time' not in df.columns:
-    raise HistoryMatchingError("TimeStandardAnalysisFrame must include `time` column!")
   if 'observation' not in df.columns:
     raise HistoryMatchingError("TimeStandardAnalysisFrame must include `observation` column!")
   if 'value' not in df.columns:
@@ -124,10 +122,10 @@ def ValidateTimeStandardAnalysisFrame(df):
   if 'aobservation_id' not in df.columns:
     raise HistoryMatchingError("TimeStandardAnalysisFrame must include `aobservation_id` column!")
 
-  if len(df.columns)!=7:
+  if len(df.columns)!=6:
     raise HistoryMatchingError("TimeStandardAnalysisFrame contains unexpected columns!")
 
-  unique_key = ['param_id','replicate','time','observation']
+  unique_key = ['param_id','replicate','aobservation_id','observation']
   if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
     raise HistoryMatchingError("TimeObservationsFrame contained the same observation made twice at the same time within a given parameter+replicate!")
 
