@@ -10,6 +10,8 @@ Welcome to IDM History Matching's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   data_frames
+   wrapped_model
 
 
 Indices and tables
