@@ -7,6 +7,7 @@ from .basis import BasisBase
 from .error import HistoryMatchingError
 
 
+#TODO: Add predictor abstract class
 
 def gfamily(family):
     gfamilies = {
