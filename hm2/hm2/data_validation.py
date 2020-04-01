@@ -102,59 +102,59 @@ def ValidateWrappedModelResults(results):
 
 
 
-def ValidateTimeStandardAnalysisFrame(df):
+def ValidateTimeStandardAnalysisWithReplicatesFrame(df):
   if df is None:
     return None
 
   if not isinstance(df, pd.DataFrame):
-    raise TypeError("TimeStandardAnalysisFrame must be a pandas DataFrame!")
+    raise TypeError("TimeStandardAnalysisWithReplicatesFrame must be a pandas DataFrame!")
 
   if 'param_id' not in df.columns:
-    raise HistoryMatchingError("TimeStandardAnalysisFrame must include `param_id` column!")
+    raise HistoryMatchingError("TimeStandardAnalysisWithReplicatesFrame must include `param_id` column!")
   if 'replicate' not in df.columns:
-    raise HistoryMatchingError("TimeStandardAnalysisFrame must include `replicate` column!")
+    raise HistoryMatchingError("TimeStandardAnalysisWithReplicatesFrame must include `replicate` column!")
   if 'observation' not in df.columns:
-    raise HistoryMatchingError("TimeStandardAnalysisFrame must include `observation` column!")
+    raise HistoryMatchingError("TimeStandardAnalysisWithReplicatesFrame must include `observation` column!")
   if 'value' not in df.columns:
-    raise HistoryMatchingError("TimeStandardAnalysisFrame must include `value` column!")
+    raise HistoryMatchingError("TimeStandardAnalysisWithReplicatesFrame must include `value` column!")
   if 'stdev' not in df.columns:
-    raise HistoryMatchingError("TimeStandardAnalysisFrame must include `stdev` column!")
+    raise HistoryMatchingError("TimeStandardAnalysisWithReplicatesFrame must include `stdev` column!")
   if 'aobservation_id' not in df.columns:
-    raise HistoryMatchingError("TimeStandardAnalysisFrame must include `aobservation_id` column!")
+    raise HistoryMatchingError("TimeStandardAnalysisWithReplicatesFrame must include `aobservation_id` column!")
 
   if len(df.columns)!=6:
-    raise HistoryMatchingError("TimeStandardAnalysisFrame contains unexpected columns!")
+    raise HistoryMatchingError("TimeStandardAnalysisWithReplicatesFrame contains unexpected columns!")
 
   unique_key = ['param_id','replicate','aobservation_id','observation']
   if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
-    raise HistoryMatchingError("TimeObservationsFrame contained the same observation made twice at the same time within a given parameter+replicate!")
+    raise HistoryMatchingError("TimeStandardAnalysisWithReplicatesFrame contained the same observation made twice at the same time within a given parameter+replicate!")
 
   return df.copy()
 
 
-def ValidateSummaryStandardAnalysisFrame(df):
+def ValidateSummaryStandardAnalysisWithReplicatesFrame(df):
   if df is None:
     return None
 
   if not isinstance(df, pd.DataFrame):
-    raise TypeError("SummaryStandardAnalysisFrame must be a pandas DataFrame!")
+    raise TypeError("SummaryStandardAnalysisWithReplicatesFrame must be a pandas DataFrame!")
 
   if 'param_id' not in df.columns:
-    raise HistoryMatchingError("SummaryStandardAnalysisFrame must include `param_id` column!")
+    raise HistoryMatchingError("SummaryStandardAnalysisWithReplicatesFrame must include `param_id` column!")
   if 'replicate' not in df.columns:
-    raise HistoryMatchingError("SummaryStandardAnalysisFrame must include `replicate` column!")
+    raise HistoryMatchingError("SummaryStandardAnalysisWithReplicatesFrame must include `replicate` column!")
   if 'observation' not in df.columns:
-    raise HistoryMatchingError("SummaryStandardAnalysisFrame must include `observation` column!")
+    raise HistoryMatchingError("SummaryStandardAnalysisWithReplicatesFrame must include `observation` column!")
   if 'value' not in df.columns:
-    raise HistoryMatchingError("SummaryStandardAnalysisFrame must include `value` column!")
+    raise HistoryMatchingError("SummaryStandardAnalysisWithReplicatesFrame must include `value` column!")
   if 'stdev' not in df.columns:
-    raise HistoryMatchingError("SummaryStandardAnalysisFrame must include `stdev` column!")
+    raise HistoryMatchingError("SummaryStandardAnalysisWithReplicatesFrame must include `stdev` column!")
 
   if len(df.columns)!=5:
-    raise HistoryMatchingError("SummaryStandardAnalysisFrame contains unexpected columns!")
+    raise HistoryMatchingError("SummaryStandardAnalysisWithReplicatesFrame contains unexpected columns!")
 
   unique_key = ['param_id','replicate','observation']
   if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
-    raise HistoryMatchingError("SummaryStandardAnalysisFrame contained the same observation made twice within a given parameter+replicate!")
+    raise HistoryMatchingError("SummaryStandardAnalysisWithReplicatesFrame contained the same observation made twice within a given parameter+replicate!")
 
   return df.copy()

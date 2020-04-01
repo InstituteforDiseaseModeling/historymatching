@@ -125,14 +125,14 @@ Note that all values in the `param_id` column are unique.
 
 
 
-TimeStandardAnalysisFrame
--------------------------
+TimeStandardAnalysisWithReplicatesFrame
+---------------------------------------
 
 HistoryMatching requires matching simulated observations to actual observations
 in order for the emulator to learn to approximate the model. This process is
 fairly standard and so has been encapsulated in the `standard_analysis`
-function. This function returns a `TimeStandardAnalysisFrame` with the following
-tidy format:
+function. This function returns a `TimeStandardAnalysisWithReplicatesFrame` with
+the following tidy format:
 
 ::
 
@@ -156,14 +156,14 @@ observation.
 
 
 
-SummaryStandardAnalysisFrame
-----------------------------
+SummaryStandardAnalysisWithReplicatesFrame
+------------------------------------------
 
 HistoryMatching requires matching simulated observations to actual observations
 in order for the emulator to learn to approximate the model. This process is
 fairly standard and so has been encapsulated in the `standard_analysis`
-function. This function returns a `SummaryStandardAnalysisFrame` with the following
-tidy format:
+function. This function returns a `SummaryStandardAnalysisWithReplicatesFrame`
+with the following tidy format:
 
 ::
 

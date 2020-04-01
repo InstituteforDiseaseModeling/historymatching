@@ -143,6 +143,8 @@ def standard_analysis(
     wrapped_model - A model instantiating the ModelWrapper class.
     replicates - Number of times to run the model for each parameter setting
     cache_name - If specified, results are pickled to a file of this name
+
+  Returns: (TimeStandardAnalysisWithReplicatesFrame,SummaryStandardAnalysisWithReplicates)
   """
   if os.path.isfile(cache_name):
     return pickle.load(open(cache_name, "rb" ))
@@ -207,7 +209,7 @@ def standard_analysis(
   ret = aggregate_time_results, aggregate_summary_results
 
   if cache_name:
-    return pickle.dump(ret, open(cache_name, "wb" ))
+    pickle.dump(ret, open(cache_name, "wb" ))
 
   return ret
 
@@ -241,9 +243,9 @@ def replicate_reducer(df, agg, has_time):
     raise HistoryMatchingError("`df` argument to replicate_reducer must be a DataFrame!")
 
   if has_time:
-    df = ValidateTimeStandardAnalysisFrame(df)
+    df = ValidateTimeStandardAnalysisWithReplicatesFrame(df)
   else:
-    df = ValidateSummaryStandardAnalysisFrame(df)
+    df = ValidateSummaryStandardAnalysisWithReplicatesFrame(df)
 
   # Function applied to each group
   def helper(group):

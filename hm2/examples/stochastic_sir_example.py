@@ -94,8 +94,8 @@ runs = hm2.boilerplate.standard_analysis(
   time_observations=time_observations,
   summary_observations=None,
   wrapped_model=SIRWrapper(),
-  replicates=10,
-  cache_name="10runs"
+  replicates=2,
+  cache_name="10runs4"
 )
 
 runs = (
