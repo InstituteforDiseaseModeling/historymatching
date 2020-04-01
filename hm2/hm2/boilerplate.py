@@ -215,7 +215,7 @@ def standard_analysis(
 
 
 
-def replicate_reducer(df, agg, has_time):
+def replicate_reducer(df, agg):
   """Reduce a TimeStandardAnalysisFrame or SummaryStandardAnalysisFrame to one
      without a replicate column by aggregating replicates according to `agg`.
 
@@ -227,7 +227,6 @@ def replicate_reducer(df, agg, has_time):
               {"OBSERVATION NAME": (value_reducer_func, stdev_reducer_func)}
           If "OBSERVATION NAME" is "default" then the specified reducers are
           applied to any observations not otherwise specified.
-    has_time - True if the this is a TimeStandardAnalysisFrame; otherwise, false.
 
   Return: The data frame with replicates aggregated.
   """
@@ -242,7 +241,7 @@ def replicate_reducer(df, agg, has_time):
   if not isinstance(df,pd.DataFrame):
     raise HistoryMatchingError("`df` argument to replicate_reducer must be a DataFrame!")
 
-  if has_time:
+  if 'aobservation_id' in df.columns:
     df = ValidateTimeStandardAnalysisWithReplicatesFrame(df)
   else:
     df = ValidateSummaryStandardAnalysisWithReplicatesFrame(df)
@@ -260,7 +259,7 @@ def replicate_reducer(df, agg, has_time):
     return group
 
   grouping_keys = ['param_id', 'observation']
-  if has_time:
+  if 'aobservation_id' in df.columns:
     grouping_keys.append('aobservation_id')
   ret = df.groupby(grouping_keys).apply(helper)
 

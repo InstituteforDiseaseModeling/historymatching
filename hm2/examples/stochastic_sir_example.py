@@ -99,8 +99,8 @@ runs = hm2.boilerplate.standard_analysis(
 )
 
 runs = (
-  hm2.boilerplate.replicate_reducer(runs[0], {"default": (np.mean, np.mean)}, True),
-  hm2.boilerplate.replicate_reducer(runs[1], {"default": (np.mean, np.mean)}, False)
+  hm2.boilerplate.replicate_reducer(runs[0], {"default": (np.mean, np.mean)}),
+  hm2.boilerplate.replicate_reducer(runs[1], {"default": (np.mean, np.mean)})
 )
 
 
