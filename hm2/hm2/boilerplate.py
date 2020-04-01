@@ -125,6 +125,7 @@ def _generate_summary_standard_analysis_frame(
 
 
 
+#TODO(r-barnes): parallelize
 def standard_analysis(
   parameter_samples,
   time_observations,

@@ -1,15 +1,33 @@
-import hm2.GLM
+import abc
+# import hm2.GLM
 from hm2.gpr import GPR
 
+class EmulatorBase(abc.ABC):
+    pass
 
 
-class GLM_GPR_Emulator:
+
+class GPR_Emulator(EmulatorBase):
+    def __init__(self, basis):
+        self.gpr = GPR(basis=basis)
+
+    def fit(self, data, endog, maxiter=1000):
+        return self.gpr.fit(data, endog, maxiter)
+
+    def predict(self, data):
+        return self.gpr.predict(data)
+
+
+
+
+#TODO: Finish
+class GLM_GPR_Emulator(EmulatorBase):
     """Emulator that trains a GLM on data and a GPR on the residuals.
     """
     def __init__(
             self,
-            polyorder, #TODO(r-barnes): Separate glm and gpr polyorder?
-            intercept,
+            glm_basis,
+            gpr_basis,
             family = 'poisson',
     ):
         """Initialize the Emulator
@@ -21,14 +39,10 @@ class GLM_GPR_Emulator:
                           Options include 'poisson', 'binomial', 'gamma', 
                           'negativebinomial', and 'gaussian'. 
         """
-        self.polyorder = polyorder
-        self.intercept = intercept
-        self.family    = family
-        self.alpha     = None
-        self.model     = None
+        self.model = None
 
-        self.glm = GLM(polyorder=polyorder, intercept=intercept, faily=family)
-        self.gpr = GPR(polyorder=polyorder, intercept=intercept)
+        self.glm = GLM(basis=glm_basis, family=family)
+        self.gpr = GPR(basis=gpr_basis)
 
     #TODO(r-barnes): Differentiate glm and gpr maxiter?
     def fit(self, data, endog, maxiter=1000):
