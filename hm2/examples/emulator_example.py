@@ -16,16 +16,27 @@ import sys
 #Training data is 100 points in [0,1] inclusive regularly spaced
 train_x = np.linspace(0, 1, 100)
 
-# True function is sin(2*pi*x) with Gaussian noise
-train_y = np.sin(train_x * (2 * np.pi)) + np.random.normal(size=len(train_x)) * np.sqrt(0.04)
+# True function is sin(2*pi*x)
+train_y = np.sin(train_x * (2 * np.pi))
+# Corrupt the true function with Gaussian noise
+train_y += np.random.normal(size=len(train_x)) * np.sqrt(0.04)
 
+# Emulator requires a DataFrame 
 train_x = pd.DataFrame({"x":train_x})
 train_y = pd.DataFrame({"y":train_y})
 
-gpr = GPR_Emulator(basis=IdentityBasis(intercept=True))
+# Build the emulator
+gpr = GPR_Emulator(basis=IdentityBasis(intercept=False))
+# Fit the emulator for 20 iterations
 gpr.fit(train_x, train_y, maxiter=20)
 
-plt.plot(train_x,train_y)
-predicted = gpr.predict(train_x)
-plt.errorbar(train_x, predicted[0], yerr=predicted[1], fmt='.k')
+# Get predictions from the emulator
+predict_x = pd.DataFrame({"x":np.linspace(0,2,23)})
+mean, lower, upper = gpr.predict(predict_x)
+
+#Plot the function
+plt.plot(train_x,train_y,'k*')
+plt.plot(predict_x, mean, 'b')
+plt.fill_between(predict_x['x'], lower, upper, alpha=0.5)
+plt.legend(['Observed Data', 'Emulated Mean', 'Emulated Confidence'])
 plt.show()
