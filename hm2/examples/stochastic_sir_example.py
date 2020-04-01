@@ -11,9 +11,9 @@ import hm2.basis
 
 
 
-################################################3
+################################################
 #Observational Data
-################################################3
+################################################
 
 time_observations = pd.DataFrame({
     'observation_id': [           0,            1],
@@ -23,13 +23,15 @@ time_observations = pd.DataFrame({
     'stdev':          [           4,          2.3]
 })
 
+summary_observations = None
 
 
-################################################3
+
+################################################
 #Parameters
-################################################3
+################################################
 
-# Here we define the parameter names and ranges
+# Here we define the parameter names and ranges for our model
 param_info = pd.DataFrame({
     'name': ['beta', 'gamma'],
     'min':  [  1e-6,    1e-6],
@@ -38,33 +40,22 @@ param_info = pd.DataFrame({
 
 
 
-################################################3
-#TODO: Play around
-################################################3
-
-
-
-
-################################################3
+################################################
 #Start sampling
-################################################3
-
-
-# Number of simulations to conduct on this iteration
-n_samples_this_iter = 100 
+################################################
 
 # For the first iteration, the samples are random.  We'll use Latin Hypercube
-# Sampling to make the samples more uniformly random. samples should be a pandas
-# data frame, and must have an index named 'Sample_Id'
-parameter_samples = hm2.sampling.latin_hypercube(param_info, n_samples_this_iter)
+# Sampling to make the samples more uniformly spaced.
+parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=100)
 
-# Plot the samples
-# f, ax = plt.subplots(figsize=(6,6));
-# ax.scatter(x=samples[param_info.index.values[0]], y=samples[param_info.index.values[1]]);
-# ax.set_xlim([param_info['Min'][0], param_info['Max'][0]]);
-# ax.set_ylim([param_info['Min'][1], param_info['Max'][1]]);
-# ax.set_xlabel(param_info.index.values[0]);
-# ax.set_ylabel(param_info.index.values[1]);
+
+
+################################################
+#Start sampling
+################################################
+
+# HistoryMatching requires that the model be wrapped in the special ModelWrapper
+# class. This standardize HistoryMatching's interaction with models 
 
 class SIRWrapper(hm2.boilerplate.ModelWrapper):
     @classmethod
@@ -90,14 +81,16 @@ class SIRWrapper(hm2.boilerplate.ModelWrapper):
 
 # Make model runs and associate them with observations
 runs = hm2.boilerplate.standard_analysis(
-  parameter_samples=parameter_samples,
-  time_observations=time_observations,
-  summary_observations=None,
-  wrapped_model=SIRWrapper(),
-  replicates=2,
-  cache_name="10runs4"
+  parameter_samples    = parameter_samples,
+  time_observations    = time_observations,
+  summary_observations = summary_observations,
+  wrapped_model        = SIRWrapper(),
+  replicates           = 2,
+  cache_name           = "10runs5"
 )
 
+# Reduce replicates taking the mean of what the model produced for each time
+# point
 runs = (
   hm2.boilerplate.replicate_reducer(runs[0], "mean"),
   hm2.boilerplate.replicate_reducer(runs[1], "mean")
@@ -110,9 +103,35 @@ sys.exit(-1)
 
 
 
-################################################3
+
+################################################
+################################################
+################################################
+################################################
+#Example ends here
+################################################
+################################################
+################################################
+################################################
+
+
+
+
+
+
+# Plot the samples
+# f, ax = plt.subplots(figsize=(6,6));
+# ax.scatter(x=samples[param_info.index.values[0]], y=samples[param_info.index.values[1]]);
+# ax.set_xlim([param_info['Min'][0], param_info['Max'][0]]);
+# ax.set_ylim([param_info['Min'][1], param_info['Max'][1]]);
+# ax.set_xlabel(param_info.index.values[0]);
+# ax.set_ylabel(param_info.index.values[1]);
+
+
+
+################################################
 # Make a cut
-################################################3
+################################################
 
 
 
@@ -120,25 +139,25 @@ sys.exit(-1)
 # of parameter space that are inconsistent with the underlying data. A higher
 # threshold is more risk averse in that potentially good regions are less likely
 # to be rejected, however it will take more iterations/simulations to achieve results.
-implausibility_threshold = 3
+# implausibility_threshold = 3
 
-n_samples_this_iter = 100 # Number of simulations to conduct on this iteration
-n_samples_to_generate_for_next_iter = 100 # Number of simulations to conduct on this iteration
+# n_samples_this_iter = 100 # Number of simulations to conduct on this iteration
+# n_samples_to_generate_for_next_iter = 100 # Number of simulations to conduct on this iteration
 
-training_fraction = 0.75 # Fraction of simulations to use as training
-discrepancy_std = 3 # Accounts for uncertainty w.r.t model structure
+# training_fraction = 0.75 # Fraction of simulations to use as training
+# discrepancy_std = 3 # Accounts for uncertainty w.r.t model structure
 
 
 # For this first iteration, we're going to make one "cut" using the first observation, but 
 # you can separately do multiple "cuts" per iteration using several observations (separately)
 # We'll need a name for this cut and the desired results
 
-desired_result_idx = 0 # Pick observation 0 or 1 [integers]
+# desired_result_idx = 0 # Pick observation 0 or 1 [integers]
 
-cut_name = 'Prevalence_Meas_%d'%desired_result_idx # No spaces or strange characters!
+# cut_name = 'Prevalence_Meas_%d'%desired_result_idx # No spaces or strange characters!
 
-desired_result = observations.iloc[desired_result_idx]['Prevalence']
-desired_result_var = observations.iloc[desired_result_idx]['Stdev']**2
+# desired_result = observations.iloc[desired_result_idx]['Prevalence']
+# desired_result_var = observations.iloc[desired_result_idx]['Stdev']**2
 
 
 
@@ -146,23 +165,23 @@ desired_result_var = observations.iloc[desired_result_idx]['Stdev']**2
 # Finally we get to do some History Matching!
 
 # Begin by creating an instance of the HistoryMatching class
-hm = HistoryMatching(
-    cut_name = cut_name,
-    param_info = param_info,
-    inputs = samples,
-    results = results,
-    desired_result = desired_result,
-    desired_result_var = desired_result_var,
-    iteration = iteration,
-    implausibility_threshold = implausibility_threshold,
-    discrepancy_var = discrepancy_std**2,
-    training_fraction = training_fraction
-)
-hm.save() # Save to disk
+# hm = HistoryMatching(
+#     cut_name = cut_name,
+#     param_info = param_info,
+#     inputs = samples,
+#     results = results,
+#     desired_result = desired_result,
+#     desired_result_var = desired_result_var,
+#     iteration = iteration,
+#     implausibility_threshold = implausibility_threshold,
+#     discrepancy_var = discrepancy_std**2,
+#     training_fraction = training_fraction
+# )
+# hm.save() # Save to disk
 
 
 
-
+code.interact(local=locals())
 
 
 # Now we begin the process of emulating the simulation output
@@ -181,14 +200,10 @@ hm.save() # Save to disk
 # simulated outputs and the GLM estimates.  If the GLM fits really well, the residual is mostly noise and
 # the GPR has a hard time fitting / isn't very informative.  I actually prefer to weaken the GLM enough
 # to leave plenty of residual signal for the GPR.  Here, I use only first-order (beta and gamma) terms.
-basis_glm = Basis.make_polynomial_basis(
-    params = param_info.index.values,
-    intercept = True,
-    first_order = True,
-    second_order = False,
-    third_order = False,
-    param_info = param_info)
-
+basis_glm = hm2.basis.PolynomialBasis(
+    degree = 1,
+    intercept = True
+)
 
 
 # Now fit the glm and plot
@@ -196,15 +211,7 @@ basis_glm = Basis.make_polynomial_basis(
 ### GLM ###############################################################
 print("="*80, "\nGeneralized Linear Modeling\n", "="*80)
 #######################################################################
-f = hm.glm(
-    basis = basis_glm,
-    family = 'Gaussian',
-    force_optimize_glm = True,
-    glm_fit_maxiter = 100000,
-    plot = True, #force_optimize_glm,
-    plot_data = True
-)
-
+glm = hm2.glm.GLM(basis=basis_glm, family='Gaussian').fit(runs)
 
 
 
@@ -219,21 +226,11 @@ for file in glob.glob(os.path.join(hm.glmdir, "GLM Predicted vs Actual.pdf")):
     print(file)
     display(img)
 
-
-
-
-
-
-
-
-
-# Plot
-# plt.plot(T,prevalence)
-
-
-
 code.interact(local=locals())
 sys.exit(-1)
+
+
+
 
 
 
@@ -253,30 +250,6 @@ sys.exit(-1)
 #         [obs['Times'],obs['Times']], 
 #         [obs['Prevalence']-2*obs['Stdev'],obs['Prevalence']+2*obs['Stdev']],
 #         'k-')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
