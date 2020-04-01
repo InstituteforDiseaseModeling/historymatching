@@ -27,7 +27,7 @@ class _ExactGPModel(gpt.models.ExactGP):
 
 
 
-#TODO(r-barnes): Consider saving only the state dict and not the interediate variables
+#TODO(r-barnes): Consider saving only the state dict and not the intermediate variables
 class GPR:
     """Gaussian Process Regression (GPR)
 
@@ -102,67 +102,33 @@ class GPR:
             ))
             optimizer.step()
 
-    def predict(self, data):
+    def predict(self, test_x):
         """Evaluate the GLM and return the mean prediction.
 
         Args:
-            data: (Pandas DataFrame)
+            test_x: (Pandas DataFrame)
                 Data frame of points similar to training_data.
 
         Returns:
             Predicted outputs at the inputs specified by data.
         """
-        if not isinstance(data, pd.DataFrame):
+        if not isinstance(test_x, pd.DataFrame):
           raise TypeError("data passed to GPR.predict must be a DataFrame!")
 
-        data = self._convert_data(self.basis.fit_transform(data))
+        test_x = self._convert_data(self.basis.fit_transform(test_x))
 
         # Put likelihood and model into evaluation (predictive posterior) mode
         self.model.eval()
         self.likelihood.eval()
 
-        print("data",data)
-        f_preds = self.model(data)
-        y_preds = self.likelihood(self.model(data))
+        with T.no_grad(), gpt.settings.fast_pred_var():
+            observed_pred = self.likelihood(self.model(test_x))
+            mean = observed_pred.mean
+            lower, upper = observed_pred.confidence_region()
 
-        #TODO
-        f_mean = f_preds.mean.detach().numpy()
-        f_var = f_preds.variance.detach().numpy()
-        # f_covar = f_preds.covariance_matrix
-        # f_samples = f_preds.sample(sample_shape=T.Size(1000,))
-
-        return f_mean, f_var
-
-        #TODO
-        # # Test points are regularly spaced along [0,1]
-        # # Make predictions by feeding model through likelihood
-        # with torch.no_grad(), gpt.settings.fast_pred_var():
-        #     test_x = torch.linspace(0, 1, 51)
-        #     observed_pred = likelihood(model(test_x))
+        return mean.numpy(), lower.numpy(), upper.numpy()
 
     def residuals(self, data, endog):
         return endog-self.predict(data)
 
 #TODO: Retrain with https://gpt.readthedocs.io/en/latest/models.html#gpt.models.ExactGP.get_fantasy_model
-
-
-#TODO
-#In the next cell, we plot the mean and confidence region of the Gaussian
-#process model. The confidence_region method is a helper method that returns 2
-#standard deviations above and below the mean.
-
-#TODO
-# with torch.no_grad():
-#     # Initialize plot
-#     f, ax = plt.subplots(1, 1, figsize=(4, 3))
-
-#     # Get upper and lower confidence bounds
-#     lower, upper = observed_pred.confidence_region()
-#     # Plot training data as black stars
-#     ax.plot(train_x.numpy(), train_y.numpy(), 'k*')
-#     # Plot predictive means as blue line
-#     ax.plot(test_x.numpy(), observed_pred.mean.numpy(), 'b')
-#     # Shade between the lower and upper confidence bounds
-#     ax.fill_between(test_x.numpy(), lower.numpy(), upper.numpy(), alpha=0.5)
-#     ax.set_ylim([-3, 3])
-#     ax.legend(['Observed Data', 'Mean', 'Confidence'])
