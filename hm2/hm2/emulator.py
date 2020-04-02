@@ -1,6 +1,6 @@
 import abc
 
-from hm2.gpr import GPR
+from hm2.gpr import TorchGPR
 from hm2.data_validation import *
 
 class EmulatorBase(abc.ABC):
@@ -20,7 +20,7 @@ class EmulatorBase(abc.ABC):
         """
         param_samples = ValidateParameterSamplesFrame(param_samples)
         model_output  = ValidateEmulatorInput(model_output)
-        self._fit_specific(param_samples, model_output, maxiter)
+        self._fit(param_samples, model_output, maxiter)
 
     def predict(self, test_x):
         """Get GPR's predictions for test_x
@@ -32,9 +32,9 @@ class EmulatorBase(abc.ABC):
         """
         return self._predict(test_x)
 
-class GPR_SingleEmulator(EmulatorBase):
+class TorchGPREmulator(EmulatorBase):
     def __init__(self, basis):
-        self.gpr = GPR(basis=basis)
+        self.gpr = TorchGPR(basis=basis)
 
     def _fit(self, param_samples, model_output, maxiter):
         self.gpr.fit(

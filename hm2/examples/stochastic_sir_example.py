@@ -101,7 +101,7 @@ model_time, model_summary = hm2.boilerplate.standard_analysis(
 
 
 this_obs = model_time[model_time['aobservation_id']==0]
-gpremu = hm2.emulator.GPR_SingleEmulator(basis=hm2.basis.IdentityBasis(intercept=False))
+gpremu = hm2.emulator.TorchGPREmulator(basis=hm2.basis.IdentityBasis(intercept=False))
 gpremu.fit(parameter_samples, this_obs, maxiter=10000)
 
 gpremu.predict(parameter_samples.iloc[this_obs['param_id']][['beta','gamma']])

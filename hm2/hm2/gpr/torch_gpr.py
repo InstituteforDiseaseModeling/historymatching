@@ -7,8 +7,8 @@ import torch as T
 import numpy as np
 import pandas as pd
 
-from .basis import BasisBase
-from .error import HistoryMatchingError
+from hm2.basis import BasisBase
+from hm2.error import HistoryMatchingError
 
 
 #TODO: Add predictor abstract class
@@ -27,7 +27,7 @@ class _ExactGPModel(gpt.models.ExactGP):
 
 
 #TODO(r-barnes): Consider saving only the state dict and not the intermediate variables
-class GPR:
+class TorchGPR:
     """Gaussian Process Regression (GPR)
 
     This class implementes Generalized Linear Modeling using statsmodels as the
