@@ -4,12 +4,19 @@ from .error import HistoryMatchingError
 
 
 
-def _CheckColumns(df, cols, df_name, no_extra=True):
-  for col in cols:
+def _CheckColumns(df, required_cols, df_name, optional_cols=None, no_extra=True):
+  for col in required_cols:
     if col not in df.columns:
       raise HistoryMatchingError(f"{df_name} must include `{col}` column!")
-  if no_extra and len(df.columns)!=len(cols):
-    raise HistoryMatchingError(f"{df_name} had extra columns! Found {len(df.columns)}, expected {len(cols)}!")
+
+  #What columns remaing after we have accounted for the required ones?
+  remaining_columns = set(df.columns.tolist()) - set(required_cols)
+  #Subtract off any optional columns
+  if optional_cols is not None:
+    remaining_columns -= set(optional_cols)
+  #Now, check to see if there are any extra
+  if no_extra and len(remaining_columns)>0:
+    raise HistoryMatchingError(f"{df_name} had extra columns! Found '{df.columns.tolist()}'. Required '{required_cols}' with '{optional_cols} optionally permitted!")
 
 
 
