@@ -123,3 +123,19 @@ def ValidateSummaryStandardAnalysisWithReplicatesFrame(df):
     raise HistoryMatchingError("SummaryStandardAnalysisWithReplicatesFrame contained the same observation made twice within a given parameter+replicate!")
 
   return df.copy()
+
+
+
+def ValidateEmulatorInput(df):
+  if not isinstance(df, pd.DataFrame):
+    raise TypeError("SingleEmulatorInput must be a pandas DataFrame!")
+
+  _CheckColumns(df,['param_id','replicate','observation','value','stdev'], "SingleEmulatorInput", optional_cols=['aobservation_id'])
+
+  if len(df["observation"].unique())!=1:
+    raise HistoryMatchingError("SingleEmulatorInput must have a single observation type!")
+
+  if 'aobservation_id' in df.columns and len(df["aobservation_id"].unique())!=1:
+    raise HistoryMatchingError("SingleEmulatorInput for a time series must refer to only a single time point!")
+
+  return df.copy()
