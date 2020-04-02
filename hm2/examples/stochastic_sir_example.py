@@ -80,7 +80,7 @@ class SIRWrapper(hm2.boilerplate.ModelWrapper):
 
 
 # Make model runs and associate them with observations
-runs = hm2.boilerplate.standard_analysis(
+model_time, model_summary = hm2.boilerplate.standard_analysis(
   parameter_samples    = parameter_samples,
   time_observations    = time_observations,
   summary_observations = summary_observations,
