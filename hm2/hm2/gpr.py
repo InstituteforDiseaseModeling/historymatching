@@ -17,7 +17,6 @@ class _ExactGPModel(gpt.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood):
         super(_ExactGPModel, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpt.means.ConstantMean()
-        # self.covar_module = gpt.kernels.ScaleKernel(gpt.kernels.RBFKernel()) #TODO
         self.covar_module = gpt.kernels.ScaleKernel(gpt.kernels.RBFKernel())
 
     def forward(self, x):
@@ -47,34 +46,62 @@ class GPR:
             raise HistoryMatchingError("`basis` must inherit from BasisBase!")
 
         self.basis = basis
-        self.likelihood = gpt.likelihoods.GaussianLikelihood()
         self.model = None
+        self.likelihood = None
 
-    def fit(self, data, endog, maxiter=1000):
+    def fit(self, train_x, train_y, stdev_y, maxiter=1000):
         """Fit the GLM.
 
         Args:
-            data: Training data
-            endog: Correct outputs
+            train_x: Training data
+            train_y: Correct outputs
+            stdev_y: Standard deviation of Y values (uncertainty)
             maxiter: Maximum number of training iterations
 
         Returns: None
         """
-        if not isinstance(data, pd.DataFrame):
-          raise TypeError("data passed to GPR.fit must be a DataFrame!")
-        return self._fit_new(data, endog, maxiter)
+        print(train_y)
+        if not isinstance(train_x, pd.DataFrame):
+          raise TypeError("train_x passed to GPR.fit must be a DataFrame!")
+        if not isinstance(train_y, pd.DataFrame):
+          raise TypeError("train_y passed to GPR.fit must be a DataFrame!")
+        if not isinstance(stdev_y, pd.DataFrame):
+          raise TypeError("stdev_y passed to GPR.fit must be a DataFrame!")
+        return self._fit_new(train_x, train_y, stdev_y, maxiter)
 
     @staticmethod
-    def _convert_data(data):
-        return T.squeeze(T.from_numpy(data.to_numpy()))
+    def _convert_xdata(data):
+        ret = T.from_numpy(data.to_numpy()[:,0])
+        return ret #TODO: Remove temp var
 
-    def _fit_new(self, train_x, train_y, maxiter):
+    @staticmethod
+    def _convert_ydata(data):
+        ret = T.from_numpy(data.to_numpy()[:,0])
+        return ret #TODO: Remove temp var
+
+    def _fit_new(self, train_x, train_y, stdev_y, maxiter):
+        """Fit the GLM.
+
+        Args:
+            train_x: Training data
+            train_y: Correct outputs
+            stdev_y: Standard deviation of Y values (uncertainty)
+            maxiter: Maximum number of training iterations
+
+        Returns: None
+        """
         logger = logging.getLogger("HistoryMatching")
 
         # Initialize likelihood and model
-        train_x    = self._convert_data(self.basis.fit_transform(train_x))
-        train_y = self._convert_data(train_y)
- 
+        train_x = self._convert_xdata(self.basis.fit_transform(train_x))
+        train_y = self._convert_ydata(train_y)
+
+        if (stdev_y['stdev']==0).all():
+            self.likelihood = gpt.likelihoods.GaussianLikelihood()
+        else:
+            stdev = self._convert_ydata(stdev_y)
+            self.likelihood = gpt.likelihoods.FixedNoiseGaussianLikelihood(noise=stdev**2, learn_additional_noise=True)
+
         self.model = _ExactGPModel(train_x, train_y, self.likelihood)
 
         self.likelihood.train()
@@ -88,9 +115,9 @@ class GPR:
         mll = gpt.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
         for i in range(maxiter):
-            optimizer.zero_grad()        # Zero gradients from previous iteration
-            output = self.model(train_x) # Output from model
-            loss = -mll(output, train_y) # Calc loss and backprop gradients
+            optimizer.zero_grad()         # Zero gradients from previous iteration
+            output = self.model(train_x)  # Output from model
+            loss = -mll(output, train_y)  # Calc loss and backprop gradients
             loss.backward()
             #TODO: Use logger
             print('Iter {i}/{maxiter} - Loss: {loss:.3f} lengthscale: {lenscale:.3f} noise: {noise:.3f}'.format(
@@ -115,18 +142,21 @@ class GPR:
         if not isinstance(test_x, pd.DataFrame):
           raise TypeError("data passed to GPR.predict must be a DataFrame!")
 
-        test_x = self._convert_data(self.basis.fit_transform(test_x))
+        test_x = self._convert_xdata(self.basis.fit_transform(test_x))
 
         # Put likelihood and model into evaluation (predictive posterior) mode
         self.model.eval()
         self.likelihood.eval()
 
         with T.no_grad(), gpt.settings.fast_pred_var():
-            observed_pred = self.likelihood(self.model(test_x))
-            mean = observed_pred.mean
-            lower, upper = observed_pred.confidence_region()
+            y_pred        = self.model(test_x)
+            observed_pred = self.likelihood(y_pred)
+            mean          = observed_pred.mean
+            #TODO: What is the difference between these?
+            stdy          = T.sqrt(y_pred.variance)
+            stdf          = T.sqrt(observed_pred.variance)
 
-        return mean.numpy(), lower.numpy(), upper.numpy()
+        return mean.numpy(), stdy.numpy()
 
     def residuals(self, data, endog):
         return endog-self.predict(data)

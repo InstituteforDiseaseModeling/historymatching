@@ -1,6 +1,7 @@
 import code
 import sys
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
@@ -8,6 +9,7 @@ from hm2.examples.sir import SIR
 import hm2.sampling
 import hm2.boilerplate
 import hm2.basis
+import hm2.emulator
 
 
 
@@ -85,15 +87,37 @@ model_time, model_summary = hm2.boilerplate.standard_analysis(
   time_observations    = time_observations,
   summary_observations = summary_observations,
   wrapped_model        = SIRWrapper(),
-  replicates           = 2,
-  cache_name           = "10runs5"
+  replicates           = 1,
+  cache_name           = "reps1"
 )
 
 # Reduce replicates taking the mean of what the model produced for each time
 # point
-runs = (
-  hm2.boilerplate.replicate_reducer(runs[0], "mean"),
-  hm2.boilerplate.replicate_reducer(runs[1], "mean")
+# runs = (
+#   hm2.boilerplate.replicate_reducer(runs[0], "mean"),
+#   hm2.boilerplate.replicate_reducer(runs[1], "mean")
+# )
+
+
+
+this_obs = model_time[model_time['aobservation_id']==0]
+gpremu = hm2.emulator.GPR_SingleEmulator(basis=hm2.basis.IdentityBasis(intercept=False))
+gpremu.fit(parameter_samples, this_obs, maxiter=10000)
+
+gpremu.predict(parameter_samples.iloc[this_obs['param_id']][['beta','gamma']])
+
+
+plt.scatter(
+  parameter_samples.iloc[this_obs['param_id']]['beta'],
+  parameter_samples.iloc[this_obs['param_id']]['gamma'],
+  c=this_obs['value']
+)
+
+
+plt.scatter(
+  parameter_samples.iloc[this_obs['param_id']]['beta'],
+  parameter_samples.iloc[this_obs['param_id']]['gamma'],
+  c=gpremu.predict(parameter_samples.iloc[this_obs['param_id']][['beta','gamma']])[0]
 )
 
 
