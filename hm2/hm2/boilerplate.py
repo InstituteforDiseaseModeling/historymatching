@@ -257,7 +257,7 @@ def replicate_reducer(df, agg):
     else:
       group["value"] = agg["default"][0](group["value"])
       group["stdev"] = agg["default"][1](group["stdev"])
-    del group['replicate']
+    group['replicate'] = 0 #Replicates are now binned to a single value
     return group
 
   grouping_keys = ['param_id', 'observation']
