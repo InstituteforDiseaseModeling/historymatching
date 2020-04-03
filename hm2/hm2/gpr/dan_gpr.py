@@ -28,28 +28,28 @@ except Exception as e:
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
 
-class GPR():
-    """Gaussian Process Regression.
+class DanGPR():
+    """Daniel Klein's Gaussian Process Regression implementation
 
-    This class implementes Gaussian Process Regression with leave-one-out cross-validation for parameter fitting and NVidia-CUDA-based GPU acceleration for speed.
+    This class implementes Gaussian Process Regression with leave-one-out
+    cross-validation for parameter fitting and NVidia-CUDA-based GPU
+    acceleration for speed.
     """
 
-    def __init__(self, basis, Ycol, training_data, param_info,
-                 kernel_mode = 'RBF',
-                 theta = None,
-                 #is_poisson = False, # Not currently supported
-                 normalize_y = True,
-                 sigma2_n = None,
-                 fig_type = 'pdf',
-                 verbose = False,
-                 debug = False,
-                 **kwargs
-        ):
+    def __init__(
+            self, 
+            basis, 
+            Ycol, 
+            training_data, 
+            param_info,
+            theta = None,
+            normalize_y = True,
+            sigma2_n = None,
+            **kwargs
+    ):
         """Initialize the GPR class.
 
         Args:
-            basis: (basis)
-                Provide an instance of a basis class which determines the parameters for the GPR.
             Ycol:  (str)
                 The name of the column in training_data that contains the model output values.  Ycol must be a column in training_data
             training_data:  (Pandas dataframe)
@@ -66,8 +66,6 @@ class GPR():
                 * Max: Maximum value of parameter.
                 * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
                 * Source: (optional) Source from which parameter ranges came from
-            kernel_mode:  (str, optional)
-                Eventual support for various kernels, for now the only available option is `RBF`.
             theta: (1D ndarray, optional)
                 Optionally specify the hyperparameters.  This should be a numpy array of length 2+D, where D is the number of parameters:
                 1) sigma_f^2
@@ -80,12 +78,9 @@ class GPR():
                 If the responses should be normalized
             sigma_n: (None or instance of GPR)
                 For typical homoscedastic GPR, leave as None.  The kernel hyperparamter, sigma2_n, will be optimized.  Alternatively for heteroscedastic GPR, provide an instance of a GPR with the same input dimensions for which the optut is the log of the variance.
-            verbose: (boolean, optional with default False)
-            debug: (boolean, optional with default False)
             normalizer_mean (float, optional):  Allows specification or recovery of the mean of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
         """
-
         try:
             device = pycuda.autoinit.device
             print('Autoinit GPU device name:', device.name())
@@ -94,9 +89,9 @@ class GPR():
             self.use_gpu = False
 
         if self.use_gpu:
-            # Read in the RFB kernel
+            # Read in the RBF kernel
             cur_dir = os.path.dirname(os.path.realpath(__file__))
-            self.kernel_fn = os.path.join(cur_dir, 'kernel.c')
+            self.kernel_fn = os.path.join(cur_dir, 'dan_gpr_kernel.c')
 
         self.training_data = training_data.copy()
         self.param_info = param_info.copy()
@@ -125,7 +120,6 @@ class GPR():
         self.poisson = False #is_poisson
 
         self.verbose = verbose
-        self.debug = debug
 
         # Heteroscedastic GP setup
         self.fixed_sigma_n = True
@@ -188,10 +182,6 @@ class GPR():
         When evaluating many points, these somewhat-slow to calculate properties do not change, co we compute and cache them here.
 
         """
-
-        if self.debug:
-            print('Updating cache of Kxx_inv and Kxx_inv_Y')
-
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
         self.Y = train_mean[self.Ycol].values # Is there a way/need to use all results?
@@ -437,14 +427,6 @@ class GPR():
             # Add sigma_n^2 to the diagonal, observation noise
             Kxx[np.diag_indices(Nx)] += sigma2_n
 
-        if self.debug and deriv < 0:
-            # Test on CPU
-            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
-            if not np.allclose(Kxx_cpu, Kxx):
-                print('Kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
-                print('Kxx_gpu_wrapper(GPU):\n', Kxx)
-                raise HistoryMatchingError("CPU and GPU results don't match!")
-
         return Kxx
 
 
@@ -490,68 +472,10 @@ class GPR():
                 grid = grid_dim
             )
 
-            if self.debug:
-                # Test on CPU
-                Kxp_cpu = self.kernel_xp(X, P, theta)
-                if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                    print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-                    print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                    raise HistoryMatchingError("CPU and GPU results don't match!")
-
             return Kxp_gpu.get()
 
         Kxp_cpu = self.kernel_xp(X, P, theta)
         return Kxp_cpu
-
-
-    def cross_validation(self, theta, X, Y, P):
-        """Compute the LOO cross validation score.  OLD, use the one _with_grad.
-
-        Args:
-            theta: (1D ndarray, optional with default True) hyperparameters.
-            X: (2D ndarray) points of dimension N x D.
-            Y: (1D ndarray) outputs of dimension N x 1.
-            P: (2D ndarray) points of dimension P x D.
-        """
-
-        # Some vestigial reminants of K-fold cross validation.
-        num_partitions = int(max(P)+1)
-        num_points = len(P)
-
-        KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-        if self.debug:
-            # Compare to CPU
-            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-            if not np.allclose(KXX_cpu, KXX):
-                print('loo_cross_validation(CPU XX):\n', KXX_cpu)
-                print('loo_cross_validation(GPU XX):\n', KXX)
-                raise HistoryMatchingError("CPU and GPU results don't match!")
-
-        if self.use_gpu:
-            KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
-            linalg.init()
-            KXX_inv = linalg.inv(KXX_gpu, overwrite=True, lib='cusolver').get()
-        else:
-            KXX_inv = np.linalg.inv(KXX) # self.?
-
-        KXX_inv_Y = np.dot(KXX_inv, Y)
-
-        ll = 0
-        for partition in range(num_partitions):
-            test_inds = [k for k in range(num_points) if P[k]==partition]
-            test_inds = [k for k in range(num_points) if P[k]==partition]
-            test_array = np.array(test_inds, dtype=np.intp)
-
-            covf = np.linalg.inv(KXX_inv[test_array[:,np.newaxis], test_inds])
-            err = np.dot(covf, KXX_inv_Y[test_inds,:])
-
-            for row in range(len(test_inds)):
-                err_row = err[row,:]
-                err_row = err_row[~np.isnan(err_row)]
-                ll += np.sum(-0.5*err_row**2/covf[row,row]) -0.5*np.log(2*np.pi*covf[row,row]) * len(err_row)
-
-        return np.array([-ll])
-
 
     def cross_validation_with_grad(self, theta, X, Y, optimize_sigma2_n, log_transform):
         """Compute the LOO cross validation score and gradient with respect to the hyperparameters.
@@ -573,13 +497,6 @@ class GPR():
 
         if self.use_gpu:
             KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-            if self.debug:
-                # Compare to CPU
-                KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-                if not np.allclose(KXX_cpu, KXX):
-                    print('loo_cross_validation(CPU XX):\n', KXX_cpu)
-                    print('loo_cross_validation(GPU XX):\n', KXX)
-                    raise HistoryMatchingError("CPU and GPU results don't match!")
         else:
             KXX = self.kernel_xx(X, theta, add_sigma2_n = True)
 
@@ -621,19 +538,6 @@ class GPR():
                     np.einsum('ij,ji->i', Zj, KXX_inv)
             )
             dLLOO_dtheta[j] = np.sum( np.multiply(dLLOO_dthetaj, sigma2) )
-
-            if self.debug:
-                # C. E. Rasmussen & C. K. I. Williams, Gaussian Processes for Machine Learning, the MIT Press, 2006, ISBN 026218253X.  2006 Massachusetts Institute of Technology.  www.GaussianProcess.org/gpml
-                # Page 117, equation (5.14)
-                # Note: Does not test dK_dthetaj calculation from above
-                alpha = np.dot(KXX_inv, Y).squeeze()
-                Zj = np.dot(KXX_inv, dK_dthetaj).squeeze()
-                Zj_alpha = np.dot(Zj, alpha)
-                Zj_Kinv = np.dot(Zj, KXX_inv)
-                mysum = 0
-                for i, a in enumerate(alpha):
-                    mysum += (a * Zj_alpha[i] - 0.5 * (1 + a**2 / KXX_inv[i,i]) * (Zj_Kinv[i,i])) /  KXX_inv[i,i]
-                assert( np.abs(mysum - dLLOO_dtheta[j]) < 1e-6 )
 
         if log_transform:
             dLLOO_dtheta = np.multiply(dLLOO_dtheta, theta)
@@ -759,34 +663,14 @@ class GPR():
 
         P = self.basis.generate_dmatrix( data, scaleX = True).values
 
-        if self.debug:
-            print('X',self.X.shape,' flags:\n', self.X.flags)
-            print('Y',self.Y.shape,' flags:\n', self.Y.flags)
-            print('P',P.shape,' flags:\n', P.flags)
-
         Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
-            if not np.allclose(Kxp_cpu, Kxp):
-                print('evaluate(CPU XP):\n', Kxp_cpu)
-                print('evaluate(GPU XP):\n', Kxp)
-                raise HistoryMatchingError("CPU and GPU results don't match!")
 
         if self.use_gpu:
             Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
-            if self.debug:
-                Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
-                if not np.allclose(Kpp_cpu, Kpp):
-                    print('evaluate(CPU PP):\n', Kpp_cpu)
-                    print('evaluate(GPU PP):\n', Kpp)
-                    raise HistoryMatchingError("CPU and GPU results don't match!")
         else:
             Kpp = self.kernel_xx(P, self.theta, add_sigma2_n = False)
 
         f = np.dot(Kxp.T, self.Kxx_inv_Y)
-
-        if self.debug:
-            print('Using cache for covf')
 
         # NOTE: Just computing diagonal elements of:
         #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
@@ -813,5 +697,3 @@ class GPR():
         return {    'Mean': self.inverse_normalize_mean(f),
                     'Var_Latent': self.inverse_normalize_var(covf),
                     'Var_Predictive': self.inverse_normalize_var(covf + sigma2_n) }
-
-
