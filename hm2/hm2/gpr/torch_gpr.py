@@ -90,6 +90,9 @@ class TorchGPR:
             Predicted outputs at the inputs specified by data.
         """
         # Put likelihood and model into evaluation (predictive posterior) mode
+        if self.model is None:
+            raise HistoryMatchingError("TorchGPR hasn't been trained yet!")
+
         test_x = T.from_numpy(test_x)
 
         self.model.eval()

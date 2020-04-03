@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
+import logging
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
-from .basis import BasisBase
 from .error import HistoryMatchingError
 
 
@@ -30,66 +31,50 @@ class GLM:
     """
     def __init__(
             self,
-            basis,
             family,
     ):
         """Initialize the GLM class.
 
         Args:
-            basis: Feature generator inheriting from BasisBase
             family: (str) The family of generalized linear model to use. 
                           Options include 'poisson', 'binomial', 'gamma', 
                           'negativebinomial', and 'gaussian'. 
         """
-        if not isinstance(basis,BasisBase):
-            raise HistoryMatchingError("`basis` must inherit from BasisBase!")
-
         # Make this call only to check that the family exists
         gfamily(family)
 
-        self.basis  = basis
         self.family = family
         self.alpha  = None
         self.model  = None
 
-    def fit(self, data, endog, maxiter=1000):
+    def fit(self, train_x, train_y, maxiter=1000):
         """Fit the GLM.
 
         Args:
             maxiter: (int)
                 maxiter parameter passed to the statsmodels `fit` function.
         """
-        if not isinstance(data, pd.DataFrame):
-          raise TypeError("data passed to GLM.fit must be a DataFrame!")
-
         logger = logging.getLogger("HistoryMatching")
 
-        data = self.basis.fit_transform(data)
-        self.model = sm.GLM(data, endog, family=gfamily(self.family))
+        # We're using statsmodels GLM because sklearn GLM's doesn't have a
+        # family option.
+        self.model = sm.GLM(train_y, train_x, family=gfamily(self.family))
 
-        logger.info("Fitting GLM...")
-        self.model = self.model.fit(maxiter=maxiter)
+        self.glmfit = self.model.fit(maxiter=maxiter)
 
-        logger.info(self.model.summary())
-        logger.info('AIC:', self.model.aic)
-        logger.info('BIC:', self.model.bic)
-        logger.info('ITERATION:', self.model.fit_history['iteration'])
+        logger.info(self.glmfit.summary())
+        logger.info('GLM AIC:', self.glmfit.aic)
+        logger.info('GLM BIC:', self.glmfit.bic)
+        logger.info('GLM ITERATION:', self.glmfit.fit_history['iteration'])
 
-    def predict(self, data):
+    def predict(self, test_x):
         """Evaluate the GLM and return the mean prediction.
 
         Args:
-            data: (Pandas DataFrame)
+            test_x: (Pandas DataFrame)
                 Data frame of points similar to training_data.
 
         Returns:
             Predicted outputs at the inputs specified by data.
         """
-        if not isinstance(data, pd.DataFrame):
-          raise TypeError("data passed to GLM.predict must be a DataFrame!")
-
-        data = self.basis.fit_transform(data)
-        return self.fitted_model.predict(data, transform=False)
-
-    def residuals(self, data, endog):
-        return endog-self.predict(data)
+        return self.model.predict(self.glmfit.params, test_x)

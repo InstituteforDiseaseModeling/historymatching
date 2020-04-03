@@ -5,6 +5,8 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, RBF
 import numpy as np
 
+from hm2.error import *
+
 
 
 class SkGPR:
@@ -42,4 +44,7 @@ class SkGPR:
         Returns:
             Predicted outputs at the inputs specified by data.
         """
+        if self.model is None:
+            raise HistoryMatchingError("SkGPR hasn't been trained yet!")
+
         return self.model.predict(test_x, return_std=True)
