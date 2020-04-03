@@ -38,3 +38,6 @@ deprecate/
 
 # Code coverage
 .coverage
+
+# Temporary files
+tmp/
