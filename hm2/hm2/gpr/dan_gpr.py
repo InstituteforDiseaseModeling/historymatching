@@ -562,8 +562,198 @@ class DanGPR():
         sample.reset_index(inplace=True)
         return sample
 
+    def gpr(
+            self,
+            basis,
+            force_optimize_gpr = True,
+            method = 'CrossValidation',
+            verbose = False,
+            plot = True,
+            plot_data = False,
+            sigma2_f_guess = 2,
+            sigma2_f_bounds = (0.005,10),
+            sigma2_n_guess = 0.10,
+            sigma2_n_bounds = (0.01,10),
+            lengthscale_guess = 0.1, # Note, lengthscale is in a scaled range, training data to [0,1] for each parameter
+            lengthscale_bounds = (0.01,1),
+            normalize_y = True,
+            optimize_sigma2_n = True,
+            log_transform = False,
+            optimizer_options=None,
+            **kwargs
+    ):
+        """Perform Gaussian Process Regression modeling.
 
-    def optimize_hyperparameters(self, x0, bounds, optimize_sigma2_n=True, log_transform=False, optimizer_options=None):
+        Note that the GLM will be performed on the mean of the training data if multiple replicates are provided for each Sample_Id.
+
+        By default, the GPR will be configured to use the `RBF` kernel.
+
+        Args:
+            force_optimize_gpr: (bool) Set True to force optimization of the GPR parameters even when results from a previous optimization exist.
+            plot: (bool) Set True if you want to see diagnostic plots.
+            plot_data: (bool) Set True to produce many pairwise plots of the inputs and results.  Within the GPR folder, they will appear in `PairwiseResults.`
+            sigma2_f_guess: (float) The guess value for the signal variance. Note that when normalizing Y, a value of 1 correspons to the variance of the results.
+            sigma2_f_bounds: (tuple) Lower and upper bounds for sigma2_f, e.g. like (0.005,10).
+            sigma2_n_guess: (float) Initial guess value for observation noise variance.  Normalized like sigma2_f.
+            sigma2_n_bounds: (tuple) Lower and upper bounds for sigma2_n, e.g. like (0.01,10).
+            lengthscale_guess: (float or ndarray)
+                If supplying a float, this value representes the kernel lengthscale guess and will be used for all lengthscales.  Note, lengthscale is in a scaled range, training data to [0,1] for each parameter.
+                Alternatively, you can provide a ndarray with one entry for each parameter.
+            lengthscale_bounds: (tuple) Range for lengthscale, e.g. (0.01,1).
+            normalize_y: (bool) Set True to normalize the outputs (recommended).
+            method: (str) Must be 'CrossValidation' for now.
+            verbose: (bool) Set True to see lots of output.
+            optimizer_options: (dict) Dictionary to be passed to the optimization algorithm within the GPR code.
+            kwargs: (dict) Additional arguments to pass to the GPR class.
+        """
+        methods = ['CrossValidation'] # Supporing only CV for now
+        if method not in methods:
+            raise HistoryMatchingError(f"method must be one of {methods}")
+
+        if optimizer_options is None:
+            optimizer_options = {}
+
+        gpr_model_fn = os.path.join(self.gprdir, 'gpr.pickle')
+
+        if plot_data:
+            pairdir = os.path.join(self.gprdir, 'PairwiseResults')
+            if not os.path.exists( pairdir):
+                os.mkdir( pairdir )
+
+        if not force_optimize_gpr and os.path.isfile(gpr_model_fn):
+            print("Loading GPR from", gpr_model_fn)
+            self.gpr_model = pickle.load(open(gpr_model_fn,'rb'))
+            if plot_data:
+                figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True) # TODO(dklein): This is unused. Is that bad?
+        else:
+            if self.use_glm:
+                Ycol = 'Yerr'
+            else:
+                Ycol = 'Sim_Result'
+
+            self.gpr_model = GPR(
+                basis = basis,
+                Ycol = Ycol,
+                training_data = self.training_data,
+                param_info = self.param_info,
+                kernel_mode = 'RBF',
+                kernel_params = None,
+                normalize_y = normalize_y,
+                verbose = verbose,
+                debug = False, # Debug is really for testing the code
+                **kwargs)
+
+            if isinstance(lengthscale_guess, (int,float)):
+                lengthscale_guess = basis.D*[lengthscale_guess]
+            elif not isinstance(lengthscale_guess,list):
+                raise HistoryMatchingError("lengthscale_guess must be a list!")
+            elif len(lengthscale_guess)!=basis.D:
+                raise HistoryMatchingError("lengthscale_guess must be the same length as the basis dimension!")
+
+            if os.path.isfile(gpr_model_fn):
+                timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+                backup_fn = os.path.join(self.gprdir, f'model_{timestamp}.json')
+                print('Backing up gpr model to', backup_fn)
+                copyfile(gpr_model_fn, backup_fn)
+
+            #TODO: Check guess within bounds
+            x0 = np.array([sigma2_f_guess, sigma2_n_guess] +  lengthscale_guess)
+            self.gpr_model.theta = x0
+            pickle.dump(self.gpr_model, open(gpr_model_fn, 'wb'))
+
+            if plot_data:
+                figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
+
+            print("Fitting the GPR")
+            self.gpr_model.optimize_hyperparameters(
+                x0 = x0,
+                bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
+                optimize_sigma2_n = optimize_sigma2_n,
+                log_transform = log_transform,
+                optimizer_options = optimizer_options
+            )
+            #TODO(dklein): Why do we save both here and above?
+            pickle.dump(self.gpr_model, open(gpr_model_fn, 'wb'))
+
+
+        # Taking the mean prior to evaluation because it is unnecessary to evaluate each point more than once as the GP output will always be the same
+        train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
+        test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
+
+        print('GPR evaluating training data')
+        ret = self.gpr_model.evaluate(train_mean)
+        train_mean['Mean_Err'] = ret['Mean']
+        train_mean['Mean_Estimate'] = train_mean['Mean_Err']
+        if self.use_glm:
+            train_mean['Mean_Estimate'] += train_mean['Yglm']
+        train_mean['Var_Err_Predictive'] = ret['Var_Predictive']
+        train_mean['Var_Err_Latent'] = ret['Var_Latent']
+
+        merge_cols = ['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']
+        if 'Mean_Err' in self.training_data:
+            self.training_data.drop(merge_cols, axis=1, inplace=True)
+        self.training_data = self.training_data.reset_index().join(train_mean[merge_cols], on='Sample_Id')
+        self.training_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
+
+        print('GPR evaluating test data')
+        ret = self.gpr_model.evaluate(test_mean)
+        test_mean['Mean_Err'] = ret['Mean']
+        test_mean['Mean_Estimate'] = test_mean['Mean_Err']
+        if self.use_glm:
+            test_mean['Mean_Estimate'] += test_mean['Yglm']
+        test_mean['Var_Err_Predictive'] = ret['Var_Predictive']
+        test_mean['Var_Err_Latent'] = ret['Var_Latent']
+        if 'Mean_Err' in self.test_data:
+            self.test_data.drop(merge_cols, axis=1, inplace=True)
+        self.test_data = self.test_data.reset_index().join(test_mean[['Mean_Err', 'Mean_Estimate', 'Var_Err_Predictive', 'Var_Err_Latent']], on='Sample_Id')
+        self.test_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
+
+        # Add test data to gpr training
+        gpr_model_with_test_fn = os.path.join(self.gprdir, 'model_with_test_data.json')
+        self.gpr_model.set_training_data(pd.concat([self.training_data, self.test_data]))
+        pickle.dump(self.gpr_model, open(gpr_model_with_test_fn, 'wb'))
+
+        if plot:
+            print('Plotting')
+            fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive')
+            fig.savefig(os.path.join(self.gprdir, f'gpr.{self.fig_type}'))
+            plt.close(fig)
+
+            '''' # Useful debugging
+            if False:
+                mu = self.training_data[self.Xcols_GPR].mean()
+                #mu = train.loc[146][Xcols_GPR].mean(); print(mu)
+                (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25);
+                fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean'+'.'+self.fig_type) );    plt.close(fig_mean) # SLOW
+                fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent'+'.'+self.fig_type) );    plt.close(fig_std_latent) # SLOW
+            '''
+
+            fig = self.gpr_model.plot_histogram()
+            fig.savefig( os.path.join(self.gprdir, 'histogram'+'.'+self.fig_type) )
+            plt.close(fig)
+
+            fig, ax = plt.subplots(figsize=(16,10))
+            ax.errorbar(
+                x=self.training_data['Sim_Result'],
+                y=self.training_data['Mean_Err'] + self.training_data['Yglm'],
+                yerr=2*np.sqrt(self.training_data['Var_Err_Predictive']),
+                fmt='o', c='c', lw=0.5)
+            ax.errorbar(
+                x=self.test_data['Sim_Result'],
+                y=self.test_data['Mean_Err'] + self.test_data['Yglm'],
+                yerr=2*np.sqrt(self.test_data['Var_Err_Predictive']),
+                fmt='o', c='m', lw=0.5)
+            ax.margins(x=0,y=0.05)
+            xlim = ax.get_xlim()
+            ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
+            ax.set_xlabel('Simulation Result')
+            ax.set_ylabel('Predicted')
+            fig.savefig( os.path.join(self.gprdir, 'emulation'+'.'+self.fig_type) )
+            plt.close(fig)
+
+        return self.gpr_model
+
+    def fit(self, train_x, train_y, stdev_y, bounds=None, optimize_sigma2_n=True, log_transform=False, optimizer_options=None):
         """Optimize the hyperparameter vector, theta, with respect to the training data.
 
         Note that while each input may be simulated multiple times, here the mean of the outputs for each Saimple_Id are used.
@@ -578,6 +768,9 @@ class DanGPR():
 
         if optimizer_options is None:
             optimizer_options = {}
+
+        if bounds is None:
+            bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
 
 
         idx = self.training_data.index.names    # Save index
