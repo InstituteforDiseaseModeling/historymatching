@@ -5,7 +5,7 @@ import pandas as pd
 
 class BasisBase(abc.ABC):
   @abc.abstractmethod
-  def fit_transform(self, X):
+  def __call__(self, X):
     """Function that runs the initialized model.
 
     Args:
@@ -30,13 +30,13 @@ class PolynomialBasis(BasisBase):
       include_bias     = intercept
     )
 
-  def fit_transform(self, X): #TODO: fit_transform is unintuitive. Consider __call__
+  def __call__(self, X):
     if not isinstance(X, pd.DataFrame):
       raise TypeError("Basis must be passed a DataFrame!")
-    return pd.DataFrame(
-      self.polyfit.fit_transform(X),
-      columns = (['Intercept'] if self.intercept else []) + X.columns.tolist()
-    )
+    fit     = self.polyfit.fit_transform(X)
+    columns = self.polyfit.get_feature_names()
+    columns = ['Intercept' if x=='1' else x for x in columns]
+    return pd.DataFrame(fit, columns = columns)
 
 
 
@@ -54,7 +54,7 @@ class IdentityBasis(BasisBase):
       include_bias     = intercept
     )
 
-  def fit_transform(self, X):
+  def __call__(self, X):
     if not isinstance(X, pd.DataFrame):
       raise TypeError("Basis must be passed a DataFrame!")
     transformed = self.polyfit.fit_transform(X)
