@@ -7,33 +7,37 @@ import hm2.gpr
 
 
 
+def FitEmulatorWithParamsAndModel(emulator, param_samples, model_output):
+    """Fit the Emulator
+
+    Args:
+        param_samples - ParameterSamplesFrame
+        model_output - A TimeStandardAnalysisFrame or 
+                       SummaryStandardAnalysisFrame built using parameters
+                       from param_samples
+        maxiter - Number of training iterations
+
+    Returns: None
+    """
+    if not isinstance(emulator,EmulatorBase):
+        raise HistoryMatchingError("`emulator` must inherit from EmulatorBase!")
+
+    param_samples = ValidateParameterSamplesFrame(param_samples)
+    model_output  = ValidateEmulatorInput(model_output)
+
+    train_x = param_samples.iloc[model_output['param_id']]
+    train_x = train_x.drop(columns=['param_id'])
+
+    train_y = model_output['value']
+    stdev_y = model_output['stdev']
+
+    return emulator.fit(train_x, train_y, stdev_y, *args, **kwargs)
+
+
+
 class EmulatorBase(abc.ABC):
-
-    def fit(self, param_samples, model_output, *args, **kwargs):
-        """Fit the Emulator
-
-        Args:
-            param_samples - ParameterSamplesFrame
-            model_output - A TimeStandardAnalysisFrame or 
-                           SummaryStandardAnalysisFrame built using parameters
-                           from param_samples
-            maxiter - Number of training iterations
-
-        Returns: None
-        """
-        param_samples = ValidateParameterSamplesFrame(param_samples)
-        model_output  = ValidateEmulatorInput(model_output)
-
-        train_x = param_samples.iloc[model_output['param_id']]
-        train_x = train_x.drop(columns=['param_id'])
-
-        train_y = model_output['value']
-        stdev_y = model_output['stdev']
-
-        return self._fit(train_x, train_y, stdev_y, *args, **kwargs)
-
     @abc.abstractmethod
-    def _fit(self):
+    def fit(self):
         pass
 
     @abc.abstractmethod
@@ -49,7 +53,7 @@ class TorchGPREmulator(EmulatorBase):
         self.basis = basis
         self.gpr = hm2.gpr.TorchGPR()
 
-    def _fit(self, train_x, train_y, stdev_y, maxiter):
+    def fit(self, train_x, train_y, stdev_y, maxiter):
         """Fit the GPR.
 
         Args:
@@ -61,15 +65,15 @@ class TorchGPREmulator(EmulatorBase):
         Returns: None
         """
         #Extract the relevant parameter sample values
-        train_x = self.basis.fit_transform(train_x).to_numpy()
-
-        train_y = train_y.to_numpy()
-        stdev_y = stdev_y.to_numpy()
-
-        self.gpr.fit(train_x, train_y, stdev_y, maxiter)
+        self.gpr.fit(
+            train_x = self.basis.fit_transform(train_x),
+            train_y = train_y,
+            stdev_y = stdev_y,
+            maxiter = maxiter
+        )
 
     def predict(self, test_x):
-        test_x = self.basis.fit_transform(test_x).to_numpy()
+        test_x = self.basis.fit_transform(test_x)
         return self.gpr.predict(test_x)
 
 
@@ -81,7 +85,7 @@ class SkGPREmulator(EmulatorBase):
         self.basis = basis
         self.gpr = hm2.gpr.SkGPR()
 
-    def _fit(self, train_x, train_y, stdev_y, maxiter):
+    def fit(self, train_x, train_y, stdev_y, maxiter):
         """Fit the GPR.
 
         Args:
@@ -93,16 +97,15 @@ class SkGPREmulator(EmulatorBase):
         Returns: None
         """
         #Extract the relevant parameter sample values
-        train_x = self.basis.fit_transform(train_x).to_numpy()
-
-        train_y = train_y.to_numpy()
-        stdev_y = stdev_y.to_numpy()
-
-        self.gpr.fit(train_x, train_y, stdev_y, maxiter)
+        self.gpr.fit(
+            train_x = self.basis.fit_transform(train_x),
+            train_y = train_y,
+            stdev_y = stdev_y,
+            maxiter = maxiter
+        )
 
     def predict(self, test_x):
-        test_x = self.basis.fit_transform(test_x).to_numpy()
-        return self.gpr.predict(test_x)
+        return self.gpr.predict(self.basis.fit_transform(test_x))
 
 
 
@@ -127,7 +130,7 @@ class GLM_GPR_Emulator(EmulatorBase):
         self.glm = hm2.glm.GLM(family=family)
         self.gpr = hm2.gpr.SkGPR()
 
-    def _fit(self, train_x, train_y, stdev_y, glm_maxiter=1000, gpr_maxiter=1000):
+    def fit(self, train_x, train_y, stdev_y, glm_maxiter=1000, gpr_maxiter=1000):
         """Fit the GPR.
 
         Args:
@@ -140,11 +143,8 @@ class GLM_GPR_Emulator(EmulatorBase):
         Returns: None
         """
         #Extract the relevant parameter sample values
-        train_x_glm = self.glm_basis.fit_transform(train_x).to_numpy()
-        train_x_gpr = self.gpr_basis.fit_transform(train_x).to_numpy()
-
-        train_y = train_y.to_numpy()
-        stdev_y = stdev_y.to_numpy()
+        train_x_glm = self.glm_basis.fit_transform(train_x)
+        train_x_gpr = self.gpr_basis.fit_transform(train_x)
 
         self.glm.fit(train_x_glm, train_y, maxiter=glm_maxiter)
 
@@ -162,7 +162,7 @@ class GLM_GPR_Emulator(EmulatorBase):
         Returns:
             Predicted outputs at the inputs specified by data.
         """
-        test_x_glm = self.glm_basis.fit_transform(test_x).to_numpy()
-        test_x_gpr = self.gpr_basis.fit_transform(test_x).to_numpy()
+        test_x_glm = self.glm_basis.fit_transform(test_x)
+        test_x_gpr = self.gpr_basis.fit_transform(test_x)
 
         return self.glm.predict(test_x_glm) + self.gpr.predict(test_x_gpr)
