@@ -11,9 +11,7 @@ from .utility import drop_key
 
 
 class ModelWrapper(abc.ABC):
-  @classmethod
-  @abc.abstractmethod
-  def init(cls, **kwargs):
+  def init(self, **kwargs):
     """Function that returns an initialized model.
 
     Args:
@@ -25,9 +23,7 @@ class ModelWrapper(abc.ABC):
     """
     pass
 
-  @staticmethod
-  @abc.abstractmethod
-  def run(model):
+  def run(self):
     """Function that runs the initialized model.
 
     Args:
@@ -166,11 +162,11 @@ def standard_analysis(
     # Convert parameter_sample to dictionary
     parameter_sample = parameter_sample.to_dict() 
     # Initialize the model for these parameter settings
-    model = wrapped_model.init(**drop_key(parameter_sample, 'param_id'))
+    wrapped_model.init(**drop_key(parameter_sample, 'param_id'))
 
     for replicate in range(replicates):
       #Run the model
-      results = wrapped_model.run(model)
+      results = wrapped_model.run()
       #Ensure model returned the sorts of results we expected
       time_results, summary_results = ValidateWrappedModelResults(results)
 

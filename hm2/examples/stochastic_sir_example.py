@@ -60,12 +60,11 @@ parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=100)
 # class. This standardize HistoryMatching's interaction with models 
 
 class SIRWrapper(hm2.boilerplate.ModelWrapper):
-    @classmethod
-    def init(cls, **kwargs):
-        return SIR(**kwargs)
-    @staticmethod
-    def run(model):
-      results = model.sim()
+    def init(self, **kwargs):
+        self.model = SIR(**kwargs)
+
+    def run(self):
+      results = self.model.sim()
       results['prevalence'] = results['per_infected']
       #Extract only the columns we have actual observations for
       results = results[['time', 'prevalence']]
