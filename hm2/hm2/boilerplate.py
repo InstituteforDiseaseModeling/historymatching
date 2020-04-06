@@ -266,3 +266,39 @@ def replicate_reducer(df, agg):
   ret = df.groupby(grouping_keys).apply(helper)
 
   return ret
+
+
+
+
+
+
+def FitEmulatorWithParamsAndModel(emulator, param_samples, model_output):
+    """Fit the Emulator
+
+    Args:
+        param_samples - ParameterSamplesFrame
+        model_output - A TimeStandardAnalysisFrame or 
+                       SummaryStandardAnalysisFrame built using parameters
+                       from param_samples
+        maxiter - Number of training iterations
+
+    Returns: None
+    """
+    if not isinstance(emulator,EmulatorBase):
+        raise HistoryMatchingError("`emulator` must inherit from EmulatorBase!")
+
+    param_samples = ValidateParameterSamplesFrame(param_samples)
+    model_output  = ValidateEmulatorInput(model_output)
+
+    train_x = param_samples.iloc[model_output['param_id']]
+    train_x = train_x.drop(columns=['param_id'])
+
+    train_y = model_output['value']
+    stdev_y = model_output['stdev']
+
+    return emulator.fit(train_x, train_y, stdev_y, *args, **kwargs)
+
+
+
+
+
