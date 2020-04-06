@@ -246,3 +246,185 @@ class GLM_GPR_Emulator(EmulatorBase):
         plt.tight_layout()
 
         return fig
+
+
+
+
+
+
+
+
+
+
+
+
+#   ________    __  ___   ____  __    ____  ___________
+#  / ____/ /   /  |/  /  / __ \/ /   / __ \/_  __/ ___/
+# / / __/ /   / /|_/ /  / /_/ / /   / / / / / /  \__ \
+#/ /_/ / /___/ /  / /  / ____/ /___/ /_/ / / /  ___/ /
+#\____/_____/_/  /_/  /_/   /_____/\____/ /_/  /____/
+
+
+
+    def plot_data_1D(self, circle_points=None, saveto_dir=None, log_scale=True):
+        """For 1D data, plots a scatter of output (y) vs input (x).
+
+        Args:
+            circle_points: (Pandas DataFrame)
+                A data frame like training_data.  Each entry will be marked with a black x's in the figures.  Good for debugging large Z scores.
+            saveto_dir: (str)
+                If not None, figures will be saved to this directory.  The user may need to create the output directory.
+            log_scale:  (boolean, default is False) transforms size and color using log(10 * normalized_y_value + 1)
+
+        Returns: a dictionary of matplotlib figure handles with keys indicating the parameter names via the filename which would be used to save the figure.
+        """
+        if circle_points is None:
+            circle_points = pd.DataFrame()
+
+        # TODO: Save and log scale!
+        scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
+
+        Xcols = self.basis.get_terms()[0] # Not tested!
+        fig = plt.figure(figsize=(6, 8)) # GPy.plotting.plotting_library().figure()
+        x = self.training_data[Xcols]
+        y = self.training_data[self.Ycol]
+
+        plt.scatter(x, y, s=15, c=scaled, cmap='jet', linewidths=0.1, alpha=0.5, edgecolors='k') #, s=area, c=colors, alpha=0.5)
+
+        for _, pt in circle_points.iterrows():
+            plt.scatter(pt[Xcols], pt[self.Ycol], s=25, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+
+        plt.autoscale(tight=True)
+        plt.xlabel(Xcols)
+        plt.ylabel(self.Ycol)
+        plt.tight_layout()
+
+        return {Xcols: fig}
+
+
+
+
+
+
+
+
+    def plot_fit(self, figsize=(16,16)):
+        """Plots each output predicted by the GLM on X againsT sample index on Y.
+
+        If there are multiple replicates per Sample_ID, a blue line will connect
+        the Min to the Max. A vertical red line is drawn at the reference value.
+         The green line is at the mean of the fitted model. Finally, the black
+        `|` is the true value(s) from the simulation.
+
+        Returns: matplotlib figure handle.
+        """
+
+        fig, axes = plt.subplots(figsize=figsize)
+
+        d = self.training_data.reset_index()
+        d_by_sample = self.training_data.reset_index().set_index('Sample_Id')
+        n_samples = len(d_by_sample.index.unique())
+
+        axes.plot(2*[self.reference_value], [0, n_samples], 'r-') # , axes=axes[0,0]
+
+        sim_cases_range = self.training_data.reset_index().groupby('Sample_Id')[self.Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
+        sim_cases_range['Fitted_Model_Mean'] = self.fitted_model.mu
+        for idx, s in sim_cases_range.iterrows():
+            axes.plot([s['Min'], s['Max']], [idx, idx], 'b-', linewidth=0.5)
+            axes.plot([s['Mean'], s['Fitted_Model_Mean']], [idx, idx], 'g-', linewidth=0.25)
+        axes.scatter(d[self.Ycol], d['Sample_Id'], c='k', marker='|', alpha=1, linewidths=0.5)
+
+        axes.scatter(self.fitted_model.mu, d['Sample_Id'], c='g', marker='+', alpha=1, linewidths=0.5)
+
+        plt.autoscale()
+        axes.set_ylim(ymin=0, ymax=n_samples)
+        axes.set_xlabel('Y')
+        axes.set_ylabel('Sample Id')
+
+        return fig
+
+
+
+
+
+    def plot_errors(self, train, test):
+        """Generates several plots on a single figure, one for each unique experiment ID.
+
+        The upper plot shows GLM prediction on Y as a function of the true Y-values on X.  The lower panel shows Z-score on Y and the true Y-values on X.
+
+        In both panels, training data is cyan and test data is magenta.
+
+        Args:
+            train: (Pandas DataFrame) training data like training_data.
+            test: (Pandas DataFrame) test data like training_data.
+
+        Returns: Dictionary of matplotlib figure handles.
+        """
+
+        figs = {}
+
+        _tr = train.reset_index()
+        _ts = test.reset_index()
+
+        first_sample_id = _tr.iloc[0]['Sample_Id']
+        if isinstance(first_sample_id, str) and '.' in first_sample_id:
+            _tr['Exp_Id'] = _tr['Sample_Id'].apply(lambda x: x.split('.')[0])
+            _tr['Sample'] = _tr['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
+
+            _ts['Exp_Id'] = _ts['Sample_Id'].apply(lambda x: x.split('.')[0])
+            _ts['Sample'] = _ts['Sample_Id'].apply(lambda x: int(x.split('.')[1]))
+
+            _tr.set_index(['Exp_Id', 'Sample'], inplace=True)
+            _ts.set_index(['Exp_Id', 'Sample'], inplace=True)
+
+        else:
+            _tr['Exp_Id'] = 0
+            _tr['Sample'] = _tr['Sample_Id']
+
+            _ts['Exp_Id'] = 0
+            _ts['Sample'] = _ts['Sample_Id']
+
+            _tr.set_index(['Exp_Id', 'Sample'], inplace=True)
+            _ts.set_index(['Exp_Id', 'Sample'], inplace=True)
+
+        train_exps = _tr.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
+        test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
+        exp_ids = list(set(train_exps + test_exps))
+
+        fig, ax = plt.subplots(figsize=(16, 10))
+        ax.plot(train[self.Ycol], train['Yglm'], 'c+', ms=10, mew=1)
+        ax.plot(test[self.Ycol], test['Yglm'], 'm+', ms=10, mew=1)
+        ax.margins(x=0, y=0.05)
+        xlim = ax.get_xlim()
+        ax.plot([xlim[0], xlim[1]], [xlim[0], xlim[1]], 'r-')
+        ax.set_xlabel('Simulation Result')
+        ax.set_ylabel('Predicted')
+
+        figs['GLM Predicted vs Actual'] = fig
+
+        for exp_id in exp_ids:
+            fig, ax = plt.subplots(figsize=(16, 10))
+            data_all = []
+            cols = []
+            if exp_id in train_exps:
+                data_all.append(_tr.loc[exp_id])
+                cols.append('c')
+            if exp_id in test_exps:
+                data_all.append(_ts.loc[exp_id])
+                cols.append('m')
+
+            for data, col in zip(data_all, cols):
+                data = data.reset_index()
+                ax.scatter(x=data['Sample'], y=data[self.Ycol], c=col, marker='_', s=25, alpha=1, linewidths=1, zorder=50)
+                ax.plot(data['Sample'], data['Yglm'], 'k.', ms=5, linewidth=1)
+                ax.set_title(exp_id)
+
+            ax.margins(x=0, y=0.05)
+            ax.set_xlabel('Sample')
+
+            figs['GLM expId ' + str(exp_id)] = fig
+
+        #ax.set_ylabel(self.Ycol)
+        #plt.tight_layout()
+
+        return figs
