@@ -4,32 +4,33 @@ import multiprocessing
 import plotnine as pn
 
 from .data_validation import *
+from .utility import *
 
 
 
 def validated_run(wrapped_model, param_set, replicate=None, show_hidden=False, reducer=None):
+  def add_to_frame(df, key, value):
+    if df is not None:       # If there is a data frame
+      if value is not None:  # and we have something to add to it
+        df[key] = value      # then add the thing
+
   if not isinstance(param_set,dict):
     raise HistoryMatchingError("param_set must be a dictionary!")
 
-  param_id = None
-  if 'param_id' in param_set:
-    param_id = param_set.pop('param_id')
+  #Remove param_id, if present so that it isn't interpreted as a model
+  #parameter
+  param_id  = param_set.get('param_id', None)
+  param_set = drop_key(param_set, 'param_id', ignore_missing=True)
 
+  #Run the model
   results = wrapped_model(show_hidden, **param_set)
   #Ensure model returned the sorts of results we expected
   time_results, summary_results = ValidateWrappedModelResults(results)
 
-  if time_results is not None:
-    if replicate is not None:
-      time_results['replicate'] = replicate
-    if param_id is not None:
-      time_results['param_id'] = param_id
-
-  if summary_results is not None:
-    if replicate is not None:
-      summary_results['replicate'] = replicate
-    if param_id is not None:
-      summary_results['param_id'] = param_id
+  add_to_frame(time_results,    'replicate', replicate)
+  add_to_frame(time_results,    'param_id',  param_id )
+  add_to_frame(summary_results, 'replicate', replicate)
+  add_to_frame(summary_results, 'param_id',  param_id )
 
   if reducer is not None:
     time_results, summary_results = reducer(time_results, summary_results)
