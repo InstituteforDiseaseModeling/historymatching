@@ -80,11 +80,11 @@ def run_model(show_hidden, **kwargs):
 
 
 
-# results = RunReplicates(run_model, replicates=10, show_hidden=False)
+################################################
+#Plot a few runs
+################################################
 
-# sir = SIRWrapper()
-# sir.plot(replicates=100)
-# import plotnine as pn
+# print(hm2.wrapped_model.plot_runs(run_model, params=None, replicates=10))
 
 
 
