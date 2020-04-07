@@ -28,9 +28,21 @@ class Scaler:
 
 
 
-def drop_key(dic, key):
-  """Returns a copy of the dictionary `dic` with the key `key` removed"""
+def drop_key(dic, key, ignore_missing=False):
+  """Returns a copy of the dictionary `dic` with the key `key` removed
+
+  Args:
+    dic - Dictionary to manipulated
+    key - Key to remove
+    ignore_missing - Don't throw error if key is missing
+  """
   assert isinstance(dic, dict)
   dic = dic.copy()
-  dic.pop(key)
-  return dic
+  if key not in dic:
+    if ignore_missing:
+      return dic
+    else:
+      raise HistoryMatchingError(f"Key {key} was not in dict {dic}!")
+  else:
+    dic.pop(key)
+    return dic
