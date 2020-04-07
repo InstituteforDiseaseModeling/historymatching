@@ -11,13 +11,14 @@ setup(name='hm2',
       packages         = ['hm2'],
       python_requires  =' >= 3.6',
       install_requires = [ # Required packages -- install via pip install -e .
+        "gpytorch==1.0.1",
         "matplotlib==3.1.3",
         "numpy==1.18.1",
         "pandas==1.0.1",
+        "plotnine==0.6.0"
         "pyDOE==0.3.8",
         "sklearn",
         "statsmodels==0.11.0",
-        "gpytorch==1.0.1"
       ],
       classifiers=[
           "Programming Language :: Python :: 3 :: Only",
