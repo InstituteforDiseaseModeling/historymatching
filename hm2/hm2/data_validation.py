@@ -72,16 +72,18 @@ def ValidateSummaryObservationsFrame(df):
   if not isinstance(df, pd.DataFrame):
     raise TypeError("SummaryObservationsFrame must be a pandas DataFrame!")
 
-  _CheckColumns(df, ['observation','value','stdev'], 'SummaryObservationsFrame')
+  _CheckColumns(df, ['observation_id','observation','value','stdev'], 'SummaryObservationsFrame')
 
   if not df['observation'].is_unique:
     raise HistoryMatchingError("SummaryObservationsFrame contained non-unique measurements!")
+  if not df['observation_id'].is_unique:
+    raise HistoryMatchingError("SummaryObservationsFrame contained non-unique `observation_id`!")
 
   return df.copy()
 
 
 
-def ValidateWrappedModelResults(results):
+def ValidateObservationFrames(results):
   if not isinstance(results, tuple) or len(results)!=2:
     raise HistoryMatchingError("Wrapped model must return a tuple with both a TimeObservationsFrame and a SummaryObservationsFrame, or None for one of them!")
 

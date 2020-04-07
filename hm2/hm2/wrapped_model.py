@@ -25,7 +25,7 @@ def validated_run(wrapped_model, param_set, replicate=None, show_hidden=False, r
   #Run the model
   results = wrapped_model(show_hidden, **param_set)
   #Ensure model returned the sorts of results we expected
-  time_results, summary_results = ValidateWrappedModelResults(results)
+  time_results, summary_results = ValidateObservationFrames(results)
 
   add_to_frame(time_results,    'replicate', replicate)
   add_to_frame(time_results,    'param_id',  param_id )
@@ -34,6 +34,7 @@ def validated_run(wrapped_model, param_set, replicate=None, show_hidden=False, r
 
   if reducer is not None:
     time_results, summary_results = reducer(time_results, summary_results)
+
   return time_results, summary_results
 
 
