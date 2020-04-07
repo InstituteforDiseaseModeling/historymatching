@@ -32,6 +32,11 @@ def _plot_data_multi(train_x, train_y, figsize=None, log_scale=False, cmap='viri
             collective_ax[rowi,coli].set_xlabel(row)
             collective_ax[rowi,coli].set_ylabel(col)
 
+            #TODO
+            # if circle_points.shape[0] > 0: 
+            #     for _, pt in cp_dmat.iterrows():
+            #         plt.scatter(pt[row], pt[col], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
+
     individual_plots['all'] = collective_fig
 
     return individual_plots
