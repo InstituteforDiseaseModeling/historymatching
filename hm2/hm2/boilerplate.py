@@ -52,8 +52,8 @@ def _match_model_to_obs(results, observations):
   # analogue by time
   temp = pd.merge_asof(observations, results, on='time', by='observation', direction='nearest')
 
-  # No longer need the time
-  del temp['time']
+  del temp['time']         # No longer need the time
+  del temp['observation']  # No longer need observation name
 
   return temp
 
