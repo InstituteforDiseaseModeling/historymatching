@@ -1,29 +1,10 @@
-import multiprocessing
 import itertools
+import multiprocessing
+
+import plotnine as pn
 
 from .data_validation import *
 
-  # def plot(self, replicates=1, ):
-  #   """Visualizes trajectories"""
-  #   if ('model' not in self.__dict__) or self.model is None:
-  #     raise HistoryMatchingError("Wrapped model must set `self.model` with `init()`!")
-
-  #   results = self._run_many(replicates, show_hidden=True)
-
-  #   #Show time observations
-  #   return (ggplot(results['time'], aes('time', 'value', group='replicate')) + pn.geom_line() + facet_wrap('~observation', scales='free_y'))
-
-  #   code.interact(local=locals())
-
-    # fig, ax = plt.subplots()
-
-
-# for i,obs in observations.iterrows():
-#     ax.plot(obs['Times'], obs['Prevalence'], 'ko')
-#     ax.plot(
-#         [obs['Times'],obs['Times']], 
-#         [obs['Prevalence']-2*obs['Stdev'],obs['Prevalence']+2*obs['Stdev']],
-#         'k-')
 
 
 def validated_run(wrapped_model, param_set, replicate=None, show_hidden=False, reducer=None):
@@ -56,7 +37,7 @@ def validated_run(wrapped_model, param_set, replicate=None, show_hidden=False, r
 
 
 
-def RunReplicates(wrapped_model, replicates, param_sets=None, show_hidden=False, processes=None, reducer=None):
+def run_replicates(wrapped_model, replicates, param_sets=None, show_hidden=False, processes=None, reducer=None):
   if param_sets is None:
     #Means we run with default parameters
     param_sets = [dict()] 
@@ -75,3 +56,29 @@ def RunReplicates(wrapped_model, replicates, param_sets=None, show_hidden=False,
   aggregate_summary_results = aggregator([x[1] for x in results])
 
   return {"time": aggregate_time_results, "summary": aggregate_summary_results}
+
+
+
+def plot_runs(wrapped_model, params, replicates, processes=None):
+  if params is None:
+    params = dict()
+  elif not isinstance(params, dict):
+    raise HistoryMatchingError("`params` must be a dict!")
+
+  results = run_replicates(
+    wrapped_model = wrapped_model,
+    param_sets    = [params],
+    replicates    = replicates,
+    show_hidden   = True,
+    processes     = processes
+  )
+
+  return (pn.ggplot(results['time'], pn.aes('time', 'value', group='replicate')) + pn.geom_line() + pn.facet_wrap('~observation', scales='free_y'))
+
+#TODO: Include observations above
+# for i,obs in observations.iterrows():
+#     ax.plot(obs['Times'], obs['Prevalence'], 'ko')
+#     ax.plot(
+#         [obs['Times'],obs['Times']], 
+#         [obs['Prevalence']-2*obs['Stdev'],obs['Prevalence']+2*obs['Stdev']],
+#         'k-')
