@@ -105,6 +105,18 @@ mr = hm2.boilerplate.standard_analysis(
 #   hm2.boilerplate.replicate_reducer(runs[1], "mean")
 # )
 
+a = hm2.boilerplate.extract_training_set_from_keyed_frame(
+  observation_key = 0,
+  parameter_samples = parameter_samples,
+  observations = time_observations,
+  keyed_frame = mr['time'],
+  frame_type = 'time',
+)
+
+
+
+
+
 
 
 this_obs = model_time[model_time['aobservation_id']==0]

@@ -116,7 +116,7 @@ def standard_analysis(
 
   parameter_samples    = ValidateParameterSamplesFrame(parameter_samples)
   time_observations    = ValidateTimeObservationsFrame(time_observations)
-  summary_observations = ValidateTimeObservationsFrame(summary_observations)
+  summary_observations = ValidateSummaryObservationsFrame(summary_observations)
 
   reducer = StandardAnalysisReducer(time_observations, summary_observations)
 
@@ -136,67 +136,57 @@ def standard_analysis(
 
 
 
-#TODO: Is this good for anything?
-def replicate_reducer(df, agg):
-  """Reduce a TimeStandardAnalysisFrame or SummaryStandardAnalysisFrame to one
-     without a replicate column by aggregating replicates according to `agg`.
+def _extract_training_set_from_time_frame(observations, keyed_frame, observation_key):
+  observations = ValidateTimeObservationsFrame(observations) #TODO: Validate keyed frame
+  code.interact(local=locals())
+  observations = observations[observations['observation_id'] == observation_key]
+  keyed_frame  = keyed_frame[keyed_frame['aobservation_id'] == observation_key]
+  merged = pd.merge(keyed_frame, observations, how='left', left_on='aobservation_id', right_on='observation_id', suffixes=('_s', '_a'))
+  del merged['aobservation_id']
+  del merged['observation_id']
+  del merged['time']
+  del merged['observation']
+  return merged
 
-  Args:
-    df - TimeStandardAnalysisFrame or SummaryStandardAnalysisFrame
-    agg - A dictionary describing the reduction a short name.
-          Short names are: mean
-          Dictionaries have the form:
-              {"OBSERVATION NAME": (value_reducer_func, stdev_reducer_func)}
-          If "OBSERVATION NAME" is "default" then the specified reducers are
-          applied to any observations not otherwise specified.
 
-  Return: The data frame with replicates aggregated.
-  """
-  if df is None:
-    return None
 
-  if agg=="mean":
-    agg = {"default": (np.mean, np.mean)}
-  elif not isinstance(agg,dict):
-    raise HistoryMatchingError("`agg` argument to replicate_reducer must be a dict or a recognized reducer name!")
+def _extract_training_set_from_summary_frame(observations, keyed_frame, observation_key):
+  observations = ValidateTimeObservationsFrame(observations) #TODO: Validate keyed frame
+  observations = observations[observations['observation'] == observation_key]
+  keyed_frame  = keyed_frame[keyed_frame['observation'] == observation_key]
+  return pd.merge(keyed_frame, observations, how='left', on='observation', suffixes=('_s', '_a'))
 
-  if not isinstance(df,pd.DataFrame):
-    raise HistoryMatchingError("`df` argument to replicate_reducer must be a DataFrame!")
 
-  if 'aobservation_id' in df.columns:
-    df = ValidateTimeStandardAnalysisWithReplicatesFrame(df)
+
+def extract_training_set_from_keyed_frame(
+  parameter_samples,
+  observations,
+  keyed_frame,
+  frame_type,
+  observation_key
+):
+  if frame_type not in ['time','summary']:
+    raise HistoryMatchingError("`frame_type` must be 'time' or 'summary'")
+
+  parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+  if frame_type=='time':
+    results = _extract_training_set_from_time_frame(observations, keyed_frame, observation_key)
   else:
-    df = ValidateSummaryStandardAnalysisWithReplicatesFrame(df)
+    results = _extract_training_set_from_summary_frame(observations, keyed_frame, observation_key)
 
-  # Function applied to each group
-  def helper(group):
-    observation_name = group['observation'].iloc[0]
-    if observation_name in agg:
-      group["value"] = agg[observation][0](group["value"])
-      group["stdev"] = agg[observation][1](group["stdev"])
-    else:
-      group["value"] = agg["default"][0](group["value"])
-      group["stdev"] = agg["default"][1](group["stdev"])
-    group['replicate'] = 0 #Replicates are now binned to a single value
-    return group
+  code.interact(local=locals())
 
-  grouping_keys = ['param_id', 'observation']
-  if 'aobservation_id' in df.columns:
-    grouping_keys.append('aobservation_id')
-  ret = df.groupby(grouping_keys).apply(helper)
+  results = pd.merge(results, parameter_samples, how='left', on='param_id')
+  del results['param_id']
 
-  return ret
+  return results
 
 
 
+def fit_emulator_to_keyed_frame(
+  emulator,
 
-
-
-
-
-
-
-def FitEmulatorWithParamsAndModel(emulator, param_samples, model_output):
+  ):
     """Fit the Emulator
 
     Args:
