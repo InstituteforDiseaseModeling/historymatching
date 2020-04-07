@@ -34,149 +34,259 @@ def _column_comparison(model_results, observations, obs_name):
 
 
 
-def _match_model_to_obs(results, observations):
-  if results is None:
+def match_sim_to_observations(sim_output, observations):
+  if isinstance(sim_output, tuple):
+    if isinstance(observations,tuple):
+      tr = match_sim_to_observations(sim_output[0], observations[0])
+      sr = match_sim_to_observations(sim_output[1], observations[1])
+      return tr, sr
+    else:
+      raise HistoryMatchingError("match_sim_to_observations expects either two single inputs or two tuples!")
+
+  if sim_output is None:
     return None
 
-  # We don't care about the observation_id produced by the model
-  del results['observation_id']
+  sim_output = ValidateSimFrame(sim_output, copy=False)
+  observations = ValidateObservationsFrame(observations, copy=False)
 
-  # We don't care about the paticular observation values here, only when they
-  # took place and what quantity they were
-  observations = observations[['observation_id', 'time', 'observation']]
+  if ('time' in sim_output.columns) ^ ('time' in observations.columns):
+    raise HistoryMatchingError("Attempting to match a TimeObservationsFrame to a SummaryObservationsFrame!")
 
-  # Rename to match expected output.
-  observations = observations.rename(columns={"observation_id": "aobservation_id"})
+  time_frame = 'time' in sim_output.columns
 
-  # Left merge, matching each modeled and actual observation to its nearest
-  # analogue by time
-  temp = pd.merge_asof(observations, results, on='time', by='observation', direction='nearest')
+  if time_frame:
+    # Left merge, matching each modeled and actual observation to its nearest
+    # analogue by time
+    temp = pd.merge_asof(observations, sim_output, on='time', by='observation', direction='nearest', suffixes=('_a', '_s'))
+    temp = temp.drop(columns='time')  # No longer need the time
+  else:
+    temp = pd.merge(observations, sim_output, on='observation', suffixes=('_a', '_s'))
 
-  del temp['time']         # No longer need the time
-  del temp['observation']  # No longer need observation name
+  temp = temp.drop(columns=[
+    'observation_id_s',   #Don't care about simulation observation ids
+    'value_a',            #Drop actual value
+    'stdev_a',            #Drop actual stdev
+    'observation',        #Drop observation name
+  ])
+
+  # Rename to drop suffixes
+  temp = temp.rename(columns={
+    "value_s": "value",
+    "stdev_s": "stdev"
+  })
 
   return temp
 
 
 
-class StandardAnalysisReducer:
-  def __init__(self, time_observations, summary_observations):
-    self.time_observations    = time_observations
-    self.summary_observations = summary_observations
+def _validated_run(wrapped_model, param_set, replicate):
+  def add_to_frame(df, key, value):
+    if df is not None:       # If there is a data frame
+      if value is not None:  # and we have something to add to it
+        df[key] = value      # then add the thing
 
-  def __call__(self, time_results, summary_results):
-    # Ensure that the modeled and actual observations agree on what quantities
-    # were observed
-    _column_comparison(time_results, self.time_observations, "TimeObservationsFrame")
-    _column_comparison(summary_results, self.summary_observations, "SummaryObservationsFrame")
+  if not isinstance(param_set,dict):
+    raise HistoryMatchingError("param_set must be a dictionary!")
 
-    # Ensure that time values are the same, so we can match them between
-    # modeled and actual observations
-    if time_results['time'].dtype!=self.time_observations['time'].dtype:
-      raise HistoryMatchingError(f"Data type of `time` differs between modeled and actual observations: {time_results['time'].dtype} vs {time_observations['time'].dtype}!")
+  #Remove param_id, if present so that it isn't interpreted as a model
+  #parameter
+  param_id  = param_set.get('param_id', None)
+  param_set = drop_key(param_set, 'param_id', ignore_missing=True)
 
-    # Match modeled and actual time observations
-    time_results = _match_model_to_obs(
-      time_results,
-      self.time_observations
-    )
+  #Run the model
+  results = wrapped_model(**param_set)
+  #Ensure model returned the sorts of results we expected
+  time_result, summary_result = ValidateObservationFrames(results)
 
-    return time_results, summary_results
+  add_to_frame(time_result,    'replicate', replicate)
+  add_to_frame(time_result,    'param_id',  param_id )
+  add_to_frame(summary_result, 'replicate', replicate)
+  add_to_frame(summary_result, 'param_id',  param_id )
+
+  return (time_result, summary_result)
 
 
 
-def standard_analysis(
-  wrapped_model,
-  parameter_samples,
+def run_replicates(wrapped_model, replicates, param_sets=None, processes=None):
+  if param_sets is None:                    #Means we run with default parameters
+    param_sets = [dict()]
+  elif isinstance(param_sets,dict):
+    param_sets = [param_sets]
+  elif isinstance(param_sets,pd.DataFrame):
+    param_sets = ValidateParameterSamplesFrame(param_sets)
+    param_sets = [x.to_dict() for _, x in param_sets.iterrows()]
+  elif isinstance(param_sets,list) and all([isinstance(x,dict) for x in param_sets]):
+    pass
+  else:
+    raise HistoryMatchingError("`param_sets` should be a ParameterSamplesFrame, dictionary, a list of dictionaries, or None!")
+
+  if processes is None or processes>1:
+    mapper = multiprocessing.Pool(processes=processes).starmap
+  elif processes==1:
+    mapper = itertools.starmap
+  else:
+    raise HistoryMatchingError("Unrecognized processes value!")
+
+  return list(mapper(
+    _validated_run, 
+    itertools.product([wrapped_model], param_sets, list(range(replicates)))
+  ))
+
+
+
+def match_sim_outputs_to_observations(
+  sim_outputs, 
   time_observations,
   summary_observations,
-  replicates=1,
-  processes=None,
-  cache_name=""
+  processes=None
 ):
-  """Perform a time analysis TODO
+  if not isinstance(sim_outputs,list):
+    raise TypeError("`sim_outputs` must be a list")
+  if not all([isinstance(x,tuple) for x in sim_outputs]):
+    raise TypeError("`sim_outputs` must be a list of tuples!")
 
-  This function is not parallelized!
+  if processes is None or processes>1:
+    mapper = multiprocessing.Pool(processes=processes).starmap
+  elif processes==1:
+    mapper = itertools.starmap
+  else:
+    raise HistoryMatchingError("Unrecognized processes value!")
 
-  Args:
-    parameter_samples - A ParameterSamplesFrame
-    time_observations - A TimeObservationsFrame (may be None)
-    summary_observations - A SummaryObservationsFrame (may be None)
-    wrapped_model - A model instantiating the ModelWrapper class.
-    replicates - Number of times to run the model for each parameter setting
-    cache_name - If specified, results are pickled to a file of this name
+  observations = [(time_observations, summary_observations)]
 
-  Returns: (TimeStandardAnalysisWithReplicatesFrame,SummaryStandardAnalysisWithReplicates)
-  """
-  if os.path.isfile(cache_name):
-    return pickle.load(open(cache_name, "rb" ))
-
-  if time_observations is None and summary_observations is None:
-    raise HistoryMatchingError("time_analysis was passed None for both `time_observations` and `summary_observations`! At least one must be provided!")
-
-  parameter_samples    = ValidateParameterSamplesFrame(parameter_samples)
-  time_observations    = ValidateTimeObservationsFrame(time_observations)
-  summary_observations = ValidateSummaryObservationsFrame(summary_observations)
-
-  reducer = StandardAnalysisReducer(time_observations, summary_observations)
-
-  ret = run_replicates(
-    wrapped_model = wrapped_model,
-    param_sets    = [x.to_dict() for _, x in parameter_samples.iterrows()],
-    replicates    = replicates,
-    show_hidden   = False,
-    processes     = processes,
-    reducer       = reducer
+  matched = mapper(
+    match_sim_to_observations,
+    itertools.product(sim_outputs, observations)
   )
 
-  if cache_name:
-    pickle.dump(ret, open(cache_name, "wb" ))
+  aggregator = lambda x: None if all(y is None for y in x) else pd.concat(x, ignore_index=True)
+  aggregate_time_results    = aggregator([x[0] for x in matched])
+  aggregate_summary_results = aggregator([x[1] for x in matched])
 
-  return ret
-
-
-
+  return aggregate_time_results, aggregate_summary_results
 
 
 
+def plot_runs_time_series(runs, param_id=None):
+  if isinstance(runs[0],tuple):
+    runs = [x[0] for x in runs]
+  for x in runs:
+    ValidateTimeSimFrame(x)
+  runs = pd.concat(runs, ignore_index=True)
+  if param_id is not None:
+    runs = runs[runs['param_id']==param_id]
+  return (pn.ggplot(runs, pn.aes('time', 'value', group='replicate')) + pn.geom_line() + pn.facet_wrap('~observation', scales='free_y'))
+
+#TODO: Include observations above
+# for i,obs in observations.iterrows():
+#     ax.plot(obs['Times'], obs['Prevalence'], 'ko')
+#     ax.plot(
+#         [obs['Times'],obs['Times']], 
+#         [obs['Prevalence']-2*obs['Stdev'],obs['Prevalence']+2*obs['Stdev']],
+#         'k-')
 
 
 
-
-
-
-
-
-def fit_emulator_to_keyed_frame(
-  emulator,
-
-  ):
+def prep_emulator_data(param_samples, matched, observation_id):
     """Fit the Emulator
 
     Args:
+        emulator - Emulator to fit
         param_samples - ParameterSamplesFrame
         model_output - A TimeStandardAnalysisFrame or 
                        SummaryStandardAnalysisFrame built using parameters
                        from param_samples
+        observation_key - Filter model_output by `aobservation_id` 
+                          for `output_type=summary` and `observation` for 
+                          `output_type=time`
+        output_type - 
         maxiter - Number of training iterations
 
     Returns: None
     """
-    if not isinstance(emulator,EmulatorBase):
-        raise HistoryMatchingError("`emulator` must inherit from EmulatorBase!")
-
     param_samples = ValidateParameterSamplesFrame(param_samples)
-    model_output  = ValidateEmulatorInput(model_output)
+    matched       = ValidateMatchedFrame(matched)
 
-    train_x = param_samples.iloc[model_output['param_id']]
-    train_x = train_x.drop(columns=['param_id'])
+    #Filter matched down to just the observation we are interested in. Doing
+    #this early on makes subsequent operations faster.
+    matched = matched[matched['observation_id_a']==observation_id]
+    #Drop observation_id_a column since we no longer need it
+    matched = matched.drop(columns='observation_id_a')
+    
+    #Get all parameter samples used for observation
+    params = matched[['param_id']]
+    #Pair them with their actual values
+    params = pd.merge(params, param_samples, how='left', on='param_id')
+    #Drop param_id column leaving only parameter values
+    params = params.drop(columns='param_id')
 
-    train_y = model_output['value']
-    stdev_y = model_output['stdev']
+    train_x = params
+    train_y = matched['value'].to_numpy()
+    stdev_y = matched['stdev'].to_numpy()
 
-    return emulator.fit(train_x, train_y, stdev_y, *args, **kwargs)
-
-
-
+    return train_x, train_y, stdev_y
 
 
+
+
+
+
+
+
+def calc_and_plot_implausibility(
+        emulator,
+        plot = False,
+        do_plot_data = False,
+        plot_data_highlight = pd.DataFrame(),
+        log_scale = False
+):
+    """Calculate and plot implausibility.
+
+    Args:
+        plot: (bool) Set True to produce plots.
+        do_plot_data: (bool) Set True to produce many pairwise plots of the inputs and results.  Within the Implausibility folder, they will appear in `PairwiseResults` for both `Train` and `Test.`
+        plot_data_highlight: (float) The guess value for the signal variance. Note that when normalizing Y, a value of 1 correspons to the variance of the results.
+        log_scale: (tuple) Lower and upper bounds for sigma2_f, e.g. like (0.005,10).
+    """
+
+    #TODO
+            # implausibility_threshold: (float) The threshold to use for determining if a point is implausible.
+            # discrepancy_var: (float) Constant variance to include in implausibility calculations for discrepancy.
+            # desired_result_var: (float) Constant variance to include in implausibility calculations for variance in the desired result.  This typically comes from a confidence interval in survey data.
+
+
+
+    td = self.training_data #Make a pointer to reduce visual noise below
+
+    td['Implausibility'] = \
+                abs( td['Mean_Estimate'] - self.desired_result ) / \
+                np.sqrt(td['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+    td['Implausible'] = td[ 'Implausibility' ] > self.implausibility_threshold
+
+    self.test_data['Implausibility'] = \
+                abs( self.test_data['Mean_Estimate'] - self.desired_result ) / \
+                np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+    self.test_data['Implausible'] = self.test_data[ 'Implausibility' ] > self.implausibility_threshold
+
+    td['Z_Noisy'] = (td[self.Ycol] - td['Mean_Estimate']) / np.sqrt(td['Var_Err_Predictive'])
+    td['Z_Noiseless'] = (td[self.Ycol] - td['Mean_Estimate']) / np.sqrt(td['Var_Err_Latent'])
+
+    self.test_data['Z_Noisy'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
+        np.sqrt(self.test_data['Var_Err_Predictive'] + self.discrepancy_var + self.desired_result_var)
+    self.test_data['Z_Noiseless'] = (self.test_data[self.Ycol] - self.test_data['Mean_Estimate']) / \
+        np.sqrt(self.test_data['Var_Err_Latent'] + self.discrepancy_var + self.desired_result_var)
+
+    if plot:
+        train_mean = td.reset_index().groupby(['Sample_Id']).mean()
+        test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
+
+        fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result)
+        fig.savefig(os.path.join(self.combineddir, f'implausibility.{self.fig_type}'))
+        plt.close(fig)
+
+        if do_plot_data:
+            pairdir = mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Train'))
+            plot_data(train_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale, desired_result=self.desired_result)
+
+            pairdir = mkdir_if_needed(os.path.join(self.combineddir, 'PairwiseResults', 'Test'))
+            plot_data(test_mean.reset_index(), Ycol=self.Ycol, param_info=self.param_info, circle_points=plot_data_highlight, saveto_dir=pairdir, log_scale=log_scale)

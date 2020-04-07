@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-def _plot_data_multi(train_x, train_y, figsize=None, log_scale=False, cmap='viridis', alpha=0.5):
+def plot_data_multi(train_x, train_y, figsize=None, log_scale=False, cmap='viridis', alpha=0.5):
     """Generates many pair-wise scatter plots of the training data.
 
     Args:
@@ -21,6 +21,7 @@ def _plot_data_multi(train_x, train_y, figsize=None, log_scale=False, cmap='viri
             x  = train_x[row]
             y  = train_x[col]
 
+            #TODO: Use plotnine
             fig, ax = plt.subplots()
             ax.scatter(x, y, c=train_y, cmap=cmap, alpha=alpha)
             ax.set_xlabel(row)

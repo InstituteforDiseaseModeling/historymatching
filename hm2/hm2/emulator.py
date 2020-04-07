@@ -4,16 +4,30 @@ from hm2.basis import BasisBase
 from hm2.data_validation import *
 import hm2.glm
 import hm2.gpr
-
+from hm2.plotting import *
 
 
 class EmulatorBase(abc.ABC):
+    def fit(self, train_x, train_y, stdev_y, *args, **kwargs):
+        self._train_x = train_x.copy()
+        self._train_y = train_y.copy()
+        self._stdev_y = stdev_y.copy()
+        self._fit(train_x, train_y, stdev_y, *args, **kwargs)
+
     @abc.abstractmethod
-    def fit(self):
+    def _fit(self):
         pass
 
     @abc.abstractmethod
     def predict(self):
+        pass
+
+    @abc.abstractmethod
+    def predict(self):
+        pass
+
+    @abc.abstractmethod
+    def plot_data(self, *args, **kwargs):
         pass
 
 
@@ -25,7 +39,7 @@ class TorchGPREmulator(EmulatorBase):
         self.basis = basis
         self.gpr = hm2.gpr.TorchGPR()
 
-    def fit(self, train_x, train_y, stdev_y, maxiter):
+    def _fit(self, train_x, train_y, stdev_y, maxiter):
         """Fit the GPR.
 
         Args:
@@ -38,15 +52,22 @@ class TorchGPREmulator(EmulatorBase):
         """
         #Extract the relevant parameter sample values
         self.gpr.fit(
-            train_x = self.basis.fit_transform(train_x),
+            train_x = self.basis(train_x),
             train_y = train_y,
             stdev_y = stdev_y,
             maxiter = maxiter
         )
 
     def predict(self, test_x):
-        test_x = self.basis.fit_transform(test_x)
+        test_x = self.basis(test_x)
         return self.gpr.predict(test_x)
+
+    def plot_data(self, *args, **kwargs):
+        return plot_data_multi(
+            self.basis(self._train_x),
+            self._train_y,
+            *args, **kwargs
+        )
 
 
 
@@ -57,7 +78,7 @@ class SkGPREmulator(EmulatorBase):
         self.basis = basis
         self.gpr = hm2.gpr.SkGPR()
 
-    def fit(self, train_x, train_y, stdev_y, maxiter):
+    def _fit(self, train_x, train_y, stdev_y, maxiter):
         """Fit the GPR.
 
         Args:
@@ -70,14 +91,21 @@ class SkGPREmulator(EmulatorBase):
         """
         #Extract the relevant parameter sample values
         self.gpr.fit(
-            train_x = self.basis.fit_transform(train_x),
+            train_x = self.basis(train_x),
             train_y = train_y,
             stdev_y = stdev_y,
             maxiter = maxiter
         )
 
     def predict(self, test_x):
-        return self.gpr.predict(self.basis.fit_transform(test_x))
+        return self.gpr.predict(self.basis(test_x))
+
+    def plot_data(self, *args, **kwargs):
+        return plot_data_multi(
+            self.basis(self._train_x),
+            self._train_y,
+            *args, **kwargs
+        )
 
 
 
@@ -102,7 +130,7 @@ class GLM_GPR_Emulator(EmulatorBase):
         self.glm = hm2.glm.GLM(family=family)
         self.gpr = hm2.gpr.SkGPR()
 
-    def fit(self, train_x, train_y, stdev_y, glm_maxiter=1000, gpr_maxiter=1000):
+    def _fit(self, train_x, train_y, stdev_y, glm_maxiter=1000, gpr_maxiter=1000):
         """Fit the GPR.
 
         Args:
@@ -115,8 +143,8 @@ class GLM_GPR_Emulator(EmulatorBase):
         Returns: None
         """
         #Extract the relevant parameter sample values
-        train_x_glm = self.glm_basis.fit_transform(train_x)
-        train_x_gpr = self.gpr_basis.fit_transform(train_x)
+        train_x_glm = self.glm_basis(train_x)
+        train_x_gpr = self.gpr_basis(train_x)
 
         self.glm.fit(train_x_glm, train_y, maxiter=glm_maxiter)
 
@@ -134,7 +162,14 @@ class GLM_GPR_Emulator(EmulatorBase):
         Returns:
             Predicted outputs at the inputs specified by data.
         """
-        test_x_glm = self.glm_basis.fit_transform(test_x)
-        test_x_gpr = self.gpr_basis.fit_transform(test_x)
+        test_x_glm = self.glm_basis(test_x)
+        test_x_gpr = self.gpr_basis(test_x)
 
         return self.glm.predict(test_x_glm) + self.gpr.predict(test_x_gpr)
+
+    def plot_data(self, *args, **kwargs):
+        return plot_data_multi(
+            self.glm_basis(self._train_x),
+            self._train_y,
+            *args, **kwargs
+        )

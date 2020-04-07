@@ -7,7 +7,7 @@ import numpy as np
 
 from hm2.examples.sir import SIR
 import hm2.sampling
-import hm2.boilerplate
+from hm2.boilerplate import *
 import hm2.basis
 from hm2.emulator import *
 from hm2.wrapped_model import *
@@ -49,7 +49,7 @@ param_info = pd.DataFrame({
 
 # For the first iteration, the samples are random.  We'll use Latin Hypercube
 # Sampling to make the samples more uniformly spaced.
-parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=100)
+parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=50)
 
 
 
@@ -60,14 +60,11 @@ parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=100)
 # HistoryMatching requires that the model be wrapped in the special ModelWrapper
 # class. This standardize HistoryMatching's interaction with models 
 
-def run_model(show_hidden, **kwargs):
+def wrapped_model(**kwargs):
     model = SIR(**kwargs)
 
     results = model.sim()
     results['prevalence'] = results['per_infected']
-    #Extract only the columns we have actual observations for
-    if not show_hidden:
-      results = results[['time', 'prevalence']]
     #Reshape DataFrame into the tidy form expected by HistoryMatching
     results = pd.melt(results, id_vars='time', var_name='observation')
     #We have no uncertainty about our results
@@ -77,26 +74,57 @@ def run_model(show_hidden, **kwargs):
     #Sort by time
     results.sort_values(by='time', inplace=True)
     return results, None
+    # return ValidateObservationFrames((results, None), copy=False)
 
+
+
+#Run the model a number of times
+sim_replicates = run_replicates(
+  wrapped_model = wrapped_model,
+  param_sets    = [x.to_dict() for _, x in parameter_samples.iterrows()],
+  replicates    = 2,
+  processes     = None,
+)
 
 
 ################################################
 #Plot a few runs
 ################################################
 
-# print(hm2.wrapped_model.plot_runs(run_model, params=None, replicates=10))
+#print(plot_runs_time_series(sim_replicates))
 
 
+################################################
+#Match to observations
+################################################
 
-# Make model runs and associate them with observations
-mr = hm2.boilerplate.standard_analysis(
-  wrapped_model        = run_model,
-  parameter_samples    = parameter_samples,
-  time_observations    = time_observations,
-  summary_observations = summary_observations,
-  replicates           = 1,
-  cache_name           = ""
+matched = match_sim_outputs_to_observations(
+  sim_replicates,
+  time_observations,
+  summary_observations,
+  processes=12
 )
+
+################################################
+#Fit an emulator
+################################################
+
+#Define an emulator
+gpremu = hm2.emulator.GLM_GPR_Emulator(
+  glm_basis=hm2.basis.IdentityBasis(intercept=False),
+  gpr_basis=hm2.basis.IdentityBasis(intercept=False)
+)
+
+#Prepare data for emulator (make a train_x, train_y, stdev_y tuple)
+prepped = prep_emulator_data(parameter_samples, matched[0], observation_id=1)
+
+gpremu.fit(*prepped)
+
+figs = gpremu.plot_data()
+
+
+
+
 
 # Reduce replicates taking the mean of what the model produced for each time
 # point
@@ -105,44 +133,34 @@ mr = hm2.boilerplate.standard_analysis(
 #   hm2.boilerplate.replicate_reducer(runs[1], "mean")
 # )
 
-a = hm2.boilerplate.extract_training_set_from_keyed_frame(
-  observation_key = 0,
-  parameter_samples = parameter_samples,
-  observations = time_observations,
-  keyed_frame = mr['time'],
-  frame_type = 'time',
-)
+# a = hm2.boilerplate.extract_training_set_from_keyed_frame(
+#   observation_key = 0,
+#   parameter_samples = parameter_samples,
+#   observations = time_observations,
+#   keyed_frame = mr['time'],
+#   frame_type = 'time',
+# )
 
 
+sys.exit(-1)
 
+fig, ax=plt.subplots(2,1)
 
-
-
-
-this_obs = model_time[model_time['aobservation_id']==0]
-gpremu = hm2.emulator.TorchGPREmulator(basis=hm2.basis.IdentityBasis(intercept=False))
-gpremu.fit(parameter_samples, this_obs, maxiter=10000)
-
-gpremu.predict(parameter_samples.iloc[this_obs['param_id']][['beta','gamma']])
-
-
-plt.scatter(
+ax[0].scatter(
   parameter_samples.iloc[this_obs['param_id']]['beta'],
   parameter_samples.iloc[this_obs['param_id']]['gamma'],
   c=this_obs['value']
 )
 
-
-plt.scatter(
+ax[1].scatter(
   parameter_samples.iloc[this_obs['param_id']]['beta'],
   parameter_samples.iloc[this_obs['param_id']]['gamma'],
   c=gpremu.predict(parameter_samples.iloc[this_obs['param_id']][['beta','gamma']])[0]
 )
 
-
+plt.show()
 
 sys.exit(-1)
-
 
 
 
