@@ -34,12 +34,7 @@ def _column_comparison(model_results, observations, obs_name):
 
 
 
-def _generate_time_standard_analysis_frame(
-  param_id,
-  replicate,
-  results,
-  observations
-):
+def _match_model_to_obs(results, observations):
   if results is None:
     return None
 
@@ -60,41 +55,43 @@ def _generate_time_standard_analysis_frame(
   # No longer need the time
   del temp['time']
 
-  # Add contextual information
-  temp['param_id'] = param_id
-  temp['replicate'] = replicate
-
   return temp
 
 
 
-def _generate_summary_standard_analysis_frame(
-  param_id,
-  replicate,
-  results,
-  observations
-):
-  if results is None:
-    return None
+class StandardAnalysisReducer:
+  def __init__(self, time_observations, summary_observations):
+    self.time_observations    = time_observations
+    self.summary_observations = summary_observations
 
-  # Everything needed to match to the observations data is already present: only
-  # the values of the `observation` column are necessary.
+  def __call__(self, time_results, summary_results):
+    # Ensure that the modeled and actual observations agree on what quantities
+    # were observed
+    _column_comparison(time_results, self.time_observations, "TimeObservationsFrame")
+    _column_comparison(summary_results, self.summary_observations, "SummaryObservationsFrame")
 
-  # Add contextual information
-  results['param_id'] = param_id
-  results['replicate'] = replicate
+    # Ensure that time values are the same, so we can match them between
+    # modeled and actual observations
+    if time_results['time'].dtype!=self.time_observations['time'].dtype:
+      raise HistoryMatchingError(f"Data type of `time` differs between modeled and actual observations: {time_results['time'].dtype} vs {time_observations['time'].dtype}!")
 
-  return results
+    # Match modeled and actual time observations
+    time_results = _match_model_to_obs(
+      time_results,
+      self.time_observations
+    )
+
+    return time_results, summary_results
 
 
 
-#TODO(r-barnes): parallelize
 def standard_analysis(
+  wrapped_model,
   parameter_samples,
   time_observations,
   summary_observations,
-  wrapped_model,
   replicates=1,
+  processes=None,
   cache_name=""
 ):
   """Perform a time analysis TODO
@@ -123,7 +120,7 @@ def standard_analysis(
 
   reducer = StandardAnalysisReducer(time_observations, summary_observations)
 
-  ret = RunReplicates(
+  ret = run_replicates(
     wrapped_model = wrapped_model,
     param_sets    = [x.to_dict() for _, x in parameter_samples.iterrows()],
     replicates    = replicates,
@@ -189,6 +186,10 @@ def replicate_reducer(df, agg):
   ret = df.groupby(grouping_keys).apply(helper)
 
   return ret
+
+
+
+
 
 
 
