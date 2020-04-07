@@ -9,7 +9,8 @@ from hm2.examples.sir import SIR
 import hm2.sampling
 import hm2.boilerplate
 import hm2.basis
-import hm2.emulator
+from hm2.emulator import *
+from hm2.wrapped_model import *
 
 
 
@@ -59,35 +60,42 @@ parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=100)
 # HistoryMatching requires that the model be wrapped in the special ModelWrapper
 # class. This standardize HistoryMatching's interaction with models 
 
-class SIRWrapper(hm2.boilerplate.ModelWrapper):
-    def init(self, **kwargs):
-        self.model = SIR(**kwargs)
+def run_model(show_hidden, **kwargs):
+    model = SIR(**kwargs)
 
-    def run(self):
-      results = self.model.sim()
-      results['prevalence'] = results['per_infected']
-      #Extract only the columns we have actual observations for
+    results = model.sim()
+    results['prevalence'] = results['per_infected']
+    #Extract only the columns we have actual observations for
+    if not show_hidden:
       results = results[['time', 'prevalence']]
-      #Reshape DataFrame into the tidy form expected by HistoryMatching
-      results = pd.melt(results, id_vars='time', var_name='observation')
-      #We have no uncertainty about our results
-      results['stdev'] = 0
-      #Add observation ids
-      results['observation_id'] = list(range(len(results)))
-      #Sort by time
-      results.sort_values(by='time', inplace=True)
-      return results, None
+    #Reshape DataFrame into the tidy form expected by HistoryMatching
+    results = pd.melt(results, id_vars='time', var_name='observation')
+    #We have no uncertainty about our results
+    results['stdev'] = 0
+    #Add observation ids
+    results['observation_id'] = list(range(len(results)))
+    #Sort by time
+    results.sort_values(by='time', inplace=True)
+    return results, None
+
+
+
+# results = RunReplicates(run_model, replicates=10, show_hidden=False)
+
+# sir = SIRWrapper()
+# sir.plot(replicates=100)
+# import plotnine as pn
 
 
 
 # Make model runs and associate them with observations
-model_time, model_summary = hm2.boilerplate.standard_analysis(
+mr = hm2.boilerplate.standard_analysis(
+  wrapped_model        = run_model,
   parameter_samples    = parameter_samples,
   time_observations    = time_observations,
   summary_observations = summary_observations,
-  wrapped_model        = SIRWrapper(),
   replicates           = 1,
-  cache_name           = "reps1"
+  cache_name           = ""
 )
 
 # Reduce replicates taking the mean of what the model produced for each time

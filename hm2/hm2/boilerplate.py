@@ -1,4 +1,3 @@
-import abc
 import os
 
 import numpy as np
@@ -8,39 +7,7 @@ import pickle
 from .error import HistoryMatchingError
 from .data_validation import *
 from .utility import drop_key
-
-
-class ModelWrapper(abc.ABC):
-  def init(self, **kwargs):
-    """Function that returns an initialized model.
-
-    Args:
-      kwargs - Named arguments corresponding to the parameter settings to be 
-       used in a set of runs of the model.
-
-    Returns: A model initialized with `kwargs`. The model is treated as
-             an opaque object which is passed to other methods.
-    """
-    pass
-
-  def run(self):
-    """Function that runs the initialized model.
-
-    Args:
-      model - A model returned by `init`.
-
-    Returns:
-      A tuple of DataFrames `(time_points, summary_points)`
-
-      Either value of the tuple may also be None
-
-      The `time_points` DataFrame has the form:
-          <time> <observation name 1> [observation name 2]
-
-      The `summary_points` DataFrame has the form:
-          <summary name> <summary value>
-    """
-    pass
+from .wrapped_model import *
 
 
 
@@ -149,62 +116,21 @@ def standard_analysis(
 
   if time_observations is None and summary_observations is None:
     raise HistoryMatchingError("time_analysis was passed None for both `time_observations` and `summary_observations`! At least one must be provided!")
-  if not isinstance(wrapped_model, ModelWrapper):
-    raise HistoryMatchingError("wrapped_model was not an instance of ModelWrapper!")
 
   parameter_samples    = ValidateParameterSamplesFrame(parameter_samples)
   time_observations    = ValidateTimeObservationsFrame(time_observations)
   summary_observations = ValidateTimeObservationsFrame(summary_observations)
 
-  aggregate_time_results = []
-  aggregate_summary_results = []
-  for _, parameter_sample in parameter_samples.iterrows():
-    # Convert parameter_sample to dictionary
-    parameter_sample = parameter_sample.to_dict() 
-    # Initialize the model for these parameter settings
-    wrapped_model.init(**drop_key(parameter_sample, 'param_id'))
+  reducer = StandardAnalysisReducer(time_observations, summary_observations)
 
-    for replicate in range(replicates):
-      #Run the model
-      results = wrapped_model.run()
-      #Ensure model returned the sorts of results we expected
-      time_results, summary_results = ValidateWrappedModelResults(results)
-
-      # Ensure that the modeled and actual observations agree on what quantities
-      # were observed
-      _column_comparison(time_results, time_observations, "TimeObservationsFrame")
-      _column_comparison(summary_results, summary_observations, "SummaryObservationsFrame")
-
-      # Ensure that time values are the same, so we can match them between
-      # modeled and actual observations
-      if time_results['time'].dtype!=time_observations['time'].dtype:
-        raise HistoryMatchingError(f"Data type of `time` differs between modeled and actual observations: {time_results['time'].dtype} vs {time_observations['time'].dtype}!")
-
-      # Match modeled and actual time observations
-      time_results = _generate_time_standard_analysis_frame(
-        parameter_sample['param_id'],
-        replicate,
-        time_results,
-        time_observations
-      )
-
-      # Match modeled and actual summary observations
-      summary_results = _generate_summary_standard_analysis_frame(
-        parameter_sample['param_id'],
-        replicate,
-        summary_results,
-        summary_observations
-      )
-
-      aggregate_time_results.append(time_results)
-      aggregate_summary_results.append(summary_results)
-
-  # Now we condense the lists of paired observations into single dataframes
-  aggregator = lambda x: None if all(y is None for y in x) else pd.concat(x, ignore_index=True)
-  aggregate_time_results    = aggregator(aggregate_time_results)
-  aggregate_summary_results = aggregator(aggregate_summary_results)
-
-  ret = aggregate_time_results, aggregate_summary_results
+  ret = RunReplicates(
+    wrapped_model = wrapped_model,
+    param_sets    = [x.to_dict() for _, x in parameter_samples.iterrows()],
+    replicates    = replicates,
+    show_hidden   = False,
+    processes     = processes,
+    reducer       = reducer
+  )
 
   if cache_name:
     pickle.dump(ret, open(cache_name, "wb" ))
@@ -213,6 +139,7 @@ def standard_analysis(
 
 
 
+#TODO: Is this good for anything?
 def replicate_reducer(df, agg):
   """Reduce a TimeStandardAnalysisFrame or SummaryStandardAnalysisFrame to one
      without a replicate column by aggregating replicates according to `agg`.
