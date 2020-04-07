@@ -428,3 +428,66 @@ class GLM_GPR_Emulator(EmulatorBase):
         #plt.tight_layout()
 
         return figs
+
+
+
+
+
+
+
+
+
+
+
+
+
+#TODO: Is this good for anything?
+def replicate_reducer(df, agg):
+  """Reduce a TimeStandardAnalysisFrame or SummaryStandardAnalysisFrame to one
+     without a replicate column by aggregating replicates according to `agg`.
+
+  Args:
+    df - TimeStandardAnalysisFrame or SummaryStandardAnalysisFrame
+    agg - A dictionary describing the reduction a short name.
+          Short names are: mean
+          Dictionaries have the form:
+              {"OBSERVATION NAME": (value_reducer_func, stdev_reducer_func)}
+          If "OBSERVATION NAME" is "default" then the specified reducers are
+          applied to any observations not otherwise specified.
+
+  Return: The data frame with replicates aggregated.
+  """
+  if df is None:
+    return None
+
+  if agg=="mean":
+    agg = {"default": (np.mean, np.mean)}
+  elif not isinstance(agg,dict):
+    raise HistoryMatchingError("`agg` argument to replicate_reducer must be a dict or a recognized reducer name!")
+
+  if not isinstance(df,pd.DataFrame):
+    raise HistoryMatchingError("`df` argument to replicate_reducer must be a DataFrame!")
+
+  if 'aobservation_id' in df.columns:
+    df = ValidateTimeStandardAnalysisWithReplicatesFrame(df)
+  else:
+    df = ValidateSummaryStandardAnalysisWithReplicatesFrame(df)
+
+  # Function applied to each group
+  def helper(group):
+    observation_name = group['observation'].iloc[0]
+    if observation_name in agg:
+      group["value"] = agg[observation][0](group["value"])
+      group["stdev"] = agg[observation][1](group["stdev"])
+    else:
+      group["value"] = agg["default"][0](group["value"])
+      group["stdev"] = agg["default"][1](group["stdev"])
+    group['replicate'] = 0 #Replicates are now binned to a single value
+    return group
+
+  grouping_keys = ['param_id', 'observation']
+  if 'aobservation_id' in df.columns:
+    grouping_keys.append('aobservation_id')
+  ret = df.groupby(grouping_keys).apply(helper)
+
+  return ret
