@@ -491,3 +491,88 @@ def replicate_reducer(df, agg):
   ret = df.groupby(grouping_keys).apply(helper)
 
   return ret
+
+
+
+
+def _extract_training_set_from_time_frame(observations, keyed_frame, observation_key):
+  observations = ValidateTimeObservationsFrame(observations) #TODO: Validate keyed frame
+  code.interact(local=locals())
+  observations = observations[observations['observation_id'] == observation_key]
+  keyed_frame  = keyed_frame[keyed_frame['aobservation_id'] == observation_key]
+  merged = pd.merge(keyed_frame, observations, how='left', left_on='aobservation_id', right_on='observation_id', suffixes=('_s', '_a'))
+  del merged['aobservation_id']
+  del merged['observation_id']
+  del merged['time']
+  del merged['observation']
+  return merged
+
+
+
+def _extract_training_set_from_summary_frame(observations, keyed_frame, observation_key):
+  observations = ValidateTimeObservationsFrame(observations) #TODO: Validate keyed frame
+  observations = observations[observations['observation'] == observation_key]
+  keyed_frame  = keyed_frame[keyed_frame['observation'] == observation_key]
+  return pd.merge(keyed_frame, observations, how='left', on='observation', suffixes=('_s', '_a'))
+
+
+
+def extract_training_set_from_keyed_frame(
+  parameter_samples,
+  observations,
+  keyed_frame,
+  frame_type,
+  observation_key
+):
+  if frame_type not in ['time','summary']:
+    raise HistoryMatchingError("`frame_type` must be 'time' or 'summary'")
+
+  parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+  if frame_type=='time':
+    results = _extract_training_set_from_time_frame(observations, keyed_frame, observation_key)
+  else:
+    results = _extract_training_set_from_summary_frame(observations, keyed_frame, observation_key)
+
+  code.interact(local=locals())
+
+  results = pd.merge(results, parameter_samples, how='left', on='param_id')
+  del results['param_id']
+
+  return results
+
+
+
+def fit_emulator_to_keyed_frame(
+  emulator,
+
+  ):
+    """Fit the Emulator
+
+    Args:
+        param_samples - ParameterSamplesFrame
+        model_output - A TimeStandardAnalysisFrame or 
+                       SummaryStandardAnalysisFrame built using parameters
+                       from param_samples
+        maxiter - Number of training iterations
+
+    Returns: None
+    """
+    if not isinstance(emulator,EmulatorBase):
+        raise HistoryMatchingError("`emulator` must inherit from EmulatorBase!")
+
+    param_samples = ValidateParameterSamplesFrame(param_samples)
+    model_output  = ValidateEmulatorInput(model_output)
+
+    train_x = param_samples.iloc[model_output['param_id']]
+    train_x = train_x.drop(columns=['param_id'])
+
+    train_y = model_output['value']
+    stdev_y = model_output['stdev']
+
+    return emulator.fit(train_x, train_y, stdev_y, *args, **kwargs)
+
+
+
+
+
+
