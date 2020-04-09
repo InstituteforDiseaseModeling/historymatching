@@ -20,7 +20,7 @@ it.
 TimeObservationsFrame
 ~~~~~~~~~~~~~~~~~~~~~
 
-A :ref:`TimeObservationsFrame` contains all observations tied to specific time
+A TimeObservationsFrame_ contains all observations tied to specific time
 points. Each observation must have a unique `observation_id` which is associated
 with the `time` (e.g. `5` seconds) a particular `observation` (e.g.
 `mosquito_count`) was made. The observation itself must have a `value` (e.g.
@@ -64,7 +64,7 @@ Hadley Wickham writes in detail about the benefits of the tidy format `here
 SummaryObservationsFrame
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-A :ref:`SummaryObservationsFrame` contains all observations which are not tied
+A SummaryObservationsFrame_ contains all observations which are not tied
 to specific time points. Each observation has a name `observation` (e.g.
 `cumulative_infections`) and a unique `observation_id`. The observation itself
 must have a `value` (e.g. `300`) and an uncertainty expressed as a standard
@@ -103,7 +103,7 @@ ParameterSamplesFrame
 ---------------------
 
 HistoryMatching explores a parameter space by sampling it. Samples to be
-explored are stored in a :ref:`ParameterSamplesFrame`. For a model with
+explored are stored in a ParameterSamplesFrame_. For a model with
 parameters `beta` and `gamma`, the frame would look like follows:
 
 ::
@@ -128,7 +128,7 @@ Note that all values in the `param_id` column are unique.
 TimeSimFrame
 ---------------------------------------
 
-A :ref:`TimeSimFrame` is like a :ref:`TimeObservationsFrame` except that it
+A TimeSimFrame_ is like a TimeObservationsFrame_ except that it
 includes a `replicate` and `param_id` column, like so:
 
 ::
@@ -146,14 +146,14 @@ includes a `replicate` and `param_id` column, like so:
   100.795317  per_susceptible    0.000000      0            1583          0       0.0
   100.795317       prevalence   10.747664      0            2771          0       0.0
 
-`run_replicates()` can be used to generate such a series of `TimeSimFrame`s.
+`run_replicates()` can be used to generate such a series of TimeSimFrame_.
 
 
 
 SummarySimFrame
 ------------------------------------------
 
-A :ref:`SummarySimFrame` is like a :ref:`SummaryObservationsFrame` except that it includes
+A SummarySimFrame_ is like a SummaryObservationsFrame_ except that it includes
 a `replicate` and `param_id` column, like so:
 
 ::
@@ -166,7 +166,7 @@ a `replicate` and `param_id` column, like so:
          1         0  cumulative_infections  3700
          1         0     days_of_quarantine    57
 
-`run_replicates()` can be used to generate such a series of `SummarySimFrame`s.
+`run_replicates()` can be used to generate such a series of SummarySimFrame_.
 
 
 
@@ -180,14 +180,14 @@ fairly standard and so has been encapsulated in the
 actual observation is identified as the one occuring closest in time to the
 modeled observation.
 
-The :ref:`MatchedFrame` consists of a `observation_id_a` column which is the
+The MatchedFrame_ consists of a `observation_id_a` column which is the
 `observation_id` of the actual observation, as listed in a
-:ref:`TimeObservationsFrame` or :ref:`SummaryObservationsFrame`. The actual
+TimeObservationsFrame_ or SummaryObservationsFrame_. The actual
 observation is associated with a `value` and its `stdev` as produced by the
 simulation. The simulation might have run multiple times, as indicated by the
 `replicate` column. The simulation may also have been run for different
 parameters, as indicated by the `param_id` column which refers to the eponymous
-column in a :ref:`ParameterSamplesFrame`.
+column in a ParameterSamplesFrame_.
 
 ::
 

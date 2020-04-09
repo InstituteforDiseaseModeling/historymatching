@@ -13,7 +13,7 @@ Welcome to IDM History Matching's documentation!
    what_is_history_matching
    data_frames
    wrapped_model
-
+   api
 
 Indices and tables
 ==================

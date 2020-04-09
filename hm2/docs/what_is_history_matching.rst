@@ -1,44 +1,40 @@
+What Is History Matching?
+=========================
 
 
 
+Here we follow a process described by [Gardner2019]_ and [Pievatolo2018]_.
+
+Preparation
+---------------------------
+
+1. Obtain observations from the real world and format them into a :ref:`TimeObservationsFrame` and a :ref:`SummaryObservationsFrame`.
+
+2. Build a beautiful model which you would like to match to the real world. Wrap this model according to :ref:`Wrapping A Model`.
+
+3. Put the parameters you would like to perform your matching on into a :ref:`ParameterInfoFrame`.
 
 
-Draw parameters from GMLHC
-Run the simulator at parameters
-Draw n samples θ ks ∼ U min(θ k ), max(θ k )
-for j = 1 : no. of outputs do
-  Train and validate GP j x , θ k .                     Train/validate emulators
-  E GP j x , θ ks ,V c, j (x, θ ks ) = GP j x , θ ks .  Predictions
-  Calculate I j (x, θ ks )                              Assess implausibility of samples
-end for
-Calcualate I max (θ ks )
-for m = 1 : n do
-  if I max (θ ks,m ) < T then
-    θ knI = θ ks,m                                      Keep non-implausible samples
-  end if
-end for
-bounds = [min(θ knI ), max(θ knI )]                     Obtain new GMLHC bounds
-if any (V c, k j (x, θ ) < (V o, j +V m, j )) or isempty(θ knI ) then
-  Stop
-endif 
+Waves
+---------------------------
 
+TODO
 
+For each wave:
 
+1. Sample parameters for running the simulation on. Call these SP. (:mod:`hm2.sampling` is useful)
+2. Run the simulator at each of parameter set in SP to produce Y. (:ref:`hm2.boilerplate.run_replicates` is useful)
+3. Sample within the bounds of SP for later subsetting the space. Call this NP. TODO: reference
+4. For each observation O (:ref:`hm2.boilerplate.get_data_for_emulators` is useful)
 
+   a. Train and validate an Emulator on (SP,Y_o). (see :mod:`hm2.emulator`)
+   b. Run the trained emulator on each NP.
+   c. Calculate the implausibility of each NP. TODO: reference
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+5. Calculate the maximum implausibility of each NP.
+6. Keep only those members of NP whose maximum implausibility is less than a treshold T.
+7. Use the remaining members to form a new box space for Step 1.
+8. If the variance is small enough or there is no non-implausible space
 
 
 
@@ -46,6 +42,33 @@ endif
 
 
 
+
+References
+-------------------------
+
+.. [Gardner2019] Gardner, P., Lord, C., & Barthorpe, R. J. (2019). Sequential Bayesian History Matching for Model Calibration. ASME 2019 Verification and Validation Symposium, V001T06A004. https://doi.org/10.1115/VVS2019-5149
+.. [Pievatolo2018] Pievatolo, A., & Ruggeri, F. (2018). Bayes linear uncertainty analysis for oil reservoirs based on multiscale computer experiments (A. O’Hagan & M. West, Eds.; Vol. 1). Oxford University Press. https://doi.org/10.1093/oxfordhb/9780198703174.013.10
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+TODO
+------------------
 
 
 

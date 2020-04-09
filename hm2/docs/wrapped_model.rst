@@ -1,5 +1,5 @@
-WrappedModel (TODO)
-==============================
+Wrapping A Model
+================
 
 
 WrappedModelResults
