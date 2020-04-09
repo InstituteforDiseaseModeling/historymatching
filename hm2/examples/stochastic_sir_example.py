@@ -106,21 +106,24 @@ matched = match_sim_outputs_to_observations(
 )
 
 ################################################
-#Fit an emulator
+#Fit emulators
 ################################################
 
-#Define an emulator
-gpremu = hm2.emulator.GLM_GPR_Emulator(
-  glm_basis=hm2.basis.IdentityBasis(intercept=False),
-  gpr_basis=hm2.basis.IdentityBasis(intercept=False)
-)
-
 #Prepare data for emulator (make a train_x, train_y, stdev_y tuple)
-prepped = prep_emulator_data(parameter_samples, matched[0], observation_id=1)
+emulators = dict()
+for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0]):
+  emulators[obs] = hm2.emulator.GLM_GPR_Emulator(
+    glm_basis=hm2.basis.IdentityBasis(intercept=False),
+    gpr_basis=hm2.basis.IdentityBasis(intercept=False)
+  ).fit(params, y, stdev, gpr_maxiter=10000)
+  # figs = gpremu.plot_data() #TODO
 
-gpremu.fit(*prepped)
 
-figs = gpremu.plot_data()
+
+
+# gpremu.fit(*prepped)
+
+
 
 
 

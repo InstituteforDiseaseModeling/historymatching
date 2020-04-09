@@ -12,7 +12,7 @@ class EmulatorBase(abc.ABC):
         self._train_x = train_x.copy()
         self._train_y = train_y.copy()
         self._stdev_y = stdev_y.copy()
-        self._fit(train_x, train_y, stdev_y, *args, **kwargs)
+        return self._fit(train_x, train_y, stdev_y, *args, **kwargs)
 
     @abc.abstractmethod
     def _fit(self):
@@ -57,6 +57,7 @@ class TorchGPREmulator(EmulatorBase):
             stdev_y = stdev_y,
             maxiter = maxiter
         )
+        return self
 
     def predict(self, test_x):
         test_x = self.basis(test_x)
@@ -96,6 +97,7 @@ class SkGPREmulator(EmulatorBase):
             stdev_y = stdev_y,
             maxiter = maxiter
         )
+        return self
 
     def predict(self, test_x):
         return self.gpr.predict(self.basis(test_x))
@@ -151,6 +153,8 @@ class GLM_GPR_Emulator(EmulatorBase):
         residuals = train_y-self.glm.predict(train_x_glm)
 
         self.gpr.fit(train_x_gpr, residuals, stdev_y, maxiter=gpr_maxiter)
+
+        return self
 
     def predict(self, test_x):
         """Evaluate the emulator and return the mean prediction.
