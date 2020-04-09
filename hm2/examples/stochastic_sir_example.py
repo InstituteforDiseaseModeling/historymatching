@@ -9,7 +9,7 @@ from hm2.examples.sir import SIR
 import hm2.sampling
 from hm2.boilerplate import *
 import hm2.basis
-from hm2.emulator import *
+from hm2.emulators import *
 from hm2.wrapped_model import *
 
 
@@ -112,7 +112,7 @@ matched = match_sim_outputs_to_observations(
 #Prepare data for emulator (make a train_x, train_y, stdev_y tuple)
 emulators = dict()
 for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0]):
-  emulators[obs] = hm2.emulator.GLM_GPR_Emulator(
+  emulators[obs] = hm2.emulators.GLM_GPR_Emulator(
     glm_basis=hm2.basis.IdentityBasis(intercept=False),
     gpr_basis=hm2.basis.IdentityBasis(intercept=False)
   ).fit(params, y, stdev, gpr_maxiter=10000)
