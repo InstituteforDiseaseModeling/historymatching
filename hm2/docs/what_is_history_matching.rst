@@ -23,11 +23,11 @@ TODO
 For each wave:
 
 1. Sample parameters for running the simulation on. Call these SP. (:mod:`hm2.sampling` is useful)
-2. Run the simulator at each of parameter set in SP to produce Y. (:ref:`hm2.boilerplate.run_replicates` is useful)
+2. Run the simulator at each of parameter set in SP to produce Y. (:mod:`hm2.boilerplate.run_replicates` is useful)
 3. Sample within the bounds of SP for later subsetting the space. Call this NP. TODO: reference
-4. For each observation O (:ref:`hm2.boilerplate.get_data_for_emulators` is useful)
+4. For each observation O (:mod:`hm2.boilerplate.get_data_for_emulators` is useful)
 
-   a. Train and validate an Emulator on (SP,Y_o). (see :mod:`hm2.emulator`)
+   a. Train and validate an Emulator on (SP,Y_o). (see :ref:`Emulators`)
    b. Run the trained emulator on each NP.
    c. Calculate the implausibility of each NP. TODO: reference
 
