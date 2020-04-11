@@ -11,6 +11,7 @@ from hm2.boilerplate import *
 import hm2.basis
 from hm2.emulators import *
 from hm2.wrapped_model import *
+from hm2.plotting import *
 
 
 
@@ -77,7 +78,11 @@ def wrapped_model(**kwargs):
     # return ValidateObservationFrames((results, None), copy=False)
 
 
+########################################
+#WAVE 1
+########################################
 
+################################################
 #Run the model a number of times
 sim_replicates = run_replicates(
   wrapped_model = wrapped_model,
@@ -86,13 +91,15 @@ sim_replicates = run_replicates(
   processes     = None,
 )
 
-
 ################################################
 #Plot a few runs
-################################################
 
-#print(plot_runs_time_series(sim_replicates))
+#Just for fun, let's visualize some SIR trajectories and observations / target data
+p = plot_runs_time_series(sim_replicates, samples=20, time_observations=time_observations)
+#Print plot every time you want to show it
+print(p)
 
+sys.exit(0)
 
 ################################################
 #Match to observations

@@ -3,6 +3,8 @@ import random
 import matplotlib.pyplot as plt
 import plotnine as pn
 
+from .data_validation import *
+
 
 #TODO: Check if works
 class WrappedFigure:
@@ -68,35 +70,48 @@ def plot_data_multi(train_x, train_y, figsize=None, log_scale=False, cmap='virid
     return plots
 
 
-def plot_runs_time_series(runs, param_id=None, samples=None):
+def plot_runs_time_series(runs, param_id=None, samples=None, time_observations=None):
     """Plots all the observations from a model in time series graphs.
 
     Args:
-        runs (list): A list of :ref:`TimeSimFrame`.
+        runs (list): A list of either :ref:`TimeSimFrame` or (:ref:`TimeSimFrame`,:ref:`SummarySimFrame`) tuples.
         param_id (int): Filter to this param_id. `None` implies no filtering.
         samples (int): Randomly choose this many runs to display. `None` implies all.
+        time_observations (:ref:`TimeObservationsFrame`): Time observations to show
 
     Returns: 
         A plotnine image
     """
+    #If we have pairs of (Time,Summary), get the times
     if isinstance(runs[0], tuple):
         runs = [x[0] for x in runs]
-    if samples is not None:
+    #Filter to a particular parameter value
+    if param_id is not None:
+        runs = [x for x in runs if param_id in x['param_id'].values]
+    #Randomly choose runs if we have too many
+    if samples is not None and len(runs)>samples:
         runs=random.sample(runs,samples)
+    #Validate the runs we're gonna plot
     for x in runs:
         ValidateTimeSimFrame(x)
+    #Make a big dataframe
     runs = pd.concat(runs, ignore_index=True)
-    if param_id is not None:
-        runs = runs[runs["param_id"] == param_id]
-    return (
-        pn.ggplot(runs, pn.aes("time", "value", group="replicate"))
-        + pn.geom_line()
-        + pn.facet_wrap("~observation", scales="free_y")
-    )
-# TODO: Include observations above
-# for i,obs in observations.iterrows():
-#     ax.plot(obs['Times'], obs['Prevalence'], 'ko')
-#     ax.plot(
-#         [obs['Times'],obs['Times']],
-#         [obs['Prevalence']-2*obs['Stdev'],obs['Prevalence']+2*obs['Stdev']],
-#         'k-')
+    #Make column combining parameter+replicate info for colouring each combo uniquely
+    runs['param_replicate'] = runs['param_id'].astype(str) + "_" + runs['replicate'].astype(str)
+    #Plot it!
+    p = ( pn.ggplot(runs, pn.aes("time", "value", group="param_replicate", color="param_replicate"))
+            + pn.geom_line(show_legend=False)
+            + pn.facet_wrap("~observation", scales="free_y")
+        )
+    if time_observations is not None:
+        time_observations = ValidateTimeObservationsFrame(time_observations)
+        time_observations['param_replicate'] = "NA"
+        time_observations['ymin'] = time_observations['value'] - time_observations['stdev']
+        time_observations['ymax'] = time_observations['value'] + time_observations['stdev']
+        p += pn.geom_errorbar(
+            data=time_observations,
+            mapping=pn.aes(x='time', y='value', group="param_replicate", ymin='ymin', ymax='ymax'),
+            color='black',
+            size=2,
+            show_legend=False)
+    return p
