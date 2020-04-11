@@ -109,21 +109,29 @@ matched = match_sim_outputs_to_observations(
 #Fit emulators
 ################################################
 
+psamples_within = hm2.sampling.latin_hypercube_within(parameter_samples, 1000)
+
 #Prepare data for emulator (make a train_x, train_y, stdev_y tuple)
-emulators = dict()
+time_emulators = dict()
 for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0]):
-  emulators[obs] = hm2.emulators.GLM_GPR_Emulator(
+  #Train emulator
+  time_emulators[obs] = hm2.emulators.GLM_GPR_Emulator(
     glm_basis=hm2.basis.IdentityBasis(intercept=False),
     gpr_basis=hm2.basis.IdentityBasis(intercept=False)
   ).fit(params, y, stdev, gpr_maxiter=10000)
   # figs = gpremu.plot_data() #TODO
 
+#Validate emulators here
 
+implausibilities = GetImplausibility(time_emulators, psamples_within, time_observations)
+implausibilities = max_implausibility_per_param(implausibilities)
+#implausibilities = filter_implausibilities(implausibilities, threshold=0.2)
 
+#TODO: plot_errors test_mean train_mean
 
 # gpremu.fit(*prepped)
 
-
+sys.exit(0)
 
 
 

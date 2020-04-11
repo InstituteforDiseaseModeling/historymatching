@@ -268,110 +268,45 @@ def get_data_for_emulators(param_samples, matched):
         yield observation_id_a, grouped, train_y, stdev_y
 
 
-
-
-
-
-
-
-
-
-def calc_and_plot_implausibility(
-    emulator,
-    plot=False,
-    do_plot_data=False,
-    plot_data_highlight=pd.DataFrame(),
-    log_scale=False,
+def _implausibility_equ(
+    reality, reality_stdev, prediction, prediction_stdev, model_stdev
 ):
-    """Calculate and plot implausibility.
-
-    Args:
-        plot: (bool) Set True to produce plots.
-        do_plot_data: (bool) Set True to produce many pairwise plots of the inputs and results.  Within the Implausibility folder, they will appear in `PairwiseResults` for both `Train` and `Test.`
-        plot_data_highlight: (float) The guess value for the signal variance. Note that when normalizing Y, a value of 1 correspons to the variance of the results.
-        log_scale: (tuple) Lower and upper bounds for sigma2_f, e.g. like (0.005,10).
-    """
-
-    # TODO
-    # implausibility_threshold: (float) The threshold to use for determining if a point is implausible.
-    # discrepancy_var: (float) Constant variance to include in implausibility calculations for discrepancy.
-    # desired_result_var: (float) Constant variance to include in implausibility calculations for variance in the desired result.  This typically comes from a confidence interval in survey data.
-
-    td = self.training_data  # Make a pointer to reduce visual noise below
-
-    td["Implausibility"] = abs(td["Mean_Estimate"] - self.desired_result) / np.sqrt(
-        td["Var_Err_Predictive"] + self.discrepancy_var + self.desired_result_var
-    )
-    td["Implausible"] = td["Implausibility"] > self.implausibility_threshold
-
-    self.test_data["Implausibility"] = abs(
-        self.test_data["Mean_Estimate"] - self.desired_result
-    ) / np.sqrt(
-        self.test_data["Var_Err_Predictive"]
-        + self.discrepancy_var
-        + self.desired_result_var
-    )
-    self.test_data["Implausible"] = (
-        self.test_data["Implausibility"] > self.implausibility_threshold
+    """Implements Equation 3 from Gardner2019"""
+    return np.abs(reality - prediction) / np.sqrt(
+        reality_stdev ** 2 + model_stdev ** 2 + prediction_stdev ** 2
     )
 
-    td["Z_Noisy"] = (td[self.Ycol] - td["Mean_Estimate"]) / np.sqrt(
-        td["Var_Err_Predictive"]
-    )
-    td["Z_Noiseless"] = (td[self.Ycol] - td["Mean_Estimate"]) / np.sqrt(
-        td["Var_Err_Latent"]
-    )
 
-    self.test_data["Z_Noisy"] = (
-        self.test_data[self.Ycol] - self.test_data["Mean_Estimate"]
-    ) / np.sqrt(
-        self.test_data["Var_Err_Predictive"]
-        + self.discrepancy_var
-        + self.desired_result_var
-    )
-    self.test_data["Z_Noiseless"] = (
-        self.test_data[self.Ycol] - self.test_data["Mean_Estimate"]
-    ) / np.sqrt(
-        self.test_data["Var_Err_Latent"]
-        + self.discrepancy_var
-        + self.desired_result_var
-    )
-
-    if plot:
-        train_mean = td.reset_index().groupby(["Sample_Id"]).mean()
-        test_mean = self.test_data.reset_index().groupby(["Sample_Id"]).mean()
-
-        fig = plot_errors(
-            train_mean.reset_index(),
-            test_mean.reset_index(),
-            Ycol=self.Ycol,
-            desired_result=self.desired_result,
+def GetImplausibility(emulators, parameter_samples, observations, model_stdev=0):
+    implausibilities = []
+    for _, row in observations.iterrows():
+        row = row.to_dict()
+        if row["observation_id"] not in emulators:
+            continue
+        prediction, p_stdev = emulators[row["observation_id"]].predict(
+            parameter_samples
         )
-        fig.savefig(os.path.join(self.combineddir, f"implausibility.{self.fig_type}"))
-        plt.close(fig)
+        implausibility = _implausibility_equ(
+            reality=row["value"],
+            reality_stdev=row["stdev"],
+            prediction=prediction,
+            prediction_stdev=p_stdev,
+            model_stdev=model_stdev,
+        )
+        implausibility = pd.DataFrame(
+            {
+                "observation_id": row["observation_id"],
+                "param_id": parameter_samples["param_id"],
+                "implausibility": implausibility,
+            }
+        )
+        implausibilities.append(implausibility)
+    return pd.concat(implausibilities, ignore_index=True)
 
-        if do_plot_data:
-            pairdir = mkdir_if_needed(
-                os.path.join(self.combineddir, "PairwiseResults", "Train")
-            )
-            plot_data(
-                train_mean.reset_index(),
-                Ycol=self.Ycol,
-                param_info=self.param_info,
-                circle_points=plot_data_highlight,
-                saveto_dir=pairdir,
-                log_scale=log_scale,
-                desired_result=self.desired_result,
-            )
 
-            pairdir = mkdir_if_needed(
-                os.path.join(self.combineddir, "PairwiseResults", "Test")
-            )
-            plot_data(
-                test_mean.reset_index(),
-                Ycol=self.Ycol,
-                param_info=self.param_info,
-                circle_points=plot_data_highlight,
-                saveto_dir=pairdir,
-                log_scale=log_scale,
-            )
+def max_implausibility_per_param(implausibilities):
+    return implausibilities.groupby("param_id")["implausibility"].max().reset_index()
+
+
+def filter_implausibilities(implausibilities, threshold):
+    return implausibilities[implausibilities["implausibility"] <= threshold]
