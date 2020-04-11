@@ -121,7 +121,7 @@ for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0
   ).fit(params, y, stdev, gpr_maxiter=10000)
   # figs = gpremu.plot_data() #TODO
 
-#Validate emulators here
+#TODO: Validate emulators here
 
 
 implausibilities = get_implausibility(time_emulators, psamples_within, time_observations)
