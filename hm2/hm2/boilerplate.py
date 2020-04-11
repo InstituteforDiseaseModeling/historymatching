@@ -12,11 +12,12 @@ from .wrapped_model import *
 
 def _column_comparison(model_results, observations, obs_name):
     """Determines if `model_results` and `observations` have the same values in
-  their `measurement` columns. Otherwise throws an error identifying what's
-  missing.
+    their `measurement` columns. Otherwise throws an error identifying what's
+    missing.
 
-  Returns: None
-  """
+    Returns: 
+      None
+    """
     # Get the names of the properties that were observed
     observation_names = set()
     if observations is not None:
@@ -179,46 +180,20 @@ def match_sim_outputs_to_observations(
     return aggregate_time_results, aggregate_summary_results
 
 
-def plot_runs_time_series(runs, param_id=None):
-    if isinstance(runs[0], tuple):
-        runs = [x[0] for x in runs]
-    for x in runs:
-        ValidateTimeSimFrame(x)
-    runs = pd.concat(runs, ignore_index=True)
-    if param_id is not None:
-        runs = runs[runs["param_id"] == param_id]
-    return (
-        pn.ggplot(runs, pn.aes("time", "value", group="replicate"))
-        + pn.geom_line()
-        + pn.facet_wrap("~observation", scales="free_y")
-    )
-
-
-# TODO: Include observations above
-# for i,obs in observations.iterrows():
-#     ax.plot(obs['Times'], obs['Prevalence'], 'ko')
-#     ax.plot(
-#         [obs['Times'],obs['Times']],
-#         [obs['Prevalence']-2*obs['Stdev'],obs['Prevalence']+2*obs['Stdev']],
-#         'k-')
-
-
 def prep_emulator_data(param_samples, matched, observation_id):
     """Fit the Emulator
 
     Args:
-        emulator - Emulator to fit
-        param_samples - ParameterSamplesFrame
-        model_output - A TimeStandardAnalysisFrame or 
-                       SummaryStandardAnalysisFrame built using parameters
-                       from param_samples
-        observation_key - Filter model_output by `aobservation_id` 
-                          for `output_type=summary` and `observation` for 
-                          `output_type=time`
-        output_type - 
-        maxiter - Number of training iterations
+        emulator: Emulator to fit
+        param_samples: :ref:`ParameterSamplesFrame`
+        model_output: A :ref:`TimeSimFrame` or 
+                       :ref:`SummarySimFrame` built using parameters
+                       from `param_samples`
+        observation_key: Filter model_output by `observation_key` 
+        maxiter (int): Number of training iterations
 
-    Returns: None
+    Returns:
+        None
     """
     param_samples = ValidateParameterSamplesFrame(param_samples, copy=False)
     matched = ValidateMatchedFrame(matched, copy=False)
@@ -247,13 +222,13 @@ def get_data_for_emulators(param_samples, matched):
     """Fit the Emulator
 
     Args:
-        param_samples - ParameterSamplesFrame
-        matched - A TimeStandardAnalysisFrame or 
-                       SummaryStandardAnalysisFrame built using parameters
-                       from param_samples
-                          for `output_type=summary` and `observation` for 
+        param_samples (:ref:`ParameterSamplesFrame`)
+        matched: A :ref:`TimeSimFrame` or 
+                       :ref:`SummarySimFrame` built using parameters
+                       from `param_samples`
 
-    Returns: None
+    Returns:
+        None
     """
     param_samples = ValidateParameterSamplesFrame(param_samples, copy=False)
     matched = ValidateMatchedFrame(matched, copy=False)

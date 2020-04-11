@@ -22,9 +22,10 @@ class SkGPR:
             train_x: Training data
             train_y: Correct outputs
             stdev_y: Standard deviation of Y values (uncertainty)
-            maxiter: Maximum number of training iterations
+            maxiter (int): Maximum number of training iterations
 
-        Returns: None
+        Returns: 
+            None
         """
         # Initialize the model
         kernel = ConstantKernel(1.0) * RBF()
@@ -38,7 +39,7 @@ class SkGPR:
         """Evaluate the GLM and return the mean prediction.
 
         Args:
-            test_x: (Pandas DataFrame)
+            test_x (Pandas DataFrame):
                 Data frame of points similar to training_data.
 
         Returns:

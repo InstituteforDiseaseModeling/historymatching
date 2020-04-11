@@ -79,7 +79,7 @@ class GLM:
         """Evaluate the GLM and return the mean prediction.
 
         Args:
-            test_x: (Pandas DataFrame)
+            test_x (Pandas DataFrame):
                 Data frame of points similar to training_data.
 
         Returns:
@@ -93,7 +93,8 @@ class GLM:
     def plot_fitted_vs_observed(self, figsize=None):
         """Generates a plot of the fitted values vs the observed values from the training data.
 
-        Returns: A matplotlib figure handle.
+        Returns:
+            A matplotlib figure handle.
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
@@ -110,7 +111,8 @@ class GLM:
     def plot_pearson_residuals(self, figsize=None):
         """Generates a plot of the peasron residuals.
 
-        Returns: A matplotlib figure handle.
+        Returns: 
+            A matplotlib figure handle.
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
@@ -127,7 +129,8 @@ class GLM:
     def plot_deviance_redisuals(self, figsize=None, bins=25):
         """Generates a plot of the deviance residuals.
 
-        Returns: A matplotlib figure handle.
+        Returns: 
+            A matplotlib figure handle.
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
@@ -144,7 +147,8 @@ class GLM:
     def plot_QQ(self, figsize=None):
         """Generates a QQ plot.
 
-        Returns: A matplotlib figure handle.
+        Returns: 
+            A matplotlib figure handle.
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")

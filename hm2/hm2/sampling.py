@@ -8,10 +8,11 @@ def latin_hypercube(param_info, samples):
   Generate parameter hypercube given min and max values for parameters.
 
   Args:
-    param_info (ParameterInfoFrame): Bounds of the parameters.
+    param_info (:ref:`ParameterInfoFrame`): Bounds of the parameters.
     samples (int): Number of samples to generate
 
-  Returns: A :ref:`ParameterSamplesFrame`.
+  Returns:
+    A :ref:`ParameterSamplesFrame`.
   """
   # Calculate ranges
   param_info = ValidateParameterInfoFrame(param_info)
@@ -39,11 +40,12 @@ def latin_hypercube_within(parameter_samples, samples):
   Generate parameter hypercube bounded by another ParameterSamplesFrame.
 
   Args:
-    parameter_samples (ParameterSamplesFrame): Parameter samples which bound
-        the new frame.
+    parameter_samples (:ref:`ParameterSamplesFrame`):
+        Parameter samples which bound the new frame.
     samples (int): Number of samples to generate for each parameter
 
-  Returns: A :ref:`ParameterSamplesFrame`.
+  Returns: 
+    A :ref:`ParameterSamplesFrame`.
   """
   # Strip down to parameters
   parameter_samples = ValidateParameterSamplesFrame(parameter_samples)

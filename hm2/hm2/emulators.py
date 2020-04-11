@@ -46,9 +46,10 @@ class TorchGPREmulator(EmulatorBase):
             train_x: Training data
             train_y: Correct outputs
             stdev_y: Standard deviation of Y values (uncertainty)
-            maxiter: Maximum number of training iterations
+            maxiter (int): Maximum number of training iterations
 
-        Returns: None
+        Returns: 
+            None
         """
         train_x, train_y, stdev_y = self._fit(train_x, train_y, stdev_y)
 
@@ -86,9 +87,10 @@ class SkGPREmulator(EmulatorBase):
             train_x: Training data
             train_y: Correct outputs
             stdev_y: Standard deviation of Y values (uncertainty)
-            maxiter: Maximum number of training iterations
+            maxiter (int): Maximum number of training iterations
 
-        Returns: None
+        Returns: 
+            None
         """
         train_x, train_y, stdev_y = self._fit(train_x, train_y, stdev_y)
 
@@ -137,10 +139,11 @@ class GLM_GPR_Emulator(EmulatorBase):
             train_x: Training data
             train_y: Correct outputs
             stdev_y: Standard deviation of Y values (uncertainty)
-            glm_maxiter: Maximum number of training iterations in GLM fitting
-            gpr_maxiter: Maximum number of training iterations in GLM fitting
+            glm_maxiter (int): Maximum number of training iterations in GLM fitting
+            gpr_maxiter (int): Maximum number of training iterations in GLM fitting
 
-        Returns: None
+        Returns: 
+            None
         """
         train_x, train_y, stdev_y = self._fit(train_x, train_y, stdev_y)
 
@@ -160,7 +163,7 @@ class GLM_GPR_Emulator(EmulatorBase):
         """Evaluate the emulator and return the mean prediction.
 
         Args:
-            test_x: (Pandas DataFrame)
+            test_x (Pandas DataFrame):
                 Data frame of points similar to training_data.
 
         Returns:
