@@ -13,7 +13,7 @@ class WrappedFigure:
         self.fig=fig
     def __repr__(self):
         """Called if class instance is typed in REPL"""
-        return self.fig
+        return self.fig.__repr__()
     def __str__(self):
         """Called with `print`; displays the figure"""
         # create a dummy figure and use its manager to display "fig"
@@ -22,39 +22,51 @@ class WrappedFigure:
         new_manager.canvas.figure = self.fig
         self.fig.set_canvas(new_manager.canvas)
         plt.show()
+        return self.__repr__()
 
 
-def plot_data_multi(train_x, train_y, figsize=None, log_scale=False, cmap='viridis', alpha=0.5):
-    """Generates many pair-wise scatter plots of the training data.
+def plot_pairwise(X, color=None, figsize=None, cmap='viridis', alpha=0.5):
+    """Generates many pairwise scatter plots of the columns of X.
 
     Args:
-        log_scale (bool): Transforms size and color using log(10 * normalized_y_value + 1)
+        X (DataFrame): Plot each column for X against every other one
+        color (array): Color for each point for X (or None)
+        figsize: Size of figure; passed to PyPlot.
+        cmap: Colormap to use for `color`.
+        alpha (float): Value in the range [0,1] indicating transparency
 
     Returns: 
         dict: A dictionary of matplotlib figure handles with keys indicating
         the parameter names via the filename which would be used to save the
         figure.
     """
-    C = len(train_x.columns)
+    #TODO: Add log scaling
+    C = len(X.columns)
 
-    plots = dict()
-    collective_fig, collective_ax = plt.subplots(nrows=C, ncols=C)
+    #Stop plots from showing before user prints them
+    was_interactive = plt.isinteractive()
+    plt.ioff()
 
-    for rowi, row in enumerate(train_x):
-        for coli, col in enumerate(train_x):
+    #Hold individual views for close-ups
+    plots = dict() 
+    #Hold collective view for handy group display
+    collective_fig, collective_ax = plt.subplots(nrows=C, ncols=C, figsize=figsize)
+
+    for rowi, row in enumerate(X):
+        for coli, col in enumerate(X):
             fn = (row,col)
-            x  = train_x[row]
-            y  = train_x[col]
+            x  = X[row]
+            y  = X[col]
 
-            #TODO: Use plotnine
-            fig, ax = plt.subplots()
-            ax.scatter(x, y, c=train_y, cmap=cmap, alpha=alpha)
+            fig, ax = plt.subplots(figsize=figsize)
+            ax.scatter(x, y, c=color, cmap=cmap, alpha=alpha)
             ax.set_xlabel(row)
             ax.set_ylabel(col)
             fig.tight_layout()
+            plt.close(fig)
             plots[fn] = fig
 
-            collective_ax[rowi,coli].scatter(x, y, c=train_y, cmap=cmap, alpha=alpha)
+            collective_ax[rowi,coli].scatter(x, y, c=color, cmap=cmap, alpha=alpha)
             collective_ax[rowi,coli].set_xlabel(row)
             collective_ax[rowi,coli].set_ylabel(col)
 
@@ -63,9 +75,14 @@ def plot_data_multi(train_x, train_y, figsize=None, log_scale=False, cmap='virid
             #     for _, pt in cp_dmat.iterrows():
             #         plt.scatter(pt[row], pt[col], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
+    plt.close(collective_fig)
     plots['all'] = collective_fig
 
+    #Wrap figures so we can show them repeatedly
     plots = {k:WrappedFigure(v) for k,v in plots.items()}
+
+    if was_interactive:
+        plt.ion()
 
     return plots
 

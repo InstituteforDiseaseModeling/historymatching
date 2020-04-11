@@ -52,6 +52,9 @@ param_info = pd.DataFrame({
 # Sampling to make the samples more uniformly spaced.
 parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=50)
 
+#TODO
+#p=plot_pairwise(parameter_samples.drop(columns='param_id'))
+#print(p['all'])
 
 
 ################################################
@@ -91,15 +94,12 @@ sim_replicates = run_replicates(
   processes     = None,
 )
 
-################################################
-#Plot a few runs
-
+#TODO
 #Just for fun, let's visualize some SIR trajectories and observations / target data
-p = plot_runs_time_series(sim_replicates, samples=20, time_observations=time_observations)
+#p = plot_runs_time_series(sim_replicates, samples=20, time_observations=time_observations)
 #Print plot every time you want to show it
-print(p)
+#print(p)
 
-sys.exit(0)
 
 ################################################
 #Match to observations

@@ -68,7 +68,7 @@ class TorchGPREmulator(EmulatorBase):
         return self.gpr.predict(test_x)
 
     def plot_data(self, *args, **kwargs):
-        return plot_data_multi(
+        return plot_pairwise(
             self.basis(self._train_x), self._train_y, *args, **kwargs
         )
 
@@ -108,7 +108,7 @@ class SkGPREmulator(EmulatorBase):
         return self.gpr.predict(self.basis(test_x))
 
     def plot_data(self, *args, **kwargs):
-        return plot_data_multi(
+        return plot_pairwise(
             self.basis(self._train_x), self._train_y, *args, **kwargs
         )
 
@@ -177,6 +177,6 @@ class GLM_GPR_Emulator(EmulatorBase):
         return self.glm.predict(test_x_glm) + self.gpr.predict(test_x_gpr)
 
     def plot_data(self, *args, **kwargs):
-        return plot_data_multi(
+        return plot_pairwise(
             self.glm_basis(self._train_x), self._train_y, *args, **kwargs
         )
