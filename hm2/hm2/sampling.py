@@ -60,7 +60,5 @@ def latin_hypercube_within(parameter_samples, samples):
 
   params_and_ranges = pd.DataFrame(params_and_ranges)
 
-  print(params_and_ranges)
-
   # Use parameter information to generate a new hypercube
   return latin_hypercube(params_and_ranges, samples)

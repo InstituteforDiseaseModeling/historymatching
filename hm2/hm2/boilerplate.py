@@ -310,3 +310,9 @@ def max_implausibility_per_param(implausibilities):
 
 def filter_implausibilities(implausibilities, threshold):
     return implausibilities[implausibilities["implausibility"] <= threshold]
+
+
+def get_plausible_parameters(implausibilities, parameter_samples):
+    params = pd.merge(implausibilities, parameter_samples, how="left", on="param_id")
+    params = params.drop(columns="implausibility")
+    return params

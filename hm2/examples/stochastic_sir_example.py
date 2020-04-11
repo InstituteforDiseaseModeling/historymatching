@@ -125,13 +125,27 @@ for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0
 
 implausibilities = GetImplausibility(time_emulators, psamples_within, time_observations)
 implausibilities = max_implausibility_per_param(implausibilities)
-#implausibilities = filter_implausibilities(implausibilities, threshold=0.2)
+implausibilities = filter_implausibilities(implausibilities, threshold=0.2)
+
+
+plausible_params = get_plausible_parameters(implausibilities, psamples_within)
+
+
+
+
+################################
+# WAVE 2
+
+parameter_samples = hm2.sampling.latin_hypercube_within(plausible_params, 100)
+
+sys.exit(0)
+
+
 
 #TODO: plot_errors test_mean train_mean
 
 # gpremu.fit(*prepped)
 
-sys.exit(0)
 
 
 
