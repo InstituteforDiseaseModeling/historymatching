@@ -22,16 +22,16 @@ TODO
 
 For each wave:
 
-1. Sample parameters for running the simulation on. Call these SP. (:mod:`hm2.sampling` is useful)
+1. Sample parameters for running the simulation on. Call these SP. (:mod:`hm2.sampling.latin_hypercube` is useful)
 2. Run the simulator at each of parameter set in SP to produce Y. (:mod:`hm2.boilerplate.run_replicates` is useful)
-3. Sample within the bounds of SP for later subsetting the space. Call this NP. TODO: reference
-4. For each observation O (:mod:`hm2.boilerplate.get_data_for_emulators` is useful)
+3. Sample within the bounds of SP for later subsetting the space. Call this NP. (:mod:`hm2.sampling.latin_hypercube_within` is useful)
+4. For each observation o (:mod:`hm2.boilerplate.get_data_for_emulators` is useful)
 
    a. Train and validate an Emulator on (SP,Y_o). (see :ref:`Emulators`)
-   b. Run the trained emulator on each NP.
-   c. Calculate the implausibility of each NP. TODO: reference
+   b. Run the trained emulator on each NP. 
+   c. Calculate the implausibility of each NP. (see :mod:`hm2.boilerplate.GetImplausibility`)
 
-5. Calculate the maximum implausibility of each NP.
+5. Calculate the maximum implausibility of each NP. (see :mod:`hm2.boilerplate.max_implausibility_per_param`)
 6. Keep only those members of NP whose maximum implausibility is less than a treshold T.
 7. Use the remaining members to form a new box space for Step 1.
 8. If the variance is small enough or there is no non-implausible space
