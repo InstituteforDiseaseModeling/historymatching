@@ -1,6 +1,6 @@
 import abc
 
-from sklearn.preprocessing import PolynomialFeatures
+import sklearn.preprocessing as skp
 import pandas as pd
 
 class BasisBase(abc.ABC):
@@ -16,15 +16,17 @@ class BasisBase(abc.ABC):
 
 
 class PolynomialBasis(BasisBase):
-  def __init__(self, degree, intercept):
+  def __init__(self, degree, intercept, scale=True):
     """Create a polynomial basis
 
     Args:
-      degree - The degree of the polynomial features.
-      intercept - Whether to include an intercept.
+      degree (int): The degree of the polynomial features.
+      intercept (bool): Whether to include an intercept.
+      scale (bool): Whether to center and scale the data based on its min/max values.
     """
+    self.scale = scale
     self.intercept = intercept
-    self.polyfit = PolynomialFeatures(
+    self.polyfit = skp.PolynomialFeatures(
       degree           = degree, 
       interaction_only = False, 
       include_bias     = intercept
@@ -33,6 +35,9 @@ class PolynomialBasis(BasisBase):
   def __call__(self, X):
     if not isinstance(X, pd.DataFrame):
       raise TypeError("Basis must be passed a DataFrame!")
+    X = X.copy()
+    if self.scale:
+      X[:] = skp.scale(X)
     fit     = self.polyfit.fit_transform(X)
     columns = self.polyfit.get_feature_names()
     columns = ['Intercept' if x=='1' else x for x in columns]
@@ -41,14 +46,17 @@ class PolynomialBasis(BasisBase):
 
 
 class IdentityBasis(BasisBase):
-  def __init__(self, intercept):
-    """Create a polynomial basis
+  def __init__(self, intercept, scale=True):
+    """
+    Create a polynomial basis
 
     Args:
       intercept (bool) - Whether to include an intercept.
+      scale (bool): Whether to center and scale the data based on its min/max values.
     """
+    self.scale = scale
     self.intercept = intercept
-    self.polyfit = PolynomialFeatures(
+    self.polyfit = skp.PolynomialFeatures(
       degree           = 1, 
       interaction_only = False, 
       include_bias     = intercept
@@ -57,6 +65,9 @@ class IdentityBasis(BasisBase):
   def __call__(self, X):
     if not isinstance(X, pd.DataFrame):
       raise TypeError("Basis must be passed a DataFrame!")
+    X = X.copy()
+    if self.scale:
+      X[:] = skp.scale(X)
     transformed = self.polyfit.fit_transform(X)
     return pd.DataFrame(
       self.polyfit.fit_transform(X),
