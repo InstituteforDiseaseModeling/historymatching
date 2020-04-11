@@ -123,7 +123,8 @@ for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0
 
 #Validate emulators here
 
-implausibilities = GetImplausibility(time_emulators, psamples_within, time_observations)
+
+implausibilities = get_implausibility(time_emulators, psamples_within, time_observations)
 implausibilities = max_implausibility_per_param(implausibilities)
 implausibilities = filter_implausibilities(implausibilities, threshold=0.2)
 

@@ -277,7 +277,7 @@ def _implausibility_equ(
     )
 
 
-def GetImplausibility(emulators, parameter_samples, observations, model_stdev=0):
+def get_implausibility(emulators, parameter_samples, observations, model_stdev=0):
     implausibilities = []
     for _, row in observations.iterrows():
         row = row.to_dict()
