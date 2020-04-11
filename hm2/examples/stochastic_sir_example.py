@@ -127,11 +127,10 @@ for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0
 implausibilities = get_implausibility(time_emulators, psamples_within, time_observations)
 implausibilities = max_implausibility_per_param(implausibilities)
 implausibilities = filter_implausibilities(implausibilities, threshold=0.2)
-
-
 plausible_params = get_plausible_parameters(implausibilities, psamples_within)
 
-
+if len(plausible_params)==0:
+  print("No non-implausible parameter samples!")
 
 
 ################################
