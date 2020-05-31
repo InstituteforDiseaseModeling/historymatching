@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
@@ -20,6 +21,8 @@ class CutNearSamples():
 
         self.param_info = None
         self.Xcols_all_orig = None
+
+        self.debug = False
 
         self.hm_params = {}
         self.glm_all = {}
@@ -71,24 +74,30 @@ class CutNearSamples():
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
+            print(plausible_candidates.shape)
             if plausible_candidates.shape[0] == 0:
                 print('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
 
-            print('Performing cut: iteration %d, cut %s' % (it,cut_name) )
-            plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
+            print('Performing cut: iteration', it, ', cut', cut_name)
+            t = time.time()
+            plausible_candidates.loc[:,'Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
+            if self.debug:
+                print('GLM:', time.time()-t); t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
-            plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
-            plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
+            if self.debug:
+                print('GPR:', time.time()-t); t=time.time()
+            plausible_candidates.loc[:,'Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
+            plausible_candidates.loc[:,'Var_Predictive'] = ret['Var_Predictive']
 
-            plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
+            plausible_candidates.loc[:, 'Implausibility_%d_%s'%(it, cut_name) ] = \
                 abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
                 np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
 
-            plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
+            plausible_candidates.loc[:, 'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
             cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
 
-            new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+            new_candidates.loc[new_candidates['Implausible']==False,'Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
 
         return new_candidates['Implausible']
 
@@ -114,7 +123,7 @@ class CutNearSamples():
 
     def draw_samples(self, nSamples, p):
         seed_inds = np.random.choice(self.seeds.shape[0], size=nSamples, replace=True, p=p)
-        seeds = self.seeds.loc[seed_inds]
+        seeds = self.seeds.iloc[seed_inds]
 
         #seeds = self.seeds.sample(n=nSamples, replace=True).reset_index(drop=True)
         sample = seeds.copy()
@@ -202,7 +211,7 @@ class CutNearSamples():
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print('-'*80)
-            max_nSamples = 25000 #5000 # TODO: Make parameter
+            max_nSamples = 10000 # TODO: Make parameter
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
                 nSamples = min(max_nSamples, num_desired_candidates)
@@ -237,12 +246,17 @@ class CutNearSamples():
 
             print('Testing (%d):'%nSamples)
 
+            t = time.time()
             plausibility = self.test_plausibility(new_candidates, constraint)
+            print('Test plausibility:', time.time() - t)
 
-            new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
+            #t = time.time()
+            ###new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
+            #print('Merge plausibility (needed?):', time.time() - t)
+            #new_candidates['Implausible'] = False
 
             num_trials += new_candidates.shape[0]
-            new_non_implausible_candidates = new_candidates.loc[ new_candidates['Implausible'] == False, :]
+            new_non_implausible_candidates = new_candidates.loc[ plausibility == False, :]
             non_implausible_candidates = non_implausible_candidates.append(new_non_implausible_candidates)
 
             stats['num_new_plausible_candidates'] = new_non_implausible_candidates.shape[0] # sum(new_candidates['Implausible'] == False)
@@ -251,7 +265,8 @@ class CutNearSamples():
 
             del new_candidates
 
-            print('Plausible candidates: New = %d, Tot = %d' % (stats['num_new_plausible_candidates'], stats['num_plausible_candidates']))
+            print('Plausible candidates: New =', stats['num_new_plausible_candidates'], ', Tot =', stats['num_plausible_candidates'])
+
 
         print('Saving to:', self.saveto_hd5)
         hdf = pd.HDFStore(self.saveto_hd5)
