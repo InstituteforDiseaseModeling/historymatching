@@ -31,6 +31,7 @@ class HistoryMatching():
         training_fraction = 0.75,
         fig_type = 'pdf',
         use_glm = True,      # Disable the glm by setting to False
+        iterdir = None,
         verbose = False
     ):
         """ Initialize a history matching object.
@@ -101,7 +102,9 @@ class HistoryMatching():
             print("--> Testing  with", nTest," unique parameter configurations (", nTest*nRep, "simulations including replicates)")
 
         # Dir prep
-        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join('..', 'iter%d'%self.iteration, 'Cuts',cut_name) )
+        if iterdir == None:
+            iterdir = os.path.join('..', 'iter%d'%self.iteration)
+        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join(iterdir, 'Cuts',cut_name) )
         self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
         self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
         self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )

@@ -10,12 +10,17 @@ from history_matching.gpr import GPR
 
 class HistoryMatchingCut():
 
-    def __init__(self, cut_dir, iteration, saveto_hd5 = None):
+    def __init__(self, cut_dir, iteration, iterdir_parent=None, saveto_hd5 = None):
         self.cut_dir = cut_dir
         self.iteration = iteration
 
         self.param_info = None
         self.Xcols_all_orig = None
+
+        if iterdir_parent == None:
+            self.iterdir_parent = '..' # Folder containing iter0, iter1, ...
+        else:
+            self.iterdir_parent = iterdir_parent
 
         self.debug = False
 
@@ -31,7 +36,7 @@ class HistoryMatchingCut():
             self.saveto_hd5 = saveto_hd5
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
-            cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
+            cuts_dir = os.path.join(self.iterdir_parent, 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
                 print('Reading iteration', it, '. cut', cut_name)
@@ -107,7 +112,7 @@ class HistoryMatchingCut():
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
             print('-'*80)
-            max_nSamples = 5000 # TODO: make a parameter or determine from GPU info
+            max_nSamples = 10000 # TODO: make a parameter or determine from GPU info
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
                 nSamples = min(max_nSamples, num_desired_candidates)
