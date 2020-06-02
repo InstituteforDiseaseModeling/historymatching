@@ -10,7 +10,7 @@ from history_matching.gpr import GPR
 
 class CutNearSamples():
 
-    def __init__(self, cut_dir, iteration, seeds, blur_fraction_of_range = 0.1, saveto_hd5 = None):
+    def __init__(self, cut_dir, iteration, seeds, blur_fraction_of_range = 0.1, iterdir_parent=None, saveto_hd5 = None):
         self.cut_dir = cut_dir
         self.iteration = iteration
         self.seeds = seeds # Center points for MVNs
@@ -18,6 +18,10 @@ class CutNearSamples():
         assert(blur_fraction_of_range > 0)
         assert(blur_fraction_of_range < 1)
 
+        if iterdir_parent == None:
+            self.iterdir_parent = '..' # Folder containing iter0, iter1, ...
+        else:
+            self.iterdir_parent = iterdir_parent
 
         self.param_info = None
         self.Xcols_all_orig = None
@@ -32,11 +36,11 @@ class CutNearSamples():
         if saveto_hd5 == None:
             self.saveto_hd5 = 'Candidates_NS_for_iter%d.hd5'%(self.iteration+1)
         else:
-            assert( os.path.splitext(saveto_hd5)[1].lower() in ['hd5', 'hdf'] )
+            assert( os.path.splitext(saveto_hd5)[1].lower() in ['.hd5', '.hdf'] )
             self.saveto_hd5 = saveto_hd5
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
-            cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
+            cuts_dir = os.path.join(self.iterdir_parent, 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
                 print('Reading iteration %d. cut %s' % (it,cut_name) )
@@ -288,8 +292,8 @@ class CutNearSamples():
         with open(stats_fn, 'w') as f:
             json.dump(stats, f)
 
-        csv_fn = os.path.join(d, name + '.xlsx')
-        non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn)
+        csv_fn = os.path.join(d, name + '.csv')
+        non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn, index=False)
 
         '''
         writer = pd.ExcelWriter('Candidates_for_iter%d.xlsx'%(self.iteration+1))
@@ -299,6 +303,6 @@ class CutNearSamples():
         writer.save()
         '''
 
-        print('Rejected %.1f%% [%d / %d]' % (rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials))
+        print('Rejected {0:.1f}% [{1:d} / {2:d}]'.format(rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials))
 
         return (non_implausible_candidates, stats)

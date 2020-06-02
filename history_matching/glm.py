@@ -1,4 +1,7 @@
 # http://nbviewer.jupyter.org/github/SheffieldML/notebook/blob/master/background/BayesianLinearRegression.ipynb
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
 
 import json
 import patsy
@@ -11,9 +14,6 @@ from statsmodels import graphics
 from history_matching.basis import Basis
 
 import numpy as np, pandas as pd, seaborn as sns
-from matplotlib import pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.gridspec as gridspec
 import scipy
 from scipy import stats
 

@@ -1,10 +1,11 @@
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+from matplotlib import gridspec as gridspec
+
 import numpy as np
 import time
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.gridspec as gridspec
-import matplotlib as mpl
 import seaborn as sns
 import os
 import sys

@@ -1,8 +1,11 @@
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+from matplotlib import patches as patches
+from matplotlib import gridspec as gridspec
+
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.gridspec as gridspec
 import seaborn as sns
 import os
 import copy

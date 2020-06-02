@@ -1,10 +1,13 @@
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+
 import patsy # TODO: Cleanup
 from patsy import ModelDesc, Term, LookupFactor, EvalFactor, dmatrices
 import itertools
 # For regularized selection:
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
 class Basis():
