@@ -743,8 +743,8 @@ class GPR():
         if not optimize_sigma2_n:
             dLLOO_dtheta[1] = 0
 
-        print('\n\tLL:', -ll, '\n\tTheta:', theta, '\n\tDeriv:', -dLLOO_dtheta)
-        #exit()
+        if self.verbose:
+            print('\n\tLL:', -ll, '\n\tTheta:', theta, '\n\tDeriv:', -dLLOO_dtheta)
 
         return -ll, -dLLOO_dtheta
 

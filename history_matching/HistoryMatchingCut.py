@@ -39,7 +39,7 @@ class HistoryMatchingCut():
             cuts_dir = os.path.join(self.iterdir_parent, 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration', it, '. cut', cut_name)
+                print('Reading iteration', it, 'cut', cut_name)
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
                 print('\t Desired Result:', hm.desired_result)
                 print('\t Desired Result Var:', hm.desired_result_var)
@@ -82,20 +82,20 @@ class HistoryMatchingCut():
 
             print('Performing cut: iteration', it, ', cut', cut_name)
             t = time.time()
-            plausible_candidates['Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
+            plausible_candidates.loc[:,'Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
             if self.debug:
                 print('GLM:', time.time()-t); t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
             if self.debug:
                 print('GPR:', time.time()-t); t=time.time()
-            plausible_candidates['Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
-            plausible_candidates['Var_Predictive'] = ret['Var_Predictive']
+            plausible_candidates.loc[:,'Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
+            plausible_candidates.loc[:,'Var_Predictive'] = ret['Var_Predictive']
 
-            plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] = \
+            plausible_candidates.loc[:,'Implausibility_%d_%s'%(it, cut_name) ] = \
                 abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
                 np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
 
-            plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
+            plausible_candidates.loc[:,'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
             cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
 
             new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]

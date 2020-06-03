@@ -70,6 +70,7 @@ class HistoryMatching():
         self.iteration = iteration
         self.use_glm = use_glm
         self.fig_type = fig_type
+        self.iterdir = iterdir
         self.verbose = verbose
 
         self.results.name = 'Sim_Result'
@@ -129,10 +130,11 @@ class HistoryMatching():
             cut_name = hm_params.loc['cut_name'].values[0]
             implausibility_threshold = hm_params.loc['implausibility_threshold'].values[0]
             discrepancy_var = hm_params.loc['discrepancy_var'].values[0]
-            desired_result_var = hm_params.loc['desired_result_var'].values[0] if 'desired_result_var' in hm_params else 0
+            desired_result_var = hm_params.loc['desired_result_var'].values[0]
             training_fraction = hm_params.loc['training_fraction'].values[0]
             desired_result = hm_params.loc['desired_result'].values[0]
             iteration = hm_params.loc['iteration'].values[0]
+            iterdir = hm_params.loc['iterdir'].values[0]
 
             inputs = pd.read_excel(xls, 'Inputs', index_col=0)
             results = pd.read_excel(xls, 'Results', index_col=[0,1]).squeeze() # NOTE: was series, now DF
@@ -149,6 +151,7 @@ class HistoryMatching():
             discrepancy_var = discrepancy_var,
             desired_result_var = desired_result_var,
             training_fraction   = training_fraction,
+            iterdir   = iterdir,
         )
 
 
@@ -166,7 +169,8 @@ class HistoryMatching():
             'desired_result_var'        : self.desired_result_var,
             'training_fraction'         : self.training_fraction,
             'desired_result'            : self.desired_result,
-            'iteration'                 : self.iteration
+            'iteration'                 : self.iteration,
+            'iterdir'                   : self.iterdir
         }, name='Value')
         hm_params.index.name = 'Parameter'
 
