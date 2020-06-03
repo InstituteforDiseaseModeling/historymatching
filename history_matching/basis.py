@@ -313,7 +313,8 @@ class Basis():
             terms.remove('0')
         else:
             if '1' in terms:
-                print('Found "1" in terms, removing as this is likely a stored representation of the intercept.')
+                if self.verbose:
+                    print('Found "1" in terms, removing as this is likely a stored representation of the intercept.')
                 terms.remove('1')
             terms = ['Intercept'] + terms
 
