@@ -203,3 +203,8 @@ column in a ParameterSamplesFrame_.
                     1    1.5      0          0      49.0
                     0    3.5      0          1      49.0
                     1    0.0      0          1      49.0
+
+WrappedModelResults
+-------------------
+
+When your model is run, it must return a tuple with two entries corresponding to a TimeSimFrame_ and a SummarySimFrame_, though either entry may be `None` (e.g. if there are no summary observations). This is discussed further in :ref:`Wrapping A Model`
