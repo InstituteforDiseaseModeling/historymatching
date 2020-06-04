@@ -72,7 +72,7 @@ Wrapped_model
     :special-members:
     :members:
 
-Examples
+Code Examples
 -------------------------------
 
 .. automodule:: hm2.examples.sir_tao_leap
