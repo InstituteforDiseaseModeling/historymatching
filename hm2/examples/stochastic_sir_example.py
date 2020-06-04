@@ -62,7 +62,7 @@ parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=50)
 ################################################
 
 # HistoryMatching requires that the model be wrapped in the special ModelWrapper
-# class. This standardize HistoryMatching's interaction with models 
+# class. This standardize HistoryMatching's interaction with models
 
 def wrapped_model(**kwargs):
     model = SIR(**kwargs)
@@ -118,17 +118,17 @@ matched = match_sim_outputs_to_observations(
 
 # Now we begin the process of emulating the simulation output
 # This process contains two steps.  The first step is to fit a deterministic model, here
-# we use a generalized linear model (GLM).  The glm will attempt to model the output (prevalence 
+# we use a generalized linear model (GLM).  The glm will attempt to model the output (prevalence
 # at the first observation) as a function of some inputs.  Those inputs need not be the model
 # parameters directly!  The inputs could be anything from a constant intercept up to third or higher
 # order interaction terms between parameters.  The following Basis instance builds out the GLM input
 # parameters from the overall simulation input parameters.
 #
 # Some strategy is required when choosing these.  If you know which parameters matter, there's a way
-# to directly specify those parameters.  Alternatively, if you have no idea, you can initially include 
-# an intercept, first, second, and maybe also third order interaction terms.  The Basis class has a 
+# to directly specify those parameters.  Alternatively, if you have no idea, you can initially include
+# an intercept, first, second, and maybe also third order interaction terms.  The Basis class has a
 # built-in penalized regression that throws away unneeded terms (basis vectors).
-# The second step of emulation, as demonstrated here, fits a GPR to the redisual error between the 
+# The second step of emulation, as demonstrated here, fits a GPR to the redisual error between the
 # simulated outputs and the GLM estimates.  If the GLM fits really well, the residual is mostly noise and
 # the GPR has a hard time fitting / isn't very informative.  I actually prefer to weaken the GLM enough
 # to leave plenty of residual signal for the GPR.  Here, I use only first-order (beta and gamma) terms.
@@ -143,7 +143,14 @@ for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0
     glm_basis=hm2.basis.IdentityBasis(intercept=False),
     gpr_basis=hm2.basis.IdentityBasis(intercept=False)
   ).fit(params, y, stdev, gpr_maxiter=10000)
-  # figs = gpremu.plot_data() #TODO
+  # time_emulators[obs].glm.plot_fitted_vs_observed()
+  # time_emulators[obs].glm.plot_pearson_residuals()
+  # time_emulators[obs].glm.plot_deviance_redisuals()
+  # time_emulators[obs].glm.plot_QQ()
+  # figs = time_emulators[obs].plot_data() #TODO
+
+
+
 
 #TODO: Validate emulators here
 
@@ -167,50 +174,22 @@ if len(plausible_params)==0:
 
 parameter_samples = hm2.sampling.latin_hypercube_within(plausible_params, 100)
 
-sys.exit(0)
 
 
+#TODO
+# sys.exit(0)
+# fig, ax=plt.subplots(2,1)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Reduce replicates taking the mean of what the model produced for each time
-# point
-# runs = (
-#   hm2.boilerplate.replicate_reducer(runs[0], "mean"),
-#   hm2.boilerplate.replicate_reducer(runs[1], "mean")
+# ax[0].scatter(
+#   parameter_samples.iloc[this_obs['param_id']]['beta'],
+#   parameter_samples.iloc[this_obs['param_id']]['gamma'],
+#   c=this_obs['value']
 # )
 
+# ax[1].scatter(
+#   parameter_samples.iloc[this_obs['param_id']]['beta'],
+#   parameter_samples.iloc[this_obs['param_id']]['gamma'],
+#   c=gpremu.predict(parameter_samples.iloc[this_obs['param_id']][['beta','gamma']])[0]
+# )
 
-
-sys.exit(-1)
-
-fig, ax=plt.subplots(2,1)
-
-ax[0].scatter(
-  parameter_samples.iloc[this_obs['param_id']]['beta'],
-  parameter_samples.iloc[this_obs['param_id']]['gamma'],
-  c=this_obs['value']
-)
-
-ax[1].scatter(
-  parameter_samples.iloc[this_obs['param_id']]['beta'],
-  parameter_samples.iloc[this_obs['param_id']]['gamma'],
-  c=gpremu.predict(parameter_samples.iloc[this_obs['param_id']][['beta','gamma']])[0]
-)
-
-plt.show()
+# plt.show()

@@ -71,3 +71,10 @@ Wrapped_model
 .. automodule:: hm2.wrapped_model
     :special-members:
     :members:
+
+Examples
+-------------------------------
+
+.. automodule:: hm2.examples.sir_tao_leap
+    :special-members:
+    :members:

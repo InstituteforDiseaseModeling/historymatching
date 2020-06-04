@@ -3,8 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to IDM History Matching's documentation!
-================================================
+IDM Bayesian History Matching
+=============================
+
+The Bayesian History
 
 .. toctree::
    :maxdepth: 2
@@ -13,7 +15,9 @@ Welcome to IDM History Matching's documentation!
    what_is_history_matching
    data_frames
    wrapped_model
+   examples
    api
+   credits
 
 Indices and tables
 ==================
