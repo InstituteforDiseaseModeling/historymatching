@@ -4,10 +4,12 @@ import pandas as pd
 import code
 
 class SIR:
-    """A Stochastic SIR model TODO"""
+    """A stochastic SIR model TODO"""
 
     def __init__(self, sir0=[190,10,0], Tmax=100, beta=0.05, gamma=0.1, seed=None):
         """Initialize the SIR model
+
+        TODO: Where is this model from?
 
         Args:
             sir0 - Array specifying the initial values: [Susceptible, Infected, Recovered]
