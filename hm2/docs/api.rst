@@ -37,7 +37,7 @@ Error
     :special-members:
     :members:
 
-Glm
+GLM
 -------------------------------
 
 .. automodule:: hm2.glm
@@ -72,9 +72,9 @@ Wrapped_model
     :special-members:
     :members:
 
-Code Examples
+Example Models
 -------------------------------
 
-.. automodule:: hm2.examples.sir_tao_leap
+.. automodule:: hm2.models.sir_tao_leap
     :special-members:
     :members:

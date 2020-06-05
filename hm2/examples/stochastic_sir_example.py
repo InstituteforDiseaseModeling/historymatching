@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-from hm2.examples.sir import SIR
+from hm2.models.sir import SIR
 import hm2.sampling
 from hm2.boilerplate import *
 import hm2.basis
@@ -61,8 +61,8 @@ parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=50)
 #Start sampling
 ################################################
 
-# HistoryMatching requires that the model be wrapped in the special ModelWrapper
-# class. This standardize HistoryMatching's interaction with models
+# HistoryMatching requires that the model be wrapped in a special function
+# which standardizes HistoryMatching's interaction with models, like so:
 
 def wrapped_model(**kwargs):
     model = SIR(**kwargs)

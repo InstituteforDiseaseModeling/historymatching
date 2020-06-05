@@ -1,9 +1,9 @@
 What Is History Matching?
 =========================
 
+Here we follow a process described by [Gardner2019]_ and [Pievatolo2018]_. Examples of the History Matching process are shown in :ref:`Examples`.
 
 
-Here we follow a process described by [Gardner2019]_ and [Pievatolo2018]_.
 
 Preparation
 ---------------------------
@@ -13,6 +13,7 @@ Preparation
 2. Build a beautiful model which you would like to match to the real world. Wrap this model according to :ref:`Wrapping A Model`.
 
 3. Put the parameters you would like to perform your matching on into a :ref:`ParameterInfoFrame`.
+
 
 
 Waves
@@ -34,7 +35,7 @@ For each wave:
 5. Calculate the maximum implausibility of each NP. (see :mod:`hm2.boilerplate.max_implausibility_per_param`)
 6. Keep only those members of NP whose maximum implausibility is less than a treshold T.
 7. Use the remaining members to form a new box space for Step 1.
-8. If the variance is small enough or there is no non-implausible space
+8. If the variance is small enough or there is no non-implausible space then quit; otherwise, repeat from Step 1 using the new box space.
 
 
 
