@@ -42,5 +42,8 @@ deprecate/
 # Temporary files
 tmp/
 
+# Testing temporaries
+test_coverage/
+
 TODO
 misc/
