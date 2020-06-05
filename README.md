@@ -17,6 +17,10 @@ Then install the package,
 python3 setup.py install
 ```
 
+# Documentation
+
+For documentation see [http://historymatching.com](http://historymatching.com).
+
 # Example
 
 Examples are available in the [examples/](examples/) directory.
