@@ -4,8 +4,20 @@ import unittest
 
 from hm2.error import HistoryMatchingError
 from hm2.models.sir import SIR
-import hm2.boilerplate
+import hm2.boilerplate as bp
 import hm2.sampling
+
+
+
+def SIRWrapperForParallel(**kwargs):
+    """Used for testing parallelism of run_replicates"""
+    model = SIR(**kwargs)
+    results = model.sim()
+    results['prevalence'] = results['per_infected']
+    results = pd.melt(results, id_vars='time', var_name='observation')
+    results['stdev'] = 1 #Junk value TODO
+    results['observation_id'] = list(range(len(results)))
+    return results, None
 
 
 
@@ -23,6 +35,47 @@ class BoilerplateTest(unittest.TestCase):
             'min':  [  1e-6,    1e-6],
             'max':  [  0.01,     0.5]
         })
+
+    def test_run_replicates_bad_processes(self):
+        self.assertRaises(TypeError,
+          hm2.boilerplate.run_replicates,
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+          wrapped_model = SIRWrapperForParallel,
+          replicates=1,
+          processes="hi"
+        )
+        self.assertRaises(ValueError,
+          hm2.boilerplate.run_replicates,
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+          wrapped_model = SIRWrapperForParallel,
+          replicates=1,
+          processes=-1
+        )
+        self.assertRaises(ValueError,
+          hm2.boilerplate.run_replicates,
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+          wrapped_model = SIRWrapperForParallel,
+          replicates=1,
+          processes=0
+        )
+
+    def test_single_threaded(self):
+        hm2.boilerplate.run_replicates(
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 20),
+          wrapped_model = SIRWrapperForParallel,
+          replicates=1,
+          processes=1
+        )
+        #TODO: Check results
+
+    def test_multiprocessing(self):
+        hm2.boilerplate.run_replicates(
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 20),
+          wrapped_model = SIRWrapperForParallel,
+          replicates=1,
+          processes=4
+        )
+        #TODO: Check results
 
     def test_observations_missing_time(self):
 
@@ -144,7 +197,7 @@ class BoilerplateTest(unittest.TestCase):
 
         parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
 
-        self.assertRaises(HistoryMatchingError, hm2.boilerplate.run_replicates,
+        self.assertRaises(TypeError, hm2.boilerplate.run_replicates,
           wrapped_model = SIRWrapper,
           param_sets = parameter_samples,
           replicates = 1,
@@ -161,9 +214,28 @@ class BoilerplateTest(unittest.TestCase):
 
         parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
 
-        self.assertRaises(HistoryMatchingError, hm2.boilerplate.run_replicates,
+        self.assertRaises(TypeError, hm2.boilerplate.run_replicates,
           param_sets = parameter_samples,
           wrapped_model = SIRWrapper,
           replicates=1,
           processes=1
         )
+
+
+class TestImplausibility(unittest.TestCase):
+  def test_implausibility_equation_zero(self):
+    #Note that reality matches prediction
+    reality = 3
+    reality_stdev = 1
+    prediction=3
+    prediction_stdev=1
+    model_stdev=1
+    self.assertTrue(bp._implausibility_equ(reality,reality_stdev,prediction,prediction_stdev,model_stdev)==0)
+
+  def test_implausibility_equation_nonzero(self):
+    reality = 1
+    reality_stdev = 2
+    prediction=3
+    prediction_stdev=2
+    model_stdev=2
+    self.assertAlmostEqual(bp._implausibility_equ(reality,reality_stdev,prediction,prediction_stdev,model_stdev),0.57735026918962576451)

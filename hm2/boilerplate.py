@@ -1,3 +1,4 @@
+import multiprocessing
 import itertools
 import os
 
@@ -10,29 +11,15 @@ from .data_validation import *
 from .utility import drop_key
 
 
-def _column_comparison(model_results, observations, obs_name):
-    """Determines if `model_results` and `observations` have the same values in
-    their `measurement` columns. Otherwise throws an error identifying what's
-    missing.
 
-    Returns:
-      None
-    """
-    # Get the names of the properties that were observed
-    observation_names = set()
-    if observations is not None:
-        observation_names = set(observations["observation"].unique().tolist())
+def _assert_processes_none_or_positive(processes):
+    if processes is None:
+        pass
+    elif not isinstance(processes,int):
+        raise TypeError("processes must be an integer!")
+    elif processes<=0:
+        raise ValueError("processes must be >0!")
 
-    model_names = set()
-    if model_results is not None:
-        model_names = set(model_results["observation"].unique().tolist())
-
-    diff_tm = observation_names - model_names
-    diff_mt = model_names - observation_names
-    if diff_tm or diff_mt:
-        raise HistoryMatchingError(
-            f"Model output is missing columns: {diff_tm}. Model {obs_name} is missing {diff_mt}."
-        )
 
 
 def match_sim_to_observations(sim_output, observations):
@@ -135,12 +122,11 @@ def run_replicates(wrapped_model, replicates, param_sets=None, processes=None):
             "`param_sets` should be a ParameterSamplesFrame, dictionary, a list of dictionaries, or None!"
         )
 
-    if processes is None or processes > 1:
-        mapper = multiprocessing.Pool(processes=processes).starmap
-    elif processes == 1:
+    _assert_processes_none_or_positive(processes)
+    if processes == 1:
         mapper = itertools.starmap
     else:
-        raise HistoryMatchingError("Unrecognized processes value!")
+        mapper = multiprocessing.Pool(processes=processes).starmap
 
     return list(
         mapper(
@@ -158,12 +144,11 @@ def match_sim_outputs_to_observations(
     if not all([isinstance(x, tuple) for x in sim_outputs]):
         raise TypeError("`sim_outputs` must be a list of tuples!")
 
-    if processes is None or processes > 1:
-        mapper = multiprocessing.Pool(processes=processes).starmap
-    elif processes == 1:
+    _assert_processes_none_or_positive(processes)
+    if processes == 1:
         mapper = itertools.starmap
     else:
-        raise HistoryMatchingError("Unrecognized processes value!")
+        mapper = multiprocessing.Pool(processes=processes).starmap
 
     observations = [(time_observations, summary_observations)]
 
@@ -253,6 +238,9 @@ def _implausibility_equ(
 
 
 def get_implausibility(emulators, parameter_samples, observations, model_stdev=0):
+    #TODO: Check input type
+    parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+
     implausibilities = []
     for _, row in observations.iterrows():
         row = row.to_dict()
@@ -280,14 +268,18 @@ def get_implausibility(emulators, parameter_samples, observations, model_stdev=0
 
 
 def max_implausibility_per_param(implausibilities):
+    #TODO: Check input type
     return implausibilities.groupby("param_id")["implausibility"].max().reset_index()
 
 
 def filter_implausibilities(implausibilities, threshold):
+    #TODO: Check input type
     return implausibilities[implausibilities["implausibility"] <= threshold]
 
 
 def get_plausible_parameters(implausibilities, parameter_samples):
+    #TODO: Check input type
+    parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
     params = pd.merge(implausibilities, parameter_samples, how="left", on="param_id")
     params = params.drop(columns="implausibility")
     return params

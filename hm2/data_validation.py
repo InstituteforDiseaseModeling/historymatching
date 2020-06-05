@@ -56,7 +56,7 @@ def ValidateTimeObservationsFrame(df, copy=True):
 
   _CheckColumns(df, ['observation_id','time','observation','value','stdev'], 'TimeObservationsFrame')
 
-  if not df['time'].is_monotonic_increasing:
+  if not df.groupby('observation')['time'].is_monotonic_increasing.all():
     raise HistoryMatchingError("TimeObservationsFrame's `time` column is not monotonically increasing!")
 
   if not df['observation_id'].is_unique:
@@ -99,7 +99,7 @@ def ValidateObservationsFrame(df, copy=True):
 
 def ValidateObservationFrames(results, copy=True):
   if not isinstance(results, tuple) or len(results)!=2:
-    raise HistoryMatchingError("Wrapped model must return a tuple with both a TimeObservationsFrame and a SummaryObservationsFrame, or None for one of them!")
+    raise TypeError("Wrapped model must return a tuple with both a TimeObservationsFrame and a SummaryObservationsFrame, or None for one of them!")
 
   time_results = ValidateTimeObservationsFrame(results[0], copy=copy)
   summary_results = ValidateSummaryObservationsFrame(results[1], copy=copy)
@@ -146,7 +146,11 @@ def ValidateSimFrame(df, copy=True):
     return None
 
   if isinstance(df,tuple):
-    return ValidateTimeSimFrame(df=df, copy=copy), ValidateSummarySimFrame(df=df, copy=copy)
+    if len(df)!=2:
+      raise HistoryMatchingError("Simulation frame tuples must have length 2!")
+    return ValidateTimeSimFrame(df=df[0], copy=copy), ValidateSummarySimFrame(df=df[1], copy=copy)
+  elif not isinstance(df, pd.DataFrame):
+    raise TypeError("Simulation Frame must be a pandas DataFrame!")
   elif 'time' in df.columns:
     return ValidateTimeSimFrame(df=df, copy=copy)
   else:
