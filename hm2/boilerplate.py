@@ -15,7 +15,7 @@ def _column_comparison(model_results, observations, obs_name):
     their `measurement` columns. Otherwise throws an error identifying what's
     missing.
 
-    Returns: 
+    Returns:
       None
     """
     # Get the names of the properties that were observed
@@ -186,10 +186,10 @@ def prep_emulator_data(param_samples, matched, observation_id):
     Args:
         emulator: Emulator to fit
         param_samples: :ref:`ParameterSamplesFrame`
-        model_output: A :ref:`TimeSimFrame` or 
+        model_output: A :ref:`TimeSimFrame` or
                        :ref:`SummarySimFrame` built using parameters
                        from `param_samples`
-        observation_key: Filter model_output by `observation_key` 
+        observation_key: Filter model_output by `observation_key`
         maxiter (int): Number of training iterations
 
     Returns:
@@ -223,7 +223,7 @@ def get_data_for_emulators(param_samples, matched):
 
     Args:
         param_samples (:ref:`ParameterSamplesFrame`)
-        matched: A :ref:`TimeSimFrame` or 
+        matched: A :ref:`TimeSimFrame` or
                        :ref:`SummarySimFrame` built using parameters
                        from `param_samples`
 

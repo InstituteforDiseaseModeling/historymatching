@@ -1,6 +1,6 @@
 import unittest
 
-from hm2.examples.sir import SIR
+from hm2.models import SIR
 
 
 

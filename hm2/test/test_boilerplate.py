@@ -1,42 +1,13 @@
-import unittest
 import numpy as np
 import pandas as pd
+import unittest
 
-from hm2.examples.sir import SIR
-import hm2.sampling
-import hm2.boilerplate
 from hm2.error import HistoryMatchingError
+from hm2.models.sir import SIR
+import hm2.boilerplate
+import hm2.sampling
 
 
-
-class ModelWrapperTest(unittest.TestCase):
-  def test_missing_init(self):
-    class SIRWrapper(hm2.boilerplate.ModelWrapper):
-        @classmethod
-        def init2(cls, **kwargs): #Init misnamed
-            return SIR(**kwargs)
-        @staticmethod
-        def run(model):
-          results = model.sim()
-          results['prevalence'] = results['per_infected']
-          results['Stdev'] = 1 #Junk value TODO
-          return results, None
-    self.assertRaises(TypeError, SIRWrapper)
-
-  def test_missing_run(self):
-    class SIRWrapper(hm2.boilerplate.ModelWrapper):
-        @classmethod
-        def init(cls, **kargs):
-            return SIR(**kwargs)
-        @staticmethod
-        def run2(model): #Run misnamed
-          results = model.sim()
-          results['prevalence'] = results['per_infected']
-          results['Stdev'] = 1 #Junk value TODO
-          return results, None
-    self.assertRaises(TypeError, SIRWrapper)
-
-    
 
 class BoilerplateTest(unittest.TestCase):
     def setUp(self):
@@ -44,7 +15,7 @@ class BoilerplateTest(unittest.TestCase):
             'time':           [ 3,  15],
             'observation_id': [ 0,   1],
             'prevalence':     [15,  40],
-            'Stdev':          [ 4, 2.3],
+            'stdev':          [ 4, 2.3],
         })
 
         self.param_info = pd.DataFrame({
@@ -55,196 +26,144 @@ class BoilerplateTest(unittest.TestCase):
 
     def test_observations_missing_time(self):
 
-        class SIRWrapper(hm2.boilerplate.ModelWrapper):
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model):
-              results = model.sim()
-              results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
-              return results, None
+        def SIRWrapper(**kwargs):
+            model = SIR(**kwargs)
+            results = model.sim()
+            results['prevalence'] = results['per_infected']
+            results['stdev'] = 1 #Junk value TODO
+            return results, None
 
         #Observations is missing `time`
         del self.observations['time']
 
-        self.assertRaises(AssertionError,
-          hm2.boilerplate.time_analysis,
-          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
-          observations = self.observations,
-          wrapped_model = SIRWrapper(),
-          replicates=1
+        self.assertRaises(HistoryMatchingError,
+          hm2.boilerplate.run_replicates,
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+          wrapped_model = SIRWrapper,
+          replicates=1,
+          processes=1
         )
 
     def test_observations_missing_observation_id(self):
-        class SIRWrapper(hm2.boilerplate.ModelWrapper):
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model):
+        def SIRWrapper(**kwargs):
+              model = SIR(**kwargs)
               results = model.sim()
               results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
+              results['stdev'] = 1 #Junk value TODO
               return results, None
 
         #Observations is missing `observation_id`
         del self.observations['observation_id']
 
-        self.assertRaises(AssertionError,
-          hm2.boilerplate.time_analysis,
-          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
-          observations = self.observations,
-          wrapped_model=SIRWrapper(),
-          replicates=1
+        self.assertRaises(HistoryMatchingError,
+          hm2.boilerplate.run_replicates,
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+          wrapped_model=SIRWrapper,
+          replicates=1,
+          processes=1
         )
 
     def test_model_results_missing_time(self):
-        class SIRWrapper(hm2.boilerplate.ModelWrapper):
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model): #Runs model but doesn't return time
+        def SIRWrapper(**kwargs):
+              model = SIR(**kwargs) #Runs model but doesn't return time
               results = model.sim()
               results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
+              results['stdev'] = 1 #Junk value TODO
               del results['time']
               return results, None
 
         self.assertRaises(HistoryMatchingError,
-          hm2.boilerplate.time_analysis,
-          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
-          observations = self.observations,
-          wrapped_model=SIRWrapper(),
-          replicates=1
+          hm2.boilerplate.run_replicates,
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+          wrapped_model=SIRWrapper,
+          replicates=1,
+          processes=1
         )
 
     def test_model_results_missing_observation_name(self):
-        class SIRWrapper(hm2.boilerplate.ModelWrapper):
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model):
+        def SIRWrapper(**kwargs):
+              model = SIR(**kwargs)
               results = model.sim()
               # Oh no, we forgot to include prevalence in the results!
               # results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
+              results['stdev'] = 1 #Junk value TODO
               return results, None
 
         self.assertRaises(HistoryMatchingError,
-          hm2.boilerplate.time_analysis,
-          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
-          observations = self.observations,
-          wrapped_model = SIRWrapper(),
-          replicates=1
+          hm2.boilerplate.run_replicates,
+          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+          wrapped_model = SIRWrapper,
+          replicates = 1,
+          processes = 1
         )
 
     def test_time_analysis_returns_correct_columns(self):
-        class SIRWrapper(hm2.boilerplate.ModelWrapper):
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model):
+        def SIRWrapper(**kwargs):
+              model = SIR(**kwargs)
               results = model.sim()
               results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
+              results = pd.melt(results, id_vars='time', var_name='observation')
+              results['stdev'] = 1 #Junk value TODO
+              results['observation_id'] = list(range(len(results)))
               return results, None
 
-        tp_results, su_results = hm2.boilerplate.time_analysis(
-          parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100),
-          observations = self.observations,
-          wrapped_model = SIRWrapper(),
-          replicates=1
-        )
+        # TODO
+        # tp_results, su_results = hm2.boilerplate.run_replicates(
+        #   param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+        #   wrapped_model = SIRWrapper,
+        #   replicates=1,
+        #   processes=1
+        # )
 
-        self.assertEqual(tp_results.columns.tolist(), ['sample_id', 'replicate', 'observation_id', 'time', 'prevalence', 'Stdev'])
-
-    def test_time_analysis_automatically_adds_sample_id(self):
-        class SIRWrapper(hm2.boilerplate.ModelWrapper):
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model):
-              results = model.sim()
-              results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
-              return results, None
-
-
-        parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
-        del parameter_samples['sample_id']
-
-        results = hm2.boilerplate.time_analysis(
-          parameter_samples = parameter_samples,
-          observations = self.observations,
-          wrapped_model = SIRWrapper(),
-          replicates=1
-        )
+        # self.assertEqual(tp_results.columns.tolist(), ['sample_id', 'replicate', 'observation_id', 'time', 'prevalence', 'stdev'])
 
     def test_bad_wrap(self):
-        class SIRWrapper: #Note that this is unwrapped
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model):
+        def SIRWrapper(**kwargs):
+              model = SIR(**kwargs)
               results = model.sim()
               results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
+              results['stdev'] = 1 #Junk value TODO
               return results, None
 
         parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
 
-        self.assertRaises(HistoryMatchingError, hm2.boilerplate.time_analysis,
-          parameter_samples = parameter_samples,
-          observations = self.observations,
-          wrapped_model = SIRWrapper(),
-          replicates=1
+        self.assertRaises(HistoryMatchingError, hm2.boilerplate.run_replicates,
+          wrapped_model = SIRWrapper,
+          param_sets = parameter_samples,
+          replicates = 1,
+          processes = 1
         )
 
     def test_check_time_and_summary_frames(self):
-        class SIRWrapper(hm2.boilerplate.ModelWrapper):
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model):
+        def SIRWrapper(**kwargs):
+              model = SIR(**kwargs)
               results = model.sim()
               results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
+              results['stdev'] = 1 #Junk value TODO
               return results  #Note that this is returning only one DataFrame
 
         parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
 
-        self.assertRaises(HistoryMatchingError, hm2.boilerplate.time_analysis,
-          parameter_samples = parameter_samples,
-          observations = self.observations,
-          wrapped_model = SIRWrapper(),
-          replicates=1
+        self.assertRaises(HistoryMatchingError, hm2.boilerplate.run_replicates,
+          wrapped_model = SIRWrapper,
+          param_sets = parameter_samples,
+          replicates = 1,
+          processes = 1
         )
 
     def test_returns_tuple(self):
-        class SIRWrapper(hm2.boilerplate.ModelWrapper):
-            @classmethod
-            def init(cls, **kwargs):
-                return SIR(**kwargs)
-            @staticmethod
-            def run(model):
+        def SIRWrapper(**kwargs):
+              model = SIR(**kwargs)
               results = model.sim()
               results['prevalence'] = results['per_infected']
-              results['Stdev'] = 1 #Junk value TODO
+              results['stdev'] = 1 #Junk value TODO
               return [results, None]  #Note that this is returning a list
 
         parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
 
-        self.assertRaises(HistoryMatchingError, hm2.boilerplate.time_analysis,
-          parameter_samples = parameter_samples,
-          observations = self.observations,
-          wrapped_model = SIRWrapper(),
-          replicates=1
+        self.assertRaises(HistoryMatchingError, hm2.boilerplate.run_replicates,
+          param_sets = parameter_samples,
+          wrapped_model = SIRWrapper,
+          replicates=1,
+          processes=1
         )

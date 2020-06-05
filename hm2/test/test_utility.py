@@ -27,7 +27,6 @@ class ScalerTest(unittest.TestCase):
     def test_repr(self):
       data = pd.DataFrame({"x":[1,2,3,4,5],"y":[10,11,12,13,14],"z":[-5,-4,-3,-2,-1]})
       s = Scaler(data)
-      print(s)
       self.assertTrue(str(s)=="""  feature   min   max  range
 0       x   1.0   5.0    4.0
 1       y  10.0  14.0    4.0

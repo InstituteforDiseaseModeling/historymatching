@@ -1,9 +1,6 @@
-import code
-import sys
-
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from hm2.boilerplate import *
 from hm2.emulators import *
