@@ -11,7 +11,7 @@ import scipy.optimize as spo
 import seaborn as sns
 
 from history_matching.basis import Basis
-from history_matching.error import *
+from hm2.error import *
 
 try:
     from pycuda import compiler, gpuarray
@@ -38,7 +38,6 @@ class DanGPR():
 
     def __init__(
             self, 
-            basis, 
             Ycol, 
             training_data, 
             param_info,
@@ -95,7 +94,6 @@ class DanGPR():
 
         self.training_data = training_data.copy()
         self.param_info = param_info.copy()
-        self.basis = basis
         self.D = self.basis.D
         self.Ycol = Ycol
         self.fig_type = fig_type
@@ -179,7 +177,8 @@ class DanGPR():
     def update_cache(self):
         """Update the internal cache of X, Y, Kxx_inv, and Kxx_inv_Y.
 
-        When evaluating many points, these somewhat-slow to calculate properties do not change, co we compute and cache them here.
+        When evaluating many points, these somewhat-slow to calculate properties
+        do not change, so we compute and cache them here.
 
         """
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
@@ -564,7 +563,6 @@ class DanGPR():
 
     def gpr(
             self,
-            basis,
             force_optimize_gpr = True,
             method = 'CrossValidation',
             verbose = False,
