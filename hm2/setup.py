@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='hm2',
       version          = '0.1.0',
@@ -8,7 +8,7 @@ setup(name='hm2',
       author           = 'Richard Barnes',
       author_email     = 'rijard.barnes@gmail.com',
       url              = 'https://github.com/InstituteforDiseaseModeling/history_matching',
-      packages         = ['hm2'],
+      packages         = find_packages(),
       python_requires  =' >= 3.6',
       install_requires = [ # Required packages -- install via pip install -e .
         "gpytorch==1.0.1",

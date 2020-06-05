@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-from hm2.models.sir import SIR
-import hm2.sampling
 from hm2.boilerplate import *
-import hm2.basis
 from hm2.emulators import *
-from hm2.wrapped_model import *
+from hm2.models.sir import SIR
 from hm2.plotting import *
+from hm2.wrapped_model import *
+import hm2.basis
+import hm2.sampling
 
 
 
