@@ -31,48 +31,6 @@ class EmulatorBase(abc.ABC):
     def plot_data(self, *args, **kwargs):
         pass
 
-
-class TorchGPREmulator(EmulatorBase):
-    def __init__(self, basis):
-        if not isinstance(basis, BasisBase):
-            raise HistoryMatchingError("`basis` must inherit from BasisBase!")
-        self.basis = basis
-        self.gpr = hm2.gpr.TorchGPR()
-
-    def fit(self, train_x, train_y, stdev_y, maxiter):
-        """Fit the GPR.
-
-        Args:
-            train_x: Training data
-            train_y: Correct outputs
-            stdev_y: Standard deviation of Y values (uncertainty)
-            maxiter (int): Maximum number of training iterations
-
-        Returns: 
-            None
-        """
-        train_x, train_y, stdev_y = self._fit(train_x, train_y, stdev_y)
-
-        # Extract the relevant parameter sample values
-        self.gpr.fit(
-            train_x=self.basis(train_x),
-            train_y=train_y,
-            stdev_y=stdev_y,
-            maxiter=maxiter,
-        )
-        return self
-
-    def predict(self, test_x):
-        test_x = self._predict(test_x)
-        test_x = self.basis(test_x)
-        return self.gpr.predict(test_x)
-
-    def plot_data(self, *args, **kwargs):
-        return plot_pairwise(
-            self.basis(self._train_x), self._train_y, *args, **kwargs
-        )
-
-
 class SkGPREmulator(EmulatorBase):
     def __init__(self, basis):
         if not isinstance(basis, BasisBase):
@@ -89,7 +47,7 @@ class SkGPREmulator(EmulatorBase):
             stdev_y: Standard deviation of Y values (uncertainty)
             maxiter (int): Maximum number of training iterations
 
-        Returns: 
+        Returns:
             None
         """
         train_x, train_y, stdev_y = self._fit(train_x, train_y, stdev_y)
@@ -142,7 +100,7 @@ class GLM_GPR_Emulator(EmulatorBase):
             glm_maxiter (int): Maximum number of training iterations in GLM fitting
             gpr_maxiter (int): Maximum number of training iterations in GLM fitting
 
-        Returns: 
+        Returns:
             None
         """
         train_x, train_y, stdev_y = self._fit(train_x, train_y, stdev_y)
