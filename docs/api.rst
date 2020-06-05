@@ -65,13 +65,6 @@ Utility
     :special-members:
     :members:
 
-Wrapped_model
--------------------------------
-
-.. automodule:: hm2.wrapped_model
-    :special-members:
-    :members:
-
 Example Models
 -------------------------------
 

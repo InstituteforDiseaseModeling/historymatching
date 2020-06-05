@@ -1,3 +1,4 @@
+import itertools
 import os
 
 import numpy as np
@@ -7,7 +8,6 @@ import pickle
 from .error import HistoryMatchingError
 from .data_validation import *
 from .utility import drop_key
-from .wrapped_model import *
 
 
 def _column_comparison(model_results, observations, obs_name):

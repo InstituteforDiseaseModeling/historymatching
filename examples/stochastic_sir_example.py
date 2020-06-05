@@ -6,7 +6,6 @@ from hm2.boilerplate import *
 from hm2.emulators import *
 from hm2.models import SIR
 from hm2.plotting import *
-from hm2.wrapped_model import *
 import hm2.basis
 import hm2.sampling
 

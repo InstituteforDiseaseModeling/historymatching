@@ -14,7 +14,6 @@ The Bayesian History
 
    what_is_history_matching
    data_frames
-   wrapped_model
    examples
    api
    credits
