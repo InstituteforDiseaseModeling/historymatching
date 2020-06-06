@@ -46,7 +46,7 @@ param_info = pd.DataFrame({
 
 # For the first iteration, the samples are random.  We'll use Latin Hypercube
 # Sampling to make the samples more uniformly spaced.
-parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=50)
+parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=50, random_state=123456)
 
 #TODO
 #p=plot_pairwise(parameter_samples.drop(columns='param_id'))
@@ -168,7 +168,7 @@ if len(plausible_params)==0:
 ################################
 # WAVE 2
 
-parameter_samples = hm2.sampling.latin_hypercube_within(plausible_params, 100)
+parameter_samples = hm2.sampling.latin_hypercube_within(plausible_params, 100, random_state=654321)
 
 
 
