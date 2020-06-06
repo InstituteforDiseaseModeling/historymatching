@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 import hm2.basis
-from hm2.test.data import test_params_df, test_y
+from .data import test_params_df, test_y
 
 
 
