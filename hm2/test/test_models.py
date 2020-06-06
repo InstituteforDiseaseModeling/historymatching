@@ -1,0 +1,21 @@
+import unittest
+
+from hm2.models import SIR
+from hm2.models import SIRTaoLeap
+
+
+
+class TestSIR(unittest.TestCase):
+    def test_sir_determinism(self):
+      sir1 = SIR(seed=123456)
+      sir2 = SIR(seed=123456)
+      results1 = sir1.run()
+      results2 = sir2.run()
+      self.assertTrue(results1.equals(results2))
+
+    def test_sir_tao_leap_determinism(self):
+      sir1 = SIRTaoLeap(seed=123456)
+      sir2 = SIRTaoLeap(seed=123456)
+      results1 = sir1.run()
+      results2 = sir2.run()
+      self.assertTrue(results1.equals(results2))

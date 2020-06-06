@@ -1,9 +1,10 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import code
 
-class SIR:
+from .abstract_model import ModelBase
+
+class SIR(ModelBase):
     """A stochastic SIR model TODO"""
 
     def __init__(self, sir0=[190,10,0], Tmax=100, beta=0.05, gamma=0.1, seed=None):
@@ -31,7 +32,15 @@ class SIR:
 
         self.M = np.array( [[-1, 1, 0], [0, -1, 1]] ) # S-->I, I-->R
 
-    def sim(self):
+    def print_parameters(self):
+        """Display input arguments"""
+        print(f"sir0  = {self.sir0}")
+        print(f"Tmax  = {self.Tmax}")
+        print(f"beta  = {self.beta}")
+        print(f"gamma = {self.gamma}")
+        print(f"seed  = {self.seed}")
+
+    def run(self):
         """Run the simulation, given the parameters specified in the constructor
         """
 
@@ -41,7 +50,7 @@ class SIR:
         S, I, R = sir[-1]
 
         if self.seed:
-             np.random.seed(seed=self.seed)
+            np.random.seed(seed=self.seed)
 
         while t <= self.Tmax and I > 0:
             propensity = [self.beta * S * I, self.gamma * I]

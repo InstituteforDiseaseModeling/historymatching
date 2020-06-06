@@ -3,7 +3,7 @@ import abc
 import sklearn.preprocessing as skp
 import pandas as pd
 
-class BasisBase(abc.ABC):
+class BasisBase(abc.ABC): # pragma: no cover
   @abc.abstractmethod
   def __call__(self, X):
     """Function that runs the initialized model.
@@ -24,11 +24,16 @@ class PolynomialBasis(BasisBase):
       intercept (bool): Whether to include an intercept.
       scale (bool): Whether to center and scale the data based on its min/max values.
     """
+    assert isinstance(degree,int)
+    assert degree>=0
+    assert isinstance(intercept, bool)
+    assert isinstance(scale,bool)
+
     self.scale = scale
     self.intercept = intercept
     self.polyfit = skp.PolynomialFeatures(
-      degree           = degree, 
-      interaction_only = False, 
+      degree           = degree,
+      interaction_only = False,
       include_bias     = intercept
     )
 
@@ -39,7 +44,7 @@ class PolynomialBasis(BasisBase):
     if self.scale:
       X[:] = skp.scale(X)
     fit     = self.polyfit.fit_transform(X)
-    columns = self.polyfit.get_feature_names()
+    columns = self.polyfit.get_feature_names(X.columns)
     columns = ['Intercept' if x=='1' else x for x in columns]
     return pd.DataFrame(fit, columns = columns)
 
@@ -54,11 +59,14 @@ class IdentityBasis(BasisBase):
       intercept (bool) - Whether to include an intercept.
       scale (bool): Whether to center and scale the data based on its min/max values.
     """
+    assert isinstance(intercept,bool)
+    assert isinstance(scale,bool)
+
     self.scale = scale
     self.intercept = intercept
     self.polyfit = skp.PolynomialFeatures(
-      degree           = 1, 
-      interaction_only = False, 
+      degree           = 1,
+      interaction_only = False,
       include_bias     = intercept
     )
 

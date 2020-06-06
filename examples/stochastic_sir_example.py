@@ -63,7 +63,7 @@ parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=50, random_
 def wrapped_model(**kwargs):
     model = SIR(**kwargs)
 
-    results = model.sim()
+    results = model.run()
     results['prevalence'] = results['per_infected']
     #Reshape DataFrame into the tidy form expected by HistoryMatching
     results = pd.melt(results, id_vars='time', var_name='observation')

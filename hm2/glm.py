@@ -13,7 +13,7 @@ from .error import HistoryMatchingError
 
 #TODO: Add predictor abstract class
 
-def gfamily(family):
+def _gfamily(family):
     gfamilies = {
         "binomial": sm.families.Binomial,
         "gamma":    sm.families.Gamma,
@@ -39,12 +39,12 @@ class GLM:
         """Initialize the GLM class.
 
         Args:
-            family: (str) The family of generalized linear model to use. 
-                          Options include 'poisson', 'binomial', 'gamma', 
-                          'negativebinomial', and 'gaussian'. 
+            family: (str) The family of generalized linear model to use.
+                          Options include 'poisson', 'binomial', 'gamma',
+                          'negativebinomial', and 'gaussian'.
         """
         # Make this call only to check that the family exists
-        gfamily(family)
+        _gfamily(family)
 
         self.family  = family
         self.glm     = None
@@ -66,14 +66,15 @@ class GLM:
 
         # We're using statsmodels GLM because sklearn GLM's doesn't have a
         # family option.
-        self.glm = sm.GLM(train_y, train_x, family=gfamily(self.family))
+        self.glm = sm.GLM(train_y, train_x, family=_gfamily(self.family))
 
         self.glmfit = self.glm.fit(maxiter=maxiter)
 
         logger.info(self.glmfit.summary())
-        logger.info('GLM AIC:', self.glmfit.aic)
-        logger.info('GLM BIC:', self.glmfit.bic)
-        logger.info('GLM ITERATION:', self.glmfit.fit_history['iteration'])
+        #TODO
+        # logger.info('GLM AIC:', self.glmfit.aic)
+        # logger.info('GLM BIC:', self.glmfit.bic)
+        # logger.info('GLM ITERATION:', self.glmfit.fit_history['iteration'])
 
     def predict(self, test_x):
         """Evaluate the GLM and return the mean prediction.
@@ -87,10 +88,10 @@ class GLM:
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
-        return self.glm.predict(self.glmfit.params, test_x)
+        return self.glmfit.predict(test_x)
 
 
-    def plot_fitted_vs_observed(self, figsize=None):
+    def plot_fitted_vs_observed(self, figsize=None): # pragma: no cover
         """Generates a plot of the fitted values vs the observed values from the training data.
 
         Returns:
@@ -108,10 +109,10 @@ class GLM:
         return fig
 
 
-    def plot_pearson_residuals(self, figsize=None):
+    def plot_pearson_residuals(self, figsize=None): # pragma: no cover
         """Generates a plot of the peasron residuals.
 
-        Returns: 
+        Returns:
             A matplotlib figure handle.
         """
         if self.glm is None:
@@ -126,10 +127,10 @@ class GLM:
         return fig
 
 
-    def plot_deviance_redisuals(self, figsize=None, bins=25):
+    def plot_deviance_redisuals(self, figsize=None, bins=25): # pragma: no cover
         """Generates a plot of the deviance residuals.
 
-        Returns: 
+        Returns:
             A matplotlib figure handle.
         """
         if self.glm is None:
@@ -144,10 +145,10 @@ class GLM:
         return fig
 
 
-    def plot_QQ(self, figsize=None):
+    def plot_QQ(self, figsize=None): # pragma: no cover
         """Generates a QQ plot.
 
-        Returns: 
+        Returns:
             A matplotlib figure handle.
         """
         if self.glm is None:

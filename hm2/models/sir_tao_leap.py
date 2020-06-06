@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from .abstract_model import ModelBase
 
-class SIRTaoLeap:
+class SIRTaoLeap(ModelBase):
     """
     An event-driven simulation of an SIR model based on Gillespie's tao-leap method.
     A description of the algorithm can be found in:
@@ -55,19 +56,18 @@ class SIRTaoLeap:
         self.stepSize = stepSize
         self.seed = seed
 
-    def printArguments( self ):
+    def print_parameters(self):
         """Display input arguments"""
+        print(f"beta     = {self.beta}")
+        print(f"gamma    = {self.gamma}")
+        print(f"s0       = {self.s0}")
+        print(f"i0       = {self.i0}")
+        print(f"r0       = {self.r0}")
+        print(f"nDays    = {self.nDays}")
+        print(f"stepSize = {self.stepSize}")
+        print(f"seed     = {self.seed}")
 
-        print( " beta     = ", self.beta )
-        print( " gamma    = ", self.gamma )
-        print( " s0       = ", self.s0 )
-        print( " i0       = ", self.i0 )
-        print( " r0       = ", self.r0 )
-        print( " nDays    = ", self.nDays )
-        print( " stepSize = ", self.stepSize )
-        print( " seed     = ", self.seed )
-
-    def simulate( self ):
+    def run(self):
         """Return S, I, and R arrays obtained with input arguments"""
 
         # Initialization
@@ -94,7 +94,7 @@ class SIRTaoLeap:
         r_daily[0] = r[0]
 
         if self.seed:
-             np.random.seed(seed=self.seed)
+            np.random.seed(seed=self.seed)
 
 
         # Compute events per time step
