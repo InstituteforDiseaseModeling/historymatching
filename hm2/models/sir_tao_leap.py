@@ -127,7 +127,7 @@ class SIRTaoLeap(ModelBase):
             'incidence':   [s_daily[j-1] - s_daily[j] for j in range(1,nDays)] + [np.nan]
         })
 
-    def plot( self ):
+    def plot( self ): # pragma: no cover
         """Display figure with S, I, and R curves obtained with the input args"""
 
         results = self.simulate()
@@ -146,7 +146,7 @@ class SIRTaoLeap(ModelBase):
         plt.grid(linestyle=':')
         plt.show(block=False)
 
-    def plotIncidence( self ):
+    def plotIncidence( self ): # pragma: no cover
         """Display figure with the incidence obtained with the input args"""
 
         incidence = self.simulate()["incidence"]
