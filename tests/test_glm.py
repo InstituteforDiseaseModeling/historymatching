@@ -54,6 +54,7 @@ class GLMTest(unittest.TestCase):
       #Test plotting
       #TODO: Is there any way to check if the plots matching some previously known good value?
       _ = glm.plot_fitted_vs_observed(figsize=None)
+      _ = glm.plot_training_vs_trained(colname="x")
       _ = glm.plot_pearson_residuals()
       _ = glm.plot_deviance_redisuals()
       _ = glm.plot_QQ()

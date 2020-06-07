@@ -91,12 +91,39 @@ class GLM:
             raise HistoryMatchingError("GLM is untrained!")
         return self.glmfit.predict(test_x)
 
+    def plot_training_vs_trained(self, colname, figsize=None):
+        """Generates a plot of the training values vs the values predicted by
+        the trained GLM. Only displays 1D data.
+
+        Args:
+            colname(str): A column name from the training data.
+            figsize(float,float): (width,height) in inches
+
+        Returns(WrappedFigure): A wrapped figure
+        """
+        if self.glm is None:
+            raise HistoryMatchingError("GLM is untrained!")
+        if colname not in self._trainx.columns:
+            raise HistoryMatchingError(f"colname '{colname}' not found. Choices are '{self._trainx.columns}'.")
+
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.scatter(self._trainx[colname], self._trainy)
+        ax.scatter(self._trainx[colname], self.glmfit.predict(self._trainx))
+        ax.set_title('Training versus Trained')
+        ax.set_xlabel('X-values')
+        ax.set_ylabel('Y-values')
+
+        return WrappedFigure(fig)
+
 
     def plot_fitted_vs_observed(self, figsize=None):
         """Generates a plot of the fitted values vs the observed values from the training data.
+        If these make 1:1 diagonal line, things are good.
 
-        Returns:
-            A matplotlib figure handle.
+        Args:
+            figsize(float,float): (width,height) in inches
+
+        Returns(WrappedFigure): A wrapped figure
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
@@ -113,8 +140,10 @@ class GLM:
     def plot_pearson_residuals(self, figsize=None):
         """Generates a plot of the peasron residuals.
 
-        Returns:
-            A matplotlib figure handle.
+        Args:
+            figsize(float,float): (width,height) in inches
+
+        Returns(WrappedFigure): A wrapped figure
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
@@ -131,16 +160,22 @@ class GLM:
     def plot_deviance_redisuals(self, figsize=None, bins=25):
         """Generates a plot of the deviance residuals.
 
-        Returns:
-            A matplotlib figure handle.
+        Args:
+            figsize(float,float): (width,height) in inches
+            bins(int): Number of bins for the histogram
+
+        Returns(WrappedFigure): A wrapped figure
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
 
+        assert isinstance(bins,int)
+        assert bins>=2
+
         fig, ax = plt.subplots(figsize=figsize)
         resid = self.glmfit.resid_deviance.copy()
         resid_std = sp.stats.zscore(resid)
-        ax.hist(resid_std, bins=25)
+        ax.hist(resid_std, bins=bins)
         ax.set_title('Standardized deviance residuals')
 
         return WrappedFigure(fig)
@@ -149,8 +184,10 @@ class GLM:
     def plot_QQ(self, figsize=None):
         """Generates a QQ plot.
 
-        Returns:
-            A matplotlib figure handle.
+        Args:
+            figsize(float,float): (width,height) in inches
+
+        Returns(WrappedFigure): A wrapped figure
         """
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
