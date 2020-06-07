@@ -9,6 +9,10 @@ from hm2.basis import PolynomialBasis
 
 
 
+# Set this to True to show plots. Plots are disabled by default to ensure this
+# script can be run by our automated testing framework.
+SHOW_PLOTS = False
+
 #Training data is 100 points in [0,1] inclusive regularly spaced
 train_x = np.linspace(0, 1, 100)
 
@@ -26,8 +30,10 @@ basis = PolynomialBasis(degree=4, intercept=True, scale=True)
 glm   = GLM(family="gaussian")
 glm.fit(basis(train_x), train_y)
 
-glm.plot_training_vs_trained(colname='x')
-glm.plot_fitted_vs_observed()
-glm.plot_pearson_residuals()
-glm.plot_deviance_redisuals()
-glm.plot_QQ()
+p1 = glm.plot_training_vs_trained(colname='x')
+p2 = glm.plot_fitted_vs_observed()
+p3 = glm.plot_pearson_residuals()
+p4 = glm.plot_deviance_redisuals()
+p5 = glm.plot_QQ()
+if SHOW_PLOTS:
+  print(p1,p2,p3,p4,p5)
