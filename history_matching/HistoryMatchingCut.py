@@ -23,6 +23,7 @@ class HistoryMatchingCut():
             self.iterdir_parent = iterdir_parent
 
         self.debug = False
+        self.verbose = False
 
         self.hm_params = {}
         self.glm_all = {}
@@ -39,12 +40,13 @@ class HistoryMatchingCut():
             cuts_dir = os.path.join(self.iterdir_parent, 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration', it, 'cut', cut_name)
+                if self.verbose: print('Reading iteration', it, 'cut', cut_name)
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print('\t Desired Result:', hm.desired_result)
-                print('\t Desired Result Var:', hm.desired_result_var)
-                print('\t Discrepancy Var:', hm.discrepancy_var)
-                print('\t Imp Thresh:', hm.implausibility_threshold)
+                if self.verbose:
+                    print('\t Desired Result:', hm.desired_result)
+                    print('\t Desired Result Var:', hm.desired_result_var)
+                    print('\t Discrepancy Var:', hm.discrepancy_var)
+                    print('\t Imp Thresh:', hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
@@ -75,19 +77,19 @@ class HistoryMatchingCut():
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
-            print(plausible_candidates.shape)
+            if self.verbose: print(plausible_candidates.shape)
             if plausible_candidates.shape[0] == 0:
-                print('Returning early because none of the candidates are plausible.')
+                if self.verbose: print('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
 
-            print('Performing cut: iteration', it, ', cut', cut_name)
+            if self.verbose: print('Performing cut: iteration', it, ', cut', cut_name)
             t = time.time()
             plausible_candidates.loc[:,'Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
             if self.debug:
-                print('GLM:', time.time()-t); t=time.time()
+                if self.verbose: print('GLM:', time.time()-t); t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
             if self.debug:
-                print('GPR:', time.time()-t); t=time.time()
+                if self.verbose: print('GPR:', time.time()-t); t=time.time()
             plausible_candidates.loc[:,'Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates.loc[:,'Var_Predictive'] = ret['Var_Predictive']
 
@@ -111,7 +113,7 @@ class HistoryMatchingCut():
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
-            print('-'*80)
+            if self.verbose: print('-'*80)
             max_nSamples = 10000 # TODO: make a parameter or determine from GPU info
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
@@ -121,31 +123,31 @@ class HistoryMatchingCut():
 
             t = time.time()
             lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
-            print('LHS Sampling (', nSamples,'):', time.time() - t)
+            if self.verbose: print('LHS Sampling (', nSamples,'):', time.time() - t)
 
             t = time.time()
             for i, xc in enumerate(self.Xcols_all_orig):
                 v = self.param_info.loc[xc]
                 lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
-            print('LHS Scaling:', time.time() - t)
+            if self.verbose: print('LHS Scaling:', time.time() - t)
 
             t = time.time()
             new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all_orig)
-            print('DataFrame:', time.time() - t)
+            if self.verbose: print('DataFrame:', time.time() - t)
             t = time.time()
             if constraint is not None:
                 #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
                 #new_candidates = new_candidates.query(constraint)
                 new_candidates = new_candidates.loc[constraint(new_candidates),:]
-            print('Constraint:', time.time() - t)
+            if self.verbose: print('Constraint:', time.time() - t)
 
             t = time.time()
             plausibility = self.test_plausibility(new_candidates, constraint)
-            print('Test plausibility:', time.time() - t)
+            if self.verbose: print('Test plausibility:', time.time() - t)
 
             t = time.time()
             new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
-            print('Merge plausibility (needed?):', time.time() - t)
+            if self.verbose: print('Merge plausibility (needed?):', time.time() - t)
             #new_candidates['Implausible'] = False
 
 
@@ -159,11 +161,11 @@ class HistoryMatchingCut():
 
             del new_candidates
 
-            print('Plausible candidates: New =', stats['num_new_plausible_candidates'], ', Tot =', stats['num_plausible_candidates'])
+            if self.verbose: print('Plausible candidates: New =', stats['num_new_plausible_candidates'], ', Tot =', stats['num_plausible_candidates'])
 
         #non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        print('Saving to:', self.saveto_hd5)
+        if self.verbose: print('Saving to:', self.saveto_hd5)
         hdf = pd.HDFStore(self.saveto_hd5)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
         #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))

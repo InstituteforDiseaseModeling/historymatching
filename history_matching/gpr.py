@@ -95,11 +95,14 @@ class GPR():
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
         """
 
+        self.verbose = verbose
+
         try:
             device = pycuda.autoinit.device
-            print('Autoinit GPU device name:', device.name())
+            if self.verbose: print('Autoinit GPU device name:', device.name())
             self.use_gpu = True
         except Exception as e:
+            print('WARNING: Not using GPU, computation will be slow...')
             self.use_gpu = False
 
         if self.use_gpu:
@@ -132,7 +135,6 @@ class GPR():
         self.normalizer = True #UserStandardize(mean=self.normalizer_mean, std=self.normalizer_std)
         self.poisson = False #is_poisson
 
-        self.verbose = verbose
         self.debug = debug
 
         # Heteroscedastic GP setup
@@ -161,7 +163,7 @@ class GPR():
         """
 
         try:
-            print('from_config:', config_fn)
+            #print('from_config:', config_fn)
             with open(os.path.join(config_fn)) as data_file:
                 config = json.load( data_file )
 
@@ -877,18 +879,19 @@ class GPR():
             options = optimizer_options
         )
 
-        print('OPTIMIZATION RETURNED:\n', ret)
+        if self.verbose: print('OPTIMIZATION RETURNED:\n', ret)
 
         # Restore original index
         self.training_data.set_index(idx, inplace=True)
 
         # Set hyperparameters (theta) to optimal values
-
         if log_transform:
             x = np.maximum(np.minimum(ret.x, np.log(sys.float_info.max)), np.log(sys.float_info.min))
             self.set_theta( np.exp(x) )
         else:
             self.set_theta(ret.x)
+
+        return ret
 
 
     def evaluate(self, data):

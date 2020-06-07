@@ -31,7 +31,7 @@ class GLM(object):
             family = 'Poisson', # 'Poisson', 'NegativeBinomial', 'Gaussian'
             fig_type = 'pdf',
             fitted_model = None,
-            verbose = True
+            verbose = False
         ):
         """Initialize the GLM class.
 
@@ -86,11 +86,11 @@ class GLM(object):
                 print('Using Gaussian family')
             self.glmfam = sm.families.Gaussian()
 
-        if self.fitted_model is not None:
+        if self.fitted_model is not None and self.verbose:
             print(self.fitted_model.summary()) # Should work, but was causing errors with some versions of statsmodels.
             print('AIC:', self.fitted_model.aic)
             print('BIC:', self.fitted_model.bic)
-            print('ITERATION:', self.fitted_model.fit_history['iteration'])
+            #print('ITERATION:', self.fitted_model.fit_history['iteration'])
 
 
     @classmethod
@@ -197,7 +197,7 @@ class GLM(object):
             print(self.fitted_model.summary())
             print('AIC:', self.fitted_model.aic)
             print('BIC:', self.fitted_model.bic)
-            print('ITERATION:', self.fitted_model.fit_history['iteration'])
+            #print('ITERATION:', self.fitted_model.fit_history['iteration'])
 
     def plot_fitted_vs_observed(self):
         """Generates a plot of the fitted values vs the observed values from the training data.
@@ -408,7 +408,7 @@ class GLM(object):
         axes.plot( 2 * [self.reference_value], [0,n_samples], 'r-') # , axes=axes[0,0]
 
         sim_cases_range = self.training_data.reset_index().groupby('Sample_Id')[self.Ycol].agg({'Min':np.min, 'Max':np.max, 'Mean':np.mean})
-        sim_cases_range['Fitted_Model_Mean'] = self.fitted_model.mu
+        sim_cases_range.loc[:,'Fitted_Model_Mean'] = self.fitted_model.mu
         for idx,s in sim_cases_range.iterrows():
             axes.plot( [s['Min'], s['Max']], [idx,idx], 'b-', linewidth=0.5 )
             axes.plot( [s['Mean'], s['Fitted_Model_Mean']], [idx,idx], 'g-', linewidth=0.25 )

@@ -27,6 +27,7 @@ class CutNearSamples():
         self.Xcols_all_orig = None
 
         self.debug = False
+        self.verbose = False
 
         self.hm_params = {}
         self.glm_all = {}
@@ -43,12 +44,13 @@ class CutNearSamples():
             cuts_dir = os.path.join(self.iterdir_parent, 'iter%d'%it, self.cut_dir)
 
             for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration %d. cut %s' % (it,cut_name) )
+                if self.verbose: print('Reading iteration %d. cut %s' % (it,cut_name) )
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print('\t Desired Result:', hm.desired_result)
-                print('\t Desired Result Var:', hm.desired_result_var)
-                print('\t Discrepancy Var:', hm.discrepancy_var)
-                print('\t Imp Thresh:', hm.implausibility_threshold)
+                if self.verbose:
+                    print('\t Desired Result:', hm.desired_result)
+                    print('\t Desired Result Var:', hm.desired_result_var)
+                    print('\t Discrepancy Var:', hm.discrepancy_var)
+                    print('\t Imp Thresh:', hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
@@ -78,19 +80,19 @@ class CutNearSamples():
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
-            print(plausible_candidates.shape)
+            if self.verbose: print(plausible_candidates.shape)
             if plausible_candidates.shape[0] == 0:
-                print('Returning early because none of the candidates are plausible.')
+                if self.verbose: print('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
 
-            print('Performing cut: iteration', it, ', cut', cut_name)
+            if self.verbose: print('Performing cut: iteration', it, ', cut', cut_name)
             t = time.time()
             plausible_candidates.loc[:,'Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
             if self.debug:
-                print('GLM:', time.time()-t); t=time.time()
+                if self.verbose: print('GLM:', time.time()-t); t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
             if self.debug:
-                print('GPR:', time.time()-t); t=time.time()
+                if self.verbose: print('GPR:', time.time()-t); t=time.time()
             plausible_candidates.loc[:,'Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates.loc[:,'Var_Predictive'] = ret['Var_Predictive']
 
@@ -214,7 +216,7 @@ class CutNearSamples():
         p = self.calc_seed_prob()
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
-            print('-'*80)
+            if self.verbose: print('-'*80)
             max_nSamples = 10000 # TODO: Make parameter
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
@@ -222,37 +224,37 @@ class CutNearSamples():
             else:
                 nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / ((1+stats['num_plausible_candidates'])/float(stats['num_candidates'])))))
 
-            print('Starting with (%d):'%nSamples)
+            if self.verbose: print('Starting with (%d):'%nSamples)
 
-            print('initialy draw_samples:')
+            if self.verbose: print('initialy draw_samples:')
             sample = self.draw_samples(nSamples, p)
-            print('data frame and constraint:')
+            if self.verbose: print('data frame and constraint:')
             new_candidates = pd.DataFrame( sample, columns=self.Xcols_all_orig)
             if constraint is not None:
                 #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
                 #new_candidates = new_candidates.query(constraint)
                 new_candidates = new_candidates.loc[constraint(new_candidates),:]
 
-            print('entering while loop:')
+            if self.verbose: print('entering while loop:')
             while new_candidates.shape[0] < nSamples:
-                print('draw_samples in while loop (%d):'%new_candidates.shape[0])
+                if self.verbose: print('draw_samples in while loop (%d):'%new_candidates.shape[0])
                 samples = self.draw_samples(nSamples, p)
-                print('data frame in while loop:')
+                if self.verbose: print('data frame in while loop:')
                 sample_df = pd.DataFrame( samples, columns=self.Xcols_all_orig )
-                print('sample_df has rows numbering %d:'%sample_df.shape[0])
+                if self.verbose: print('sample_df has rows numbering %d:'%sample_df.shape[0])
                 if constraint is not None:
-                    print('constraint evaluation in while loop:')
+                    if self.verbose: print('constraint evaluation in while loop:')
                     sample_df = sample_df.loc[constraint(sample_df),:]
-                print('appending sample_df to new_candidates.  was %d:' % new_candidates.shape[0])
+                if self.verbose: print('appending sample_df to new_candidates.  was %d:' % new_candidates.shape[0])
                 new_candidates = new_candidates.append( sample_df, ignore_index=True )
-                print('new_candidates.  now %d:' % new_candidates.shape[0])
+                if self.verbose: print('new_candidates.  now %d:' % new_candidates.shape[0])
 
 
-            print('Testing (%d):'%nSamples)
+            if self.verbose: print('Testing (%d):'%nSamples)
 
             t = time.time()
             plausibility = self.test_plausibility(new_candidates, constraint)
-            print('Test plausibility:', time.time() - t)
+            if self.verbose: print('Test plausibility:', time.time() - t)
 
             #t = time.time()
             ###new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
@@ -269,10 +271,10 @@ class CutNearSamples():
 
             del new_candidates
 
-            print('Plausible candidates: New =', stats['num_new_plausible_candidates'], ', Tot =', stats['num_plausible_candidates'])
+            if self.verbose: print('Plausible candidates: New =', stats['num_new_plausible_candidates'], ', Tot =', stats['num_plausible_candidates'])
 
 
-        print('Saving to:', self.saveto_hd5)
+        if self.verbose: print('Saving to:', self.saveto_hd5)
         hdf = pd.HDFStore(self.saveto_hd5)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
         #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
