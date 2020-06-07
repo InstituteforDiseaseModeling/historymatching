@@ -22,7 +22,8 @@ class PolynomialBasis(BasisBase):
     Args:
       degree (int): The degree of the polynomial features.
       intercept (bool): Whether to include an intercept.
-      scale (bool): Whether to center and scale the data based on its min/max values.
+      scale (bool): Whether to center and scale the data by centering to the
+                    mean and component-wise scaling to unit variance.
     """
     assert isinstance(degree,int)
     assert degree>=0
@@ -57,7 +58,8 @@ class IdentityBasis(BasisBase):
 
     Args:
       intercept (bool) - Whether to include an intercept.
-      scale (bool): Whether to center and scale the data based on its min/max values.
+      scale (bool): Whether to center and scale the data by centering to the
+                    mean and component-wise scaling to unit variance.
     """
     assert isinstance(intercept,bool)
     assert isinstance(scale,bool)
