@@ -39,6 +39,7 @@ class PolynomialBasis(BasisBase):
     )
 
   def __call__(self, X):
+    """Apply the basis to X, performing scaling if requested"""
     if not isinstance(X, pd.DataFrame):
       raise TypeError("Basis must be passed a DataFrame!")
     X = X.copy()
@@ -73,6 +74,7 @@ class IdentityBasis(BasisBase):
     )
 
   def __call__(self, X):
+    """Apply the basis to X, performing scaling if requested"""
     if not isinstance(X, pd.DataFrame):
       raise TypeError("Basis must be passed a DataFrame!")
     X = X.copy()

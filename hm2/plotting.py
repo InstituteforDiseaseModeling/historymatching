@@ -6,14 +6,20 @@ import plotnine as pn
 from .data_validation import *
 
 
-#TODO: Check if works
+
 class WrappedFigure:
-    """Class for repeatedly displaying a figure with the `print` command"""
+    """Class for repeatedly displaying a figure with the `print` command."""
     def __init__(self, fig):
+        """Wrap a figure
+        Args:
+            fig: A figure from, e.g. `plt.subplots()`
+        """
         self.fig=fig
+
     def __repr__(self):
         """Called if class instance is typed in REPL"""
         return self.fig.__repr__()
+
     def __str__(self):
         """Called with `print`; displays the figure"""
         # create a dummy figure and use its manager to display "fig"
@@ -35,11 +41,15 @@ def plot_pairwise(X, color=None, figsize=None, cmap='viridis', alpha=0.5):
         cmap: Colormap to use for `color`.
         alpha (float): Value in the range [0,1] indicating transparency
 
-    Returns: 
+    Returns:
         dict: A dictionary of matplotlib figure handles with keys indicating
         the parameter names via the filename which would be used to save the
         figure.
     """
+    #Automagically remove some common columns that we don't want to plot as data
+    if 'param_id' in X:
+        X = X.drop(columns='param_id')
+
     #TODO: Add log scaling
     C = len(X.columns)
 
@@ -48,7 +58,7 @@ def plot_pairwise(X, color=None, figsize=None, cmap='viridis', alpha=0.5):
     plt.ioff()
 
     #Hold individual views for close-ups
-    plots = dict() 
+    plots = dict()
     #Hold collective view for handy group display
     collective_fig, collective_ax = plt.subplots(nrows=C, ncols=C, figsize=figsize)
 
@@ -71,7 +81,7 @@ def plot_pairwise(X, color=None, figsize=None, cmap='viridis', alpha=0.5):
             collective_ax[rowi,coli].set_ylabel(col)
 
             #TODO
-            # if circle_points.shape[0] > 0: 
+            # if circle_points.shape[0] > 0:
             #     for _, pt in cp_dmat.iterrows():
             #         plt.scatter(pt[row], pt[col], s=50, c='k', alpha=1, linewidths=2.0, marker='x') #, s=area, c=colors, alpha=0.5)
 
@@ -96,7 +106,7 @@ def plot_runs_time_series(runs, param_id=None, samples=None, time_observations=N
         samples (int): Randomly choose this many runs to display. `None` implies all.
         time_observations (:ref:`TimeObservationsFrame`): Time observations to show
 
-    Returns: 
+    Returns:
         A plotnine image
     """
     #If we have pairs of (Time,Summary), get the times
