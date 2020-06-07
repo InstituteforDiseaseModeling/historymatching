@@ -22,7 +22,7 @@ train_y = true_y + np.random.normal(size=len(train_x)) * np.sqrt(0.04)
 train_x = pd.DataFrame({"x":train_x})
 train_y = pd.DataFrame({"y":train_y})
 
-basis = PolynomialBasis(degree=4, intercept=True)
+basis = PolynomialBasis(degree=4, intercept=True, scale=True)
 glm   = GLM(family="gaussian")
 glm.fit(basis(train_x), train_y)
 
