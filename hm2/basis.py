@@ -79,7 +79,8 @@ class IdentityBasis(BasisBase):
     if self.scale:
       X[:] = skp.scale(X)
     transformed = self.polyfit.fit_transform(X)
-    return pd.DataFrame(
-      self.polyfit.fit_transform(X),
-      columns = (['Intercept'] if self.intercept else []) + X.columns.tolist()
-    )
+
+    columns = self.polyfit.get_feature_names(X.columns)
+    columns = ['Intercept' if x=='1' else x for x in columns]
+
+    return pd.DataFrame(self.polyfit.fit_transform(X), columns = columns)
