@@ -24,6 +24,10 @@ class GLMTest(unittest.TestCase):
     def test_untrained(self):
       glm = GLM(family="poisson")
       self.assertRaises(HistoryMatchingError, glm.predict, [1,2,3])
+      self.assertRaises(HistoryMatchingError, glm.plot_fitted_vs_observed)
+      self.assertRaises(HistoryMatchingError, glm.plot_pearson_residuals)
+      self.assertRaises(HistoryMatchingError, glm.plot_deviance_redisuals)
+      self.assertRaises(HistoryMatchingError, glm.plot_QQ)
 
     def test_fit_predict_line_through_origin(self):
       #See if we can predict y=3*x
@@ -47,4 +51,9 @@ class GLMTest(unittest.TestCase):
       ypred = glm.predict(basis(x))
       self.assertTrue(((y-ypred)<0.2).all()) #NOTE: This should be safe because of the random seed
 
-    # def fit(self, train_x, train_y, maxiter=1000):
+      #Test plotting
+      #TODO: Is there any way to check if the plots matching some previously known good value?
+      _ = glm.plot_fitted_vs_observed(figsize=None)
+      _ = glm.plot_pearson_residuals()
+      _ = glm.plot_deviance_redisuals()
+      _ = glm.plot_QQ()

@@ -9,6 +9,7 @@ import statsmodels.graphics as smg
 import statsmodels.api as sm
 
 from .error import HistoryMatchingError
+from .plotting import WrappedFigure
 
 
 #TODO: Add predictor abstract class
@@ -91,7 +92,7 @@ class GLM:
         return self.glmfit.predict(test_x)
 
 
-    def plot_fitted_vs_observed(self, figsize=None): # pragma: no cover
+    def plot_fitted_vs_observed(self, figsize=None):
         """Generates a plot of the fitted values vs the observed values from the training data.
 
         Returns:
@@ -106,10 +107,10 @@ class GLM:
         ax.set_xlabel('Observed values')
         ax.set_ylabel('Fitted values')
 
-        return fig
+        return WrappedFigure(fig)
 
 
-    def plot_pearson_residuals(self, figsize=None): # pragma: no cover
+    def plot_pearson_residuals(self, figsize=None):
         """Generates a plot of the peasron residuals.
 
         Returns:
@@ -124,10 +125,10 @@ class GLM:
         ax.set_ylabel('Pearson Residuals')
         ax.set_xlabel('Fitted values')
 
-        return fig
+        return WrappedFigure(fig)
 
 
-    def plot_deviance_redisuals(self, figsize=None, bins=25): # pragma: no cover
+    def plot_deviance_redisuals(self, figsize=None, bins=25):
         """Generates a plot of the deviance residuals.
 
         Returns:
@@ -142,10 +143,10 @@ class GLM:
         ax.hist(resid_std, bins=25)
         ax.set_title('Standardized deviance residuals')
 
-        return fig
+        return WrappedFigure(fig)
 
 
-    def plot_QQ(self, figsize=None): # pragma: no cover
+    def plot_QQ(self, figsize=None):
         """Generates a QQ plot.
 
         Returns:
@@ -157,4 +158,4 @@ class GLM:
         fig, ax = plt.subplots(figsize=figsize)
         smg.gofplots.qqplot(self.glmfit.resid_deviance, line='45', fit=True, ax=ax)
 
-        return fig
+        return WrappedFigure(fig)
