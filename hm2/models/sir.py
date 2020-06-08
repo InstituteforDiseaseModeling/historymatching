@@ -32,17 +32,12 @@ class SIR(ModelBase):
 
         self.M = np.array( [[-1, 1, 0], [0, -1, 1]] ) # S-->I, I-->R
 
-    def print_parameters(self):
+    def __repr__(self):
         """Display input arguments"""
-        print(f"sir0  = {self.sir0}")
-        print(f"Tmax  = {self.Tmax}")
-        print(f"beta  = {self.beta}")
-        print(f"gamma = {self.gamma}")
-        print(f"seed  = {self.seed}")
+        return f"<SIR sir0 = {self.sir0}, Tmax = {self.Tmax}, beta = {self.beta}, gamma = {self.gamma}, seed = {self.seed}>"
 
     def run(self):
-        """Run the simulation, given the parameters specified in the constructor
-        """
+        """Run the simulation, given the parameters specified in the constructor"""
 
         t       = 0
         times   = [t]

@@ -56,16 +56,9 @@ class SIRTaoLeap(ModelBase):
         self.stepSize = stepSize
         self.seed = seed
 
-    def print_parameters(self):
+    def __repr__(self):
         """Display input arguments"""
-        print(f"beta     = {self.beta}")
-        print(f"gamma    = {self.gamma}")
-        print(f"s0       = {self.s0}")
-        print(f"i0       = {self.i0}")
-        print(f"r0       = {self.r0}")
-        print(f"nDays    = {self.nDays}")
-        print(f"stepSize = {self.stepSize}")
-        print(f"seed     = {self.seed}")
+        return f"<SIRTaoLeap beta = {self.beta}, gamma = {self.gamma}, s0 = {self.s0}, i0 = {self.i0}, r0 = {self.r0}, nDays = {self.nDays}, stepSize = {self.stepSize}, seed = {self.seed}>"
 
     def run(self):
         """Return S, I, and R arrays obtained with input arguments"""

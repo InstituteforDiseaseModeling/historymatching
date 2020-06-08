@@ -12,6 +12,7 @@ class TestSIR(unittest.TestCase):
       results1 = sir1.run()
       results2 = sir2.run()
       self.assertTrue(results1.equals(results2))
+      sir1.__repr__()
 
     def test_sir_tao_leap_determinism(self):
       sir1 = SIRTaoLeap(seed=123456)
@@ -19,3 +20,4 @@ class TestSIR(unittest.TestCase):
       results1 = sir1.run()
       results2 = sir2.run()
       self.assertTrue(results1.equals(results2))
+      sir1.__repr__()
