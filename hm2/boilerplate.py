@@ -1,5 +1,6 @@
-import multiprocessing
+import datetime
 import itertools
+import multiprocessing
 import os
 
 import numpy as np
@@ -9,6 +10,11 @@ import pickle
 from .error import HistoryMatchingError
 from .data_validation import *
 from .utility import drop_key
+
+
+# TODO: Handle summary values
+# SUMMARY_NUMERIC = np.inf
+# SUMMARY_DATE    = datetime.datetime.max
 
 
 
@@ -22,16 +28,38 @@ def _assert_processes_none_or_positive(processes):
 
 
 
-def match_sim_to_observations(sim_output, observations):
+def _match_sim_to_observations(
+    sim_output: pd.DataFrame,
+    real_observations: pd.DataFrame
+):
+    """Matches a single simulation output to a real observation
+
+    Args:
+        sim_output(pd.DataFrame): A :ref:`ObservationFrame` from a model
+        real_observations(pd.DataFrame): A :ref:`ObservationFrame` from reality
+
+    Returns: TODO
+    """
     sim_output = ValidateSimFrame(sim_output, copy=False)
-    observations = ValidateObservationsFrame(observations, copy=False)
+    real_observations = ValidateObservationsFrame(real_observations, copy=False)
+
+    #Get observation names common to both the simulation and the real
+    #observations
+    common_obs_names = set(sim_output['observation']).intersection(
+        set(real_observations['observation']))
+
+    #Filter to just those observations (ignores output created by the model that
+    #doesn't correspond to observations we made from reality, as well as things
+    #we observed but did not model)
+    sim_output = sim_output[sim_output['observation'].isin(common_obs_names)]
+    real_observations = real_observations[real_observations['observation'].isin(common_obs_names)]
 
     #TODO: Handle summary values
 
     # Left merge, matching each modeled and actual observation to its nearest
     # analogue by time
     temp = pd.merge_asof(
-        observations,
+        real_observations,
         sim_output,
         on="time",
         by="observation",
@@ -132,7 +160,7 @@ def match_sim_outputs_to_observations(
     _assert_processes_none_or_positive(processes)
 
     mapper_args = (
-        match_sim_to_observations,
+        _match_sim_to_observations,
         itertools.product(sim_outputs, [real_observations])
     )
 
