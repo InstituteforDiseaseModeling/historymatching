@@ -179,6 +179,20 @@ class GLM_GPR_Emulator(EmulatorBase):
         return glm_prediction + gpr_prediction, gpr_stdev
 
     def plot_data(self, *args, **kwargs):
+        """Plots the basisified training data against itself in pairwise plots
+        with colour determined by the y value"""
         return plot_pairwise(
             self.glm_basis(self._train_x), self._train_y, *args, **kwargs
         )
+
+    def plot_emulated_vs_predicted(self, figsize=None):
+        #TODO: docstring
+        predicted, stdev = self.predict(self._train_x)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.errorbar(self._train_y, predicted, yerr=stdev, fmt='o', ms=3, lw=0.5)
+        ax.set_title('Model Output vs Predicted')
+        ax.set_xlabel('Model Output')
+        ax.set_ylabel('Predicted')
+
+        return WrappedFigure(fig)

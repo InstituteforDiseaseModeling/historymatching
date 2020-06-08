@@ -147,6 +147,21 @@ emulator = hm2.emulators.GLM_GPR_Emulator(
   gpr_basis=hm2.basis.IdentityBasis(intercept=False)
 ).fit(params, y, stdev, gpr_maxiter=10000, glm_seed=123456)
 
+print(emulator.plot_emulated_vs_predicted())
+
+#Here, we validate the emulator by looking at various plots and trying to
+#convince ourselves it's doing a good job
+p1 = emulator.glm.plot_fitted_vs_observed()
+p2 = emulator.glm.plot_pearson_residuals()
+p3 = emulator.glm.plot_deviance_redisuals()
+p4 = emulator.glm.plot_QQ()
+p5 = emulator.plot_data()['all']
+p6 = emulator.plot_emulated_vs_predicted()
+if SHOW_PLOTS:
+  print(p1,p2,p3,p4,p5,p6)
+
+
+
 
 # Propose new parameters to look at within the current sample space
 psamples_within  = hm2.sampling.latin_hypercube_within(parameter_samples, 1000)
