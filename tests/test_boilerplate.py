@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import unittest
 
+from hm2.data_validation import ValidateSimFrame
 from hm2.error import HistoryMatchingError
 from hm2.models.sir import SIR
 import hm2.boilerplate as bp
@@ -60,22 +61,35 @@ class BoilerplateTest(unittest.TestCase):
         )
 
     def test_single_threaded(self):
-        hm2.boilerplate.run_replicates(
-          param_sets = hm2.sampling.latin_hypercube(self.param_info, 20),
+        replicates = 2
+        parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 20)
+
+        results = hm2.boilerplate.run_replicates(
+          param_sets = parameter_samples,
           wrapped_model = SIRWrapperForParallel,
-          replicates=1,
+          replicates=replicates,
           processes=1
         )
+
+        self.assertTrue(len(results)==replicates*len(parameter_samples))
+        for x in results:
+          ValidateSimFrame(x)
         #TODO: Check results
 
-    # TODO: Enable. This is disabled because it can cause freezes in testing.
-    # def test_multiprocessing(self):
-    #     hm2.boilerplate.run_replicates(
-    #       param_sets = hm2.sampling.latin_hypercube(self.param_info, 20),
-    #       wrapped_model = SIRWrapperForParallel,
-    #       replicates=1,
-    #       processes=4
-    #     )
+    def test_multiprocessing(self):
+        replicates = 2
+        parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 20)
+
+        results = hm2.boilerplate.run_replicates(
+          param_sets = parameter_samples,
+          wrapped_model = SIRWrapperForParallel,
+          replicates=replicates,
+          processes=None
+        )
+
+        self.assertTrue(len(results)==replicates*len(parameter_samples))
+        for x in results:
+          ValidateSimFrame(x)
         #TODO: Check results
 
     def test_observations_missing_time(self):
@@ -161,16 +175,6 @@ class BoilerplateTest(unittest.TestCase):
               results['observation_id'] = list(range(len(results)))
               return results, None
 
-        # TODO
-        # tp_results, su_results = hm2.boilerplate.run_replicates(
-        #   param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
-        #   wrapped_model = SIRWrapper,
-        #   replicates=1,
-        #   processes=1
-        # )
-
-        # self.assertEqual(tp_results.columns.tolist(), ['sample_id', 'replicate', 'observation_id', 'time', 'prevalence', 'stdev'])
-
     def test_bad_wrap(self):
         def SIRWrapper(**kwargs):
               model = SIR(**kwargs)
@@ -221,6 +225,90 @@ class BoilerplateTest(unittest.TestCase):
           replicates=1,
           processes=1
         )
+
+class TestMatches(unittest.TestCase):
+    def setUp(self):
+        param_info = pd.DataFrame({
+            'name': ['beta', 'gamma'],
+            'min':  [  1e-6,    1e-6],
+            'max':  [  0.01,     0.5]
+        })
+
+        parameter_samples = hm2.sampling.latin_hypercube(param_info, 10)
+
+        self.sim_outputs = hm2.boilerplate.run_replicates(
+          param_sets = parameter_samples,
+          wrapped_model = SIRWrapperForParallel,
+          replicates=2,
+          processes=None
+        )
+
+        self.time_observations = pd.DataFrame({
+            'observation_id': [           0,            1],
+            'time':           [         3.0,         15.0],
+            'observation':    ['prevalence', 'prevalence'],
+            'value':          [          15,           40],
+            'stdev':          [           4,          2.3]
+        })
+
+        self.summary_observations = None
+
+
+    def test_inputs(self):
+        self.assertRaises(TypeError,
+          hm2.boilerplate.match_sim_outputs_to_observations,
+          "not a list",
+          self.time_observations,
+          self.summary_observations,
+          processes=1
+        )
+        self.assertRaises(TypeError,
+          hm2.boilerplate.match_sim_outputs_to_observations,
+          ["not a list of tuples"],
+          self.time_observations,
+          self.summary_observations,
+          processes=1
+        )
+        self.assertRaises(TypeError,
+          hm2.boilerplate.match_sim_outputs_to_observations,
+          self.sim_outputs,
+          self.time_observations,
+          self.summary_observations,
+          processes="hi"
+        )
+        self.assertRaises(ValueError,
+          hm2.boilerplate.match_sim_outputs_to_observations,
+          self.sim_outputs,
+          self.time_observations,
+          self.summary_observations,
+          processes=-1
+        )
+        self.assertRaises(ValueError,
+          hm2.boilerplate.match_sim_outputs_to_observations,
+          self.sim_outputs,
+          self.time_observations,
+          self.summary_observations,
+          processes=0
+        )
+
+    def test_matching_single_threaded(self):
+      breakpoint()
+      matched = bp.match_sim_outputs_to_observations(
+        self.sim_outputs,
+        self.time_observations,
+        self.summary_observations,
+        processes=1
+      )
+      #TODO: Check results
+
+    # def test_matching_multi_threaded(self):
+    #   matched = bp.match_sim_outputs_to_observations(
+    #     self.sim_outputs,
+    #     self.time_observations,
+    #     self.summary_observations,
+    #     processes=None
+    #   )
+      #TODO: Check results
 
 
 class TestImplausibility(unittest.TestCase):
