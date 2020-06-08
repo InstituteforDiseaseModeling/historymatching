@@ -239,3 +239,24 @@ class TestImplausibility(unittest.TestCase):
     prediction_stdev=2
     model_stdev=2
     self.assertAlmostEqual(bp._implausibility_equ(reality,reality_stdev,prediction,prediction_stdev,model_stdev),0.57735026918962576451)
+
+class TestGetImplausibility(unittest.TestCase):
+  def setUp(self):
+    self.observations = pd.DataFrame({
+      'observation_id': [           0,            1],
+      'time':           [         3.0,         15.0],
+      'observation':    ['prevalence', 'prevalence'],
+      'value':          [          15,           40],
+      'stdev':          [           4,          2.3]
+    })
+
+    param_info = pd.DataFrame({
+      'name': ['beta', 'gamma'],
+      'min':  [  1e-6,    1e-6],
+      'max':  [  0.01,     0.5]
+    })
+
+    self.parameter_samples = hm2.sampling.latin_hypercube(param_info, 10)
+
+  def test_not_an_emulator(self):
+    self.assertRaises(HistoryMatchingError, bp.get_implausibility, {1:"not an emulator"}, self.parameter_samples, self.observations)
