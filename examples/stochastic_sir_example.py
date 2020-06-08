@@ -147,8 +147,6 @@ emulator = hm2.emulators.GLM_GPR_Emulator(
   gpr_basis=hm2.basis.IdentityBasis(intercept=False)
 ).fit(params, y, stdev, gpr_maxiter=10000, glm_seed=123456)
 
-print(emulator.plot_emulated_vs_predicted())
-
 #Here, we validate the emulator by looking at various plots and trying to
 #convince ourselves it's doing a good job
 p1 = emulator.glm.plot_fitted_vs_observed()
@@ -167,7 +165,7 @@ if SHOW_PLOTS:
 psamples_within  = hm2.sampling.latin_hypercube_within(parameter_samples, 1000)
 # Use the emulators to determine how plausible each of the proposed parameter
 # samples are
-implausibilities = get_implausibility(emulators, psamples_within, real_observations)
+implausibilities = get_implausibility({0:emulator}, psamples_within, real_observations)
 # Each parameter sample has implausibility values associated with several
 # emulators. We want to find the maximum implausibility for each sample.
 implausibilities = max_implausibility_per_param(implausibilities)
@@ -176,7 +174,7 @@ implausibilities = max_implausibility_per_param(implausibilities)
 # threshold is more risk averse in that potentially good regions are less likely
 # to be rejected; however, it will take more iterations/simulations to achieve
 # results. Let's filter so we're left with only non-implausible parameters.
-implausibilities = filter_implausibilities(implausibilities, threshold=0.2)
+implausibilities = filter_implausibilities(implausibilities, threshold=3)
 # Finally, we extract the non-implausible parameters back into a
 # ParameterSamplesFrame
 plausible_params = get_plausible_parameters(implausibilities, psamples_within)

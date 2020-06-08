@@ -343,7 +343,20 @@ def max_implausibility_per_param(implausibilities):
     return implausibilities.groupby("param_id")["implausibility"].max().reset_index()
 
 
-def filter_implausibilities(implausibilities, threshold):
+def filter_implausibilities(
+    implausibilities,
+    threshold:float
+):
+    """Filter out those implausibilities which are too large.
+
+    Args:
+        implausibilities: TODO
+        treshold: Implausibilities larger than this threshold are rejected
+
+    Returns: TODO
+    """
+    assert isinstance(threshold,(int,float)) and threshold>=0
+
     #TODO: Check input type
     return implausibilities[implausibilities["implausibility"] <= threshold]
 
