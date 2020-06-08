@@ -14,21 +14,23 @@ class SkGPR:
     def __init__(self):
         self.model = None
 
-    def fit(self, train_x, train_y, stdev_y=None, maxiter=1000):
+    def fit(self, train_x, train_y, stdev_y=None, maxiter:int=1000, random_state:int=None):
         """Fit the GPR.
 
         Args:
             train_x: Training data
             train_y: Correct outputs
             stdev_y: Standard deviation of Y values (uncertainty)
-            maxiter (int): Maximum number of training iterations
+            maxiter: Maximum number of training iterations
+            random_state: Random seed for initializing GPR centers. `None`
+                          chooses a random seed.
 
         Returns:
             None
         """
         # Initialize the model
         kernel = ConstantKernel(1.0) * RBF()
-        self.model = GaussianProcessRegressor(kernel=kernel)
+        self.model = GaussianProcessRegressor(kernel=kernel, random_state=random_state)
 
         logging.getLogger("HistoryMatching").warn("SkGPR ignores stdev_y")
 

@@ -20,8 +20,10 @@ class EmulatorBase(abc.ABC):  # pragma: no cover
         self._stdev_y = stdev_y.copy()
         return train_x, train_y, stdev_y
 
-    def _prep_prediction_data(self, train_x):
-        return train_x.drop(columns="param_id")
+    def _prep_prediction_data(self, test_x):
+        if "param_id" in test_x.columns:
+            test_x = test_x.drop(columns="param_id")
+        return test_x
 
     @abc.abstractmethod
     def fit(self):
@@ -120,7 +122,8 @@ class GLM_GPR_Emulator(EmulatorBase):
         train_y,
         stdev_y,
         glm_maxiter:int=1000,
-        gpr_maxiter:int=1000
+        gpr_maxiter:int=1000,
+        glm_seed:int=None
     ):
         """Fit the GPR.
 
@@ -130,6 +133,8 @@ class GLM_GPR_Emulator(EmulatorBase):
             stdev_y: Standard deviation of Y values (uncertainty)
             glm_maxiter (int): Maximum number of training iterations in GLM fitting
             gpr_maxiter (int): Maximum number of training iterations in GLM fitting
+            glm_seed: Random seed for initializing GPR centers. `None`
+                      chooses a random seed.
 
         Returns:
             None
@@ -147,7 +152,7 @@ class GLM_GPR_Emulator(EmulatorBase):
 
         residuals = train_y - self.glm.predict(train_x_glm)
 
-        self.gpr.fit(train_x_gpr, residuals, stdev_y, maxiter=gpr_maxiter)
+        self.gpr.fit(train_x_gpr, residuals, stdev_y, maxiter=gpr_maxiter, random_state=glm_seed)
 
         return self
 
