@@ -85,8 +85,7 @@ def run_replicates(wrapped_model, replicates, param_sets=None, processes=None):
         processes: Parallelize across this many processes. `None` implies using
                    as many processes as cores. `1` implies using a single core.
 
-    Returns: A list of (:ref:`TimeSimFrame`, :ref:`SummarySimFrame`).
-             Has length `replicates*len(param_sets)`.
+    Returns: A list of :ref:`SimFrame`. Has length `replicates*len(param_sets)`.
     """
     param_sets = ValidateParameterSamplesFrame(param_sets)
     param_sets = [x.to_dict() for _, x in param_sets.iterrows()]
@@ -115,7 +114,7 @@ def match_sim_outputs_to_observations(
     """Matches simulation outputs to actual observations.
 
     Args:
-        sim_outputs(list): A list of :ref:`SimFrame`s.
+        sim_outputs(list): A list of :ref:`SimFrame`.
         real_observations: An :ref:`ObservationsFrame`
         processes: Parallelize across this many processes. `None` implies using
                    as many processes as cores. `1` implies using a single core.

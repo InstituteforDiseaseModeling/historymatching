@@ -8,7 +8,7 @@ Here we follow a process described by [Gardner2019]_ and [Pievatolo2018]_. Examp
 Preparation
 ---------------------------
 
-1. Obtain observations from the real world and format them into a :ref:`TimeObservationsFrame` and a :ref:`SummaryObservationsFrame`.
+1. Obtain observations from the real world and format them into an :ref:`ObservationsFrame`.
 
 2. Build a beautiful model which you would like to match to the real world. Wrap this model according to :ref:`Wrapping A Model`.
 

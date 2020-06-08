@@ -22,4 +22,4 @@ values which should be used to initialize the model. The function should:
   1. Create an instance of the model using the parameter values in :py:`kwargs`
   2. Run the model
   3. Possibly post-process the results of the model
-  4. Return a valid :ref:`WrappedModelResults`.
+  4. Return a valid :ref:`SimFrame`.
