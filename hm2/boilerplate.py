@@ -221,7 +221,7 @@ def prep_emulator_data(
     return train_x, train_y, stdev_y
 
 
-def get_data_for_emulators(
+def generate_data_for_emulators(
     param_samples: pd.DataFrame,
     matched: pd.DataFrame
 ):
@@ -247,6 +247,34 @@ def get_data_for_emulators(
         )
         yield observation_id_a, grouped, train_y, stdev_y
 
+def get_single_obs_data_for_emulators(
+    param_samples: pd.DataFrame,
+    matched: pd.DataFrame,
+    observation_id: int
+):
+    """Merges the values of `param_samples` with the appropriate rows in
+    `matched` and extracts the data relating to the specified observation_id.
+
+    Args:
+        param_samples: A :ref:`ParameterSamplesFrame`
+        matched: A :ref:`SimFrame` built using parameters from `param_samples`.
+        observation_id: Extract only information related to this observation id
+
+    Yields: A tuple of `(observation_id, parameters, y, stdev)`
+    """
+    param_samples = ValidateParameterSamplesFrame(param_samples, copy=False)
+    matched = ValidateMatchedFrame(matched, copy=False)
+    assert isinstance(observation_id,int)
+
+    merged = pd.merge(matched, param_samples, how="left", on="param_id")
+
+    #Extract the observation id
+    merged = merged[merged['observation_id_a']==observation_id]
+
+    train_y = merged["value"].to_numpy()
+    stdev_y = merged["stdev"].to_numpy()
+    merged = merged.drop(columns=["observation_id_a", "replicate", "value", "stdev"])
+    return merged, train_y, stdev_y
 
 def _implausibility_equ(
     reality, reality_stdev, prediction, prediction_stdev, model_stdev

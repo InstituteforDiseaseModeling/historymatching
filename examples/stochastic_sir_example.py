@@ -139,21 +139,14 @@ matched = match_sim_outputs_to_observations(
 # gamma) terms.
 
 #Prepare data for emulator (make a train_x, train_y, stdev_y tuple)
-emulators = dict()
-for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched):
-  #Train emulator
-  emulators[obs] = hm2.emulators.GLM_GPR_Emulator(
-    glm_basis=hm2.basis.IdentityBasis(intercept=False),
-    gpr_basis=hm2.basis.IdentityBasis(intercept=False)
-  ).fit(params, y, stdev, gpr_maxiter=10000)
-  # emulators[obs].glm.plot_fitted_vs_observed()
-  # emulators[obs].glm.plot_pearson_residuals()
-  # emulators[obs].glm.plot_deviance_redisuals()
-  # emulators[obs].glm.plot_QQ()
-  # figs = emulators[obs].plot_data() #TODO
+params, y, stdev = get_single_obs_data_for_emulators(parameter_samples, matched, observation_id=0)
 
+#Train emulator
+emulator = hm2.emulators.GLM_GPR_Emulator(
+  glm_basis=hm2.basis.PolynomialBasis(intercept=True, degree=1),
+  gpr_basis=hm2.basis.IdentityBasis(intercept=False)
+).fit(params, y, stdev, gpr_maxiter=10000, glm_seed=123456)
 
-#TODO: Validate emulators here
 
 # Propose new parameters to look at within the current sample space
 psamples_within  = hm2.sampling.latin_hypercube_within(parameter_samples, 1000)
