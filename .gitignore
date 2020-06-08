@@ -44,6 +44,8 @@ tmp/
 
 # Testing temporaries
 test_coverage/
+.noseids
+nosetests.xml
 
 TODO
 misc/
