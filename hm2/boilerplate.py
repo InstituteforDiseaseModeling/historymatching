@@ -44,9 +44,7 @@ def match_sim_to_observations(sim_output, observations):
             "Attempting to match a TimeObservationsFrame to a SummaryObservationsFrame!"
         )
 
-    time_frame = "time" in sim_output.columns
-
-    if time_frame:
+    if "time" in sim_output.columns:
         # Left merge, matching each modeled and actual observation to its nearest
         # analogue by time
         temp = pd.merge_asof(
@@ -106,55 +104,78 @@ def _validated_run(wrapped_model, param_set, replicate):
 
 
 def run_replicates(wrapped_model, replicates, param_sets=None, processes=None):
-    if param_sets is None:  # Means we run with default parameters
-        param_sets = [dict()]
-    elif isinstance(param_sets, dict):
-        param_sets = [param_sets]
-    elif isinstance(param_sets, pd.DataFrame):
-        param_sets = ValidateParameterSamplesFrame(param_sets)
-        param_sets = [x.to_dict() for _, x in param_sets.iterrows()]
-    elif isinstance(param_sets, list) and all(
-        [isinstance(x, dict) for x in param_sets]
-    ):
-        pass
-    else:
-        raise HistoryMatchingError(
-            "`param_sets` should be a ParameterSamplesFrame, dictionary, a list of dictionaries, or None!"
-        )
+    """Runs a wrapped model `replicates` number of times for each row in param_sets
+
+    Args:
+        wrapped_model: A wrapped model (see :ref:`Wrapping A Model`)
+        replicates: How many times to row the model per parameter set
+        param_sets: A :ref:`ParameterSamplesFrame`.
+        processes: Parallelize across this many processes. `None` implies using
+                   as many processes as cores. `1` implies using a single core.
+
+    Returns: A list of (:ref:`TimeSimFrame`, :ref:`SummarySimFrame`).
+             Has length `replicates*len(param_sets)`.
+    """
+    param_sets = ValidateParameterSamplesFrame(param_sets)
+    param_sets = [x.to_dict() for _, x in param_sets.iterrows()]
 
     _assert_processes_none_or_positive(processes)
-    if processes == 1:
-        mapper = itertools.starmap
-    else:
-        mapper = multiprocessing.Pool(processes=processes).starmap
 
-    return list(
-        mapper(
-            _validated_run,
-            itertools.product([wrapped_model], param_sets, list(range(replicates))),
-        )
+    mapper_args = (
+        _validated_run,
+        itertools.product([wrapped_model], param_sets, list(range(replicates)))
     )
+
+    if processes == 1:
+        results = itertools.starmap(*mapper_args)
+    else:
+        pool = multiprocessing.Pool(processes=processes)
+        results = pool.starmap(*mapper_args)
+        pool.close()
+        pool.join()
+
+    return list(results)
 
 
 def match_sim_outputs_to_observations(
     sim_outputs, time_observations, summary_observations, processes=None
 ):
+    """Matches simulation outputs to actual observations.
+
+    Args:
+        sim_outputs(list): A list of (:ref:`TimeSimFrame`, :ref:`SummarySimFrame`).
+        time_observations: A :ref:`TimeObservationsFrame`
+        summary_observations: A :ref:`SummaryObservationsFrame`
+        processes: Parallelize across this many processes. `None` implies using
+                   as many processes as cores. `1` implies using a single core.
+
+    Returns: A pair of (:ref:`MatchedFrame`,:ref:`MatchedFrame`) which match
+             the simulation results to the observed time and summary results,
+             respectively.
+    """
     if not isinstance(sim_outputs, list):
         raise TypeError("`sim_outputs` must be a list")
     if not all([isinstance(x, tuple) for x in sim_outputs]):
         raise TypeError("`sim_outputs` must be a list of tuples!")
 
     _assert_processes_none_or_positive(processes)
-    if processes == 1:
-        mapper = itertools.starmap
-    else:
-        mapper = multiprocessing.Pool(processes=processes).starmap
 
-    observations = [(time_observations, summary_observations)]
+    sim_outputs = [ValidateSimFrame(x) for x in sim_outputs]
 
-    matched = mapper(
-        match_sim_to_observations, itertools.product(sim_outputs, observations)
+    mapper_args = (
+        match_sim_to_observations,
+        itertools.product(sim_outputs, [(time_observations, summary_observations)])
     )
+
+    breakpoint()
+
+    if processes == 1:
+        matched = itertools.starmap(*mapper_args)
+    else:
+        pool = multiprocessing.Pool(processes=processes)
+        matched = pool.starmap(*mapper_args)
+        pool.close()
+        pool.join()
 
     aggregator = (
         lambda x: None if all(y is None for y in x) else pd.concat(x, ignore_index=True)
