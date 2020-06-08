@@ -96,7 +96,7 @@ def _validated_run(wrapped_model, param_set, replicate):
     param_set = drop_key(param_set, "param_id", ignore_missing=True)
 
     # Run the model and ensure it returns valid results
-    sim_results = ValidateObservationsFrame(wrapped_model(**param_set))
+    sim_results = ValidateSimObservationsFrame(wrapped_model(**param_set))
 
     add_to_frame(sim_results, "replicate", replicate)
     add_to_frame(sim_results, "param_id", param_id)

@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 from .data_validation import ValidateParameterInfoFrame, ValidateParameterSamplesFrame
-from .error import HistoryMatchingError
+from .error import *
 
 def latin_hypercube(
   param_info: pd.DataFrame,
@@ -78,7 +78,7 @@ def latin_hypercube_within(
   assert random_state is None or isinstance(random_state, int)
 
   if len(parameter_samples)==0:
-    raise HistoryMatchingError("parameter_samples was empty!")
+    raise HMParameterSamplesEmpty()
 
   # Strip down to parameters
   parameter_samples = ValidateParameterSamplesFrame(parameter_samples)

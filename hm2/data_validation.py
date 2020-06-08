@@ -1,37 +1,21 @@
 import pandas as pd
 
-from .error import HistoryMatchingError
-
-
-
-def _CheckColumns(df, required_cols, df_name, optional_cols=None, no_extra=True):
-  for col in required_cols:
-    if col not in df.columns:
-      raise HistoryMatchingError(f"{df_name} must include `{col}` column!")
-
-  #What columns remaing after we have accounted for the required ones?
-  remaining_columns = set(df.columns.tolist()) - set(required_cols)
-  #Subtract off any optional columns
-  if optional_cols is not None:
-    remaining_columns -= set(optional_cols)
-  #Now, check to see if there are any extra
-  if no_extra and len(remaining_columns)>0:
-    raise HistoryMatchingError("{df_name} had extra columns! Found {cf}. Required {cr} with {opt} optionally permitted! Extra columns were {extra}.".format(
-      df_name=df_name,
-      cf=sorted(df.columns.tolist()),
-      cr=sorted(required_cols),
-      opt=sorted(optional_cols) if optional_cols else [],
-      extra=remaining_columns
-    ))
+from .error import *
 
 
 
 def ValidateParameterInfoFrame(df, copy=True):
   if not isinstance(df, pd.DataFrame):
-    raise TypeError("ParameterInfoFrame must be a pandas DataFrame!")
-  _CheckColumns(df, ['name','min','max'], 'ParameterInfoFrame')
+    raise HMNotADataFrame("ParameterInfoFrame")
+
+  if 'name' not in df.columns: raise HMMissingColumn("ParameterInfoFrame", "name")
+  if 'min'  not in df.columns: raise HMMissingColumn("ParameterInfoFrame", "min")
+  if 'max'  not in df.columns: raise HMMissingColumn("ParameterInfoFrame", "max")
+  if len(df.columns)>3: raise HMExtraColumns("ParameterInfoFrame")
+
   if not (df['min']<=df['max']).all():
-    raise HistoryMatchingError("All entries of ParameterInfoFrame `min` column must be less than their corresponding `max` values!")
+    raise HMMaxLessThanMin("ParameterInfoFrame")
+
   return df.copy() if copy else df
 
 
@@ -39,42 +23,54 @@ def ValidateParameterInfoFrame(df, copy=True):
 def ValidateParameterSamplesFrame(df, copy=True):
   """Validates a parameter sampling DataFrame and returns a copy"""
   if not isinstance(df, pd.DataFrame):
-    raise TypeError("ParameterSamplesFrame must be a pandas DataFrame!")
-  if 'param_id' not in df.columns:
-    raise HistoryMatchingError("ParameterSamplesFrame must include `param_id` column!")
+    raise HMNotADataFrame("ParameterSamplesFrame")
+  if 'param_id' not in df.columns: raise HMMissingColumn("ParameterSamplesFrame", "param_id")
   return df.copy() if copy else df
 
 
 
-def ValidateObservationsFrame(df, copy=True):
+def ValidateObservationsFrame(df, copy=True, frame_name="ObservationsFrame"):
   """Validates an ObservationsFrame and returns a copy"""
   if not isinstance(df, pd.DataFrame):
-    raise TypeError("ObservationsFrame must be a pandas DataFrame!")
+    raise HMNotADataFrame(f"{frame_name}")
 
-  _CheckColumns(df, ['observation_id','time','observation','value','stdev'], 'ObservationsFrame')
+  if "observation_id" not in df.columns: raise HMMissingColumn(f"{frame_name}", "observation_id")
+  if "time"           not in df.columns: raise HMMissingColumn(f"{frame_name}", "time")
+  if "observation"    not in df.columns: raise HMMissingColumn(f"{frame_name}", "observation")
+  if "value"          not in df.columns: raise HMMissingColumn(f"{frame_name}", "value")
+  if "stdev"          not in df.columns: raise HMMissingColumn(f"{frame_name}", "stdev")
+  if len(df.columns)>5: raise HMExtraColumns("ParameterInfoFrame")
 
   if any(df['time'].isna()):
     raise HistoryMatchingError("ObservationFrame's `time` column contained NaNs!")
 
   if not df.groupby('observation')['time'].is_monotonic_increasing.all():
-    raise HistoryMatchingError("ObservationsFrame's `time` column is not monotonically increasing!")
+    raise HMTimeIsNotMonotonic(frame_name)
 
   if not df['observation_id'].is_unique:
-    raise HistoryMatchingError("ObservationsFrame's `observation_id` column has non-unique values!")
+    raise HMObservationIDsNotUnique(frame_name)
 
   unique_key = ['time','observation']
   if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
-    raise HistoryMatchingError("ObservationsFrame contained the same observation made twice at the same time!")
+    raise HMTwoObservationsAtOneTime(frame_name)
 
   return df.copy() if copy else df
 
-
+def ValidateSimObservationsFrame(df, copy=True):
+  return ValidateObservationsFrame(df, copy=copy, frame_name="SimObservationsFrame")
 
 def ValidateSimFrame(df, copy=True):
   if not isinstance(df, pd.DataFrame):
-    raise TypeError("SimFrame must be a pandas DataFrame!")
+    raise HMNotADataFrame("SimFrame")
 
-  _CheckColumns(df, ['param_id','replicate','time','observation','value','stdev','observation_id'], 'SimFrame')
+  if "param_id"       not in df.columns: raise HMMissingColumn("SimFrame", "param_id")
+  if "replicate"      not in df.columns: raise HMMissingColumn("SimFrame", "replicate")
+  if "time"           not in df.columns: raise HMMissingColumn("SimFrame", "time")
+  if "observation"    not in df.columns: raise HMMissingColumn("SimFrame", "observation")
+  if "value"          not in df.columns: raise HMMissingColumn("SimFrame", "value")
+  if "stdev"          not in df.columns: raise HMMissingColumn("SimFrame", "stdev")
+  if "observation_id" not in df.columns: raise HMMissingColumn("SimFrame", "observation_id")
+  if len(df.columns)>7: raise HMExtraColumns("SimFrame")
 
   unique_key = ['param_id','replicate','time','observation_id','observation']
   if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
@@ -86,9 +82,14 @@ def ValidateSimFrame(df, copy=True):
 
 def ValidateMatchedFrame(df, copy=True):
   if not isinstance(df, pd.DataFrame):
-    raise TypeError("MatchedFrame must be a pandas DataFrame!")
+    raise HMNotADataFrame("MatchedFrame")
 
-  _CheckColumns(df, ['observation_id_a','replicate','value','stdev','param_id'], 'MatchedFrame')
+  if "observation_id_a" not in df.columns: raise HMMissingColumn("MatchedFrame", "observation_id_a")
+  if "replicate"        not in df.columns: raise HMMissingColumn("MatchedFrame", "replicate")
+  if "value"            not in df.columns: raise HMMissingColumn("MatchedFrame", "value")
+  if "stdev"            not in df.columns: raise HMMissingColumn("MatchedFrame", "stdev")
+  if "param_id"         not in df.columns: raise HMMissingColumn("MatchedFrame", "param_id")
+  if len(df.columns)>5: raise HMExtraColumns("SimFrame")
 
   unique_key = ['param_id','replicate','observation_id_a']
   if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
@@ -111,16 +112,16 @@ def ValidateMatchedFrame(df, copy=True):
 
 
 
-def ValidateEmulatorInput(df, copy=True):
-  if not isinstance(df, pd.DataFrame):
-    raise TypeError("SingleEmulatorInput must be a pandas DataFrame!")
+# def ValidateEmulatorInput(df, copy=True):
+#   if not isinstance(df, pd.DataFrame):
+#     raise HMNotADataFrame("SingleEmulatorInput")
 
-  _CheckColumns(df,['param_id','replicate','observation','value','stdev'], "SingleEmulatorInput", optional_cols=['aobservation_id'])
+#   _CheckColumns(df,['param_id','replicate','observation','value','stdev'], "SingleEmulatorInput", optional_cols=['aobservation_id'])
 
-  if len(df["observation"].unique())!=1:
-    raise HistoryMatchingError("SingleEmulatorInput must have a single observation type!")
+#   if len(df["observation"].unique())!=1:
+#     raise HistoryMatchingError("SingleEmulatorInput must have a single observation type!")
 
-  if 'aobservation_id' in df.columns and len(df["aobservation_id"].unique())!=1:
-    raise HistoryMatchingError("SingleEmulatorInput for a time series must refer to only a single time point!")
+#   if 'aobservation_id' in df.columns and len(df["aobservation_id"].unique())!=1:
+#     raise HistoryMatchingError("SingleEmulatorInput for a time series must refer to only a single time point!")
 
-  return df.copy() if copy else df
+#   return df.copy() if copy else df

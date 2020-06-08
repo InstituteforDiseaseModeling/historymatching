@@ -3,7 +3,7 @@ import pandas as pd
 import unittest
 
 from hm2.sampling import latin_hypercube, latin_hypercube_within
-from hm2.error import HistoryMatchingError
+from hm2.error import *
 
 class SamplingTest(unittest.TestCase):
     def test_missing_name(self):
@@ -12,7 +12,10 @@ class SamplingTest(unittest.TestCase):
             'min':  [  1e-6,    1e-6],
             'max':  [  0.01,     0.5]
         })
-        self.assertRaises(HistoryMatchingError, latin_hypercube, param_info, 30)
+        with self.assertRaises(HMMissingColumn) as cm:
+            latin_hypercube(param_info, 30)
+        self.assertTrue(cm.exception.missing_column=='name')
+        self.assertTrue(cm.exception.df_name=='ParameterInfoFrame')
 
     def test_missing_min(self):
         param_info = pd.DataFrame({
@@ -20,7 +23,10 @@ class SamplingTest(unittest.TestCase):
             'min2': [  1e-6,    1e-6],
             'max':  [  0.01,     0.5]
         })
-        self.assertRaises(HistoryMatchingError, latin_hypercube, param_info, 30)
+        with self.assertRaises(HMMissingColumn) as cm:
+            latin_hypercube(param_info, 30)
+        self.assertTrue(cm.exception.missing_column=='min')
+        self.assertTrue(cm.exception.df_name=='ParameterInfoFrame')
 
     def test_missing_max(self):
         param_info = pd.DataFrame({
@@ -28,15 +34,18 @@ class SamplingTest(unittest.TestCase):
             'min':   [  1e-6,    1e-6],
             'max2':  [  0.01,     0.5]
         })
-        self.assertRaises(HistoryMatchingError, latin_hypercube, param_info, 30)
+        with self.assertRaises(HMMissingColumn) as cm:
+            latin_hypercube(param_info, 30)
+        self.assertTrue(cm.exception.missing_column=='max')
+        self.assertTrue(cm.exception.df_name=='ParameterInfoFrame')
 
-    def test_missing_misordered(self):
+    def test_max_smaller_than_min(self):
         param_info = pd.DataFrame({
             'name':  ['Beta', 'Gamma'],
             'min':   [     3,       4],
             'max':   [   100,    -100]
         })
-        self.assertRaises(HistoryMatchingError, latin_hypercube, param_info, 30)
+        self.assertRaises(HMMaxLessThanMin, latin_hypercube, param_info, 30)
 
     def test_scaling(self):
         param_info = pd.DataFrame({
@@ -117,7 +126,10 @@ class SampleWithinTest(unittest.TestCase):
             'min':  [  1e-6,    1e-6],
             'max':  [  0.01,     0.5]
         })
-        self.assertRaises(HistoryMatchingError, latin_hypercube_within, param_info, 30)
+        with self.assertRaises(HMMissingColumn) as cm:
+            latin_hypercube_within(param_info, 30)
+        self.assertTrue(cm.exception.missing_column=='param_id')
+        self.assertTrue(cm.exception.df_name=='ParameterSamplesFrame')
 
     def test_scaling(self):
         param_info = pd.DataFrame({
@@ -140,3 +152,7 @@ class SampleWithinTest(unittest.TestCase):
         self.assertTrue( not (cube['Beta' ] < -100).any() )
         self.assertTrue( not (cube['Gamma'] >  100).any() )
         self.assertTrue( not (cube['Gamma'] <   10).any() )
+
+    def test_empty(self):
+        param_info = pd.DataFrame({'name':[],'min':[],'max':[]})
+        self.assertRaises(HMParameterSamplesEmpty, latin_hypercube_within, param_info, 30)

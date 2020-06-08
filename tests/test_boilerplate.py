@@ -3,7 +3,7 @@ import pandas as pd
 import unittest
 
 from hm2.data_validation import ValidateSimFrame
-from hm2.error import HistoryMatchingError
+from hm2.error import *
 from hm2.models.sir import SIR
 import hm2.boilerplate as bp
 import hm2.sampling
@@ -26,10 +26,11 @@ def SIRWrapperForParallel(**kwargs):
 class BoilerplateTest(unittest.TestCase):
     def setUp(self):
         self.observations = pd.DataFrame({
-            'time':           [ 3,  15],
-            'observation_id': [ 0,   1],
-            'prevalence':     [15,  40],
-            'stdev':          [ 4, 2.3],
+            'observation_id': [           0,            1],
+            'time':           [         3.0,         15.0],
+            'observation':    ['prevalence', 'prevalence'],
+            'value':          [          15,           40],
+            'stdev':          [           4,          2.3]
         })
 
         self.param_info = pd.DataFrame({
@@ -95,26 +96,6 @@ class BoilerplateTest(unittest.TestCase):
           ValidateSimFrame(x)
         #TODO: Check results
 
-    def test_observations_missing_time(self):
-
-        def SIRWrapper(**kwargs):
-            model = SIR(**kwargs)
-            results = model.run()
-            results['prevalence'] = results['per_infected']
-            results['stdev'] = 1 #Junk value TODO
-            return results
-
-        #Observations is missing `time`
-        del self.observations['time']
-
-        self.assertRaises(HistoryMatchingError,
-          hm2.boilerplate.run_replicates,
-          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
-          wrapped_model = SIRWrapper,
-          replicates=1,
-          processes=1
-        )
-
     def test_observations_missing_observation_id(self):
         def SIRWrapper(**kwargs):
               model = SIR(**kwargs)
@@ -126,13 +107,15 @@ class BoilerplateTest(unittest.TestCase):
         #Observations is missing `observation_id`
         del self.observations['observation_id']
 
-        self.assertRaises(HistoryMatchingError,
-          hm2.boilerplate.run_replicates,
-          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
-          wrapped_model=SIRWrapper,
-          replicates=1,
-          processes=1
-        )
+        with self.assertRaises(HMMissingColumn) as cm:
+          hm2.boilerplate.run_replicates(
+            param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+            wrapped_model=SIRWrapper,
+            replicates=1,
+            processes=1
+          )
+          self.assertTrue(cm.exception.missing_column=='time')
+          self.assertTrue(cm.exception.df_name=='ObservationsFrame')
 
     def test_model_results_missing_time(self):
         def SIRWrapper(**kwargs):
@@ -140,33 +123,19 @@ class BoilerplateTest(unittest.TestCase):
               results = model.run()
               results['prevalence'] = results['per_infected']
               results['stdev'] = 1 #Junk value TODO
+              results['observation_id'] = list(range(len(results)))
               del results['time']
               return results
 
-        self.assertRaises(HistoryMatchingError,
-          hm2.boilerplate.run_replicates,
-          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
-          wrapped_model=SIRWrapper,
-          replicates=1,
-          processes=1
-        )
-
-    def test_model_results_missing_observation_name(self):
-        def SIRWrapper(**kwargs):
-              model = SIR(**kwargs)
-              results = model.run()
-              # Oh no, we forgot to include prevalence in the results!
-              # results['prevalence'] = results['per_infected']
-              results['stdev'] = 1 #Junk value TODO
-              return results
-
-        self.assertRaises(HistoryMatchingError,
-          hm2.boilerplate.run_replicates,
-          param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
-          wrapped_model = SIRWrapper,
-          replicates = 1,
-          processes = 1
-        )
+        with self.assertRaises(HMMissingColumn) as cm:
+          hm2.boilerplate.run_replicates(
+            param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+            wrapped_model=SIRWrapper,
+            replicates=1,
+            processes=1
+          )
+        self.assertTrue(cm.exception.missing_column=='time')
+        self.assertTrue(cm.exception.df_name=='SimObservationsFrame')
 
     def test_time_analysis_returns_correct_columns(self):
         def SIRWrapper(**kwargs):
@@ -177,40 +146,6 @@ class BoilerplateTest(unittest.TestCase):
               results['stdev'] = 1 #Junk value TODO
               results['observation_id'] = list(range(len(results)))
               return results
-
-    def test_bad_wrap(self):
-        def SIRWrapper(**kwargs):
-              model = SIR(**kwargs)
-              results = model.run()
-              results['prevalence'] = results['per_infected']
-              results['stdev'] = 1 #Junk value TODO
-              return results
-
-        parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
-
-        self.assertRaises(HistoryMatchingError, hm2.boilerplate.run_replicates,
-          wrapped_model = SIRWrapper,
-          param_sets = parameter_samples,
-          replicates = 1,
-          processes = 1
-        )
-
-    def test_returns_tuple(self):
-        def SIRWrapper(**kwargs):
-              model = SIR(**kwargs)
-              results = model.run()
-              results['prevalence'] = results['per_infected']
-              results['stdev'] = 1 #Junk value TODO
-              return [results]  #Note that this is returning a list
-
-        parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
-
-        self.assertRaises(TypeError, hm2.boilerplate.run_replicates,
-          param_sets = parameter_samples,
-          wrapped_model = SIRWrapper,
-          replicates=1,
-          processes=1
-        )
 
 class TestMatches(unittest.TestCase):
     def setUp(self):
@@ -244,7 +179,7 @@ class TestMatches(unittest.TestCase):
           self.real_observations,
           processes=1
         )
-        self.assertRaises(TypeError,
+        self.assertRaises(HMNotADataFrame,
           hm2.boilerplate.match_sim_outputs_to_observations,
           ["not a list of SimFrame"],
           self.real_observations,

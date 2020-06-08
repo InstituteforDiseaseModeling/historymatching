@@ -1,13 +1,46 @@
 import pandas as pd
 import unittest
 
-from hm2.error import HistoryMatchingError
+from hm2.error import *
 import hm2.data_validation as dv
 
 class TestFramesForValidity(unittest.TestCase):
-    def test_non_frames(self):
-      frame = "I am not a DataFrame"
-      self.assertRaises(TypeError, dv.ValidateParameterSamplesFrame, frame)
-      self.assertRaises(TypeError, dv.ValidateObservationsFrame,     frame)
-      self.assertRaises(TypeError, dv.ValidateSimFrame,              frame)
-      self.assertRaises(TypeError, dv.ValidateMatchedFrame,          frame)
+  def test_non_frames(self):
+    frame = "I am not a DataFrame"
+    with self.assertRaises(HMNotADataFrame) as cm:
+      dv.ValidateParameterInfoFrame(frame)
+    self.assertTrue(cm.exception.df_name=="ParameterInfoFrame")
+    with self.assertRaises(HMNotADataFrame) as cm:
+      dv.ValidateParameterSamplesFrame(frame)
+    self.assertTrue(cm.exception.df_name=="ParameterSamplesFrame")
+    with self.assertRaises(HMNotADataFrame) as cm:
+      dv.ValidateObservationsFrame(frame)
+    self.assertTrue(cm.exception.df_name=="ObservationsFrame")
+    with self.assertRaises(HMNotADataFrame) as cm:
+      dv.ValidateSimFrame(frame)
+    self.assertTrue(cm.exception.df_name=="SimFrame")
+    with self.assertRaises(HMNotADataFrame) as cm:
+      dv.ValidateMatchedFrame(frame)
+    self.assertTrue(cm.exception.df_name=="MatchedFrame")
+
+  def test_time_increases(self):
+    observations = pd.DataFrame({
+      'observation_id': [           0,            1],
+      'time':           [        15.0,          1.0],
+      'observation':    ['prevalence', 'prevalence'],
+      'value':          [          15,           40],
+      'stdev':          [           4,          2.3]
+    })
+
+    self.assertRaises(HMTimeIsNotMonotonic, dv.ValidateObservationsFrame, observations)
+
+  def test_unique_observation(self):
+    observations = pd.DataFrame({
+      'observation_id': [           0,            1],
+      'time':           [        15.0,         15.0],
+      'observation':    ['prevalence', 'prevalence'],
+      'value':          [          15,           40],
+      'stdev':          [           4,          2.3]
+    })
+
+    self.assertRaises(HMTwoObservationsAtOneTime, dv.ValidateObservationsFrame, observations)
