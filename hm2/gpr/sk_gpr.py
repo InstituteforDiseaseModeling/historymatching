@@ -34,6 +34,16 @@ class SkGPR:
 
         self.model.fit(train_x, train_y)
 
+    @property
+    def _trainx(self):
+        assert self.model is not None
+        return self.model.X_train_
+
+    @property
+    def _trainy(self):
+        assert self.model is not None
+        return self.model.y_train_
+
     def predict(self, test_x):
         """Evaluate the GLM and return the mean prediction.
 

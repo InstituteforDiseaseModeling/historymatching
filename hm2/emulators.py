@@ -7,17 +7,21 @@ import hm2.gpr
 from hm2.plotting import *
 
 
-class EmulatorBase(abc.ABC):
-    def _fit(self, train_x, train_y, stdev_y):
-        self._train_x = train_x.copy()
+class EmulatorBase(abc.ABC):  # pragma: no cover
+    def _prep_fitting_data(self,
+        train_x: pd.DataFrame,
+        train_y,
+        stdev_y: float
+    ):
+        train_x = ValidateParameterSamplesFrame(train_x)
+        train_x = train_x.drop(columns='param_id')
+        self._train_x = train_x
         self._train_y = train_y.copy()
         self._stdev_y = stdev_y.copy()
         return train_x, train_y, stdev_y
 
-    def _predict(self, train_x):
-        if "param_id" in train_x.columns:
-            train_x = train_x.drop(columns="param_id")  # TODO
-        return train_x
+    def _prep_prediction_data(self, train_x):
+        return train_x.drop(columns="param_id")
 
     @abc.abstractmethod
     def fit(self):
@@ -31,18 +35,26 @@ class EmulatorBase(abc.ABC):
     def plot_data(self, *args, **kwargs):
         pass
 
+
+
 class SkGPREmulator(EmulatorBase):
-    def __init__(self, basis):
+    """Use the Sklearn GPR as the emulator"""
+    def __init__(self, basis:EmulatorBase):
         if not isinstance(basis, BasisBase):
             raise HistoryMatchingError("`basis` must inherit from BasisBase!")
         self.basis = basis
         self.gpr = hm2.gpr.SkGPR()
 
-    def fit(self, train_x, train_y, stdev_y, maxiter):
+    def fit(self,
+        train_x: pd.DataFrame,
+        train_y,
+        stdev_y,
+        maxiter:int
+    ):
         """Fit the GPR.
 
         Args:
-            train_x: Training data
+            train_x: Training data. A :ref:`ParameterSamplesFrame`.
             train_y: Correct outputs
             stdev_y: Standard deviation of Y values (uncertainty)
             maxiter (int): Maximum number of training iterations
@@ -50,7 +62,9 @@ class SkGPREmulator(EmulatorBase):
         Returns:
             None
         """
-        train_x, train_y, stdev_y = self._fit(train_x, train_y, stdev_y)
+        assert isinstance(maxiter,int) and maxiter>=0
+
+        train_x, train_y, stdev_y = self._prep_fitting_data(train_x, train_y, stdev_y)
 
         # Extract the relevant parameter sample values
         self.gpr.fit(
@@ -62,7 +76,15 @@ class SkGPREmulator(EmulatorBase):
         return self
 
     def predict(self, test_x):
-        test_x = self._predict(test_x)
+        """Evaluate the emulator and return its prediction.
+
+        Args:
+            test_x: Data frame of points similar to training_data.
+
+        Returns:
+            Predicted outputs at the inputs specified by data.
+        """
+        test_x = self._prep_prediction_data(test_x)
         return self.gpr.predict(self.basis(test_x))
 
     def plot_data(self, *args, **kwargs):
@@ -76,13 +98,16 @@ class GLM_GPR_Emulator(EmulatorBase):
     """
 
     def __init__(
-        self, glm_basis, gpr_basis, family="gaussian",
+        self,
+        glm_basis: EmulatorBase,
+        gpr_basis: EmulatorBase,
+        family:str="gaussian",
     ):
         """Initialize the Emulator"""
         if not isinstance(glm_basis, BasisBase):
-            raise HistoryMatchingError("`glm_basis` must inherit from BasisBase!")
+            raise TypeError("`glm_basis` must inherit from BasisBase!")
         if not isinstance(gpr_basis, BasisBase):
-            raise HistoryMatchingError("`gpr_basis` must inherit from BasisBase!")
+            raise TypeError("`gpr_basis` must inherit from BasisBase!")
 
         self.glm_basis = glm_basis
         self.gpr_basis = gpr_basis
@@ -90,11 +115,17 @@ class GLM_GPR_Emulator(EmulatorBase):
         self.glm = hm2.glm.GLM(family=family)
         self.gpr = hm2.gpr.SkGPR()
 
-    def fit(self, train_x, train_y, stdev_y, glm_maxiter=1000, gpr_maxiter=1000):
+    def fit(self,
+        train_x: pd.DataFrame,
+        train_y,
+        stdev_y,
+        glm_maxiter:int=1000,
+        gpr_maxiter:int=1000
+    ):
         """Fit the GPR.
 
         Args:
-            train_x: Training data
+            train_x: Training data. A :ref:`ParameterSamplesFrame`.
             train_y: Correct outputs
             stdev_y: Standard deviation of Y values (uncertainty)
             glm_maxiter (int): Maximum number of training iterations in GLM fitting
@@ -103,7 +134,10 @@ class GLM_GPR_Emulator(EmulatorBase):
         Returns:
             None
         """
-        train_x, train_y, stdev_y = self._fit(train_x, train_y, stdev_y)
+        assert isinstance(glm_maxiter,int) and glm_maxiter>=0
+        assert isinstance(gpr_maxiter,int) and gpr_maxiter>=0
+
+        train_x, train_y, stdev_y = self._prep_fitting_data(train_x, train_y, stdev_y)
 
         # Extract the relevant parameter sample values
         train_x_glm = self.glm_basis(train_x)
@@ -117,22 +151,27 @@ class GLM_GPR_Emulator(EmulatorBase):
 
         return self
 
-    def predict(self, test_x):
-        """Evaluate the emulator and return the mean prediction.
+    def predict(
+        self,
+        test_x: pd.DataFrame
+    ):
+        """Evaluate the emulator and return its prediction.
 
         Args:
-            test_x (Pandas DataFrame):
-                Data frame of points similar to training_data.
+            test_x: Data frame of points similar to training_data.
 
         Returns:
             Predicted outputs at the inputs specified by data.
         """
-        test_x = self._predict(test_x)
+        test_x = self._prep_prediction_data(test_x)
 
         test_x_glm = self.glm_basis(test_x)
         test_x_gpr = self.gpr_basis(test_x)
 
-        return self.glm.predict(test_x_glm) + self.gpr.predict(test_x_gpr)
+        glm_prediction = self.glm.predict(test_x_glm)
+        gpr_prediction, gpr_stdev = self.gpr.predict(test_x_gpr)
+
+        return glm_prediction + gpr_prediction, gpr_stdev
 
     def plot_data(self, *args, **kwargs):
         return plot_pairwise(

@@ -10,6 +10,7 @@ import pickle
 from .error import HistoryMatchingError
 from .data_validation import *
 from .utility import drop_key
+from .emulators import EmulatorBase
 
 
 # TODO: Handle summary values
@@ -137,7 +138,9 @@ def run_replicates(wrapped_model, replicates, param_sets=None, processes=None):
 
 
 def match_sim_outputs_to_observations(
-    sim_outputs, real_observations, processes=None
+    sim_outputs: pd.DataFrame,
+    real_observations: pd.DataFrame,
+    processes=None
 ):
     """Matches simulation outputs to actual observations.
 
@@ -177,7 +180,11 @@ def match_sim_outputs_to_observations(
 
     return pd.concat(matched, ignore_index=True)
 
-def prep_emulator_data(param_samples, matched, observation_id):
+def prep_emulator_data(
+    param_samples: pd.DataFrame,
+    matched: pd.DataFrame,
+    observation_id
+):
     """Fit the Emulator
 
     Args:
@@ -214,20 +221,24 @@ def prep_emulator_data(param_samples, matched, observation_id):
     return train_x, train_y, stdev_y
 
 
-def get_data_for_emulators(param_samples, matched):
-    """Fit the Emulator
+def get_data_for_emulators(
+    param_samples: pd.DataFrame,
+    matched: pd.DataFrame
+):
+    """Merges the values of `param_samples` with the appropriate rows in
+    `matched` and returns the results grouped by the real observations' ids.
 
     Args:
-        param_samples (:ref:`ParameterSamplesFrame`)
+        param_samples: A :ref:`ParameterSamplesFrame`
         matched: A :ref:`SimFrame` built using parameters from `param_samples`.
 
-    Returns:
-        None
+    Yields: A tuple of `(observation_id, parameters, y, stdev)`
     """
     param_samples = ValidateParameterSamplesFrame(param_samples, copy=False)
     matched = ValidateMatchedFrame(matched, copy=False)
+
     merged = pd.merge(matched, param_samples, how="left", on="param_id")
-    merged = merged.drop(columns="param_id")
+
     for observation_id_a, grouped in merged.groupby("observation_id_a"):
         train_y = grouped["value"].to_numpy()
         stdev_y = grouped["stdev"].to_numpy()
@@ -246,9 +257,32 @@ def _implausibility_equ(
     )
 
 
-def get_implausibility(emulators, parameter_samples, observations, model_stdev=0):
-    #TODO: Check input type
+def get_implausibility(
+    emulators: dict,
+    parameter_samples: pd.DataFrame,
+    observations: pd.DataFrame,
+    model_stdev: float=0.0
+):
+    """Uses the emulators to determine the implausibility of each
+    parameter_sample given the observations and model variability.
+
+    Args:
+        emulators: A dictionary association observation_ids with emulators.
+        parameter_samples: A :ref:`ParameterSamplesFrame`.
+        observations: A :ref:`ObservationsFrame`.
+        model_stdev: A value indicating the internal variability of the model.
+
+    Returns: TODO
+    """
+    for obs, emulator in emulators.items():
+        if not isinstance(emulator, EmulatorBase):
+            raise HistoryMatchingError(f"Observation {obs} was not associated with a valid emulator!")
+
     parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+    observations = ValidateObservationsFrame(observations)
+
+    assert isinstance(model_stdev, (int,float))
+    assert model_stdev>=0
 
     implausibilities = []
     for _, row in observations.iterrows():

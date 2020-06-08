@@ -139,20 +139,18 @@ matched = match_sim_outputs_to_observations(
 # gamma) terms.
 
 #Prepare data for emulator (make a train_x, train_y, stdev_y tuple)
-time_emulators = dict()
+emulators = dict()
 for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched):
   #Train emulator
-  time_emulators[obs] = hm2.emulators.GLM_GPR_Emulator(
+  emulators[obs] = hm2.emulators.GLM_GPR_Emulator(
     glm_basis=hm2.basis.IdentityBasis(intercept=False),
     gpr_basis=hm2.basis.IdentityBasis(intercept=False)
   ).fit(params, y, stdev, gpr_maxiter=10000)
-  # time_emulators[obs].glm.plot_fitted_vs_observed()
-  # time_emulators[obs].glm.plot_pearson_residuals()
-  # time_emulators[obs].glm.plot_deviance_redisuals()
-  # time_emulators[obs].glm.plot_QQ()
-  # figs = time_emulators[obs].plot_data() #TODO
-
-
+  # emulators[obs].glm.plot_fitted_vs_observed()
+  # emulators[obs].glm.plot_pearson_residuals()
+  # emulators[obs].glm.plot_deviance_redisuals()
+  # emulators[obs].glm.plot_QQ()
+  # figs = emulators[obs].plot_data() #TODO
 
 
 #TODO: Validate emulators here
@@ -161,7 +159,7 @@ for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched):
 psamples_within  = hm2.sampling.latin_hypercube_within(parameter_samples, 1000)
 # Use the emulators to determine how plausible each of the proposed parameter
 # samples are
-implausibilities = get_implausibility(time_emulators, psamples_within, real_observations)
+implausibilities = get_implausibility(emulators, psamples_within, real_observations)
 # Each parameter sample has implausibility values associated with several
 # emulators. We want to find the maximum implausibility for each sample.
 implausibilities = max_implausibility_per_param(implausibilities)
