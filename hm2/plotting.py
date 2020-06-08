@@ -97,18 +97,20 @@ def plot_pairwise(X, color=None, figsize=None, cmap='viridis', alpha=0.5):
     return plots
 
 
-def plot_runs_time_series(runs, param_id=None, samples=None, time_observations=None):
+def plot_runs_time_series(runs, param_id=None, samples=None, real_observations=None):
     """Plots all the observations from a model in time series graphs.
 
     Args:
-        runs (list): A list of either :ref:`TimeSimFrame` or (:ref:`TimeSimFrame`,:ref:`SummarySimFrame`) tuples.
+        runs (list): A list of :ref:`SimFrame`.
         param_id (int): Filter to this param_id. `None` implies no filtering.
         samples (int): Randomly choose this many runs to display. `None` implies all.
-        time_observations (:ref:`TimeObservationsFrame`): Time observations to show
+        observations (:ref:`ObservationsFrame`): Observations to show. Only time obserations are shown.
 
     Returns:
         A plotnine image
     """
+    #TODO: Only show time values
+
     #If we have pairs of (Time,Summary), get the times
     if isinstance(runs[0], tuple):
         runs = [x[0] for x in runs]
@@ -120,7 +122,7 @@ def plot_runs_time_series(runs, param_id=None, samples=None, time_observations=N
         runs=random.sample(runs,samples)
     #Validate the runs we're gonna plot
     for x in runs:
-        ValidateTimeSimFrame(x)
+        ValidateSimFrame(x)
     #Make a big dataframe
     runs = pd.concat(runs, ignore_index=True)
     #Make column combining parameter+replicate info for colouring each combo uniquely
@@ -130,13 +132,13 @@ def plot_runs_time_series(runs, param_id=None, samples=None, time_observations=N
             + pn.geom_line(show_legend=False)
             + pn.facet_wrap("~observation", scales="free_y")
         )
-    if time_observations is not None:
-        time_observations = ValidateTimeObservationsFrame(time_observations)
-        time_observations['param_replicate'] = "NA"
-        time_observations['ymin'] = time_observations['value'] - time_observations['stdev']
-        time_observations['ymax'] = time_observations['value'] + time_observations['stdev']
+    if real_observations is not None:
+        real_observations = ValidateObservationsFrame(real_observations)
+        real_observations['param_replicate'] = "NA"
+        real_observations['ymin'] = real_observations['value'] - real_observations['stdev']
+        real_observations['ymax'] = real_observations['value'] + real_observations['stdev']
         p += pn.geom_errorbar(
-            data=time_observations,
+            data=real_observations,
             mapping=pn.aes(x='time', y='value', group="param_replicate", ymin='ymin', ymax='ymax'),
             color='black',
             size=2,

@@ -21,17 +21,15 @@ SHOW_PLOTS = False
 #Observational Data
 ################################################
 
-time_observations = pd.DataFrame({
+#Note that there are no summary observations. If there were, they would have
+#time values of `NaN`.
+real_observations = pd.DataFrame({
     'observation_id': [           0,            1],
     'time':           [         3.0,         15.0],
     'observation':    ['prevalence', 'prevalence'],
     'value':          [          15,           40],
     'stdev':          [           4,          2.3]
 })
-
-summary_observations = None
-
-
 
 ################################################
 #Parameters
@@ -80,7 +78,7 @@ def wrapped_model(**kwargs):
     results['observation_id'] = list(range(len(results)))
     #Sort by time
     results.sort_values(by='time', inplace=True)
-    return results, None
+    return results
 
 
 
@@ -97,7 +95,7 @@ sim_replicates = run_replicates(
 )
 
 #Just for fun, let's visualize some SIR trajectories and observations / target data
-p = plot_runs_time_series(sim_replicates, samples=20, time_observations=time_observations)
+p = plot_runs_time_series(sim_replicates, samples=20, real_observations=real_observations)
 if SHOW_PLOTS:
   print(p)
 
@@ -109,9 +107,8 @@ if SHOW_PLOTS:
 
 matched = match_sim_outputs_to_observations(
   sim_replicates,
-  time_observations,
-  summary_observations,
-  processes=None
+  real_observations,
+  processes=1
 )
 
 
@@ -143,7 +140,7 @@ matched = match_sim_outputs_to_observations(
 
 #Prepare data for emulator (make a train_x, train_y, stdev_y tuple)
 time_emulators = dict()
-for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0]):
+for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched):
   #Train emulator
   time_emulators[obs] = hm2.emulators.GLM_GPR_Emulator(
     glm_basis=hm2.basis.IdentityBasis(intercept=False),
@@ -164,7 +161,7 @@ for obs, params, y, stdev in get_data_for_emulators(parameter_samples, matched[0
 psamples_within  = hm2.sampling.latin_hypercube_within(parameter_samples, 1000)
 # Use the emulators to determine how plausible each of the proposed parameter
 # samples are
-implausibilities = get_implausibility(time_emulators, psamples_within, time_observations)
+implausibilities = get_implausibility(time_emulators, psamples_within, real_observations)
 # Each parameter sample has implausibility values associated with several
 # emulators. We want to find the maximum implausibility for each sample.
 implausibilities = max_implausibility_per_param(implausibilities)

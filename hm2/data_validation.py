@@ -46,115 +46,41 @@ def ValidateParameterSamplesFrame(df, copy=True):
 
 
 
-def ValidateTimeObservationsFrame(df, copy=True):
-  """Validates an TimeObservationsFrame and returns a copy"""
-  if df is None:
-    return None
-
+def ValidateObservationsFrame(df, copy=True):
+  """Validates an ObservationsFrame and returns a copy"""
   if not isinstance(df, pd.DataFrame):
-    raise TypeError("TimeObservationsFrame must be a pandas DataFrame!")
+    raise TypeError("ObservationsFrame must be a pandas DataFrame!")
 
-  _CheckColumns(df, ['observation_id','time','observation','value','stdev'], 'TimeObservationsFrame')
+  _CheckColumns(df, ['observation_id','time','observation','value','stdev'], 'ObservationsFrame')
+
+  if any(df['time'].isna()):
+    raise HistoryMatchingError("ObservationFrame's `time` column contained NaNs!")
 
   if not df.groupby('observation')['time'].is_monotonic_increasing.all():
-    raise HistoryMatchingError("TimeObservationsFrame's `time` column is not monotonically increasing!")
+    raise HistoryMatchingError("ObservationsFrame's `time` column is not monotonically increasing!")
 
   if not df['observation_id'].is_unique:
-    raise HistoryMatchingError("TimeObservationsFrame's `observation_id` column has non-unique values!")
+    raise HistoryMatchingError("ObservationsFrame's `observation_id` column has non-unique values!")
 
   unique_key = ['time','observation']
   if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
-    raise HistoryMatchingError("TimeObservationsFrame contained the same observation made twice at the same time!")
-
-  return df.copy() if copy else df
-
-
-
-def ValidateSummaryObservationsFrame(df, copy=True):
-  """Validates a SummaryObservationsFrame and returns a copy"""
-  if df is None:
-    return None
-
-  if not isinstance(df, pd.DataFrame):
-    raise TypeError("SummaryObservationsFrame must be a pandas DataFrame!")
-
-  _CheckColumns(df, ['observation_id','observation','value','stdev'], 'SummaryObservationsFrame')
-
-  if not df['observation'].is_unique:
-    raise HistoryMatchingError("SummaryObservationsFrame contained non-unique measurements!")
-  if not df['observation_id'].is_unique:
-    raise HistoryMatchingError("SummaryObservationsFrame contained non-unique `observation_id`!")
-
-  return df.copy() if copy else df
-
-
-
-def ValidateObservationsFrame(df, copy=True):
-  if 'time' in df.columns:
-    return ValidateTimeObservationsFrame(df=df, copy=copy)
-  else:
-    return ValidateSummaryObservationsFrame(df=df, copy=copy)
-
-
-
-def ValidateObservationFrames(results, copy=True):
-  if not isinstance(results, tuple) or len(results)!=2:
-    raise TypeError("Wrapped model must return a tuple with both a TimeObservationsFrame and a SummaryObservationsFrame, or None for one of them!")
-
-  time_results = ValidateTimeObservationsFrame(results[0], copy=copy)
-  summary_results = ValidateSummaryObservationsFrame(results[1], copy=copy)
-
-  return time_results, summary_results
-
-
-
-def ValidateTimeSimFrame(df, copy=True):
-  if df is None:
-    return None
-
-  if not isinstance(df, pd.DataFrame):
-    raise TypeError("TimeSimFrame must be a pandas DataFrame!")
-
-  _CheckColumns(df, ['param_id','replicate','time','observation','value','stdev','observation_id'], 'TimeSimFrame')
-
-  unique_key = ['param_id','replicate','time','observation_id','observation']
-  if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
-    raise HistoryMatchingError("TimeSimFrame contained the same observation made twice at the same time within a given parameter+replicate!")
-
-  return df.copy() if copy else df
-
-
-def ValidateSummarySimFrame(df, copy=True):
-  if df is None:
-    return None
-
-  if not isinstance(df, pd.DataFrame):
-    raise TypeError("SummarySimFrame must be a pandas DataFrame!")
-
-  _CheckColumns(df,['param_id','replicate','observation','value','stdev','observation_id'], "SummarySimFrame")
-
-  unique_key = ['param_id','replicate','observation']
-  if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
-    raise HistoryMatchingError("SummarySimFrame contained the same observation made twice within a given parameter+replicate!")
+    raise HistoryMatchingError("ObservationsFrame contained the same observation made twice at the same time!")
 
   return df.copy() if copy else df
 
 
 
 def ValidateSimFrame(df, copy=True):
-  if df is None:
-    return None
+  if not isinstance(df, pd.DataFrame):
+    raise TypeError("SimFrame must be a pandas DataFrame!")
 
-  if isinstance(df,tuple):
-    if len(df)!=2:
-      raise HistoryMatchingError("Simulation frame tuples must have length 2!")
-    return ValidateTimeSimFrame(df=df[0], copy=copy), ValidateSummarySimFrame(df=df[1], copy=copy)
-  elif not isinstance(df, pd.DataFrame):
-    raise TypeError("Simulation Frame must be a pandas DataFrame!")
-  elif 'time' in df.columns:
-    return ValidateTimeSimFrame(df=df, copy=copy)
-  else:
-    return ValidateSummarySimFrame(df=df, copy=copy)
+  _CheckColumns(df, ['param_id','replicate','time','observation','value','stdev','observation_id'], 'SimFrame')
+
+  unique_key = ['param_id','replicate','time','observation_id','observation']
+  if len(df[unique_key])!=len(df[unique_key].drop_duplicates()):
+    raise HistoryMatchingError("SimFrame contained the same observation made twice at the same time within a given parameter+replicate!")
+
+  return df.copy() if copy else df
 
 
 

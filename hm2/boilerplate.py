@@ -23,52 +23,28 @@ def _assert_processes_none_or_positive(processes):
 
 
 def match_sim_to_observations(sim_output, observations):
-    if isinstance(sim_output, tuple):
-        if isinstance(observations, tuple):
-            tr = match_sim_to_observations(sim_output[0], observations[0])
-            sr = match_sim_to_observations(sim_output[1], observations[1])
-            return tr, sr
-        else:
-            raise HistoryMatchingError(
-                "match_sim_to_observations expects either two single inputs or two tuples!"
-            )
-
-    if sim_output is None:
-        return None
-
     sim_output = ValidateSimFrame(sim_output, copy=False)
     observations = ValidateObservationsFrame(observations, copy=False)
 
-    if ("time" in sim_output.columns) ^ ("time" in observations.columns):
-        raise HistoryMatchingError(
-            "Attempting to match a TimeObservationsFrame to a SummaryObservationsFrame!"
-        )
+    #TODO: Handle summary values
 
-    if "time" in sim_output.columns:
-        # Left merge, matching each modeled and actual observation to its nearest
-        # analogue by time
-        temp = pd.merge_asof(
-            observations,
-            sim_output,
-            on="time",
-            by="observation",
-            direction="nearest",
-            suffixes=("_a", "_s"),
-        )
-        temp = temp.drop(columns="time")  # No longer need the time
-    else:
-        temp = pd.merge(
-            observations, sim_output, on="observation", suffixes=("_a", "_s")
-        )
-
-    temp = temp.drop(
-        columns=[
-            "observation_id_s",  # Don't care about simulation observation ids
-            "value_a",  # Drop actual value
-            "stdev_a",  # Drop actual stdev
-            "observation",  # Drop observation name
-        ]
+    # Left merge, matching each modeled and actual observation to its nearest
+    # analogue by time
+    temp = pd.merge_asof(
+        observations,
+        sim_output,
+        on="time",
+        by="observation",
+        direction="nearest",
+        suffixes=("_a", "_s"),
     )
+    temp = temp.drop(columns=[
+        "time",              # No longer need the time
+        "observation_id_s",  # Don't care about simulation observation ids
+        "value_a",           # Drop actual value
+        "stdev_a",           # Drop actual stdev
+        "observation",       # Drop observation name
+    ])
 
     # Rename to drop suffixes
     temp = temp.rename(columns={"value_s": "value", "stdev_s": "stdev"})
@@ -90,17 +66,13 @@ def _validated_run(wrapped_model, param_set, replicate):
     param_id = param_set.get("param_id", None)
     param_set = drop_key(param_set, "param_id", ignore_missing=True)
 
-    # Run the model
-    results = wrapped_model(**param_set)
-    # Ensure model returned the sorts of results we expected
-    time_result, summary_result = ValidateObservationFrames(results)
+    # Run the model and ensure it returns valid results
+    sim_results = ValidateObservationsFrame(wrapped_model(**param_set))
 
-    add_to_frame(time_result, "replicate", replicate)
-    add_to_frame(time_result, "param_id", param_id)
-    add_to_frame(summary_result, "replicate", replicate)
-    add_to_frame(summary_result, "param_id", param_id)
+    add_to_frame(sim_results, "replicate", replicate)
+    add_to_frame(sim_results, "param_id", param_id)
 
-    return (time_result, summary_result)
+    return sim_results
 
 
 def run_replicates(wrapped_model, replicates, param_sets=None, processes=None):
@@ -138,36 +110,32 @@ def run_replicates(wrapped_model, replicates, param_sets=None, processes=None):
 
 
 def match_sim_outputs_to_observations(
-    sim_outputs, time_observations, summary_observations, processes=None
+    sim_outputs, real_observations, processes=None
 ):
     """Matches simulation outputs to actual observations.
 
     Args:
-        sim_outputs(list): A list of (:ref:`TimeSimFrame`, :ref:`SummarySimFrame`).
-        time_observations: A :ref:`TimeObservationsFrame`
-        summary_observations: A :ref:`SummaryObservationsFrame`
+        sim_outputs(list): A list of :ref:`SimFrame`s.
+        real_observations: An :ref:`ObservationsFrame`
         processes: Parallelize across this many processes. `None` implies using
                    as many processes as cores. `1` implies using a single core.
 
-    Returns: A pair of (:ref:`MatchedFrame`,:ref:`MatchedFrame`) which match
-             the simulation results to the observed time and summary results,
-             respectively.
+    Returns: A :ref:`MatchedFrame` which matches the simulation results to the
+             observed time and summary results.
     """
     if not isinstance(sim_outputs, list):
         raise TypeError("`sim_outputs` must be a list")
-    if not all([isinstance(x, tuple) for x in sim_outputs]):
-        raise TypeError("`sim_outputs` must be a list of tuples!")
+    try:
+        sim_outputs = [ValidateSimFrame(x) for x in sim_outputs]
+    except HistoryMatchingError as hme:
+        raise HistoryMatchingError(f"One of the simulation outputs did not validate! {hme}")
 
     _assert_processes_none_or_positive(processes)
 
-    sim_outputs = [ValidateSimFrame(x) for x in sim_outputs]
-
     mapper_args = (
         match_sim_to_observations,
-        itertools.product(sim_outputs, [(time_observations, summary_observations)])
+        itertools.product(sim_outputs, [real_observations])
     )
-
-    breakpoint()
 
     if processes == 1:
         matched = itertools.starmap(*mapper_args)
@@ -177,23 +145,18 @@ def match_sim_outputs_to_observations(
         pool.close()
         pool.join()
 
-    aggregator = (
-        lambda x: None if all(y is None for y in x) else pd.concat(x, ignore_index=True)
-    )
-    aggregate_time_results = aggregator([x[0] for x in matched])
-    aggregate_summary_results = aggregator([x[1] for x in matched])
+    if all(y is None for y in matched):
+        raise HistoryMatchingError("No matches were possible for any simulation output!")
 
-    return aggregate_time_results, aggregate_summary_results
-
+    return pd.concat(matched, ignore_index=True)
 
 def prep_emulator_data(param_samples, matched, observation_id):
     """Fit the Emulator
 
     Args:
         emulator: Emulator to fit
-        param_samples: :ref:`ParameterSamplesFrame`
-        model_output: A :ref:`TimeSimFrame` or
-                       :ref:`SummarySimFrame` built using parameters
+        param_samples: A :ref:`ParameterSamplesFrame`
+        model_output:  A :ref:`SimFrame` built using parameters
                        from `param_samples`
         observation_key: Filter model_output by `observation_key`
         maxiter (int): Number of training iterations
@@ -229,9 +192,7 @@ def get_data_for_emulators(param_samples, matched):
 
     Args:
         param_samples (:ref:`ParameterSamplesFrame`)
-        matched: A :ref:`TimeSimFrame` or
-                       :ref:`SummarySimFrame` built using parameters
-                       from `param_samples`
+        matched: A :ref:`SimFrame` built using parameters from `param_samples`.
 
     Returns:
         None

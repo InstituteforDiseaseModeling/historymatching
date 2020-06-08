@@ -17,20 +17,25 @@ it.
 
 
 
-TimeObservationsFrame
+ObservationsFrame
 ~~~~~~~~~~~~~~~~~~~~~
 
-A TimeObservationsFrame_ contains all observations tied to specific time
-points. Each observation must have a unique `observation_id` which is associated
-with the `time` (e.g. `5` seconds) a particular `observation` (e.g.
-`mosquito_count`) was made. The observation itself must have a `value` (e.g.
-`300`) and an uncertainty expressed as a standard deviation `stdev` (e.g. `5`).
-Exact values have an uncertainty of `0`.
-
-`time` must be monotonically increasing.
+An ObservationsFrame_ contains all observations tied to specific time points.
+Each observation must have a unique `observation_id` which is associated with
+the `time` (e.g. `5` seconds) a particular `observation` (e.g. `mosquito_count`)
+was made. The observation itself must have a `value` (e.g. `300`) and an
+uncertainty expressed as a standard deviation `stdev` (e.g. `5`). Exact values
+have an uncertainty of `0` and `time` must be monotonically increasing.
 
 Each observation must occur only once at each time point. In other words,
 `(time,observation)` is a unique key.
+
+In the future, a special `time` value will denote a summary value; one that is
+calculated outside of time. An example might be the total number of individuals
+infected throughout the simulation.
+
+Both your actual observations and your model results must be in
+ObservationsFrame_ s.
 
 An example table is shown below.
 
@@ -59,28 +64,6 @@ are able to guess your intentions!
 
 Hadley Wickham writes in detail about the benefits of the tidy format `here
 <https://www.jstatsoft.org/index.php/jss/article/view/v059i10/v59i10.pdf>`_.
-
-
-SummaryObservationsFrame
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-A SummaryObservationsFrame_ contains all observations which are not tied
-to specific time points. Each observation has a name `observation` (e.g.
-`cumulative_infections`) and a unique `observation_id`. The observation itself
-must have a `value` (e.g. `300`) and an uncertainty expressed as a standard
-deviation `stdev` (e.g. `5`). Exact values have an uncertainty of `0`. The data
-is, again, arranged in tidy format.
-
-Each observation must occur only once in the table. In other words,
-`observation` is a unique key. `observation_id` is also a unique key.
-
-An example table is shown below.
-
-::
-
-    observation_id            observation    value stdev
-                 0  cumulative_infections     4500    50
-                 1     days_of_quarantine       10     0
 
 
 
@@ -125,11 +108,11 @@ Note that all values in the `param_id` column are unique.
 
 
 
-TimeSimFrame
+SimFrame
 ---------------------------------------
 
-A TimeSimFrame_ is like a TimeObservationsFrame_ except that it
-includes a `replicate` and `param_id` column, like so:
+A SimFrame_ is like an ObservationsFrame_ except that it includes a `replicate`
+and `param_id` column, like so:
 
 ::
 
@@ -146,27 +129,7 @@ includes a `replicate` and `param_id` column, like so:
   100.795317  per_susceptible    0.000000      0            1583          0       0.0
   100.795317       prevalence   10.747664      0            2771          0       0.0
 
-`run_replicates()` can be used to generate such a series of TimeSimFrame_.
-
-
-
-SummarySimFrame
-------------------------------------------
-
-A SummarySimFrame_ is like a SummaryObservationsFrame_ except that it includes
-a `replicate` and `param_id` column, like so:
-
-::
-
-  param_id replicate      observation value stdev
-         0         0  cumulative_infections  4532
-         0         0     days_of_quarantine    12
-         0         1  cumulative_infections  4498
-         0         1     days_of_quarantine     8
-         1         0  cumulative_infections  3700
-         1         0     days_of_quarantine    57
-
-`run_replicates()` can be used to generate such a series of SummarySimFrame_.
+`run_replicates()` can be used to generate such a series of SimFrame_.
 
 
 
@@ -181,11 +144,10 @@ actual observation is identified as the one occuring closest in time to the
 modeled observation.
 
 The MatchedFrame_ consists of a `observation_id_a` column which is the
-`observation_id` of the actual observation, as listed in a
-TimeObservationsFrame_ or SummaryObservationsFrame_. The actual
-observation is associated with a `value` and its `stdev` as produced by the
-simulation. The simulation might have run multiple times, as indicated by the
-`replicate` column. The simulation may also have been run for different
+`observation_id` of the actual observation, as listed in an ObservationsFrame_.
+The actual observation is associated with a `value` and its `stdev` as produced
+by the simulation. The simulation might have run multiple times, as indicated by
+the `replicate` column. The simulation may also have been run for different
 parameters, as indicated by the `param_id` column which refers to the eponymous
 column in a ParameterSamplesFrame_.
 
@@ -203,8 +165,3 @@ column in a ParameterSamplesFrame_.
                     1    1.5      0          0      49.0
                     0    3.5      0          1      49.0
                     1    0.0      0          1      49.0
-
-WrappedModelResults
--------------------
-
-When your model is run, it must return a tuple with two entries corresponding to a TimeSimFrame_ and a SummarySimFrame_, though either entry may be `None` (e.g. if there are no summary observations). This is discussed further in :ref:`Wrapping A Model`

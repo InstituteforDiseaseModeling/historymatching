@@ -8,6 +8,7 @@ from hm2.models.sir import SIR
 import hm2.boilerplate as bp
 import hm2.sampling
 
+TEST_MULTIPROCESS = False
 
 
 def SIRWrapperForParallel(**kwargs):
@@ -18,7 +19,7 @@ def SIRWrapperForParallel(**kwargs):
     results = pd.melt(results, id_vars='time', var_name='observation')
     results['stdev'] = 1 #Junk value TODO
     results['observation_id'] = list(range(len(results)))
-    return results, None
+    return results
 
 
 
@@ -77,6 +78,8 @@ class BoilerplateTest(unittest.TestCase):
         #TODO: Check results
 
     def test_multiprocessing(self):
+        if not TEST_MULTIPROCESS: return
+
         replicates = 2
         parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 20)
 
@@ -99,7 +102,7 @@ class BoilerplateTest(unittest.TestCase):
             results = model.run()
             results['prevalence'] = results['per_infected']
             results['stdev'] = 1 #Junk value TODO
-            return results, None
+            return results
 
         #Observations is missing `time`
         del self.observations['time']
@@ -118,7 +121,7 @@ class BoilerplateTest(unittest.TestCase):
               results = model.run()
               results['prevalence'] = results['per_infected']
               results['stdev'] = 1 #Junk value TODO
-              return results, None
+              return results
 
         #Observations is missing `observation_id`
         del self.observations['observation_id']
@@ -138,7 +141,7 @@ class BoilerplateTest(unittest.TestCase):
               results['prevalence'] = results['per_infected']
               results['stdev'] = 1 #Junk value TODO
               del results['time']
-              return results, None
+              return results
 
         self.assertRaises(HistoryMatchingError,
           hm2.boilerplate.run_replicates,
@@ -155,7 +158,7 @@ class BoilerplateTest(unittest.TestCase):
               # Oh no, we forgot to include prevalence in the results!
               # results['prevalence'] = results['per_infected']
               results['stdev'] = 1 #Junk value TODO
-              return results, None
+              return results
 
         self.assertRaises(HistoryMatchingError,
           hm2.boilerplate.run_replicates,
@@ -173,7 +176,7 @@ class BoilerplateTest(unittest.TestCase):
               results = pd.melt(results, id_vars='time', var_name='observation')
               results['stdev'] = 1 #Junk value TODO
               results['observation_id'] = list(range(len(results)))
-              return results, None
+              return results
 
     def test_bad_wrap(self):
         def SIRWrapper(**kwargs):
@@ -181,28 +184,11 @@ class BoilerplateTest(unittest.TestCase):
               results = model.run()
               results['prevalence'] = results['per_infected']
               results['stdev'] = 1 #Junk value TODO
-              return results, None
+              return results
 
         parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
 
         self.assertRaises(HistoryMatchingError, hm2.boilerplate.run_replicates,
-          wrapped_model = SIRWrapper,
-          param_sets = parameter_samples,
-          replicates = 1,
-          processes = 1
-        )
-
-    def test_check_time_and_summary_frames(self):
-        def SIRWrapper(**kwargs):
-              model = SIR(**kwargs)
-              results = model.run()
-              results['prevalence'] = results['per_infected']
-              results['stdev'] = 1 #Junk value TODO
-              return results  #Note that this is returning only one DataFrame
-
-        parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
-
-        self.assertRaises(TypeError, hm2.boilerplate.run_replicates,
           wrapped_model = SIRWrapper,
           param_sets = parameter_samples,
           replicates = 1,
@@ -215,7 +201,7 @@ class BoilerplateTest(unittest.TestCase):
               results = model.run()
               results['prevalence'] = results['per_infected']
               results['stdev'] = 1 #Junk value TODO
-              return [results, None]  #Note that this is returning a list
+              return [results]  #Note that this is returning a list
 
         parameter_samples = hm2.sampling.latin_hypercube(self.param_info, 100)
 
@@ -240,10 +226,10 @@ class TestMatches(unittest.TestCase):
           param_sets = parameter_samples,
           wrapped_model = SIRWrapperForParallel,
           replicates=2,
-          processes=None
+          processes=1
         )
 
-        self.time_observations = pd.DataFrame({
+        self.real_observations = pd.DataFrame({
             'observation_id': [           0,            1],
             'time':           [         3.0,         15.0],
             'observation':    ['prevalence', 'prevalence'],
@@ -251,63 +237,53 @@ class TestMatches(unittest.TestCase):
             'stdev':          [           4,          2.3]
         })
 
-        self.summary_observations = None
-
-
     def test_inputs(self):
         self.assertRaises(TypeError,
           hm2.boilerplate.match_sim_outputs_to_observations,
           "not a list",
-          self.time_observations,
-          self.summary_observations,
+          self.real_observations,
           processes=1
         )
         self.assertRaises(TypeError,
           hm2.boilerplate.match_sim_outputs_to_observations,
-          ["not a list of tuples"],
-          self.time_observations,
-          self.summary_observations,
+          ["not a list of SimFrame"],
+          self.real_observations,
           processes=1
         )
         self.assertRaises(TypeError,
           hm2.boilerplate.match_sim_outputs_to_observations,
           self.sim_outputs,
-          self.time_observations,
-          self.summary_observations,
+          self.real_observations,
           processes="hi"
         )
         self.assertRaises(ValueError,
           hm2.boilerplate.match_sim_outputs_to_observations,
           self.sim_outputs,
-          self.time_observations,
-          self.summary_observations,
+          self.real_observations,
           processes=-1
         )
         self.assertRaises(ValueError,
           hm2.boilerplate.match_sim_outputs_to_observations,
           self.sim_outputs,
-          self.time_observations,
-          self.summary_observations,
+          self.real_observations,
           processes=0
         )
 
     def test_matching_single_threaded(self):
-      breakpoint()
       matched = bp.match_sim_outputs_to_observations(
         self.sim_outputs,
-        self.time_observations,
-        self.summary_observations,
+        self.real_observations,
         processes=1
       )
       #TODO: Check results
 
-    # def test_matching_multi_threaded(self):
-    #   matched = bp.match_sim_outputs_to_observations(
-    #     self.sim_outputs,
-    #     self.time_observations,
-    #     self.summary_observations,
-    #     processes=None
-    #   )
+    def test_matching_multi_threaded(self):
+      if not TEST_MULTIPROCESS: return
+      matched = bp.match_sim_outputs_to_observations(
+        self.sim_outputs,
+        self.real_observations,
+        processes=None
+      )
       #TODO: Check results
 
 
