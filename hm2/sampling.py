@@ -3,19 +3,27 @@ import pandas as pd
 import numpy as np
 
 from .data_validation import ValidateParameterInfoFrame, ValidateParameterSamplesFrame
+from .error import HistoryMatchingError
 
-def latin_hypercube(param_info, samples, random_state=None):
+def latin_hypercube(
+  param_info: pd.DataFrame,
+  samples: int,
+  random_state: int=None
+):
   """
   Generate parameter hypercube given min and max values for parameters.
 
   Args:
     param_info (:ref:`ParameterInfoFrame`): Bounds of the parameters.
     samples (int): Number of samples to generate
+    random_state (int): Used to generate samples reproducibly without affecting
+                        random numbers in the rest of the program.
 
   Returns:
     A :ref:`ParameterSamplesFrame`.
   """
-  assert random_state is None or isinstance(random_state,int)
+  assert isinstance(samples, int) and samples>=0
+  assert random_state is None or isinstance(random_state, int)
 
   # Calculate ranges
   param_info = ValidateParameterInfoFrame(param_info)
@@ -48,7 +56,11 @@ def latin_hypercube(param_info, samples, random_state=None):
 
 
 
-def latin_hypercube_within(parameter_samples, samples, random_state=None):
+def latin_hypercube_within(
+  parameter_samples: pd.DataFrame,
+  samples: int,
+  random_state: int=None
+):
   """
   Generate parameter hypercube bounded by another ParameterSamplesFrame.
 
@@ -56,10 +68,18 @@ def latin_hypercube_within(parameter_samples, samples, random_state=None):
     parameter_samples (:ref:`ParameterSamplesFrame`):
         Parameter samples which bound the new frame.
     samples (int): Number of samples to generate for each parameter
+    random_state (int): Used to generate samples reproducibly without affecting
+                        random numbers in the rest of the program.
 
   Returns:
     A :ref:`ParameterSamplesFrame`.
   """
+  assert isinstance(samples, int) and samples>=0
+  assert random_state is None or isinstance(random_state, int)
+
+  if len(parameter_samples)==0:
+    raise HistoryMatchingError("parameter_samples was empty!")
+
   # Strip down to parameters
   parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
   parameter_samples = parameter_samples.drop(columns='param_id')
