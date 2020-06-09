@@ -136,8 +136,8 @@ params, y, stdev = get_single_obs_data_for_emulators(parameter_samples, matched,
 
 #Train emulator
 emulator = hm2.emulators.GLM_GPR_Emulator(
-  glm_basis=hm2.basis.PolynomialBasis(intercept=True, degree=1),
-  gpr_basis=hm2.basis.IdentityBasis(intercept=False)
+  glm_basis=hm2.basis.PolynomialBasis(intercept=True, degree=1, scale=True),
+  gpr_basis=hm2.basis.IdentityBasis(intercept=False, scale=True)
 ).fit(params, y, stdev, gpr_maxiter=10000, glm_seed=123456)
 
 #Here, we validate the emulator by looking at various plots and trying to
@@ -168,7 +168,7 @@ vol_old = get_size_of_parameter_space(parameter_samples)
 vol_new = get_size_of_parameter_space(new_parameter_samples)
 print(f"Volume of old space: {vol_old}")
 print(f"Volume of new space: {vol_new}")
-print(f"Percent change: {percent_change_vol(vol_old, vol_new):.2}%")
+print(f"Percent change: {percent_change_vol(vol_old, vol_new):.2f}%")
 
 # If there are no non-implausible parameters, we should stop
 if len(new_parameter_samples)==0:
