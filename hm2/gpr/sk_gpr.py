@@ -28,12 +28,15 @@ class SkGPR:
         Returns:
             None
         """
-        # Initialize the model
+        if stdev_y is None or np.all(stdev_y==0):
+            stdev_y = 1e-10
+        else:
+            stdev_y = stdev_y**2
+
         kernel = ConstantKernel(1.0) * RBF()
-        self.model = GaussianProcessRegressor(kernel=kernel, random_state=random_state)
+        self.model = GaussianProcessRegressor(kernel=kernel, random_state=random_state, alpha=stdev_y, n_restarts_optimizer=10)
 
-        logging.getLogger("HistoryMatching").warn("SkGPR ignores stdev_y")
-
+        # Initialize the model
         self.model.fit(train_x, train_y)
 
     @property
