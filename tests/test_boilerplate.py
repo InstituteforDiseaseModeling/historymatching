@@ -12,14 +12,10 @@ TEST_MULTIPROCESS = False
 
 
 def SIRWrapperForParallel(**kwargs):
-    """Used for testing parallelism of run_replicates"""
+    """Used for testing parallelism of run_replicates. multiprocessing cannot
+    use class methods or lambdas."""
     model = SIR(**kwargs)
-    results = model.run()
-    results['prevalence'] = results['per_infected']
-    results = pd.melt(results, id_vars='time', var_name='observation')
-    results['stdev'] = 1 #Junk value TODO
-    results['observation_id'] = list(range(len(results)))
-    return results
+    return model.run()
 
 
 
@@ -96,34 +92,27 @@ class BoilerplateTest(unittest.TestCase):
           ValidateSimFrame(x)
         #TODO: Check results
 
-    def test_observations_missing_observation_id(self):
+    def test_sim_results_missing_observation_id(self):
         def SIRWrapper(**kwargs):
               model = SIR(**kwargs)
               results = model.run()
-              results['prevalence'] = results['per_infected']
-              results['stdev'] = 1 #Junk value TODO
+              del results['observation_id']
               return results
-
-        #Observations is missing `observation_id`
-        del self.observations['observation_id']
 
         with self.assertRaises(HMMissingColumn) as cm:
           hm2.boilerplate.run_replicates(
-            param_sets = hm2.sampling.latin_hypercube(self.param_info, 100),
+            param_sets=hm2.sampling.latin_hypercube(self.param_info, 100),
             wrapped_model=SIRWrapper,
             replicates=1,
             processes=1
           )
-          self.assertTrue(cm.exception.missing_column=='time')
+          self.assertTrue(cm.exception.missing_column=='observation_id')
           self.assertTrue(cm.exception.df_name=='ObservationsFrame')
 
     def test_model_results_missing_time(self):
         def SIRWrapper(**kwargs):
               model = SIR(**kwargs) #Runs model but doesn't return time
               results = model.run()
-              results['prevalence'] = results['per_infected']
-              results['stdev'] = 1 #Junk value TODO
-              results['observation_id'] = list(range(len(results)))
               del results['time']
               return results
 

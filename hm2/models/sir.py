@@ -65,12 +65,31 @@ class SIR(ModelBase):
         P   = np.vstack(P)
         sir = np.vstack(sir)
 
-        return pd.DataFrame({
+        # Now we format the output of the model into a form suitable for use
+        # with History Matching
+        return self._format_output(times, sir, P)
+
+    def _format_output(self, times, sir, P):
+        results = pd.DataFrame({
             'time':            times,
             'susceptible':     sir[:,0],
             'infected':        sir[:,1],
             'recovered':       sir[:,2],
             'per_susceptible': P  [:,0],
-            'per_infected':    P  [:,1],
+            'prevalence':      P  [:,1],
             'per_recovered':   P  [:,2],
         })
+
+        #Reshape DataFrame into the tidy form expected by HistoryMatching
+        results = pd.melt(results, id_vars='time', var_name='observation')
+
+        #We have no uncertainty about our results
+        results['stdev'] = 0
+
+        #Add observation ids
+        results['observation_id'] = list(range(len(results)))
+
+        #Sort by time
+        results.sort_values(by='time', inplace=True)
+
+        return results

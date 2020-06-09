@@ -68,17 +68,8 @@ if SHOW_PLOTS:
 
 def wrapped_model(**kwargs):
     model = SIR(**kwargs)
+    #It may be necessary to do post-processing here for other models
     results = model.run()
-    #Rename model result so it matches the name of an Observation
-    results['prevalence'] = results['per_infected']
-    #Reshape DataFrame into the tidy form expected by HistoryMatching
-    results = pd.melt(results, id_vars='time', var_name='observation')
-    #We have no uncertainty about our results
-    results['stdev'] = 0
-    #Add observation ids
-    results['observation_id'] = list(range(len(results)))
-    #Sort by time
-    results.sort_values(by='time', inplace=True)
     return results
 
 
