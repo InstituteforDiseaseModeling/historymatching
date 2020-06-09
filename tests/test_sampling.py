@@ -155,6 +155,35 @@ class SampleWithinTest(unittest.TestCase):
     def test_empty(self):
         param_info = pd.DataFrame({'name':[],'min':[],'max':[]})
         self.assertRaises(HMParameterSamplesEmpty, latin_hypercube_within, param_info, 30)
+
+
+
+class TestVoume(unittest.TestCase):
+    def test_point_volume(self):
+        param_info = pd.DataFrame({
+            'name':  ['Beta', 'Gamma', 'Mu'],
+            'min':   [    -2,       4,    3],
+            'max':   [     2,       8,    6]
+        })
+        cube = latin_hypercube(param_info, 1, random_state=123456)
+        self.assertTrue(get_size_of_parameter_space(cube)==0.0)
+
+    def test_volume(self):
+        param_info = pd.DataFrame({
+            'name':  ['Beta', 'Gamma', 'Mu'],
+            'min':   [    -2,       4,    3],
+            'max':   [     2,       8,    6]
+        })
+        # With many samples we should get sufficiently close to the edge of the
+        # ranges to approximate the true volume from the imputed ranges.
+        cube = latin_hypercube(param_info, 1000000, random_state=123456)
+        self.assertAlmostEqual(get_size_of_parameter_space(cube), 4.0*4.0*3.0, places=2)
+
+    def test_percent_change(self):
+        pc = percent_change_vol(vol_old=30, vol_new=24)
+        self.assertAlmostEquals(pc, (24-30)/30*100.0)
+
+
 class SampleFramesMergeTest(unittest.TestCase):
     def test_merge_sample_frames(self):
         param_info = pd.DataFrame({
