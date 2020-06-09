@@ -13,7 +13,7 @@ def parameter_info_frame_from_samples(
   """Generate a :ref:`ParameterInfoFrame` from a :ref:`ParameterSamplesFrame`
 
   Args:
-    parameter_samples: A :ref:`ParamterSamplesFrame` to generate the
+    parameter_samples: A :ref:`ParameterSamplesFrame` to generate the
                        :ref:`ParameterInfoFrame` from.
 
   Returns: A :ref:`ParameterInfoFrame`
@@ -143,8 +143,8 @@ def percent_change_vol(vol_old:float, vol_new:float) -> float:
 
 
 def merge_list_of_parameter_samples(list_of_ps:list):
-    """Merges a list of :ref:`ParameterSamplesFrame`s into a single
-    :ref:`ParamterSamplesFrame`, eliminating duplicate rows.
+    """Merges a list of :ref:`ParameterSamplesFrame` into a single
+    :ref:`ParameterSamplesFrame`, eliminating duplicate rows.
 
     Args:
         list_of_ps: A list of :ref:`ParameterSamplesFrame`

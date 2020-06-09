@@ -68,6 +68,6 @@ Utility
 Example Models
 -------------------------------
 
-.. automodule:: hm2.models.sir_tao_leap
+.. automodule:: hm2.models.sir
     :special-members:
     :members:
