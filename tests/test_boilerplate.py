@@ -229,6 +229,11 @@ class TestImplausibility(unittest.TestCase):
     model_stdev=2
     self.assertAlmostEqual(bp._implausibility_equ(reality,reality_stdev,prediction,prediction_stdev,model_stdev),0.57735026918962576451)
 
+  def test_filter_implausibility(self):
+    implausibilities = pd.DataFrame({"implausibility": [1,2,3,4,5,6,7,8,9,10]})
+    filtered = bp.filter_implausibilities(implausibilities, threshold=5)
+    self.assertTrue(filtered['implausibility'].max()==5)
+
 class TestGetImplausibility(unittest.TestCase):
   def setUp(self):
     self.observations = pd.DataFrame({

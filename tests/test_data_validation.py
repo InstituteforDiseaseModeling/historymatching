@@ -23,6 +23,17 @@ class TestFramesForValidity(unittest.TestCase):
       dv.ValidateMatchedFrame(frame)
     self.assertTrue(cm.exception.df_name=="MatchedFrame")
 
+  def test_extra_columns(self):
+    param_info = pd.DataFrame({
+        'name':  ['beta', 'gamma'],
+        'min':   [  1e-6,    1e-6],
+        'max':   [  0.01,     0.5],
+        'extra': [     0,       0]
+    })
+    with self.assertRaises(HMExtraColumns) as cm:
+        dv.ValidateParameterInfoFrame(param_info)
+    self.assertTrue(cm.exception.df_name=="ParameterInfoFrame")
+
   def test_time_increases(self):
     observations = pd.DataFrame({
       'observation_id': [           0,            1],

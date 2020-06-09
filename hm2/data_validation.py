@@ -96,32 +96,3 @@ def ValidateMatchedFrame(df, copy=True):
     raise HistoryMatchingError("MatchedFrame contained the same observation made twice within a given parameter+replicate!")
 
   return df.copy() if copy else df
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def ValidateEmulatorInput(df, copy=True):
-#   if not isinstance(df, pd.DataFrame):
-#     raise HMNotADataFrame("SingleEmulatorInput")
-
-#   _CheckColumns(df,['param_id','replicate','observation','value','stdev'], "SingleEmulatorInput", optional_cols=['aobservation_id'])
-
-#   if len(df["observation"].unique())!=1:
-#     raise HistoryMatchingError("SingleEmulatorInput must have a single observation type!")
-
-#   if 'aobservation_id' in df.columns and len(df["aobservation_id"].unique())!=1:
-#     raise HistoryMatchingError("SingleEmulatorInput for a time series must refer to only a single time point!")
-
-#   return df.copy() if copy else df
