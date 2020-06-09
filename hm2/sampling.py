@@ -5,6 +5,32 @@ import numpy as np
 from .data_validation import ValidateParameterInfoFrame, ValidateParameterSamplesFrame
 from .error import *
 
+
+
+def parameter_info_frame_from_samples(
+  parameter_samples:pd.DataFrame
+) -> pd.DataFrame:
+  """Generate a :ref:`ParameterInfoFrame` from a :ref:`ParameterSamplesFrame`
+
+  Args:
+    parameter_samples: A :ref:`ParamterSamplesFrame` to generate the
+                       :ref:`ParameterInfoFrame` from.
+
+  Returns: A :ref:`ParameterInfoFrame`
+  """
+  parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+  # Build a ParameterInfoFrame
+  params_and_ranges=[]
+  for x in parameter_samples.drop(columns='param_id'):
+    params_and_ranges.append({
+      "name":x,
+      "min":parameter_samples[x].min(),
+      "max":parameter_samples[x].max()
+    })
+  return pd.DataFrame(params_and_ranges)
+
+
+
 def latin_hypercube(
   param_info: pd.DataFrame,
   samples: int,
@@ -23,7 +49,7 @@ def latin_hypercube(
     A :ref:`ParameterSamplesFrame`.
   """
   assert isinstance(samples, int) and samples>=0
-  assert random_state is None or isinstance(random_state, int)
+  assert isinstance(random_state, (int, type(None)))
 
   # Calculate ranges
   param_info = ValidateParameterInfoFrame(param_info)
@@ -75,7 +101,7 @@ def latin_hypercube_within(
     A :ref:`ParameterSamplesFrame`.
   """
   assert isinstance(samples, int) and samples>=0
-  assert random_state is None or isinstance(random_state, int)
+  assert isinstance(random_state, (int, type(None)))
 
   if len(parameter_samples)==0:
     raise HMParameterSamplesEmpty()
@@ -84,16 +110,31 @@ def latin_hypercube_within(
   parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
   parameter_samples = parameter_samples.drop(columns='param_id')
 
-  # Build a ParameterInfoFrame
-  params_and_ranges=[]
-  for x in parameter_samples:
-    params_and_ranges.append({
-      "name":x,
-      "min":parameter_samples[x].min(),
-      "max":parameter_samples[x].max()
-    })
-
-  params_and_ranges = pd.DataFrame(params_and_ranges)
+  # Get ranges of parameters
+  params_and_ranges = parameter_info_frame_from_samples(parameter_samples)
 
   # Use parameter information to generate a new hypercube
   return latin_hypercube(params_and_ranges, samples, random_state=random_state)
+
+
+
+def get_size_of_parameter_space(parameter_samples:pd.DataFrame) -> float:
+  """Get the volume of the space defined by the parameter samples
+
+  Args:
+    parameter_samples: A :ref:`ParameterSamplesFrame` to get the volume for
+
+  Returns: The volume of the space
+  """
+  #TODO: Should this throw on len(parameter_samples)==0 ?
+  if len(parameter_samples)<=1:
+    return 0.0
+
+  parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+  params_and_ranges = parameter_info_frame_from_samples(parameter_samples)
+  ranges = params_and_ranges['max']-params_and_ranges['min']
+  #Volume is product of the ranges
+  return np.prod(ranges)
+
+def percent_change_vol(vol_old:float, vol_new:float) -> float:
+  return (vol_new-vol_old)/vol_old*100.0

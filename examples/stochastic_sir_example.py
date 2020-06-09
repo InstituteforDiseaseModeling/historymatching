@@ -172,9 +172,14 @@ new_parameter_samples = generate_n_new_plausible_parameters(
   generation_count=1_000
 )
 
+vol_old = get_size_of_parameter_space(parameter_samples)
+vol_new = get_size_of_parameter_space(new_parameter_samples)
+print(f"Volume of old space: {vol_old}")
+print(f"Volume of new space: {vol_new}")
+print(f"Percent change: {percent_change_vol(vol_old, vol_new):.2}%")
 
 # If there are no non-implausible parameters, we should stop
-if len(plausible_params)==0:
+if len(new_parameter_samples)==0:
   print("No non-implausible parameter samples!")
 
 
@@ -183,25 +188,4 @@ if len(plausible_params)==0:
 # WAVE 2
 
 # Now, we repeat the above analysis in the reduced parameter space.
-
-parameter_samples = hm2.sampling.latin_hypercube_within(plausible_params, 100, random_state=654321)
-
-
-
-#TODO
-# sys.exit(0)
-# fig, ax=plt.subplots(2,1)
-
-# ax[0].scatter(
-#   parameter_samples.iloc[this_obs['param_id']]['beta'],
-#   parameter_samples.iloc[this_obs['param_id']]['gamma'],
-#   c=this_obs['value']
-# )
-
-# ax[1].scatter(
-#   parameter_samples.iloc[this_obs['param_id']]['beta'],
-#   parameter_samples.iloc[this_obs['param_id']]['gamma'],
-#   c=gpremu.predict(parameter_samples.iloc[this_obs['param_id']][['beta','gamma']])[0]
-# )
-
-# plt.show()
+parameter_samples = new_parameter_samples
