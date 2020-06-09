@@ -1,7 +1,6 @@
 import unittest
 
 from hm2.models import SIR
-from hm2.models import SIRTaoLeap
 
 
 
