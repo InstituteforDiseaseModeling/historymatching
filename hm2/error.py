@@ -2,6 +2,14 @@
 Contains custom errors for History Matching
 """
 
+class HMNotAnEmulator(Exception):
+    def __init__(self, obs_name, wave=None):
+        self.obs_name = obs_name
+        if wave is None:
+            super().__init__(f"{obs_name} was not associated with a valid emulator!")
+        else :
+            super().__init__(f"{obs_name} from Wave {wave} was not associated with a valid emulator!")
+
 class HMNotADataFrame(Exception):
     def __init__(self, df_name):
         self.df_name = df_name

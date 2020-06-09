@@ -1,3 +1,4 @@
+from typing import Union
 import datetime
 import itertools
 import multiprocessing
@@ -11,7 +12,7 @@ from .error import HistoryMatchingError
 from .data_validation import *
 from .utility import drop_key
 from .emulators import EmulatorBase
-
+from .sampling import latin_hypercube_within
 
 # TODO: Handle summary values
 # SUMMARY_NUMERIC = np.inf
@@ -27,6 +28,18 @@ def _assert_processes_none_or_positive(processes):
     elif processes<=0:
         raise ValueError("processes must be >0!")
 
+
+def _verify_emulators(emulators: Union[list,dict]) -> None:
+    assert isinstance(emulators, (list, dict))
+    #Ensure emulators is a list of dicts
+    if isinstance(emulators, dict):
+        emulators = [emulators]
+
+    #Check all dicts for possible problems
+    for wave, wave_emulators in enumerate(emulators):
+        for obs, emulator in wave_emulators.items():
+            if not isinstance(emulator, EmulatorBase):
+                 raise HMNotAnEmulator(obs, wave=wave)
 
 
 def _match_sim_to_observations(
@@ -247,6 +260,7 @@ def generate_data_for_emulators(
         )
         yield observation_id_a, grouped, train_y, stdev_y
 
+
 def get_single_obs_data_for_emulators(
     param_samples: pd.DataFrame,
     matched: pd.DataFrame,
@@ -276,6 +290,7 @@ def get_single_obs_data_for_emulators(
     merged = merged.drop(columns=["observation_id_a", "replicate", "value", "stdev"])
     return merged, train_y, stdev_y
 
+
 def _implausibility_equ(
     reality, reality_stdev, prediction, prediction_stdev, model_stdev
 ):
@@ -286,7 +301,7 @@ def _implausibility_equ(
 
 
 def get_implausibility(
-    emulators: dict,
+    emulators: Union[list,dict],
     parameter_samples: pd.DataFrame,
     observations: pd.DataFrame,
     model_stdev: float=0.0
@@ -304,7 +319,7 @@ def get_implausibility(
     """
     for obs, emulator in emulators.items():
         if not isinstance(emulator, EmulatorBase):
-            raise HistoryMatchingError(f"Observation {obs} was not associated with a valid emulator!")
+            raise HMNotAnEmulator(obs)
 
     parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
     observations = ValidateObservationsFrame(observations)
@@ -367,3 +382,98 @@ def get_plausible_parameters(implausibilities, parameter_samples):
     params = pd.merge(implausibilities, parameter_samples, how="left", on="param_id")
     params = params.drop(columns="implausibility")
     return params
+
+
+
+def _merge_list_of_parameter_samples(list_of_ps:list):
+    """Merges a list of :ref:`ParameterSamplesFrame`s into a single
+    :ref:`ParamterSamplesFrame`, eliminating duplicate rows.
+
+    Args:
+        list_of_ps: A list of :ref:`ParameterSamplesFrame`
+
+    Returns: A new :ref:`ParameterSamplesFrame`
+    """
+    merged = pd.concat(list_of_ps)
+    merged = merged.drop(columns='param_id')
+    merged.drop_duplicates(inplace=True, ignore_index=True)
+    merged['param_id'] = list(range(len(merged)))
+    return merged
+
+
+
+def generate_n_new_plausible_parameters(
+    count: int,
+    emulators: Union[list,dict],
+    parameter_samples: pd.DataFrame,
+    real_observations: pd.DataFrame,
+    threshold: float,
+    generation_count: int=1_000_000,
+):
+    """This function uses rejection sampling to generate `count` new
+    non-implausible parameters. Note that this is not guaranteed to produce
+    `count` parameters. For very constricted spaces fewer, or no, samples might
+    be obtained.
+
+    Args:
+        count: How many non-implausible samples we would like
+        emulators: A dictionary of emulators or a list of such dictionaries,
+                   one dictionary for each wave.
+        parameter_samples: A :ref:`ParameterSamplesFrame` which will be used to
+                           constrain the sample space.
+        real_observations: A :ref:`ObservationsFrame` containing real observations.
+        threshold: Samples with implausibility values above this threshold are
+                   rejected.
+        generation_count: How many samples should be generated in an attempt to
+                          find the `count` we want. This number should be
+                          several hundred times larger than the actual number
+                          desired.
+
+    Returns: A new :ref:`ParameterSamplesFrame`.
+    """
+    #Verify inputs
+    assert isinstance(count,int) and count>=0
+
+    _verify_emulators(emulators)
+
+    parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+    real_observations = ValidateObservationsFrame(real_observations)
+
+    assert isinstance(threshold,(int,float)) and threshold>=0
+
+    # Propose new parameters to look at within the current sample space.
+    psamples_within  = latin_hypercube_within(parameter_samples, generation_count)
+
+    #Since we allow the user to supply a list of emulator dictionaries, one per
+    #wave we now apply each wave's emulators to the sample space we've just
+    #generated storing the results in `plausible_params_per_wave`
+    plausible_params_per_wave = []
+    for wave_emulators in emulators:
+        # Use the emulators to determine how plausible each of the proposed parameter
+        # samples are
+        implausibilities = get_implausibility(emulators, psamples_within, real_observations)
+        # Each parameter sample has implausibility values associated with several
+        # emulators. We want to find the maximum implausibility for each sample.
+        implausibilities = max_implausibility_per_param(implausibilities)
+        # The implausibility threshold determines how willing we are to retain regions
+        # of parameter space that are inconsistent with the underlying data. A higher
+        # threshold is more risk averse in that potentially good regions are less likely
+        # to be rejected; however, it will take more iterations/simulations to achieve
+        # results. Let's filter so we're left with only non-implausible parameters.
+        implausibilities = filter_implausibilities(implausibilities, threshold=3)
+        # Finally, we extract the non-implausible parameters back into a
+        # ParameterSamplesFrame
+        plausible_params = get_plausible_parameters(implausibilities, psamples_within)
+        # Store this result
+        plausible_params_per_wave.append(plausible_params)
+
+    # Merge the parameters that each wave marked as non-implausible into a
+    # single frame, eliminating duplicates
+    plausible_params = _merge_list_of_parameter_samples(plausible_params_per_wave)
+
+    #If we've generated too many samples, we choose a random subset. This should
+    #still be space filling
+    if len(plausible_params)>count:
+        plausible_params = plausible_params.sample(count)
+
+    return plausible_params

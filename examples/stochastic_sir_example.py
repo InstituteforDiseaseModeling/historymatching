@@ -161,25 +161,18 @@ if SHOW_PLOTS:
   print(p1,p2,p3,p4,p5,p6)
 
 
+# Now that we've fit the emulator, we use it to find new non-implausible
+# parameters which, hopefully, are in a smaller space.
+new_parameter_samples = generate_n_new_plausible_parameters(
+  count=RUNS_PER_WAVE,
+  emulators={0:emulator},
+  parameter_samples=parameter_samples,
+  real_observations=real_observations,
+  threshold=2,
+  generation_count=1_000
+)
 
 
-# Propose new parameters to look at within the current sample space
-psamples_within  = hm2.sampling.latin_hypercube_within(parameter_samples, 1000)
-# Use the emulators to determine how plausible each of the proposed parameter
-# samples are
-implausibilities = get_implausibility({0:emulator}, psamples_within, real_observations)
-# Each parameter sample has implausibility values associated with several
-# emulators. We want to find the maximum implausibility for each sample.
-implausibilities = max_implausibility_per_param(implausibilities)
-# The implausibility threshold determines how willing we are to retain regions
-# of parameter space that are inconsistent with the underlying data. A higher
-# threshold is more risk averse in that potentially good regions are less likely
-# to be rejected; however, it will take more iterations/simulations to achieve
-# results. Let's filter so we're left with only non-implausible parameters.
-implausibilities = filter_implausibilities(implausibilities, threshold=3)
-# Finally, we extract the non-implausible parameters back into a
-# ParameterSamplesFrame
-plausible_params = get_plausible_parameters(implausibilities, psamples_within)
 # If there are no non-implausible parameters, we should stop
 if len(plausible_params)==0:
   print("No non-implausible parameter samples!")
