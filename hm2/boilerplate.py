@@ -392,6 +392,7 @@ def generate_n_new_plausible_parameters(
     real_observations: pd.DataFrame,
     threshold: float,
     generation_count: int=1_000_000,
+    random_state: int=None
 ):
     """This function uses rejection sampling to generate `count` new
     non-implausible parameters. Note that this is not guaranteed to produce
@@ -411,6 +412,8 @@ def generate_n_new_plausible_parameters(
                           find the `count` we want. This number should be
                           several hundred times larger than the actual number
                           desired.
+        random_state (int): Used to generate samples reproducibly without
+                            affecting random numbers in the rest of the program.
 
     Returns: A new :ref:`ParameterSamplesFrame`.
     """
@@ -423,9 +426,11 @@ def generate_n_new_plausible_parameters(
     real_observations = ValidateObservationsFrame(real_observations)
 
     assert isinstance(threshold,(int,float)) and threshold>=0
+    assert isinstance(generation_count,int) and generation_count>=0
+    assert isinstance(random_state, (int, type(None)))
 
     # Propose new parameters to look at within the current sample space.
-    psamples_within  = latin_hypercube_within(parameter_samples, generation_count)
+    psamples_within  = latin_hypercube_within(parameter_samples, generation_count, random_state=random_state)
 
     #Since we allow the user to supply a list of emulator dictionaries, one per
     #wave we now apply each wave's emulators to the sample space we've just

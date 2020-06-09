@@ -67,7 +67,7 @@ if SHOW_PLOTS:
 # which standardizes HistoryMatching's interaction with models, like so:
 
 def wrapped_model(**kwargs):
-    model = SIR(**kwargs)
+    model = SIR(**kwargs, seed=123456)
     #It may be necessary to do post-processing here for other models
     results = model.run()
     return results
@@ -160,7 +160,8 @@ new_parameter_samples = generate_n_new_plausible_parameters(
   parameter_samples=parameter_samples,
   real_observations=real_observations,
   threshold=2,
-  generation_count=1_000
+  generation_count=1_000,
+  random_state=123456
 )
 
 vol_old = get_size_of_parameter_space(parameter_samples)
