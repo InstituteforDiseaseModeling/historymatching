@@ -26,7 +26,7 @@ class SkGPRTest(unittest.TestCase):
       ypred, pred_std = glm.predict(basis(x))
       self.assertTrue(((y-ypred)<0.2).all()) #NOTE: This should be safe because of the random seed
       self.assertTrue(np.array_equal(x['x'], glm._trainx.flatten()))
-      self.assertTrue(y, glm._trainy.flatten())
+      self.assertTrue(np.array_equal(y, glm._trainy.flatten()))
 
     def test_fit_predict_line(self):
       #See if we can predict y=3*x+4

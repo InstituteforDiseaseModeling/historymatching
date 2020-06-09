@@ -108,7 +108,6 @@ def latin_hypercube_within(
 
   # Strip down to parameters
   parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
-  parameter_samples = parameter_samples.drop(columns='param_id')
 
   # Get ranges of parameters
   params_and_ranges = parameter_info_frame_from_samples(parameter_samples)

@@ -259,4 +259,4 @@ class TestGetImplausibility(unittest.TestCase):
     self.parameter_samples = hm2.sampling.latin_hypercube(param_info, 10)
 
   def test_not_an_emulator(self):
-    self.assertRaises(HistoryMatchingError, bp.get_implausibility, {1:"not an emulator"}, self.parameter_samples, self.observations)
+    self.assertRaises(HMNotAnEmulator, bp.get_implausibility, {1:"not an emulator"}, self.parameter_samples, self.observations)

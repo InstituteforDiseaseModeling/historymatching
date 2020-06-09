@@ -131,7 +131,7 @@ class SampleWithinTest(unittest.TestCase):
         self.assertTrue(cm.exception.missing_column=='param_id')
         self.assertTrue(cm.exception.df_name=='ParameterSamplesFrame')
 
-    def test_scaling(self):
+    def test_sampling_within(self):
         param_info = pd.DataFrame({
             'name':  ['Beta', 'Gamma'],
             'min':   [   -100,     10],
@@ -139,8 +139,7 @@ class SampleWithinTest(unittest.TestCase):
         })
 
         cube = latin_hypercube(param_info, 10000)
-
-        latin_hypercube_within(cube, 10000)
+        cube = latin_hypercube_within(cube, 10000)
 
         #TODO: Better statistical tests?
         self.assertTrue( (cube['Beta' ] >  98).any() )
