@@ -12,7 +12,7 @@ from .error import HistoryMatchingError
 from .data_validation import *
 from .utility import drop_key
 from .emulators import EmulatorBase
-from .sampling import latin_hypercube_within
+from .sampling import *
 
 # TODO: Handle summary values
 # SUMMARY_NUMERIC = np.inf
@@ -385,23 +385,6 @@ def get_plausible_parameters(implausibilities, parameter_samples):
 
 
 
-def _merge_list_of_parameter_samples(list_of_ps:list):
-    """Merges a list of :ref:`ParameterSamplesFrame`s into a single
-    :ref:`ParamterSamplesFrame`, eliminating duplicate rows.
-
-    Args:
-        list_of_ps: A list of :ref:`ParameterSamplesFrame`
-
-    Returns: A new :ref:`ParameterSamplesFrame`
-    """
-    merged = pd.concat(list_of_ps)
-    merged = merged.drop(columns='param_id')
-    merged.drop_duplicates(inplace=True, ignore_index=True)
-    merged['param_id'] = list(range(len(merged)))
-    return merged
-
-
-
 def generate_n_new_plausible_parameters(
     count: int,
     emulators: Union[list,dict],
@@ -469,7 +452,7 @@ def generate_n_new_plausible_parameters(
 
     # Merge the parameters that each wave marked as non-implausible into a
     # single frame, eliminating duplicates
-    plausible_params = _merge_list_of_parameter_samples(plausible_params_per_wave)
+    plausible_params = merge_list_of_parameter_samples(plausible_params_per_wave)
 
     #If we've generated too many samples, we choose a random subset. This should
     #still be space filling

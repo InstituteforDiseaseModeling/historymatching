@@ -135,5 +135,24 @@ def get_size_of_parameter_space(parameter_samples:pd.DataFrame) -> float:
   #Volume is product of the ranges
   return np.prod(ranges)
 
+
+
 def percent_change_vol(vol_old:float, vol_new:float) -> float:
   return (vol_new-vol_old)/vol_old*100.0
+
+
+
+def merge_list_of_parameter_samples(list_of_ps:list):
+    """Merges a list of :ref:`ParameterSamplesFrame`s into a single
+    :ref:`ParamterSamplesFrame`, eliminating duplicate rows.
+
+    Args:
+        list_of_ps: A list of :ref:`ParameterSamplesFrame`
+
+    Returns: A new :ref:`ParameterSamplesFrame`
+    """
+    merged = pd.concat(list_of_ps)
+    merged = merged.drop(columns='param_id')
+    merged.drop_duplicates(inplace=True, ignore_index=True)
+    merged['param_id'] = list(range(len(merged)))
+    return merged

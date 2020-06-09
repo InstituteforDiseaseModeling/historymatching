@@ -155,3 +155,15 @@ class SampleWithinTest(unittest.TestCase):
     def test_empty(self):
         param_info = pd.DataFrame({'name':[],'min':[],'max':[]})
         self.assertRaises(HMParameterSamplesEmpty, latin_hypercube_within, param_info, 30)
+class SampleFramesMergeTest(unittest.TestCase):
+    def test_merge_sample_frames(self):
+        param_info = pd.DataFrame({
+            'name':  ['Beta', 'Gamma', 'Mu'],
+            'min':   [    -2,       4,    3],
+            'max':   [     2,       8,    6]
+        })
+        cube1 = latin_hypercube(param_info, 1000, random_state=123456)
+        cube2 = latin_hypercube(param_info, 1000, random_state=123456)
+        cube3 = latin_hypercube(param_info, 1000, random_state=123456)
+        merged = merge_list_of_parameter_samples([cube1, cube2, cube3])
+        ValidateParameterSamplesFrame(merged)
