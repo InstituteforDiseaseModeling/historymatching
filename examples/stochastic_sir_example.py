@@ -8,12 +8,13 @@ from hm2.boilerplate import *
 from hm2.emulators import *
 from hm2.models import SIR
 from hm2.plotting import *
+from hm2.sampling import *
 import hm2.basis
-import hm2.sampling
 
 # Set this to True to show plots. Plots are disabled by default to ensure this
 # script can be run by our automated testing framework.
 SHOW_PLOTS = False
+RUNS_PER_WAVE = 50
 
 
 
@@ -50,7 +51,7 @@ param_info = pd.DataFrame({
 
 # For the first iteration, the samples are random.  We'll use Latin Hypercube
 # Sampling to make the samples more uniformly spaced.
-parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=50, random_state=123456)
+parameter_samples = hm2.sampling.latin_hypercube(param_info, samples=RUNS_PER_WAVE, random_state=123456)
 
 # Save the plot in p so we can easily plot it again and again
 p=plot_pairwise(parameter_samples)
@@ -108,7 +109,7 @@ if SHOW_PLOTS:
 matched = match_sim_outputs_to_observations(
   sim_replicates,
   real_observations,
-  processes=1
+  processes=None
 )
 
 
@@ -117,14 +118,15 @@ matched = match_sim_outputs_to_observations(
 #Fit emulators
 ################################################
 
+# TODO: Revise this text to match the new process
 # Now we begin the process of emulating the simulation output This process
-# contains two steps.  The first step is to fit a deterministic model, here we
-# use a generalized linear model (GLM).  The glm will attempt to model the
-# output (prevalence at the first observation) as a function of some inputs.
-# Those inputs need not be the model parameters directly!  The inputs could be
-# anything from a constant intercept up to third or higher order interaction
-# terms between parameters.  The following Basis instance builds out the GLM
-# input parameters from the overall simulation input parameters.
+# contains two steps. The first step is to fit a deterministic model, here we
+# use a generalized linear model (GLM). The GLM will attempt to model the output
+# (prevalence at the first observation) as a function of some inputs. Those
+# inputs need not be the model parameters directly! The inputs could be anything
+# from a constant intercept up to third or higher order interaction terms
+# between parameters. The Basis module provides several options. Here we build
+# out the GLM input parameters from the overall simulation input parameters.
 #
 # Some strategy is required when choosing these.  If you know which parameters
 # matter, there's a way to directly specify those parameters.  Alternatively, if
@@ -134,7 +136,7 @@ matched = match_sim_outputs_to_observations(
 # second step of emulation, as demonstrated here, fits a GPR to the redisual
 # error between the simulated outputs and the GLM estimates.  If the GLM fits
 # really well, the residual is mostly noise and the GPR has a hard time fitting
-# / isn't very informative.  I actually prefer to weaken the GLM enough to leave
+# / isn't very informative. We actually prefer to weaken the GLM enough to leave
 # plenty of residual signal for the GPR.  Here, I use only first-order (beta and
 # gamma) terms.
 
