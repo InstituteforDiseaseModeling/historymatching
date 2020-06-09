@@ -1,4 +1,7 @@
+from typing import Optional, Type
 import abc
+
+import numpy as np
 
 from hm2.basis import BasisBase
 from hm2.data_validation import *
@@ -11,13 +14,12 @@ class EmulatorBase(abc.ABC):  # pragma: no cover
     def _prep_fitting_data(self,
         train_x: pd.DataFrame,
         train_y,
-        stdev_y: float
+        stdev_y: np.array
     ):
         train_x = ValidateParameterSamplesFrame(train_x)
         train_x = train_x.drop(columns='param_id')
         self._train_x = train_x
         self._train_y = train_y.copy()
-        self._stdev_y = stdev_y.copy()
         return train_x, train_y, stdev_y
 
     def _prep_prediction_data(self, test_x):
@@ -101,8 +103,8 @@ class GLM_GPR_Emulator(EmulatorBase):
 
     def __init__(
         self,
-        glm_basis: EmulatorBase,
-        gpr_basis: EmulatorBase,
+        glm_basis: Type[BasisBase],
+        gpr_basis: Type[BasisBase],
         family:str="gaussian",
     ):
         """Initialize the Emulator"""
@@ -120,17 +122,18 @@ class GLM_GPR_Emulator(EmulatorBase):
     def fit(self,
         train_x: pd.DataFrame,
         train_y,
-        stdev_y,
+        stdev_y: Optional[np.array]=None,
         glm_maxiter:int=1000,
         gpr_maxiter:int=1000,
-        glm_seed:int=None
+        glm_seed:Optional[int]=None
     ):
         """Fit the GPR.
 
         Args:
             train_x: Training data. A :ref:`ParameterSamplesFrame`.
             train_y: Correct outputs
-            stdev_y: Standard deviation of Y values (uncertainty)
+            stdev_y: Standard deviation of Y values (uncertainty). If `None`,
+                     then zero uncertainty is assumed.
             glm_maxiter (int): Maximum number of training iterations in GLM fitting
             gpr_maxiter (int): Maximum number of training iterations in GLM fitting
             glm_seed: Random seed for initializing GPR centers. `None`

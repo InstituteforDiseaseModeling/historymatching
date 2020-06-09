@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
@@ -34,7 +36,7 @@ def parameter_info_frame_from_samples(
 def latin_hypercube(
   param_info: pd.DataFrame,
   samples: int,
-  random_state: int=None
+  random_state: Optional[int]=None
 ):
   """
   Generate parameter hypercube given min and max values for parameters.

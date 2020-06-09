@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 import datetime
 import itertools
 import multiprocessing
@@ -392,7 +392,7 @@ def generate_n_new_plausible_parameters(
     real_observations: pd.DataFrame,
     threshold: float,
     generation_count: int=1_000_000,
-    random_state: int=None
+    random_state: Optional[int]=None
 ):
     """This function uses rejection sampling to generate `count` new
     non-implausible parameters. Note that this is not guaranteed to produce
