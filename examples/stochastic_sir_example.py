@@ -158,7 +158,7 @@ p4 = emulator.glm.plot_QQ()
 p5 = emulator.plot_data()['all']
 p6 = emulator.plot_emulated_vs_predicted()
 if SHOW_PLOTS:
-  print(p1,p2,p3,p4,p5,p6)
+  print(p1, p2, p3, p4, p5, p6)
 
 
 # Now that we've fit the emulator, we use it to find new non-implausible

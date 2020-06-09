@@ -15,6 +15,7 @@ class WrappedFigure:
             fig: A figure from, e.g. `plt.subplots()`
         """
         self.fig=fig
+        plt.close(fig)
 
     def __repr__(self):
         """Called if class instance is typed in REPL"""
