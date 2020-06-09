@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import unittest
 
-from hm2.sampling import latin_hypercube, latin_hypercube_within
+from hm2.sampling import *
 from hm2.error import *
 
 class SamplingTest(unittest.TestCase):
@@ -138,8 +138,8 @@ class SampleWithinTest(unittest.TestCase):
             'max':   [    100,    100]
         })
 
-        cube = latin_hypercube(param_info, 10000)
-        cube = latin_hypercube_within(cube, 10000)
+        cube = latin_hypercube(param_info, 10000, random_state=123456)
+        cube = latin_hypercube_within(cube, 10000, random_state=123456)
 
         #TODO: Better statistical tests?
         self.assertTrue( (cube['Beta' ] >  98).any() )
