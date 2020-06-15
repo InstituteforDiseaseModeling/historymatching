@@ -7,6 +7,8 @@ import numpy as np
 from history_matching.HistoryMatching import HistoryMatching
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
+#pd.set_option('mode.chained_assignment', 'raise')
+
 
 class HistoryMatchingCut():
 
@@ -67,11 +69,36 @@ class HistoryMatchingCut():
                 self.cuts.append((it, cut_name))
 
 
+    def assess_plausibility(self, points, constraint = None):
+        points['Implausible'] = False
+
+        for cut in reversed(self.cuts):
+            (it, cut_name) = cut
+
+            if self.verbose: print('Performing cut: iteration', it, ', cut', cut_name)
+            points.loc[:,'Yglm'] = self.glm_all[cut].evaluate(points)
+            ret = self.gpr_all[cut].evaluate(points)
+
+            points.rename(columns={ 'Yglm': f'Yglm_{it}_{cut_name}', }, inplace=True)
+
+            points.loc[:,f'Mean_Estimate_{it}_{cut_name}'] = points[f'Yglm_{it}_{cut_name}'] + ret['Mean']
+            points.loc[:,f'Var_Predictive_{it}_{cut_name}'] = ret['Var_Predictive']
+
+            points.loc[:,f'Implausibility_{it}_{cut_name}' ] = \
+                abs( points[f'Mean_Estimate_{it}_{cut_name}'] - self.hm_params[cut]['desired_result'] ) / \
+                np.sqrt(points[f'Var_Predictive_{it}_{cut_name}'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
+
+            points.loc[:,f'Implausible_{it}_{cut_name}' ] = points[ f'Implausibility_{it}_{cut_name}' ] > self.hm_params[cut]['implausibility_threshold']
+            points['Implausible'] |= points.loc[:,f'Implausible_{it}_{cut_name}' ]
+
+        return points
+
+
+
     def test_plausibility(self, points, constraint = None):
         new_candidates = points.copy()
         new_candidates['Implausible'] = False
 
-        cols = []
         for cut in self.cuts:
             (it, cut_name) = cut
 
@@ -85,11 +112,9 @@ class HistoryMatchingCut():
             if self.verbose: print('Performing cut: iteration', it, ', cut', cut_name)
             t = time.time()
             plausible_candidates.loc[:,'Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
-            if self.debug:
-                if self.verbose: print('GLM:', time.time()-t); t=time.time()
+            if self.verbose: print('GLM:', time.time()-t); t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
-            if self.debug:
-                if self.verbose: print('GPR:', time.time()-t); t=time.time()
+            if self.verbose: print('GPR:', time.time()-t); t=time.time()
             plausible_candidates.loc[:,'Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates.loc[:,'Var_Predictive'] = ret['Var_Predictive']
 
@@ -98,7 +123,6 @@ class HistoryMatchingCut():
                 np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
 
             plausible_candidates.loc[:,'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
-            cols += ['Implausibility_%d_%s'%(it, cut_name), 'Implausible_%d_%s'%(it, cut_name)]
 
             new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
 
@@ -111,6 +135,8 @@ class HistoryMatchingCut():
 
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
+
+        self.verbose = True # TEMP!!!
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
             if self.verbose: print('-'*80)
