@@ -136,8 +136,6 @@ class HistoryMatchingCut():
         stats = {k:{'cut_implausible':0, 'newly_implausible':0, 'num':0} for k in self.cuts}
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
-        self.verbose = True # TEMP!!!
-
         while stats['num_plausible_candidates'] < num_desired_candidates:
             if self.verbose: print('-'*80)
             max_nSamples = 10000 # TODO: make a parameter or determine from GPU info
