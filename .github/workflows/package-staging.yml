@@ -1,0 +1,45 @@
+# This workflows will upload a Python Package using Twine when a release is created
+
+name: "Staging Package: history-matching"
+
+on:
+  push:
+    branches:
+      # only run this on
+      - dev
+      - 'release**'
+    paths:
+      - 'history_matching/**'
+      - 'requirements.txt'
+      - 'setup.py'
+
+jobs:
+  deploy-emodpy-staging:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'Bump version: ')"
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('.dev_scripts/build-requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install dependencies
+        run: |
+          pip install -r wheel setuptools wheel twine
+          git config --global user.name "IDM Tools"
+          git config --global user.name "idmtools@idmod.org"
+      - uses: actions/checkout@v2
+      - name: Build and publish
+        env:
+          TWINE_REPOSITORY_URL: https://packages.idmod.org/api/pypi/idm-pypi-staging/
+          TWINE_USERNAME: ${{ secrets.PYPI_STAGING_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_STAGING_PASSWORD }}
+        run: |
+          python setup.py sdist bdist_wheel
+          twine upload dist/*

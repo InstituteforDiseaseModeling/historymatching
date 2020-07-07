@@ -11,3 +11,5 @@ from .CutNearSamples import CutNearSamples
 from .VariableSelection import VariableSelection
 from .MCMCCut import MCMCCut
 from .MCMCCutWorker import MCMCCutWorker
+
+__version__ = "0.1"
