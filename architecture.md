@@ -1,0 +1,112 @@
+# Architecture Proposal
+
+![History Matching Architecture Diagram (Rafael Nunez)](./history-matching-architecture.png "title")
+
+## Overview
+
+Given some _observational data_, a _model_ (AKA simulator) which includes fixed configuration data opaque to the history matching package (HMP), and an initial _parameter space_ defined by a set of parameters and their minima and maxima, an iteration of the history matching algorithm is as follows:
+
+1. **Next-Point Generation (NPG)**: A set of test points in the non-implausible parameter space are chosen. In subsequent iterations, the non-implausible space is constrained by the results of prior iterations of the algorithm. The next point generation algorithm can be user selected/defined.<br>
+- Inputs: 1) the original unconstrained parameter space and 2) the comprehensive set of all emulators generated in previous iterations.<br>
+- Outputs: 1) performance metrics, e.g., fraction of remaining non-implausible space and 2) a proposed set of test points in parameter space
+2. **Proceed/Exit Determination** (¿PrED-icate?): The algorithm may halt at this point given either a) determination that a sufficient fraction of the original parameter space has been rejected as implausible or b) the non-implausible parameter space is no longer being reduced.<br>
+- Inputs: performance metrics
+- Outputs: boolean go/no-go determination
+3. **Model Execution**: The model is run one or more times at each sample point in parameter space.<br>
+- Inputs: 1) the proposed set of test points in parameter space from the NPG step and 2) "opaque" model specific configuration<br>
+- Outputs: model specific, "opaque" to the HMP
+4. **Feature Selection/Emulator Generation**: One or more features (outputs) of the model, appropriate to the current iteration, are chosen and used to create emulators, informed by the feature selection and known model outputs, intended to predict model output at points in parameter space which have not been explicitly tested with the model.<br>
+- Inputs: 1) Observation data and 2) model data for tested points in parameter space<br>
+- Outputs: one or more emulators
+
+## Notes
+
+- _observation data_ will be in a format specific to the user and model in question. This format will generally be opaque to HMP.
+- parameters in the _parameter space_ will be scalar values, initially with minimums and maximums to bound their possible values. These can be specified with a parameter name (key), minimum, and maximum.
+- _configuration data_ for the simulator (model) will be in a format specific to the user and model in question. This format will mostly be opaque to HMP with the exception of the particular parameters being used for calibration which will be a set of key:value pairs specifying the parameter name and current scalar value.
+
+## Proposals
+
+- Points in parameter space collected in the Model Parameters database are tagged with iteration on which they were selected. Among other things, this would be useful for charting progress over a range of iterations.
+- Emulators in the Emulator Bank are tagged with the iteration in which they were generated. The NPG might use this information to prioritize earlier or later emulators.
+- The Emulator Bank should include user defined properties which may be used by the NPG to choose the order in which emulators are used to evaluate potential test points in parameters space, e.g., more discriminating evaluators may be used to evaluate test points before continuing on to additional emulators.
+- HMP configuration will include a user specific `sim_config` entry. The schema and interpretation of this entry is up to the user and the user's code. One user option would be to keep all required simulation data, in memory, in the `sim_config` and read by the adapter in the Model Execution step to configure the user model (*sim scenario?). Another user option would be to keep metadata, such as the path to the directory containing required simulation data, in the `sim_config` and the adapter in the Model Execution step would point the model to files in that directory (EMOD scenario?).
+- Similarly, outputs from the Model Execution step would be opaque to HMP step and may include an in memory representation of model outputs, if sufficiently compact, (*sim scenario?) or metadata about the location of model outputs on disk (EMOD scenario?).
+- The Feature Selection/Emulator Generation step requires user specific code, consistent with the output from the Model Execution step, to access and assess model outputs for feature selection and extract relevant data for emulator generation.
+
+## Questions
+
+- ¿Do emulators require _only_ knowledge of the parameter values at a given point in parameter space or could they also need access to the fixed, model specific parameters being used to drive the simulator/model?
+- ¿Are all parameters in a continuous space between their minimum and maximum or is it possible/desirable to have parameters which select from a set of quantized values?
+
+## Pseudocode
+
+```python
+
+param_space = {
+    "param1": {"min": min1, "max": max1, "scale": "linear", "desc": "transmission factor"},
+    "param2": {"min": min2, "max": max2, "scale": "log", "desc": "parameter description"},
+    "param3": {"values": [ 0, 1, 2, 3, 5, 8, 13, 21, 34, 55 ], "scale": "explicit", "desc": "description" }
+    }
+
+non_implausible_space = None    # What is appropriate to describe the initial space with no constraints?
+
+class Config:
+    pass
+
+config = Config()
+config.max_iterations = 100     # Example, at most 100 iterations
+config.reps_per_point = 10      # Example, run simulator 10x (different PRNG seeds?) at each sample point
+
+# Templated/consistent configuration for the simulator ("real model")
+config.sim_config = Config()
+config.sim_config.num_people = 1000     # Example, population size of 1K
+config.sim_config.initial_infs = 10     # Example, 10 initial infections
+
+model_results_db = {}   # Dictionary is a placeholder, might select SQLite or something more formal
+emulator_bank = {}      # Dictionary is a placeholder, actual datastructure TBD
+
+for iteration in range(config.max_iterations):
+
+    # test_points is a list of points in parameter space where a 
+    # sample point is a dictionary of parameter:value pairs, one for each parameter in the param_space dictionary
+    metrics, sample_points = generate_sample_points(iteration, param_space, emulator_bank, config)
+
+    # exit (early) if results are satisfactory or progress has plateaued
+    if exit_predicate(iteration, metrics, config):
+        break
+
+    # results would be a list of simulator results, paired with the corresponding point from test_points
+    results = run_simulators(iteration, test_points, config)
+
+    # add additional results to model results database
+    merge_results(results, model_results_db, config)
+
+    # With full set of results, update emulator bank
+    emulators = generate_emulators(iteration, model_results_db, emulator_bank, config)
+
+    # add new emulators to emulator bank
+    deposit_emulators(emulators, emulator_bank, config)
+
+    return
+
+def run_simulators(iteration, test_points, config):
+
+    results = []
+    for point in test_points:
+        for replicate in range(config.reps_per_point):
+            # configure model for execution with fixed data + sample point parameter values + replicate informed data (e.g., PRNG seed)
+            configure_sim()
+            result = exec_simulator()
+            results.append( (point, result) )
+
+    return results
+
+def generate_emulators(iteration, model_results_db, emulator_bank, config):
+
+    emulators = []
+    for feature in select_features(iteration, model_results_db, config):
+        emulators.append( generate_emulator(feature) )
+
+    return emulators
+```
