@@ -24,9 +24,11 @@ Given some _observational data_, a _model_ (AKA simulator) which includes fixed 
 
 ## Notes
 
-- _observation data_ will be in a format specific to the user and model in question. This format will generally be opaque to HMP.
+- _observation data_ shall be in a rectangular dataframe with a column per feature and row per observation.
 - parameters in the _parameter space_ will be scalar values, initially with minimums and maximums to bound their possible values. These can be specified with a parameter name (key), minimum, and maximum.
 - _configuration data_ for the simulator (model) will be in a format specific to the user and model in question. This format will mostly be opaque to HMP with the exception of the particular parameters being used for calibration which will be a set of key:value pairs specifying the parameter name and current scalar value.
+- _model execution output_ shall be in a rectangular dataframe with a column for iteration, a column each for input parameter value, and a column each for output feature value and a row per model run.
+- **_TBD:_** state (de)serialization for branching and restart. This is a significant, if not required, feature.
 
 ## Proposals
 
@@ -34,7 +36,7 @@ Given some _observational data_, a _model_ (AKA simulator) which includes fixed 
 - Emulators in the Emulator Bank are tagged with the iteration in which they were generated. The NPG might use this information to prioritize earlier or later emulators.
 - The Emulator Bank should include user defined properties which may be used by the NPG to choose the order in which emulators are used to evaluate potential test points in parameters space, e.g., more discriminating evaluators may be used to evaluate test points before continuing on to additional emulators.
 - HMP configuration will include a user specific `sim_config` entry. The schema and interpretation of this entry is up to the user and the user's code. One user option would be to keep all required simulation data, in memory, in the `sim_config` and read by the adapter in the Model Execution step to configure the user model (*sim scenario?). Another user option would be to keep metadata, such as the path to the directory containing required simulation data, in the `sim_config` and the adapter in the Model Execution step would point the model to files in that directory (EMOD scenario?).
-- Similarly, outputs from the Model Execution step would be opaque to HMP step and may include an in memory representation of model outputs, if sufficiently compact, (*sim scenario?) or metadata about the location of model outputs on disk (EMOD scenario?).
+- <strike>Similarly, outputs from the Model Execution step would be opaque to HMP step and may include an in memory representation of model outputs, if sufficiently compact, (*sim scenario?) or metadata about the location of model outputs on disk (EMOD scenario?).</strike> See **Notes** above.
 - The Feature Selection/Emulator Generation step requires user specific code, consistent with the output from the Model Execution step, to access and assess model outputs for feature selection and extract relevant data for emulator generation.
 
 ## Questions
