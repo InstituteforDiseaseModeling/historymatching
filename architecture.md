@@ -14,8 +14,11 @@ Given some _observational data_, a _model_ (AKA simulator) which includes fixed 
 - Outputs: boolean go/no-go determination
 3. **Model Execution**: The model is run one or more times at each sample point in parameter space.<br>
 - Inputs: 1) the proposed set of test points in parameter space from the NPG step and 2) "opaque" model specific configuration<br>
-- Outputs: model specific, "opaque" to the HMP
-4. **Feature Selection/Emulator Generation**: One or more features (outputs) of the model, appropriate to the current iteration, are chosen and used to create emulators, informed by the feature selection and known model outputs, intended to predict model output at points in parameter space which have not been explicitly tested with the model.<br>
+- Outputs: rectangular dataframe with one column each for iteration, sample point parameter values (simulator inputs), and feature values (simulator outputs)
+4. **Feature Selection**: One or more features (outputs) of the model, appropriate to the current iteration, are chosen to be used for generating new emulators.<br>
+- Inputs: 1) current iteration and 2) model data for tested points in parameter space<br>
+- Outputs: one or more features to be used for generating new emulators
+5. **Emulator Generation**:  Create emulators, informed by the feature selection and known model outputs, intended to predict model output at points in parameter space which have not been explicitly tested with the model.<br>
 - Inputs: 1) Observation data and 2) model data for tested points in parameter space<br>
 - Outputs: one or more emulators
 
@@ -68,6 +71,8 @@ emulator_bank = {}      # Dictionary is a placeholder, actual datastructure TBD
 
 for iteration in range(config.max_iterations):
 
+    start_iteration_callback(iteration)
+
     # test_points is a list of points in parameter space where a 
     # sample point is a dictionary of parameter:value pairs, one for each parameter in the param_space dictionary
     metrics, sample_points = generate_sample_points(iteration, param_space, emulator_bank, config)
@@ -82,11 +87,16 @@ for iteration in range(config.max_iterations):
     # add additional results to model results database
     merge_results(results, model_results_db, config)
 
+    # determine features for emulator generation
+    selected_features = select_features(iteration, model_results_db, config)
+
     # With full set of results, update emulator bank
-    emulators = generate_emulators(iteration, model_results_db, emulator_bank, config)
+    emulators = generate_emulators(iteration, selected_features, model_results_db, emulator_bank, config)
 
     # add new emulators to emulator bank
     deposit_emulators(emulators, emulator_bank, config)
+
+    end_iteration_callback(iteration)
 
     return
 
@@ -102,10 +112,10 @@ def run_simulators(iteration, test_points, config):
 
     return results
 
-def generate_emulators(iteration, model_results_db, emulator_bank, config):
+def generate_emulators(iteration, selected_features, model_results_db, emulator_bank, config):
 
     emulators = []
-    for feature in select_features(iteration, model_results_db, config):
+    for feature in selected_features:
         emulators.append( generate_emulator(feature) )
 
     return emulators
