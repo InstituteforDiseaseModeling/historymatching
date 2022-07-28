@@ -46,7 +46,7 @@ class PolynomialBasis(BasisBase):
     if self.scale:
       X[:] = skp.scale(X)
     fit     = self.polyfit.fit_transform(X)
-    columns = self.polyfit.get_feature_names(X.columns)
+    columns = self.polyfit.get_feature_names_out(X.columns)
     columns = ['Intercept' if x=='1' else x for x in columns]
     return pd.DataFrame(fit, columns = columns)
 
@@ -82,7 +82,7 @@ class IdentityBasis(BasisBase):
       X[:] = skp.scale(X)
     transformed = self.polyfit.fit_transform(X)
 
-    columns = self.polyfit.get_feature_names(X.columns)
+    columns = self.polyfit.get_feature_names_out(X.columns)
     columns = ['Intercept' if x=='1' else x for x in columns]
 
     return pd.DataFrame(self.polyfit.fit_transform(X), columns = columns)

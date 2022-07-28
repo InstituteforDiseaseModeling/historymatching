@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-setup(name='HistoryMatching',
+setup(name='hm2',
       version          = '0.1.0',
       description      = 'Support for model calibration using the History Matching algorithm',
       author           = 'Dan Klein',
@@ -18,7 +18,7 @@ setup(name='HistoryMatching',
         "plotnine==0.6.0",
         "pyDOE==0.3.8",
         "sklearn",
-        "statsmodels==0.11.0",
+        "statsmodels",
       ],
       classifiers=[
           "Programming Language :: Python :: 3 :: Only",
