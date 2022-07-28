@@ -35,3 +35,17 @@ deprecate/
 
 # Helper
 *.ignore.*
+
+# Code coverage
+.coverage
+
+# Temporary files
+tmp/
+
+# Testing temporaries
+test_coverage/
+.noseids
+nosetests.xml
+
+TODO
+misc/

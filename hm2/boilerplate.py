@@ -1,0 +1,467 @@
+from typing import Optional, Union
+import datetime
+import itertools
+import multiprocessing
+import os
+
+import numpy as np
+import pandas as pd
+import pickle
+
+from .error import HistoryMatchingError
+from .data_validation import *
+from .utility import drop_key
+from .emulators import EmulatorBase
+from .sampling import *
+
+# TODO: Handle summary values
+# SUMMARY_NUMERIC = np.inf
+# SUMMARY_DATE    = datetime.datetime.max
+
+
+
+def _assert_processes_none_or_positive(processes):
+    if processes is None:
+        pass
+    elif not isinstance(processes,int):
+        raise TypeError("processes must be an integer!")
+    elif processes<=0:
+        raise ValueError("processes must be >0!")
+
+
+def _verify_emulators(emulators: Union[list,dict]) -> None:
+    assert isinstance(emulators, (list, dict))
+    #Ensure emulators is a list of dicts
+    if isinstance(emulators, dict):
+        emulators = [emulators]
+
+    #Check all dicts for possible problems
+    for wave, wave_emulators in enumerate(emulators):
+        for obs, emulator in wave_emulators.items():
+            if not isinstance(emulator, EmulatorBase):
+                 raise HMNotAnEmulator(obs, wave=wave)
+
+
+def _match_sim_to_observations(
+    sim_output: pd.DataFrame,
+    real_observations: pd.DataFrame
+):
+    """Matches a single simulation output to a real observation
+
+    Args:
+        sim_output(pd.DataFrame): A :ref:`ObservationFrame` from a model
+        real_observations(pd.DataFrame): A :ref:`ObservationFrame` from reality
+
+    Returns: TODO
+    """
+    sim_output = ValidateSimFrame(sim_output, copy=False)
+    real_observations = ValidateObservationsFrame(real_observations, copy=False)
+
+    #Get observation names common to both the simulation and the real
+    #observations
+    common_obs_names = set(sim_output['observation']).intersection(
+        set(real_observations['observation']))
+
+    #Filter to just those observations (ignores output created by the model that
+    #doesn't correspond to observations we made from reality, as well as things
+    #we observed but did not model)
+    sim_output = sim_output[sim_output['observation'].isin(common_obs_names)]
+    real_observations = real_observations[real_observations['observation'].isin(common_obs_names)]
+
+    #TODO: Handle summary values
+
+    # Left merge, matching each modeled and actual observation to its nearest
+    # analogue by time
+    temp = pd.merge_asof(
+        real_observations,
+        sim_output,
+        on="time",
+        by="observation",
+        direction="nearest",
+        suffixes=("_a", "_s"),
+    )
+    temp = temp.drop(columns=[
+        "time",              # No longer need the time
+        "observation_id_s",  # Don't care about simulation observation ids
+        "value_a",           # Drop actual value
+        "stdev_a",           # Drop actual stdev
+        "observation",       # Drop observation name
+    ])
+
+    # Rename to drop suffixes
+    temp = temp.rename(columns={"value_s": "value", "stdev_s": "stdev"})
+
+    return temp
+
+
+def _validated_run(wrapped_model, param_set, replicate):
+    def add_to_frame(df, key, value):
+        if df is not None:  # If there is a data frame
+            if value is not None:  # and we have something to add to it
+                df[key] = value  # then add the thing
+
+    if not isinstance(param_set, dict):
+        raise HistoryMatchingError("param_set must be a dictionary!")
+
+    # Remove param_id, if present so that it isn't interpreted as a model
+    # parameter
+    param_id = param_set.get("param_id", None)
+    param_set = drop_key(param_set, "param_id", ignore_missing=True)
+
+    # Run the model and ensure it returns valid results
+    sim_results = ValidateSimObservationsFrame(wrapped_model(**param_set))
+
+    add_to_frame(sim_results, "replicate", replicate)
+    add_to_frame(sim_results, "param_id", param_id)
+
+    return sim_results
+
+
+def run_replicates(wrapped_model, replicates, param_sets=None, processes=None):
+    """Runs a wrapped model `replicates` number of times for each row in param_sets
+
+    Args:
+        wrapped_model: A wrapped model (see :ref:`Wrapping A Model`)
+        replicates: How many times to row the model per parameter set
+        param_sets: A :ref:`ParameterSamplesFrame`.
+        processes: Parallelize across this many processes. `None` implies using
+                   as many processes as cores. `1` implies using a single core.
+
+    Returns: A list of :ref:`SimFrame`. Has length `replicates*len(param_sets)`.
+    """
+    param_sets = ValidateParameterSamplesFrame(param_sets)
+    param_sets = [x.to_dict() for _, x in param_sets.iterrows()]
+
+    _assert_processes_none_or_positive(processes)
+
+    mapper_args = (
+        _validated_run,
+        itertools.product([wrapped_model], param_sets, list(range(replicates)))
+    )
+
+    if processes == 1:
+        results = itertools.starmap(*mapper_args)
+    else:
+        pool = multiprocessing.Pool(processes=processes)
+        results = pool.starmap(*mapper_args)
+        pool.close()
+        pool.join()
+
+    return list(results)
+
+
+def match_sim_outputs_to_observations(
+    sim_outputs: pd.DataFrame,
+    real_observations: pd.DataFrame,
+    processes=None
+):
+    """Matches simulation outputs to actual observations.
+
+    Args:
+        sim_outputs(list): A list of :ref:`SimFrame`.
+        real_observations: An :ref:`ObservationsFrame`
+        processes: Parallelize across this many processes. `None` implies using
+                   as many processes as cores. `1` implies using a single core.
+
+    Returns: A :ref:`MatchedFrame` which matches the simulation results to the
+             observed time and summary results.
+    """
+    if not isinstance(sim_outputs, list):
+        raise TypeError("`sim_outputs` must be a list")
+    try:
+        sim_outputs = [ValidateSimFrame(x) for x in sim_outputs]
+    except HistoryMatchingError as hme:
+        raise HistoryMatchingError(f"One of the simulation outputs did not validate! {hme}")
+
+    _assert_processes_none_or_positive(processes)
+
+    mapper_args = (
+        _match_sim_to_observations,
+        itertools.product(sim_outputs, [real_observations])
+    )
+
+    if processes == 1:
+        matched = itertools.starmap(*mapper_args)
+    else:
+        pool = multiprocessing.Pool(processes=processes)
+        matched = pool.starmap(*mapper_args)
+        pool.close()
+        pool.join()
+
+    if all(y is None for y in matched):
+        raise HistoryMatchingError("No matches were possible for any simulation output!")
+
+    return pd.concat(matched, ignore_index=True)
+
+def prep_emulator_data(
+    param_samples: pd.DataFrame,
+    matched: pd.DataFrame,
+    observation_id
+):
+    """Fit the Emulator
+
+    Args:
+        emulator: Emulator to fit
+        param_samples: A :ref:`ParameterSamplesFrame`
+        model_output:  A :ref:`SimFrame` built using parameters
+                       from `param_samples`
+        observation_key: Filter model_output by `observation_key`
+        maxiter (int): Number of training iterations
+
+    Returns:
+        None
+    """
+    param_samples = ValidateParameterSamplesFrame(param_samples, copy=False)
+    matched = ValidateMatchedFrame(matched, copy=False)
+
+    # Filter matched down to just the observation we are interested in. Doing
+    # this early on makes subsequent operations faster.
+    matched = matched[matched["observation_id_a"] == observation_id]
+    # Drop observation_id_a column since we no longer need it
+    matched = matched.drop(columns="observation_id_a")
+
+    # Get all parameter samples used for observation
+    params = matched[["param_id"]]
+    # Pair them with their actual values
+    params = pd.merge(params, param_samples, how="left", on="param_id")
+    # Drop param_id column leaving only parameter values
+    params = params.drop(columns="param_id")
+
+    train_x = params
+    train_y = matched["value"].to_numpy()
+    stdev_y = matched["stdev"].to_numpy()
+
+    return train_x, train_y, stdev_y
+
+
+def generate_data_for_emulators(
+    param_samples: pd.DataFrame,
+    matched: pd.DataFrame
+):
+    """Merges the values of `param_samples` with the appropriate rows in
+    `matched` and returns the results grouped by the real observations' ids.
+
+    Args:
+        param_samples: A :ref:`ParameterSamplesFrame`
+        matched: A :ref:`SimFrame` built using parameters from `param_samples`.
+
+    Yields: A tuple of `(observation_id, parameters, y, stdev)`
+    """
+    param_samples = ValidateParameterSamplesFrame(param_samples, copy=False)
+    matched = ValidateMatchedFrame(matched, copy=False)
+
+    merged = pd.merge(matched, param_samples, how="left", on="param_id")
+
+    for observation_id_a, grouped in merged.groupby("observation_id_a"):
+        train_y = grouped["value"].to_numpy()
+        stdev_y = grouped["stdev"].to_numpy()
+        grouped = grouped.drop(
+            columns=["observation_id_a", "replicate", "value", "stdev"]
+        )
+        yield observation_id_a, grouped, train_y, stdev_y
+
+
+def get_single_obs_data_for_emulators(
+    param_samples: pd.DataFrame,
+    matched: pd.DataFrame,
+    observation_id: int
+):
+    """Merges the values of `param_samples` with the appropriate rows in
+    `matched` and extracts the data relating to the specified observation_id.
+
+    Args:
+        param_samples: A :ref:`ParameterSamplesFrame`
+        matched: A :ref:`SimFrame` built using parameters from `param_samples`.
+        observation_id: Extract only information related to this observation id
+
+    Yields: A tuple of `(observation_id, parameters, y, stdev)`
+    """
+    param_samples = ValidateParameterSamplesFrame(param_samples, copy=False)
+    matched = ValidateMatchedFrame(matched, copy=False)
+    assert isinstance(observation_id,int)
+
+    merged = pd.merge(matched, param_samples, how="left", on="param_id")
+
+    #Extract the observation id
+    merged = merged[merged['observation_id_a']==observation_id]
+
+    train_y = merged["value"].to_numpy()
+    stdev_y = merged["stdev"].to_numpy()
+    merged = merged.drop(columns=["observation_id_a", "replicate", "value", "stdev"])
+    return merged, train_y, stdev_y
+
+
+def _implausibility_equ(
+    reality, reality_stdev, prediction, prediction_stdev, model_stdev
+):
+    """Implements Equation 3 from Gardner2019"""
+    return np.abs(reality - prediction) / np.sqrt(
+        reality_stdev ** 2 + model_stdev ** 2 + prediction_stdev ** 2
+    )
+
+
+def get_implausibility(
+    emulators: Union[list,dict],
+    parameter_samples: pd.DataFrame,
+    observations: pd.DataFrame,
+    model_stdev: float=0.0
+):
+    """Uses the emulators to determine the implausibility of each
+    parameter_sample given the observations and model variability.
+
+    Args:
+        emulators: A dictionary association observation_ids with emulators.
+        parameter_samples: A :ref:`ParameterSamplesFrame`.
+        observations: A :ref:`ObservationsFrame`.
+        model_stdev: A value indicating the internal variability of the model.
+
+    Returns: TODO
+    """
+    for obs, emulator in emulators.items():
+        if not isinstance(emulator, EmulatorBase):
+            raise HMNotAnEmulator(obs)
+
+    parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+    observations = ValidateObservationsFrame(observations)
+
+    assert isinstance(model_stdev, (int,float))
+    assert model_stdev>=0
+
+    implausibilities = []
+    for _, row in observations.iterrows():
+        row = row.to_dict()
+        if row["observation_id"] not in emulators:
+            continue
+        prediction, p_stdev = emulators[row["observation_id"]].predict(
+            parameter_samples
+        )
+        implausibility = _implausibility_equ(
+            reality=row["value"],
+            reality_stdev=row["stdev"],
+            prediction=prediction,
+            prediction_stdev=p_stdev,
+            model_stdev=model_stdev,
+        )
+        implausibility = pd.DataFrame(
+            {
+                "observation_id": row["observation_id"],
+                "param_id": parameter_samples["param_id"],
+                "implausibility": implausibility,
+            }
+        )
+        implausibilities.append(implausibility)
+    return pd.concat(implausibilities, ignore_index=True)
+
+
+def max_implausibility_per_param(implausibilities):
+    #TODO: Check input type
+    return implausibilities.groupby("param_id")["implausibility"].max().reset_index()
+
+
+def filter_implausibilities(
+    implausibilities,
+    threshold:float
+):
+    """Filter out those implausibilities which are too large.
+
+    Args:
+        implausibilities: TODO
+        treshold: Implausibilities larger than this threshold are rejected
+
+    Returns: TODO
+    """
+    assert isinstance(threshold,(int,float)) and threshold>=0
+
+    #TODO: Check input type
+    return implausibilities[implausibilities["implausibility"] <= threshold]
+
+
+def get_plausible_parameters(implausibilities, parameter_samples):
+    #TODO: Check input type
+    parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+    params = pd.merge(implausibilities, parameter_samples, how="left", on="param_id")
+    params = params.drop(columns="implausibility")
+    return params
+
+
+
+def generate_n_new_plausible_parameters(
+    count: int,
+    emulators: Union[list,dict],
+    parameter_samples: pd.DataFrame,
+    real_observations: pd.DataFrame,
+    threshold: float,
+    generation_count: int=1_000_000,
+    random_state: Optional[int]=None
+):
+    """This function uses rejection sampling to generate `count` new
+    non-implausible parameters. Note that this is not guaranteed to produce
+    `count` parameters. For very constricted spaces fewer, or no, samples might
+    be obtained.
+
+    Args:
+        count: How many non-implausible samples we would like
+        emulators: A dictionary of emulators or a list of such dictionaries,
+                   one dictionary for each wave.
+        parameter_samples: A :ref:`ParameterSamplesFrame` which will be used to
+                           constrain the sample space.
+        real_observations: A :ref:`ObservationsFrame` containing real observations.
+        threshold: Samples with implausibility values above this threshold are
+                   rejected.
+        generation_count: How many samples should be generated in an attempt to
+                          find the `count` we want. This number should be
+                          several hundred times larger than the actual number
+                          desired.
+        random_state (int): Used to generate samples reproducibly without
+                            affecting random numbers in the rest of the program.
+
+    Returns: A new :ref:`ParameterSamplesFrame`.
+    """
+    #Verify inputs
+    assert isinstance(count,int) and count>=0
+
+    _verify_emulators(emulators)
+
+    parameter_samples = ValidateParameterSamplesFrame(parameter_samples)
+    real_observations = ValidateObservationsFrame(real_observations)
+
+    assert isinstance(threshold,(int,float)) and threshold>=0
+    assert isinstance(generation_count,int) and generation_count>=0
+    assert isinstance(random_state, (int, type(None)))
+
+    # Propose new parameters to look at within the current sample space.
+    psamples_within  = latin_hypercube_within(parameter_samples, generation_count, random_state=random_state)
+
+    #Since we allow the user to supply a list of emulator dictionaries, one per
+    #wave we now apply each wave's emulators to the sample space we've just
+    #generated storing the results in `plausible_params_per_wave`
+    plausible_params_per_wave = []
+    for wave_emulators in emulators:
+        # Use the emulators to determine how plausible each of the proposed parameter
+        # samples are
+        implausibilities = get_implausibility(emulators, psamples_within, real_observations)
+        # Each parameter sample has implausibility values associated with several
+        # emulators. We want to find the maximum implausibility for each sample.
+        implausibilities = max_implausibility_per_param(implausibilities)
+        # The implausibility threshold determines how willing we are to retain regions
+        # of parameter space that are inconsistent with the underlying data. A higher
+        # threshold is more risk averse in that potentially good regions are less likely
+        # to be rejected; however, it will take more iterations/simulations to achieve
+        # results. Let's filter so we're left with only non-implausible parameters.
+        implausibilities = filter_implausibilities(implausibilities, threshold=3)
+        # Finally, we extract the non-implausible parameters back into a
+        # ParameterSamplesFrame
+        plausible_params = get_plausible_parameters(implausibilities, psamples_within)
+        # Store this result
+        plausible_params_per_wave.append(plausible_params)
+
+    # Merge the parameters that each wave marked as non-implausible into a
+    # single frame, eliminating duplicates
+    plausible_params = merge_list_of_parameter_samples(plausible_params_per_wave)
+
+    #If we've generated too many samples, we choose a random subset. This should
+    #still be space filling
+    if len(plausible_params)>count:
+        plausible_params = plausible_params.sample(count)
+
+    return plausible_params
