@@ -35,14 +35,14 @@ Given some _observational data_, a _model_ (AKA simulator) which includes fixed 
 - Points in parameter space collected in the Model Parameters database are tagged with iteration on which they were selected. Among other things, this would be useful for charting progress over a range of iterations.
 - Emulators in the Emulator Bank are tagged with the iteration in which they were generated. The NPG might use this information to prioritize earlier or later emulators.
 - The Emulator Bank should include user defined properties which may be used by the NPG to choose the order in which emulators are used to evaluate potential test points in parameters space, e.g., more discriminating evaluators may be used to evaluate test points before continuing on to additional emulators.
-- HMP configuration will include a user specific `sim_config` entry. The schema and interpretation of this entry is up to the user and the user's code. One user option would be to keep all required simulation data, in memory, in the `sim_config` and read by the adapter in the Model Execution step to configure the user model (*sim scenario?). Another user option would be to keep metadata, such as the path to the directory containing required simulation data, in the `sim_config` and the adapter in the Model Execution step would point the model to files in that directory (EMOD scenario?).
+- HMP configuration will include a user specific `sim_config` entry. The schema and interpretation of this entry is up to the user and the user's code. One user option would be to keep all required simulation data, in memory, in the `sim_config` and read by the adapter in the Model Execution step to configure the user model (e.g., basic *sim scenario). Another user option would be to keep metadata, such as the path to the directory containing required simulation data, in the `sim_config` and the adapter in the Model Execution step would point the model to files in that directory (e.g., EMOD scenario).
 - <strike>Similarly, outputs from the Model Execution step would be opaque to HMP step and may include an in memory representation of model outputs, if sufficiently compact, (*sim scenario?) or metadata about the location of model outputs on disk (EMOD scenario?).</strike> See **Notes** above.
 - The Feature Selection/Emulator Generation step requires user specific code, consistent with the output from the Model Execution step, to access and assess model outputs for feature selection and extract relevant data for emulator generation.
 
 ## Questions
 
-- ¿Do emulators require _only_ knowledge of the parameter values at a given point in parameter space or could they also need access to the fixed, model specific parameters being used to drive the simulator/model?
-- ¿Are all parameters in a continuous space between their minimum and maximum or is it possible/desirable to have parameters which select from a set of quantized values?
+- ¿Do emulators require _only_ knowledge of the parameter values at a given point in parameter space or could they also need access to the fixed, model specific parameters being used to drive the simulator/model?<br>A: Emulators may need access to hyperparameters (ratio of training to test data, etc.).
+- ¿Are all parameters in a continuous space between their minimum and maximum or is it possible/desirable to have parameters which select from a set of quantized values?<br>A: There may be quantization, e.g., initial infections. This can be handled by the simulator wrapper. Q: Should this be reflected in the parameters recorded in the results database, e.g., sample point initial infections = 5.6, results db initial infections = 6? This would correctly reflect the parameters used by the simulation but would not exactly match the sample points in parameter space selected for simulation.
 
 ## Pseudocode
 
@@ -54,7 +54,6 @@ param_space = {
     "param3": {"values": [ 0, 1, 2, 3, 5, 8, 13, 21, 34, 55 ], "scale": "explicit", "desc": "description" }
     }
 
-non_implausible_space = None    # What is appropriate to describe the initial space with no constraints?
 
 class Config:
     pass
@@ -68,6 +67,7 @@ config.sim_config = Config()
 config.sim_config.num_people = 1000     # Example, population size of 1K
 config.sim_config.initial_infs = 10     # Example, 10 initial infections
 
+observational_data = {} # Dictionary is a placeholder, might select SQLite or something more formal
 model_results_db = {}   # Dictionary is a placeholder, might select SQLite or something more formal
 emulator_bank = {}      # Dictionary is a placeholder, actual datastructure TBD
 
@@ -93,7 +93,7 @@ for iteration in range(config.max_iterations):
     selected_features = select_features(iteration, model_results_db, config)
 
     # With full set of results, update emulator bank
-    emulators = generate_emulators(iteration, selected_features, model_results_db, emulator_bank, config)
+    emulators = generate_emulators(iteration, selected_features, observational_data, model_results_db, emulator_bank, config)
 
     # add new emulators to emulator bank
     deposit_emulators(emulators, emulator_bank, config)
