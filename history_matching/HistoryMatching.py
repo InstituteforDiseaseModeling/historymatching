@@ -10,6 +10,9 @@ import datetime
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
 from history_matching.plotting import plot_data, joint_plot, plot_errors, plot_implausibility, plot_implausibility_by_iter, histogram_implausibility # <-- TODO: Fix names
+import logging
+
+logger = logging.getLogger(__name__)
 
 # TODO: Error plot
 # TODO: Reference plot
@@ -73,6 +76,7 @@ class HistoryMatching():
         self.verbose = verbose
 
         if self.verbose: print('Welcome to IDM History Matching!')
+        logger.info('Welcome to IDM History Matching!')
 
         self.results.name = 'Sim_Result'
         self.Ycol = self.results.name
@@ -83,6 +87,7 @@ class HistoryMatching():
             self.training_data = self.data.loc[True]
             self.test_data = self.data.loc[False]
             if self.verbose: print('Using train/test split as specified by user')
+            logger.info('Using train/test split as specified by user')
         else:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
 
@@ -103,6 +108,9 @@ class HistoryMatching():
                 print("Found", nSamp, "unique parameter configurations, each of which is repeated", nRep, "time(s).")
                 print("--> Training with",nSamp-nTest, "unique parameter configurations (", (nSamp-nTest)*nRep," simulations including replicates)")
                 print("--> Testing  with", nTest," unique parameter configurations (", nTest*nRep, "simulations including replicates)")
+            logger.info(f"Found {nSamp} unique parameter configurations, each of which is repeated {nRep} time(s).")
+            logger.info(f"--> Training with {nSamp-nTest} unique parameter configurations ({nSamp-nTest*nRep} simulations including replicates)")
+            logger.info(f"--> Testing  with {nTest} unique parameter configurations ({nTest*nRep} simulations including replicates)")
 
         # Dir prep
         if iterdir == None:
@@ -254,7 +262,9 @@ class HistoryMatching():
         test_mean = self.test_data.reset_index().groupby('Sample_Id').mean()
 
         if not force_optimize_glm and os.path.isfile(glm_model_fn) and os.path.isfile(mean_params_fn):
-            if self.verbose: print("Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn)
+            if self.verbose:
+                print("Loading GLM from", glm_model_fn, ", with model params from", mean_params_fn)
+            logger.info(f"Loading GLM from {glm_model_fn} with model params from {mean_params_fn}")
             self.glm_model = GLM.from_config(glm_model_fn, mean_params_fn)
         else:
             self.glm_model = GLM(
@@ -267,11 +277,13 @@ class HistoryMatching():
 
             if self.verbose:
                 if self.verbose: print("Fitting the GLM")
+            logger.info("Fitting the GLM")
             self.glm_model.fit(maxiter=glm_fit_maxiter)
             self.glm_model.save(glm_model_fn, mean_params_fn)
 
         if self.verbose:
             if self.verbose: print('Evaluating training and test data') # Store results in Yglm
+        logger.info('Evaluating training and test data') # Store results in Yglm
         train_mean['Yglm'] = self.glm_model.evaluate(train_mean)
         test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
 
@@ -370,6 +382,7 @@ class HistoryMatching():
 
         if not force_optimize_gpr and os.path.isfile(gpr_model_fn):
             if self.verbose: print("Loading GPR from", gpr_model_fn)
+            logger.info(f"Loading GPR from {gpr_model_fn}")
             self.gpr_model = GPR.from_config(gpr_model_fn)
             if plot_data:
                 figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
@@ -399,8 +412,9 @@ class HistoryMatching():
 
             if os.path.isfile(gpr_model_fn):
                 timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-                backup_fn = os.path.join(self.gprdir, 'model_%s.json'%timestamp)
+                backup_fn = os.path.join(self.gprdir, f'model_{timestamp}.json')
                 if self.verbose: print('Backing up gpr model to', backup_fn)
+                logger.print(f'Backing up gpr model to {backup_fn}')
                 copyfile(gpr_model_fn, backup_fn)
 
             #TODO: Check guess within bounds
@@ -412,6 +426,7 @@ class HistoryMatching():
                 figs = self.gpr_model.plot_data(samples_to_circle=pd.DataFrame(), saveto_dir = pairdir, log_scale=True)
 
             if self.verbose: print("Fitting the GPR")
+            logger.info("Fitting the GPR")
             hyperopt = self.gpr_model.optimize_hyperparameters(
                 x0 = x0,
                 bounds = (sigma2_f_bounds,)+(sigma2_n_bounds,) + basis.D*(lengthscale_bounds,),
@@ -428,6 +443,7 @@ class HistoryMatching():
         test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
         if self.verbose: print('GPR evaluating training data')
+        logger.print('GPR evaluating training data')
         ret = self.gpr_model.evaluate(train_mean)
         train_mean['Mean_Err'] = ret['Mean']
         train_mean['Mean_Estimate'] = train_mean['Mean_Err']
@@ -443,6 +459,7 @@ class HistoryMatching():
         self.training_data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
 
         if self.verbose: print('GPR evaluating test data')
+        logger.info('GPR evaluating test data')
         ret = self.gpr_model.evaluate(test_mean)
         test_mean['Mean_Err'] = ret['Mean']
         test_mean['Mean_Estimate'] = test_mean['Mean_Err']

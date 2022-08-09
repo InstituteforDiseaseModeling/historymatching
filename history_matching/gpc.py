@@ -24,6 +24,9 @@ from pycuda.compiler import SourceModule
 from string import Template
 import skcuda.misc as misc
 from scipy.stats import norm
+import logging
+
+logger = logging.getLogger(__name__)
 
 plt.rcParams['image.cmap'] = 'jet'
 
@@ -147,6 +150,12 @@ class GPC():
                 print("max_blocks_per_grid", max_blocks_per_grid)
                 print("block_dim", block_dim)
                 print("grid_dim", grid_dim)
+            logger.info(f"max_threads_per_block {max_threads_per_block}")
+            logger.info(f"max_block_dim {max_block_dim}")
+            logger.info(f"max_grid_dim {max_grid_dim}")
+            logger.info(f"max_blocks_per_grid {max_blocks_per_grid}")
+            logger.info(f"block_dim {block_dim}")
+            logger.info(f"grid_dim {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -313,6 +322,7 @@ class GPC():
         y = self.training_data[self.Ycol].values
         if self.verbose:
             print('y:', y)
+        logger.info(f'y:{y}')
         N = len(y)
 
         X = self.training_data[self.Xcols_scaled].values
@@ -436,6 +446,7 @@ class GPC():
 
         if self.verbose:
             print(theta, '-->', -logZep)
+        logger.info(f'{theta} --> {-logZep}')
 
         return -logZep, nu, tau
 
@@ -446,6 +457,7 @@ class GPC():
         y = self.training_data[self.Ycol].values
         if self.verbose:
             print('y:', y)
+        logger.info(f'y:{y}')
         N = len(y)
         if f_guess is not None:
             f_hat = f_guess
@@ -461,13 +473,18 @@ class GPC():
         for i in range(maxiter):
             if self.verbose: print('---[ %d ]------------------------------------'%i)
             if self.verbose: print('f_hat:', f_hat)
+            logger.info('---[ %d ]------------------------------------'%i)
+            logger.info(f'f_hat:{f_hat}')
 
             pi = 1.0/(1.0+np.exp(-f_hat))
             if self.verbose: print('pi:', pi)
+            logger.info(f'pi:{pi}')
 
             t = (y+1)/2.0
             if self.verbose: print('t:', t)
             if self.verbose: print('Computing W ...')
+            logger.info(f't:{t}')
+            logger.info('Computing W ...')
 
             d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
 
@@ -475,6 +492,7 @@ class GPC():
             sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
             if self.verbose: print('Computing B ...')
+            logger.info('Computing B ...')
             #B = np.eye(N) + np.dot(sqrtW, np.dot(K, sqrtW))
             ### Dan's method for B:
             w = np.sqrt( -d2_df2_log_p_y_given_f )
@@ -483,27 +501,36 @@ class GPC():
             ###
 
             if self.verbose: print('Computing L ...')
+            logger.info('Computing L ...')
             L = np.linalg.cholesky(B)
 
             if self.verbose: print('Computing b ...')
+            logger.info('Computing b ...')
             d_df_log_p_y_given_f = t - pi
             b = np.dot(W, f_hat) + d_df_log_p_y_given_f
             if self.verbose: print('b:', b)
+            logger.info(f'b:{b}')
 
             if self.verbose: print('Computing W12_K_b ...')
+            logger.info('Computing W12_K_b ...')
             W12_K_b = np.dot(sqrtW, np.dot(K,b))
 
             if self.verbose: print('Computing L_slash_W12_K_b ...')
+            logger.info('Computing L_slash_W12_K_b ...')
             L_slash_W12_K_b = np.linalg.solve(L, W12_K_b)
 
             if self.verbose: print('Computing Lt_slash_L_slash_W12_K_b ...')
+            logger.info('Computing Lt_slash_L_slash_W12_K_b ...')
             Lt_slash_L_slash_W12_K_b = np.linalg.solve(np.transpose(L), L_slash_W12_K_b)
 
             if self.verbose: print('Computing a ...')
+            logger.info('Computing a ...')
             a = b - np.dot(sqrtW, Lt_slash_L_slash_W12_K_b)
 
             if self.verbose: print('a:', a)
             if self.verbose: print('Computing f_hat ...')
+            logger.info(f'a:{a}')
+            logger.info('Computing f_hat ...')
             f_hat = np.dot(K, a)
 
             #####log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y, f_hat)))
@@ -520,6 +547,7 @@ class GPC():
                 print('WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad)
 
         if self.verbose: print(theta, '--> log_q_y_given_X_theta: %f (%d f_hat-iterations)' % (log_q_y_given_X_theta, i))
+        logger.info(f'theta--> log_q_y_given_X_theta: {log_q_y_given_X_theta} ({i} f_hat-iterations)')
 
         return {
             'f_hat': f_hat,
@@ -599,6 +627,7 @@ class GPC():
 
 
         if self.verbose: print('d_dtheta_logZ:', d_dtheta_logZ)
+        logger.info(f'd_dtheta_logZ:{d_dtheta_logZ}')
 
         return -logZ, -d_dtheta_logZ, f_hat # Careful with sign
 
@@ -624,21 +653,27 @@ class GPC():
     def laplace_predict(self, theta, f_hat, P):
         y = self.training_data[self.Ycol].values
         if self.verbose: print('y:', y)
+        logger.info(f'y:{y}')
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
         KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
         if self.verbose: print('---[ PREDICT ]------------------------------------')
         if self.verbose: print('f_hat:', f_hat)
+        logger.info('---[ PREDICT ]------------------------------------')
+        logger.info(f'f_hat:{f_hat}')
         pi = 1.0/(1.0+np.exp(-f_hat))
         if self.verbose: print('pi:', pi)
+        logger.info(f'pi:{pi}')
         t = (y+1)/2.0
         if self.verbose: print('t:', t)
+        logger.info(f't:{t}')
 
         d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
         sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
         if self.verbose: print('Computing B ...')
+        logger.info('Computing B ...')
         ### Dan's method for B:
         w = np.sqrt( -d2_df2_log_p_y_given_f )
         w_outer = np.outer(w,w)
@@ -656,6 +691,7 @@ class GPC():
         ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz' 
         for idx, p_series in P.iterrows():
             if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
+            logger.info(f"{idx} x_star is {p_series['x (scaled)']}")
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f) # MEAN (vector of length 1)
@@ -700,6 +736,11 @@ class GPC():
             if self.verbose: print('LOGIS:', logi)
             #if self.verbose: print('MONTE CARLO:', 'mean=%f, var=%f'%(mean, var))
             if self.verbose: print('TRAPZ:', 'mean=%f, var=%f'%(mean_trapz, var_trapz))
+            logger.info(f'MEAN: {mu}')
+            logger.info(f'VAR: {sigma2}')
+            logger.info(f'LOGIS: {logi}')
+            #logger.info(f'MONTE CARLO: mean={mean}, var={var}')
+            logger.info(f'TRAPZ: mean={mean_trapz}, var={var_trapz}')
 
             ret = pd.concat([ret, pd.DataFrame({'Mean-Transformed':[mu], 'Var-Transformed':[sigma2], 'Mean': [mean_trapz], 'Var': [var_trapz]})])
         ret.index = P.index.copy()
@@ -712,13 +753,15 @@ class GPC():
 
         y = self.training_data[self.Ycol].values
         if self.verbose: print('y:', y)
+        logger.info(f'y:{y}')
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
         KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
         if self.verbose: print('---[ PREDICT ]------------------------------------')
-
         if self.verbose: print('Computing B ...')
+        logger.info('---[ PREDICT ]------------------------------------')
+        logger.info('Computing B ...')
         sqrtStilde = np.diag(np.sqrt(tau))
         B = np.eye(N) + np.dot(sqrtStilde, np.dot(KXX, sqrtStilde))
         L = np.linalg.cholesky(B)
@@ -731,6 +774,7 @@ class GPC():
         ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var'])
         for idx, p_series in P.iterrows():
             if self.verbose: print(idx, 'x_star is', p_series['x (scaled)'])
+            logger.info(f"{idx} x_star is {p_series['x (scaled)']}")
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), nu-z) # MEAN (vector of length 1)

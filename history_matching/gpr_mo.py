@@ -22,6 +22,9 @@ from string import Template
 from history_matching.basis import Basis
 
 import scipy.linalg
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     from pycuda import driver, compiler, gpuarray, tools
@@ -392,6 +395,12 @@ class GPR_MO():
                 print("max_blocks_per_grid", max_blocks_per_grid)
                 print("block_dim", block_dim)
                 print("grid_dim", grid_dim)
+            logger.info(f"max_threads_per_block {max_threads_per_block}")
+            logger.info(f"max_block_dim {max_block_dim}")
+            logger.info(f"max_grid_dim {max_grid_dim}")
+            logger.info(f"max_blocks_per_grid {max_blocks_per_grid}")
+            logger.info(f"block_dim {block_dim}")
+            logger.info(f"grid_dim {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -860,6 +869,7 @@ class GPR_MO():
         if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
             if self.verbose:
                 print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
+            logger.info('No cache for Kxx_inv or Kxx_inv_Y')  # Does this happen?
             self.update_cache()
 
         P = self.basis.generate_dmatrix( data, scaleX = True).values

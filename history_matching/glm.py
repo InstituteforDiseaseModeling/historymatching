@@ -16,6 +16,9 @@ from history_matching.basis import Basis
 import numpy as np, pandas as pd, seaborn as sns
 import scipy
 from scipy import stats
+import logging
+
+logger = logging.getLogger(__name__)
 
 class GLM(object):
     """Generalized Linear Modeling (GLM).
@@ -67,23 +70,28 @@ class GLM(object):
         if family == 'Poisson':
             if self.verbose:
                 print('Using Poisson family')
+            logger.info('Using Poisson family')
             self.glmfam = sm.families.Poisson()
         elif family == 'Binomial':
             if self.verbose:
                 print('Using Binomial family')
+            logger.info('Using Binomial family')
             self.glmfam = sm.families.Binomial()
         elif family == 'Gamma':
             if self.verbose:
                 print('Using Gamma family')
+            logger.info('Using Gamma family')
             self.glmfam = sm.families.Gamma()
         elif family == 'NegativeBinomial':
             alpha = 1.9
             if self.verbose:
                 print('Using NegativeBinomial family, alpha = ', alpha)
+            logger.info(f'Using NegativeBinomial family, alpha = {alpha}')
             self.glmfam = sm.families.NegativeBinomial(alpha=alpha) # Does strange things with float vs int values of alpha!
         else:
             if self.verbose:
                 print('Using Gaussian family')
+            logger.info('Using Gaussian family')
             self.glmfam = sm.families.Gaussian()
 
         if self.fitted_model is not None and self.verbose:
@@ -91,6 +99,10 @@ class GLM(object):
             print('AIC:', self.fitted_model.aic)
             print('BIC:', self.fitted_model.bic)
             #print('ITERATION:', self.fitted_model.fit_history['iteration'])
+        logger.info(self.fitted_model.summary()) # Should work, but was causing errors with some versions of statsmodels.
+        logger.info(f'AIC: {self.fitted_model.aic}')
+        logger.info(f'BIC: {self.fitted_model.bic}')
+        #logger.info(f'ITERATION: {self.fitted_model.fit_history["iteration"]}')
 
 
     @classmethod
@@ -191,6 +203,7 @@ class GLM(object):
 
         if self.verbose:
             print('Fitting the model, please wait ...')
+        logger.debug('Fitting the model, please wait ...')
         self.fitted_model = self.model.fit(maxiter=maxiter)
 
         if self.verbose:
@@ -198,6 +211,10 @@ class GLM(object):
             print('AIC:', self.fitted_model.aic)
             print('BIC:', self.fitted_model.bic)
             #print('ITERATION:', self.fitted_model.fit_history['iteration'])
+        logger.info(self.fitted_model.summary())
+        logger.info(f'AIC: {self.fitted_model.aic}')
+        logger.info(f'BIC: {self.fitted_model.bic}')
+        #logger.info(f'ITERATION: {self.fitted_model.fit_history["iteration"]}')
 
     def plot_fitted_vs_observed(self):
         """Generates a plot of the fitted values vs the observed values from the training data.

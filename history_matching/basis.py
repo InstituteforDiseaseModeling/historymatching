@@ -9,6 +9,9 @@ import itertools
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Basis():
     """Class to support polynomial basis, data matrix generation, and parameter name handling.
@@ -244,6 +247,7 @@ class Basis():
                 data[col] = (data[col] - self.param_info.loc[col,'Min'])/(self.param_info.loc[col,'Max']-self.param_info.loc[col,'Min'])
             elif self.verbose:
                 print('Basis: Unable to scale', col)
+                logger.info(f'Basis: Unable to scale {col}')
         return data
 
 
@@ -315,6 +319,7 @@ class Basis():
             if '1' in terms:
                 if self.verbose:
                     print('Found "1" in terms, removing as this is likely a stored representation of the intercept.')
+                logger.info('Found "1" in terms, removing as this is likely a stored representation of the intercept.')
                 terms.remove('1')
             terms = ['Intercept'] + terms
 
@@ -356,6 +361,9 @@ class Basis():
             print('SUMMARY:\n', fit.summary())
             print('AIC:', fit.aic)
             print('BIC:', fit.bic)
+        logger.info(f'SUMMARY:\n{fit.summary()}')
+        logger.info(f'AIC:{fit.aic}')
+        logger.info(f'BIC:{fit.bic}')
 
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]

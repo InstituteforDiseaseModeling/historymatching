@@ -7,6 +7,9 @@ import numpy as np
 from history_matching import HistoryMatching
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CutNearSamples():
 

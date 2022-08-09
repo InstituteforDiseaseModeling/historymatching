@@ -21,6 +21,9 @@ from string import Template
 from history_matching.basis import Basis
 
 import scipy.linalg
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     from pycuda import driver, compiler, gpuarray, tools
@@ -31,8 +34,10 @@ try:
     import skcuda.linalg as linalg
 except ImportError as e:
     print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
+    logger.warning("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
 except RuntimeError as e:
     print("Runtime error starting cuda, message was:\n", e.message)
+    logger.error("Runtime error starting cuda, message was:\n {e.message}")
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
@@ -100,10 +105,13 @@ class GPR():
         try:
             device = pycuda.autoinit.device
             if self.verbose: print('Autoinit GPU device name:', device.name())
+            logger.info(f'Autoinit GPU device name:{device.name()}')
             self.use_gpu = True
         except Exception as e:
             print('WARNING: Not using GPU, computation will be slow...')
             self.use_gpu = False
+            logger.warning(f'WARNING: Not using GPU, computation will be slow... self.use_gpu:{self.use_gpu}')
+            logger.info(f'testing testing.... self.use_gpu', self.use_gpu)
 
         if self.use_gpu:
             # Read in the RFB kernel
@@ -267,6 +275,7 @@ class GPR():
 
         if self.debug:
             print('Updating cache of Kxx_inv and Kxx_inv_Y')
+        logger.debug('Updating cache of Kxx_inv and Kxx_inv_Y')
 
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
@@ -364,6 +373,12 @@ class GPR():
                 print("max_blocks_per_grid", max_blocks_per_grid)
                 print("block_dim", block_dim)
                 print("grid_dim", grid_dim)
+            logger.info(f"max_threads_per_block {max_threads_per_block}")
+            logger.info(f"max_block_dim {max_block_dim}")
+            logger.info(f"max_grid_dim {max_grid_dim}")
+            logger.info(f"max_blocks_per_grid {max_blocks_per_grid}")
+            logger.info(f"block_dim {block_dim}")
+            logger.info(f"grid_dim {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -544,6 +559,8 @@ class GPR():
             if not np.allclose(Kxx_cpu, Kxx):
                 print('Kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
                 print('Kxx_gpu_wrapper(GPU):\n', Kxx)
+                logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx}')
                 raise
 
         return Kxx
@@ -597,6 +614,8 @@ class GPR():
                 if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
                     print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
                     print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
+                    logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                    logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx_gpu.get()}')
                     raise
 
             return Kxp_gpu.get()
@@ -628,6 +647,8 @@ class GPR():
             if not np.allclose(KXX_cpu, KXX):
                 print('loo_cross_validation(CPU XX):\n', KXX_cpu)
                 print('loo_cross_validation(GPU XX):\n', KXX)
+                logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
+                logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
                 raise
 
         if self.use_gpu:
@@ -683,6 +704,8 @@ class GPR():
                 if not np.allclose(KXX_cpu, KXX):
                     print('loo_cross_validation(CPU XX):\n', KXX_cpu)
                     print('loo_cross_validation(GPU XX):\n', KXX)
+                    logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
+                    logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
                     raise
         else:
             KXX = self.kernel_xx(X, theta, add_sigma2_n = True)
@@ -747,6 +770,7 @@ class GPR():
 
         if self.verbose:
             print('\n\tLL:', -ll, '\n\tTheta:', theta, '\n\tDeriv:', -dLLOO_dtheta)
+        logger.info(f'\n\tLL:{-ll}\n\nTheta:{theta}\n\tDeriv:{-dLLOO_dtheta}')
 
         return -ll, -dLLOO_dtheta
 
@@ -880,6 +904,7 @@ class GPR():
         )
 
         if self.verbose: print('OPTIMIZATION RETURNED:\n', ret)
+        logger.info(f'OPTIMIZATION RETURNED:\n{ret}')
 
         # Restore original index
         self.training_data.set_index(idx, inplace=True)
@@ -911,6 +936,7 @@ class GPR():
         if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
             if self.verbose:
                 print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
+            logger.info('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
             self.update_cache()
 
         P = self.basis.generate_dmatrix( data, scaleX = True).values
@@ -943,6 +969,7 @@ class GPR():
 
         if self.debug:
             print('Using cache for covf')
+            logger.debug('Using cache for covf')
 
         # NOTE: Just computing diagonal elements of:
         #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
