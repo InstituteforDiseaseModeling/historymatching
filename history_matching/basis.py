@@ -17,7 +17,7 @@ class Basis():
     """Class to support polynomial basis, data matrix generation, and parameter name handling.
     """
 
-    def __init__(self, model_terms, param_dict, param_info=None, verbose=False):
+    def __init__(self, model_terms, param_dict, param_info=None):
         """Create and instance of the Basis class.
 
         Args:
@@ -31,14 +31,12 @@ class Basis():
                 * Max: Maximum value of parameter.
                 * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
                 * Source: (optional) Source from which parameter ranges came from
-            verbose: (bool)
         """
 
         self.model_terms = model_terms
         self.param_dict = param_dict
         self.D = len(self.model_terms)
         self.param_info = param_info # To normalize data to [0,1].  Should be here?
-        self.verbose = verbose
 
 
     @staticmethod
@@ -86,8 +84,7 @@ class Basis():
             fourth_order = False,
             fifth_order = False,
             higher_order = False,
-            param_info = None,
-            verbose = False
+            param_info = None
     ):
         """This constructor builds a `polynmial` basis, in which [X1, X1, ...]-->[X1, X1^2, X2, X2^2, X1*X2, ...]
 
@@ -107,7 +104,6 @@ class Basis():
                 * Max: Maximum value of parameter.
                 * MapTo: (optional) For use in commissioning script to assist in mapping the parameter to model input.
                 * Source: (optional) Source from which parameter ranges came from
-            verbose: (bool)
 
         Returns: Instance of Basis class.
         """
@@ -195,7 +191,7 @@ class Basis():
             model_terms += [Term([EvalFactor('%s**6*%s'%x)]) for x in itertools.combinations(params_patsy, 2)] # X^6*Y
             model_terms += [Term([EvalFactor('%s*%s**6'%x)]) for x in itertools.combinations(params_patsy, 2)] # X*Y^6
 
-        return cls(model_terms, param_dict, param_info, verbose)
+        return cls(model_terms, param_dict, param_info)
 
 
     @classmethod
@@ -245,8 +241,7 @@ class Basis():
         for col in data.columns.tolist():
             if col in self.param_info.index:
                 data[col] = (data[col] - self.param_info.loc[col,'Min'])/(self.param_info.loc[col,'Max']-self.param_info.loc[col,'Min'])
-            elif self.verbose:
-                print('Basis: Unable to scale', col)
+            else:
                 logger.info(f'Basis: Unable to scale {col}')
         return data
 
@@ -317,8 +312,6 @@ class Basis():
             terms.remove('0')
         else:
             if '1' in terms:
-                if self.verbose:
-                    print('Found "1" in terms, removing as this is likely a stored representation of the intercept.')
                 logger.info('Found "1" in terms, removing as this is likely a stored representation of the intercept.')
                 terms.remove('1')
             terms = ['Intercept'] + terms
@@ -357,10 +350,6 @@ class Basis():
         else:
             fit = model.fit()
 
-        if self.verbose:
-            print('SUMMARY:\n', fit.summary())
-            print('AIC:', fit.aic)
-            print('BIC:', fit.bic)
         logger.info(f'SUMMARY:\n{fit.summary()}')
         logger.info(f'AIC:{fit.aic}')
         logger.info(f'BIC:{fit.bic}')

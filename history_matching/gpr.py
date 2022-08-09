@@ -55,7 +55,6 @@ class GPR():
             normalize_y = True,
             sigma2_n = None,
             fig_type = 'pdf',
-            verbose = False,
             debug = False,
             **kwargs
         ):
@@ -94,24 +93,19 @@ class GPR():
                 If the responses should be normalized
             sigma_n: (None or instance of GPR)
                 For typical homoscedastic GPR, leave as None.  The kernel hyperparamter, sigma2_n, will be optimized.  Alternatively for heteroscedastic GPR, provide an instance of a GPR with the same input dimensions for which the optut is the log of the variance.
-            verbose: (boolean, optional with default False)
             debug: (boolean, optional with default False)
             normalizer_mean (float, optional):  Allows specification or recovery of the mean of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
         """
 
-        self.verbose = verbose
-
         try:
             device = pycuda.autoinit.device
-            if self.verbose: print('Autoinit GPU device name:', device.name())
             logger.info(f'Autoinit GPU device name:{device.name()}')
             self.use_gpu = True
         except Exception as e:
             print('WARNING: Not using GPU, computation will be slow...')
             self.use_gpu = False
             logger.warning(f'WARNING: Not using GPU, computation will be slow... self.use_gpu:{self.use_gpu}')
-            logger.info(f'testing testing.... self.use_gpu', self.use_gpu)
 
         if self.use_gpu:
             # Read in the RFB kernel
@@ -366,13 +360,6 @@ class GPR():
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            if self.verbose:
-                print("max_threads_per_block", max_threads_per_block)
-                print("max_block_dim", max_block_dim)
-                print("max_grid_dim", max_grid_dim)
-                print("max_blocks_per_grid", max_blocks_per_grid)
-                print("block_dim", block_dim)
-                print("grid_dim", grid_dim)
             logger.info(f"max_threads_per_block {max_threads_per_block}")
             logger.info(f"max_block_dim {max_block_dim}")
             logger.info(f"max_grid_dim {max_grid_dim}")
@@ -768,8 +755,6 @@ class GPR():
         if not optimize_sigma2_n:
             dLLOO_dtheta[1] = 0
 
-        if self.verbose:
-            print('\n\tLL:', -ll, '\n\tTheta:', theta, '\n\tDeriv:', -dLLOO_dtheta)
         logger.info(f'\n\tLL:{-ll}\n\nTheta:{theta}\n\tDeriv:{-dLLOO_dtheta}')
 
         return -ll, -dLLOO_dtheta
@@ -903,7 +888,6 @@ class GPR():
             options = optimizer_options
         )
 
-        if self.verbose: print('OPTIMIZATION RETURNED:\n', ret)
         logger.info(f'OPTIMIZATION RETURNED:\n{ret}')
 
         # Restore original index
@@ -934,8 +918,6 @@ class GPR():
         """
 
         if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
-            if self.verbose:
-                print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
             logger.info('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
             self.update_cache()
 
@@ -1104,7 +1086,6 @@ class GPR():
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
                     self.debug=False
-                    self.verbose=False
 
                     ret = self.evaluate( Xdf )
 

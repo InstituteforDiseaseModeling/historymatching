@@ -54,7 +54,6 @@ class GPR_MO():
             b = None,
             #is_poisson = False, # Not currently supported
             normalize_y = True,
-            verbose = False,
             debug = False,
             **kwargs
         ):
@@ -93,7 +92,6 @@ class GPR_MO():
                 If the responses should be normalized
             sigma_n: (None or instance of GPR_MO)
                 For typical homoscedastic GPR_MO, leave as None.  The kernel hyperparamter, sigma2_n, will be optimized.  Alternatively for heteroscedastic GPR_MO, provide an instance of a GPR_MO with the same input dimensions for which the optut is the log of the variance.
-            verbose: (boolean, optional with default False)
             debug: (boolean, optional with default False)
             normalizer_mean (float, optional):  Allows specification or recovery of the mean of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR_MO from file.
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR_MO from file.
@@ -145,7 +143,6 @@ class GPR_MO():
         self.normalizer = True #UserStandardize(mean=self.normalizer_mean, std=self.normalizer_std)
         self.poisson = False #is_poisson
 
-        self.verbose = verbose
         self.debug = debug
 
         # Heteroscedastic GP setup
@@ -388,13 +385,6 @@ class GPR_MO():
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            if self.verbose:
-                print("max_threads_per_block", max_threads_per_block)
-                print("max_block_dim", max_block_dim)
-                print("max_grid_dim", max_grid_dim)
-                print("max_blocks_per_grid", max_blocks_per_grid)
-                print("block_dim", block_dim)
-                print("grid_dim", grid_dim)
             logger.info(f"max_threads_per_block {max_threads_per_block}")
             logger.info(f"max_block_dim {max_block_dim}")
             logger.info(f"max_grid_dim {max_grid_dim}")
@@ -867,8 +857,6 @@ class GPR_MO():
         """
 
         if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
-            if self.verbose:
-                print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
             logger.info('No cache for Kxx_inv or Kxx_inv_Y')  # Does this happen?
             self.update_cache()
 
@@ -1051,7 +1039,6 @@ class GPR_MO():
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
                     self.debug=False
-                    self.verbose=False
 
                     ret = self.evaluate( Xdf )
 
