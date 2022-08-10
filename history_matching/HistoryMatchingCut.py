@@ -104,7 +104,7 @@ class HistoryMatchingCut():
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
-            logger.info(plausible_candidates.shape)
+            logger.debug(f'plausible_candidates.shape: {plausible_candidates.shape}')
             if plausible_candidates.shape[0] == 0:
                 logger.info('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
@@ -112,9 +112,9 @@ class HistoryMatchingCut():
             logger.info(f'Performing cut: iteration {it}, cut {cut_name}')
             t = time.time()
             plausible_candidates.loc[:,'Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
-            logger.info(f'GLM:{time.time()-t}'); t=time.time()
+            logger.debug(f'GLM:{time.time()-t}'); t=time.time()
             ret = self.gpr_all[cut].evaluate(plausible_candidates)
-            logger.info(f'GPR:{time.time()-t}'); t=time.time()
+            logger.debug(f'GPR:{time.time()-t}'); t=time.time()
             plausible_candidates.loc[:,'Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
             plausible_candidates.loc[:,'Var_Predictive'] = ret['Var_Predictive']
 
@@ -147,31 +147,31 @@ class HistoryMatchingCut():
 
             t = time.time()
             lhs_sample = lhs( len(self.Xcols_all_orig), samples=nSamples)
-            logger.info(f'LHS Sampling ({nSamples}):{time.time() - t}')
+            logger.debug(f'LHS Sampling ({nSamples}):{time.time() - t}')
 
             t = time.time()
             for i, xc in enumerate(self.Xcols_all_orig):
                 v = self.param_info.loc[xc]
                 lhs_sample[:, i] = (v['Max'] - v['Min']) * lhs_sample[:, i] + (v['Min'])
-            logger.info(f'LHS Scaling:{time.time() - t}')
+            logger.debug(f'LHS Scaling:{time.time() - t}')
 
             t = time.time()
             new_candidates = pd.DataFrame( lhs_sample, columns=self.Xcols_all_orig)
-            logger.info(f'DataFrame:{time.time() - t}')
+            logger.debug(f'DataFrame:{time.time() - t}')
             t = time.time()
             if constraint is not None:
                 #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
                 #new_candidates = new_candidates.query(constraint)
                 new_candidates = new_candidates.loc[constraint(new_candidates),:]
-            logger.info(f'Constraint:{time.time() - t}')
+            logger.debug(f'Constraint:{time.time() - t}')
 
             t = time.time()
             plausibility = self.test_plausibility(new_candidates, constraint)
-            logger.info(f'Test plausibility:{time.time() - t}')
+            logger.debug(f'Test plausibility:{time.time() - t}')
 
             t = time.time()
             new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
-            logger.info(f'Merge plausibility (needed?):{time.time() - t}')
+            logger.debug(f'Merge plausibility (needed?):{time.time() - t}')
             #new_candidates['Implausible'] = False
 
 

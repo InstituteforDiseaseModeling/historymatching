@@ -42,7 +42,6 @@ class GPC():
             kernel_mode = 'RBF',
             kernel_params = None,
             fig_type = 'pdf',
-            debug = False,
             **kwargs
         ):
 
@@ -71,7 +70,6 @@ class GPC():
             self.training_data[xc+' (scaled)'] = (self.training_data[xc] - self.param_info.loc[xc,'Min'])/(self.param_info.loc[xc,'Max']-self.param_info.loc[xc,'Min'])
 
 
-        self.debug = debug
         self.D = len(self.Xcols)
 
         self.theta = None # Kernel/model hyperparameters
@@ -141,12 +139,12 @@ class GPC():
             block_dim, grid_dim = misc.select_block_grid_sizes(pycuda.autoinit.device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            logger.info(f"max_threads_per_block {max_threads_per_block}")
-            logger.info(f"max_block_dim {max_block_dim}")
-            logger.info(f"max_grid_dim {max_grid_dim}")
-            logger.info(f"max_blocks_per_grid {max_blocks_per_grid}")
-            logger.info(f"block_dim {block_dim}")
-            logger.info(f"grid_dim {grid_dim}")
+            logger.debug(f"max_threads_per_block {max_threads_per_block}")
+            logger.debug(f"max_block_dim {max_block_dim}")
+            logger.debug(f"max_grid_dim {max_grid_dim}")
+            logger.debug(f"max_blocks_per_grid {max_blocks_per_grid}")
+            logger.debug(f"block_dim {block_dim}")
+            logger.debug(f"grid_dim {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -242,12 +240,11 @@ class GPC():
 
         Kxx = Kxx_gpu.get()
 
-        if self.debug:
-            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32))
-            if not np.allclose(Kxx_cpu, Kxx):
-                print('kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
-                print('kxx_gpu_wrapper(GPU):\n', Kxx)
-                raise
+        Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32))
+        if not np.allclose(Kxx_cpu, Kxx):
+            logger.debug('kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
+            logger.debug('kxx_gpu_wrapper(GPU):\n', Kxx)
+            raise
 
         return Kxx
 
@@ -286,12 +283,11 @@ class GPC():
             grid = grid_dim
         )
 
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(X, P, theta)
-            if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-                print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                raise
+        Kxp_cpu = self.kernel_xp(X, P, theta)
+        if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
+            logger.debug('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
+            logger.debug('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
+            raise
 
         return Kxp_gpu.get()
 
@@ -311,7 +307,7 @@ class GPC():
         Sigma_tol = 1e-6
 
         y = self.training_data[self.Ycol].values
-        logger.info(f'y:{y}')
+        logger.debug(f'y:{y}')
         N = len(y)
 
         X = self.training_data[self.Xcols_scaled].values
@@ -433,7 +429,7 @@ class GPC():
 
         logZep = logZep_terms_1_and_4 + logZep_terms_5b_and_2 + logZep_term_5a + logZep_term_3
 
-        logger.info(f'{theta} --> {-logZep}')
+        logger.debug(f'{theta} --> {-logZep}')
 
         return -logZep, nu, tau
 
@@ -442,7 +438,7 @@ class GPC():
         # Mode finding for Laplace GPC.  Algorithm 3.1 from "Gaussian Process for Machine Learning", p46
 
         y = self.training_data[self.Ycol].values
-        logger.info(f'y:{y}')
+        logger.debug(f'y:{y}')
         N = len(y)
         if f_guess is not None:
             f_hat = f_guess
@@ -456,22 +452,22 @@ class GPC():
         K = self.kxx_gpu_wrapper(X, theta)  # This is for f, no sigma2_n
 
         for i in range(maxiter):
-            logger.info('---[ %d ]------------------------------------'%i)
-            logger.info(f'f_hat:{f_hat}')
+            logger.debug('---[ %d ]------------------------------------'%i)
+            logger.debug(f'f_hat:{f_hat}')
 
             pi = 1.0/(1.0+np.exp(-f_hat))
-            logger.info(f'pi:{pi}')
+            logger.debug(f'pi:{pi}')
 
             t = (y+1)/2.0
-            logger.info(f't:{t}')
-            logger.info('Computing W ...')
+            logger.debug(f't:{t}')
+            logger.debug('Computing W ...')
 
             d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
 
             W = np.diag( -d2_df2_log_p_y_given_f ) # NOTE: Using logit (3.15)
             sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
-            logger.info('Computing B ...')
+            logger.debug('Computing B ...')
             #B = np.eye(N) + np.dot(sqrtW, np.dot(K, sqrtW))
             ### Dan's method for B:
             w = np.sqrt( -d2_df2_log_p_y_given_f )
@@ -479,28 +475,28 @@ class GPC():
             B = np.eye(N) + np.multiply(K, w_outer)
             ###
 
-            logger.info('Computing L ...')
+            logger.debug('Computing L ...')
             L = np.linalg.cholesky(B)
 
-            logger.info('Computing b ...')
+            logger.debug('Computing b ...')
             d_df_log_p_y_given_f = t - pi
             b = np.dot(W, f_hat) + d_df_log_p_y_given_f
-            logger.info(f'b:{b}')
+            logger.debug(f'b:{b}')
 
-            logger.info('Computing W12_K_b ...')
+            logger.debug('Computing W12_K_b ...')
             W12_K_b = np.dot(sqrtW, np.dot(K,b))
 
-            logger.info('Computing L_slash_W12_K_b ...')
+            logger.debug('Computing L_slash_W12_K_b ...')
             L_slash_W12_K_b = np.linalg.solve(L, W12_K_b)
 
-            logger.info('Computing Lt_slash_L_slash_W12_K_b ...')
+            logger.debug('Computing Lt_slash_L_slash_W12_K_b ...')
             Lt_slash_L_slash_W12_K_b = np.linalg.solve(np.transpose(L), L_slash_W12_K_b)
 
-            logger.info('Computing a ...')
+            logger.debug('Computing a ...')
             a = b - np.dot(sqrtW, Lt_slash_L_slash_W12_K_b)
 
-            logger.info(f'a:{a}')
-            logger.info('Computing f_hat ...')
+            logger.debug(f'a:{a}')
+            logger.debug('Computing f_hat ...')
             f_hat = np.dot(K, a)
 
             #####log_p_y_given_f = -np.log(1 + np.exp(-np.dot(y, f_hat)))
@@ -516,7 +512,7 @@ class GPC():
             if i == maxiter - 1:
                 print('WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad)
 
-        logger.info(f'theta--> log_q_y_given_X_theta: {log_q_y_given_X_theta} ({i} f_hat-iterations)')
+        logger.debug(f'theta--> log_q_y_given_X_theta: {log_q_y_given_X_theta} ({i} f_hat-iterations)')
 
         return {
             'f_hat': f_hat,
@@ -595,7 +591,7 @@ class GPC():
             d_dtheta_logZ[j] = s1 + np.dot(np.transpose(s2), s3) #s1 seems good, s2 is good
 
 
-        logger.info(f'd_dtheta_logZ:{d_dtheta_logZ}')
+        logger.debug(f'd_dtheta_logZ:{d_dtheta_logZ}')
 
         return -logZ, -d_dtheta_logZ, f_hat # Careful with sign
 
@@ -620,22 +616,22 @@ class GPC():
 
     def laplace_predict(self, theta, f_hat, P):
         y = self.training_data[self.Ycol].values
-        logger.info(f'y:{y}')
+        logger.debug(f'y:{y}')
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
         KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
-        logger.info('---[ PREDICT ]------------------------------------')
-        logger.info(f'f_hat:{f_hat}')
+        logger.debug('---[ PREDICT ]------------------------------------')
+        logger.debug(f'f_hat:{f_hat}')
         pi = 1.0/(1.0+np.exp(-f_hat))
-        logger.info(f'pi:{pi}')
+        logger.debug(f'pi:{pi}')
         t = (y+1)/2.0
-        logger.info(f't:{t}')
+        logger.debug(f't:{t}')
 
         d2_df2_log_p_y_given_f = -np.multiply(pi, 1-pi)
         sqrtW = np.diag( np.sqrt(-d2_df2_log_p_y_given_f) )
 
-        logger.info('Computing B ...')
+        logger.debug('Computing B ...')
         ### Dan's method for B:
         w = np.sqrt( -d2_df2_log_p_y_given_f )
         w_outer = np.outer(w,w)
@@ -652,7 +648,7 @@ class GPC():
         # p-specific code begins here:
         ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz' 
         for idx, p_series in P.iterrows():
-            logger.info(f"{idx} x_star is {p_series['x (scaled)']}")
+            logger.debug(f"{idx} x_star is {p_series['x (scaled)']}")
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f) # MEAN (vector of length 1)
@@ -692,11 +688,11 @@ class GPC():
 
             logi = logistic(mu) # MAP prediction
 
-            logger.info(f'MEAN: {mu}')
-            logger.info(f'VAR: {sigma2}')
-            logger.info(f'LOGIS: {logi}')
-            #logger.info(f'MONTE CARLO: mean={mean}, var={var}')
-            logger.info(f'TRAPZ: mean={mean_trapz}, var={var_trapz}')
+            logger.debug(f'MEAN: {mu}')
+            logger.debug(f'VAR: {sigma2}')
+            logger.debug(f'LOGIS: {logi}')
+            #logger.debug(f'MONTE CARLO: mean={mean}, var={var}')
+            logger.debug(f'TRAPZ: mean={mean_trapz}, var={var_trapz}')
 
             ret = pd.concat([ret, pd.DataFrame({'Mean-Transformed':[mu], 'Var-Transformed':[sigma2], 'Mean': [mean_trapz], 'Var': [var_trapz]})])
         ret.index = P.index.copy()
@@ -708,13 +704,13 @@ class GPC():
         logZep, nu, tau = self.expectation_propagation(theta)
 
         y = self.training_data[self.Ycol].values
-        logger.info(f'y:{y}')
+        logger.debug(f'y:{y}')
         N = len(y)
         X = self.training_data[self.Xcols_scaled].values
         KXX = self.kxx_gpu_wrapper(X, theta)  # This is for f
 
-        logger.info('---[ PREDICT ]------------------------------------')
-        logger.info('Computing B ...')
+        logger.debug('---[ PREDICT ]------------------------------------')
+        logger.debug('Computing B ...')
         sqrtStilde = np.diag(np.sqrt(tau))
         B = np.eye(N) + np.dot(sqrtStilde, np.dot(KXX, sqrtStilde))
         L = np.linalg.cholesky(B)
@@ -726,7 +722,7 @@ class GPC():
 
         ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var'])
         for idx, p_series in P.iterrows():
-            logger.info(f"{idx} x_star is {p_series['x (scaled)']}")
+            logger.debug(f"{idx} x_star is {p_series['x (scaled)']}")
             p = p_series.as_matrix()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), nu-z) # MEAN (vector of length 1)
@@ -943,7 +939,6 @@ class GPC():
 
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
-                    self.debug=False;
                     #print('WARNING: DEBUG!\n')
 
                     ret = self.evaluate( Xdf )

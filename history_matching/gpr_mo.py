@@ -385,12 +385,12 @@ class GPR_MO():
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            logger.info(f"max_threads_per_block {max_threads_per_block}")
-            logger.info(f"max_block_dim {max_block_dim}")
-            logger.info(f"max_grid_dim {max_grid_dim}")
-            logger.info(f"max_blocks_per_grid {max_blocks_per_grid}")
-            logger.info(f"block_dim {block_dim}")
-            logger.info(f"grid_dim {grid_dim}")
+            logger.debug(f"max_threads_per_block {max_threads_per_block}")
+            logger.debug(f"max_block_dim {max_block_dim}")
+            logger.debug(f"max_grid_dim {max_grid_dim}")
+            logger.debug(f"max_blocks_per_grid {max_blocks_per_grid}")
+            logger.debug(f"block_dim {block_dim}")
+            logger.debug(f"grid_dim {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(

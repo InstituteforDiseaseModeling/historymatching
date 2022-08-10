@@ -55,7 +55,6 @@ class GPR():
             normalize_y = True,
             sigma2_n = None,
             fig_type = 'pdf',
-            debug = False,
             **kwargs
         ):
         """Initialize the GPR class.
@@ -93,7 +92,6 @@ class GPR():
                 If the responses should be normalized
             sigma_n: (None or instance of GPR)
                 For typical homoscedastic GPR, leave as None.  The kernel hyperparamter, sigma2_n, will be optimized.  Alternatively for heteroscedastic GPR, provide an instance of a GPR with the same input dimensions for which the optut is the log of the variance.
-            debug: (boolean, optional with default False)
             normalizer_mean (float, optional):  Allows specification or recovery of the mean of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
         """
@@ -136,8 +134,6 @@ class GPR():
 
         self.normalizer = True #UserStandardize(mean=self.normalizer_mean, std=self.normalizer_std)
         self.poisson = False #is_poisson
-
-        self.debug = debug
 
         # Heteroscedastic GP setup
         self.fixed_sigma_n = True
@@ -267,8 +263,6 @@ class GPR():
 
         """
 
-        if self.debug:
-            print('Updating cache of Kxx_inv and Kxx_inv_Y')
         logger.debug('Updating cache of Kxx_inv and Kxx_inv_Y')
 
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
@@ -360,12 +354,12 @@ class GPR():
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            logger.info(f"max_threads_per_block {max_threads_per_block}")
-            logger.info(f"max_block_dim {max_block_dim}")
-            logger.info(f"max_grid_dim {max_grid_dim}")
-            logger.info(f"max_blocks_per_grid {max_blocks_per_grid}")
-            logger.info(f"block_dim {block_dim}")
-            logger.info(f"grid_dim {grid_dim}")
+            logger.debug(f"max_threads_per_block {max_threads_per_block}")
+            logger.debug(f"max_block_dim {max_block_dim}")
+            logger.debug(f"max_grid_dim {max_grid_dim}")
+            logger.debug(f"max_blocks_per_grid {max_blocks_per_grid}")
+            logger.debug(f"block_dim {block_dim}")
+            logger.debug(f"grid_dim {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -540,12 +534,10 @@ class GPR():
             # Add sigma_n^2 to the diagonal, observation noise
             Kxx[np.diag_indices(Nx)] += sigma2_n
 
-        if self.debug and deriv < 0:
+        if deriv < 0:
             # Test on CPU
             Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
             if not np.allclose(Kxx_cpu, Kxx):
-                print('Kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
-                print('Kxx_gpu_wrapper(GPU):\n', Kxx)
                 logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
                 logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx}')
                 raise
@@ -595,15 +587,12 @@ class GPR():
                 grid = grid_dim
             )
 
-            if self.debug:
-                # Test on CPU
-                Kxp_cpu = self.kernel_xp(X, P, theta)
-                if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                    print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-                    print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
-                    logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
-                    logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx_gpu.get()}')
-                    raise
+            # Test on CPU
+            Kxp_cpu = self.kernel_xp(X, P, theta)
+            if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
+                logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx_gpu.get()}')
+                raise
 
             return Kxp_gpu.get()
 
@@ -628,15 +617,13 @@ class GPR():
         Y_mean = np.nanmean(Y, axis=1)
 
         KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-        if self.debug:
-            # Compare to CPU
-            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-            if not np.allclose(KXX_cpu, KXX):
-                print('loo_cross_validation(CPU XX):\n', KXX_cpu)
-                print('loo_cross_validation(GPU XX):\n', KXX)
-                logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
-                logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
-                raise
+
+        # Compare to CPU
+        KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
+        if not np.allclose(KXX_cpu, KXX):
+            logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
+            logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
+            raise
 
         if self.use_gpu:
             KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
@@ -685,15 +672,13 @@ class GPR():
 
         if self.use_gpu:
             KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-            if self.debug:
-                # Compare to CPU
-                KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-                if not np.allclose(KXX_cpu, KXX):
-                    print('loo_cross_validation(CPU XX):\n', KXX_cpu)
-                    print('loo_cross_validation(GPU XX):\n', KXX)
-                    logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
-                    logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
-                    raise
+
+            # Compare to CPU
+            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
+            if not np.allclose(KXX_cpu, KXX):
+                logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
+                logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
+                raise
         else:
             KXX = self.kernel_xx(X, theta, add_sigma2_n = True)
 
@@ -736,7 +721,7 @@ class GPR():
                 )
             dLLOO_dtheta[j] = np.sum( np.multiply(dLLOO_dthetaj, sigma2) )
 
-            if self.debug:
+            if logger.getEffectiveLevel() == logging.DEBUG:
                 # C. E. Rasmussen & C. K. I. Williams, Gaussian Processes for Machine Learning, the MIT Press, 2006, ISBN 026218253X.  2006 Massachusetts Institute of Technology.  www.GaussianProcess.org/gpml
                 # Page 117, equation (5.14)
                 # Note: Does not test dK_dthetaj calculation from above
@@ -747,6 +732,7 @@ class GPR():
                 mysum = 0
                 for i in range(len(alpha)):
                     mysum += (alpha[i] * Zj_alpha[i] - 0.5 * (1 + alpha[i]**2 / KXX_inv[i,i]) * (Zj_Kinv[i,i])) /  KXX_inv[i,i]
+                logger.debug(f'np.abs(mysum - dLLOO_dtheta[j]): {np.abs(mysum - dLLOO_dtheta[j])}')
                 assert( np.abs(mysum - dLLOO_dtheta[j]) < 1e-6 )
 
         if log_transform:
@@ -755,7 +741,7 @@ class GPR():
         if not optimize_sigma2_n:
             dLLOO_dtheta[1] = 0
 
-        logger.info(f'\n\tLL:{-ll}\n\nTheta:{theta}\n\tDeriv:{-dLLOO_dtheta}')
+        logger.debug(f'\n\tLL:{-ll}\n\nTheta:{theta}\n\tDeriv:{-dLLOO_dtheta}')
 
         return -ll, -dLLOO_dtheta
 
@@ -888,7 +874,7 @@ class GPR():
             options = optimizer_options
         )
 
-        logger.info(f'OPTIMIZATION RETURNED:\n{ret}')
+        logger.debug(f'OPTIMIZATION RETURNED:\n{ret}')
 
         # Restore original index
         self.training_data.set_index(idx, inplace=True)
@@ -923,35 +909,30 @@ class GPR():
 
         P = self.basis.generate_dmatrix( data, scaleX = True).values
 
-        if self.debug:
-            print('X',self.X.shape,' flags:\n', self.X.flags)
-            print('Y',self.Y.shape,' flags:\n', self.Y.flags)
-            print('P',P.shape,' flags:\n', P.flags)
+        logger.debug(f'X:{self.X.shape}  flags:\n{self.X.flags}')
+        logger.debug(f'Y:{self.Y.shape}  flags:\n{self.Y.flags}')
+        logger.debug(f'P:{P.shape} flags:\n{P.flags}')
 
         Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
-        if self.debug:
-            Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
-            if not np.allclose(Kxp_cpu, Kxp):
-                print('evaluate(CPU XP):\n', Kxp_cpu)
-                print('evaluate(GPU XP):\n', Kxp)
-                raise
+        Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
+        if not np.allclose(Kxp_cpu, Kxp):
+            logger.debug(f'evaluate(CPU XP):\n{Kxp_cpu}')
+            logger.debug(f'evaluate(GPU XP):\n{Kxp}')
+            raise
 
         if self.use_gpu:
             Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
-            if self.debug:
-                Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
-                if not np.allclose(Kpp_cpu, Kpp):
-                    print('evaluate(CPU PP):\n', Kpp_cpu)
-                    print('evaluate(GPU PP):\n', Kpp)
-                    raise
+            Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
+            if not np.allclose(Kpp_cpu, Kpp):
+                logger.debug(f'evaluate(CPU PP):\n{Kpp_cpu}')
+                logger.debug(f'evaluate(GPU PP):\n{Kpp}')
+                raise
         else:
             Kpp = self.kernel_xx(P, self.theta, add_sigma2_n = False)
 
         f = np.dot(Kxp.T, self.Kxx_inv_Y)
 
-        if self.debug:
-            print('Using cache for covf')
-            logger.debug('Using cache for covf')
+        logger.debug('Using cache for covf')
 
         # NOTE: Just computing diagonal elements of:
         #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
@@ -1084,8 +1065,6 @@ class GPR():
                     X[:,col] = X2.flatten()
 
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
-
-                    self.debug=False
 
                     ret = self.evaluate( Xdf )
 

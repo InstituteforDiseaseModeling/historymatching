@@ -82,7 +82,7 @@ class CutNearSamples():
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
-            logger.info(plausible_candidates.shape)
+            logger.debug(plausible_candidates.shape)
             if plausible_candidates.shape[0] == 0:
                 logger.info('Returning early because none of the candidates are plausible.')
                 return new_candidates['Implausible']
@@ -225,36 +225,37 @@ class CutNearSamples():
                 nSamples = min(max_nSamples, int(round(1.25 * (num_desired_candidates-stats['num_plausible_candidates']) / ((1+stats['num_plausible_candidates'])/float(stats['num_candidates'])))))
 
             logger.info(f'Starting with ({nSamples}):')
-
-            logger.info('initially draw_samples:')
             sample = self.draw_samples(nSamples, p)
-            logger.info('data frame and constraint:')
+            logger.debug(f'initially draw_samples: {sample}')
+            logger.debug(f'constraint: {constraint}')
+            logger.debug(f'new_candidates data frame: {new_candidates}')
             new_candidates = pd.DataFrame( sample, columns=self.Xcols_all_orig)
             if constraint is not None:
                 #new_candidates = new_candidates.loc[new_candidates.apply(constraint, axis=1),:]
                 #new_candidates = new_candidates.query(constraint)
                 new_candidates = new_candidates.loc[constraint(new_candidates),:]
 
-            logger.info('entering while loop:')
+            logger.debug('entering while loop')
             while new_candidates.shape[0] < nSamples:
-                logger.info(f'draw_samples in while loop ({new_candidates.shape[0]}):')
+                logger.debug(f'draw_samples in while loop ({new_candidates.shape[0]})')
                 samples = self.draw_samples(nSamples, p)
-                logger.info('data frame in while loop:')
+                logger.debug('data frame in while loop')
                 sample_df = pd.DataFrame( samples, columns=self.Xcols_all_orig )
-                logger.info(f'sample_df has rows numbering {sample_df.shape[0]}:')
+                logger.debug(f'sample_df has rows numbering {sample_df.shape[0]}')
                 if constraint is not None:
-                    logger.info('constraint evaluation in while loop:')
+                    logger.debug('constraint evaluation in while loop:')
                     sample_df = sample_df.loc[constraint(sample_df),:]
-                logger.info(f'appending sample_df to new_candidates.  was {new_candidates.shape[0]}:')
+                logger.debug(f'before appending sample_df to new_candidates.  was {new_candidates.shape[0]}')
                 new_candidates = new_candidates.append( sample_df, ignore_index=True )
-                logger.info(f'new_candidates.  now {new_candidates.shape[0]}:')
+                logger.debug(f'after appending sample_df to new_candidates.  now {new_candidates.shape[0]}')
+                logger.debug(f'new_candidates.  now {new_candidates.shape[0]}:')
 
 
             logger.info(f'Testing ({nSamples}):')
 
             t = time.time()
             plausibility = self.test_plausibility(new_candidates, constraint)
-            logger.info(f'Test plausibility:{time.time() - t}')
+            logger.debug(f'Test plausibility:{time.time() - t}')
 
             #t = time.time()
             ###new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
