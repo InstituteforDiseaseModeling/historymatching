@@ -63,7 +63,7 @@ class GPC():
         self.Xcols_scaled = []
         for xc in self.Xcols:
             if xc not in self.training_data.columns:
-                print('Cannot find columns %s in the training data, which has columns:'%xs, self.training_data.columns)
+                logger.debug(f'Cannot find columns {xc} in the training data, which has columns: {self.training_data.columns}')
                 raise Exception('Missing column')
             xc_new = xc+' (scaled)'
             self.Xcols_scaled.append(xc_new)
@@ -82,12 +82,12 @@ class GPC():
     @classmethod
     def from_config(cls, config_fn):
         try:
-            print("from_config:", config_fn)
+            logger.info(f"from_config:{config_fn}")
             with open(os.path.join(config_fn)) as data_file:
                 config = json.load( data_file )
                 return GPC.from_dict(config)
         except EnvironmentError:
-            print("Unable to load GPC from_config file", config_fn)
+            logger.error(f"Unable to load GPC from_config file:{config_fn}" )
             raise
 
 
@@ -160,7 +160,7 @@ class GPC():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print('Bad kernel mode, kernel_mode=%s'%self.kernel_mode)
+            logger.debug(f'Bad kernel mode, kernel_mode={self.kernel_mode}')
             raise
 
         if params is not None:
@@ -242,8 +242,8 @@ class GPC():
 
         Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32))
         if not np.allclose(Kxx_cpu, Kxx):
-            logger.debug('kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
-            logger.debug('kxx_gpu_wrapper(GPU):\n', Kxx)
+            logger.debug(f'kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+            logger.debug(f'kxx_gpu_wrapper(GPU):\n{Kxx}')
             raise
 
         return Kxx
@@ -285,8 +285,8 @@ class GPC():
 
         Kxp_cpu = self.kernel_xp(X, P, theta)
         if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-            logger.debug('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-            logger.debug('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
+            logger.debug(f'kxp_gpu_wrapper(CPU):\n{Kxp_cpu}')
+            logger.debug(f'kxp_gpu_wrapper(GPU):\n{Kxp_gpu.get()}')
             raise
 
         return Kxp_gpu.get()
@@ -510,7 +510,7 @@ class GPC():
                 break
 
             if i == maxiter - 1:
-                print('WARNING: out of iterations in find_posterior_mode, |grad| =', norm_grad)
+                logger.warning(f'out of iterations in find_posterior_mode, |grad| ={norm_grad}')
 
         logger.debug(f'theta--> log_q_y_given_X_theta: {log_q_y_given_X_theta} ({i} f_hat-iterations)')
 
@@ -825,10 +825,10 @@ class GPC():
                 }
             )
 
-            print('OPTIMIZATION RETURNED:\n', ret)
+            logger.info(f'OPTIMIZATION RETURNED:\n{ret}')
             done = ret['success'] == True
             if not done:
-                print('OPTIMIZATION FAILED, trying AGAIN!!!')
+                logger.info('OPTIMIZATION FAILED, trying AGAIN!!!')
                 x0 = 1.1*x0
             attempts = attempts + 1
 
@@ -839,7 +839,7 @@ class GPC():
         f_hat = self.find_posterior_mode(self.theta)['f_hat']
         np.savetxt('f_hat.csv', f_hat, delimiter=',')   # X is an array
 
-        print('OPTIMIZATION RETURNED:\n', ret)
+        logger.info(f'OPTIMIZATION RETURNED:\n{ret}')
 
         # Restore original index
         if idx[0] is not None:
@@ -951,7 +951,7 @@ class GPC():
                         CS = ax.contour(X1, X2, Y_mean, zorder=100)
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print('Unable to plot mean contour')
+                        logger.info('Unable to plot mean contour')
                         pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25)
@@ -960,7 +960,7 @@ class GPC():
                         CS = ax_std_latent.contour(X1, X2, Y_std_latent, zorder=100)
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print('Unable to plot std contour')
+                        logger.info('Unable to plot std contour')
                         pass
 
                     if col == self.D-1:

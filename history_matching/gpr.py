@@ -33,10 +33,8 @@ try:
     import skcuda.misc as misc
     import skcuda.linalg as linalg
 except ImportError as e:
-    print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
     logger.warning("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
 except RuntimeError as e:
-    print("Runtime error starting cuda, message was:\n", e.message)
     logger.error("Runtime error starting cuda, message was:\n {e.message}")
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
@@ -101,9 +99,8 @@ class GPR():
             logger.info(f'Autoinit GPU device name:{device.name()}')
             self.use_gpu = True
         except Exception as e:
-            print('WARNING: Not using GPU, computation will be slow...')
             self.use_gpu = False
-            logger.warning(f'WARNING: Not using GPU, computation will be slow... self.use_gpu:{self.use_gpu}')
+            logger.warning(f'WARNING: Not using GPU, computation will be slow...')
 
         if self.use_gpu:
             # Read in the RFB kernel
@@ -138,7 +135,7 @@ class GPR():
         # Heteroscedastic GP setup
         self.fixed_sigma_n = True
         if isinstance(sigma2_n, GPR):
-            print('User has configured GPR with noise coming from another GPR')
+            logger.info('User has configured GPR with noise coming from another GPR')
             self.sigma2_n = sigma2_n
             self.fixed_sigma_n = False
 
@@ -215,7 +212,7 @@ class GPR():
                 return instance
                 '''
         except EnvironmentError:
-            print('Unable to load GPR from_config file', config_fn)
+            logger.info(f'Unable to load GPR from_config file {config_fn}')
             raise
 
     def set_training_data(self, new_training_data):
@@ -273,7 +270,7 @@ class GPR():
             try:
                 Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
             except pycuda._driver.MemoryError:
-                print('Insufficient video memory for Kxx matrix of dimension', X.shape[0],', reverting to (slow) CPU computation.')
+                logger.info(f'Insufficient video memory for Kxx matrix of dimension {X.shape[0]} reverting to (slow) CPU computation.')
 
             Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
             linalg.init()
@@ -375,7 +372,7 @@ class GPR():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print('Bad kernel mode, kernel_mode =',self.kernel_mode)
+            logger.debug(f'Bad kernel mode, kernel_mode ={self.kernel_mode}')
             raise
 
 
@@ -1076,7 +1073,7 @@ class GPR():
                         CS = ax.contour(X1, X2, Y_mean, zorder=100)
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print('Unable to plot mean contour')
+                        logger.info('Unable to plot mean contour')
                         pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25, cmap='jet')
@@ -1085,7 +1082,7 @@ class GPR():
                         CS = ax_std_latent.contour(X1, X2, Y_std_latent, zorder=100)
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print('Unable to plot std contour')
+                        logger.info('Unable to plot std contour')
                         pass
 
                     if col == self.D-1:
