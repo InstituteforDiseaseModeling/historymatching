@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 
-#Adapted from: https://scikit-learn.org/stable/auto_examples/gaussian_process/plot_gpr_noisy_targets.html
+# Adapted from: https://scikit-learn.org/stable/auto_examples/gaussian_process/plot_gpr_noisy_targets.html
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from hm2.gpr import SkGPR
 
+# Set this to True to show plots. Plots are disabled by default to ensure this
+# script can be run by our automated testing framework.
+SHOW_PLOTS = False
+
+
 def f(x):
     """The function to predict."""
     return x * np.sin(x)
 
 
-
 # ----------------------------------------------------------------------
 #  First the noiseless case
-real_observations = np.atleast_2d([1., 3., 5., 6., 7., 8.]).T
+real_observations = np.atleast_2d([1.0, 3.0, 5.0, 6.0, 7.0, 8.0]).T
 
 # Observations
 y = f(real_observations).ravel()
@@ -39,18 +43,21 @@ y_pred, sigma = gpr.predict(xmesh)
 # Plot the function, the prediction and the 95% confidence interval based on
 # the MSE
 plt.figure()
-plt.plot(xmesh, f(xmesh), 'r:', label=r'$f(x) = x\,\sin(x)$')
-plt.plot(real_observations, y, 'r.', markersize=10, label='Observations')
-plt.plot(xmesh, y_pred, 'b-', label='Prediction')
-plt.fill(np.concatenate([xmesh, xmesh[::-1]]),
-         np.concatenate([y_pred - 1.9600 * sigma,
-                        (y_pred + 1.9600 * sigma)[::-1]]),
-         alpha=.5, fc='b', ec='None', label='95% confidence interval')
-plt.xlabel('$x$')
-plt.ylabel('$f(x)$')
+plt.plot(xmesh, f(xmesh), "r:", label=r"$f(x) = x\,\sin(x)$")
+plt.plot(real_observations, y, "r.", markersize=10, label="Observations")
+plt.plot(xmesh, y_pred, "b-", label="Prediction")
+plt.fill(
+    np.concatenate([xmesh, xmesh[::-1]]),
+    np.concatenate([y_pred - 1.9600 * sigma, (y_pred + 1.9600 * sigma)[::-1]]),
+    alpha=0.5,
+    fc="b",
+    ec="None",
+    label="95% confidence interval",
+)
+plt.xlabel("$x$")
+plt.ylabel("$f(x)$")
 plt.ylim(-10, 20)
-plt.legend(loc='upper left')
-
+plt.legend(loc="upper left")
 
 
 # ----------------------------------------------------------------------
@@ -74,16 +81,25 @@ y_pred, sigma = gpr.predict(xmesh)
 # Plot the function, the prediction and the 95% confidence interval based on
 # the MSE
 plt.figure()
-plt.plot(xmesh, f(xmesh), 'r:', label=r'$f(x) = x\,\sin(x)$')
-plt.errorbar(real_obs_with_noise.ravel(), y, dy, fmt='r.', markersize=10, label='Observations')
-plt.plot(xmesh, y_pred, 'b-', label='Prediction')
-plt.fill(np.concatenate([xmesh, xmesh[::-1]]),
-         np.concatenate([y_pred - 1.9600 * sigma,
-                        (y_pred + 1.9600 * sigma)[::-1]]),
-         alpha=.5, fc='b', ec='None', label='95% confidence interval')
-plt.xlabel('$x$')
-plt.ylabel('$f(xmesh)$')
+plt.plot(xmesh, f(xmesh), "r:", label=r"$f(x) = x\,\sin(x)$")
+plt.errorbar(
+    real_obs_with_noise.ravel(), y, dy, fmt="r.", markersize=10, label="Observations"
+)
+plt.plot(xmesh, y_pred, "b-", label="Prediction")
+plt.fill(
+    np.concatenate([xmesh, xmesh[::-1]]),
+    np.concatenate([y_pred - 1.9600 * sigma, (y_pred + 1.9600 * sigma)[::-1]]),
+    alpha=0.5,
+    fc="b",
+    ec="None",
+    label="95% confidence interval",
+)
+plt.xlabel("$x$")
+plt.ylabel("$f(xmesh)$")
 plt.ylim(-10, 20)
-plt.legend(loc='upper left')
+plt.legend(loc="upper left")
 
-plt.show()
+if SHOW_PLOTS:
+    plt.show()
+else:
+    plt.savefig(fname="gpr_example.png", format="png")
