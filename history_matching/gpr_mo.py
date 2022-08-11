@@ -560,12 +560,13 @@ class GPR_MO():
             # Add sigma_n^2 to the diagonal, observation noise
             Kxx[np.diag_indices(Nx)] += sigma2_n
 
-        # Test on CPU
-        Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
-        if not np.allclose(Kxx_cpu, Kxx):
-            logger.debug(f'kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
-            logger.debug(f'kxx_gpu_wrapper(GPU):\n{Kxx}')
-            raise
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            # Test on CPU
+            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
+            if not np.allclose(Kxx_cpu, Kxx):
+                logger.debug(f'kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                logger.debug(f'kxx_gpu_wrapper(GPU):\n{Kxx}')
+                raise
 
         return Kxx
 
@@ -612,12 +613,13 @@ class GPR_MO():
                 grid = grid_dim
             )
 
-            # Test on CPU
-            Kxp_cpu = self.kernel_xp(X, P, theta)
-            if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                logger.debug(f'kxp_gpu_wrapper(CPU):\n{Kxp_cpu}')
-                logger.debug(f'kxp_gpu_wrapper(GPU):\n{Kxp_gpu.get()}')
-                raise
+            if logger.getEffectiveLevel() == logging.DEBUG:
+                # Test on CPU
+                Kxp_cpu = self.kernel_xp(X, P, theta)
+                if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
+                    logger.debug(f'kxp_gpu_wrapper(CPU):\n{Kxp_cpu}')
+                    logger.debug(f'kxp_gpu_wrapper(GPU):\n{Kxp_gpu.get()}')
+                    raise
 
             return Kxp_gpu.get()
 
@@ -648,12 +650,13 @@ class GPR_MO():
 
         if self.use_gpu:
             Kxx = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-            # Compare to CPU
-            Kxx_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-            if not np.allclose(Kxx_cpu, Kxx):
-                logger.debug(f'kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
-                logger.debug(f'kxx_gpu_wrapper(GPU):\n{Kxx}')
-                raise
+            if logger.getEffectiveLevel() == logging.DEBUG:
+                # Compare to CPU
+                Kxx_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
+                if not np.allclose(Kxx_cpu, Kxx):
+                    logger.debug(f'kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                    logger.debug(f'kxx_gpu_wrapper(GPU):\n{Kxx}')
+                    raise
         else:
             add_sigma2_n = True if R == 1 else False
             Kxx = self.kernel_xx(X, theta, add_sigma2_n = add_sigma2_n)
@@ -861,19 +864,21 @@ class GPR_MO():
         theta = [self.sigma2_f, self.sigma2_n] + self.lengthscales2
 
         Kxp = self.kxp_gpu_wrapper(self.X, P, theta)
-        Kxp_cpu = self.kernel_xp(self.X, P, theta)
-        if not np.allclose(Kxp_cpu, Kxp):
-            logger.debug(f'evaluate(CPU XP):\n{Kxp_cpu}')
-            logger.debug(f'evaluate(GPU XP):\n{Kxp}')
-            raise
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            Kxp_cpu = self.kernel_xp(self.X, P, theta)
+            if not np.allclose(Kxp_cpu, Kxp):
+                logger.debug(f'evaluate(CPU XP):\n{Kxp_cpu}')
+                logger.debug(f'evaluate(GPU XP):\n{Kxp}')
+                raise
 
         if self.use_gpu:
             Kpp = self.kxx_gpu_wrapper(P, theta, add_sigma2_n = False) # For latent distribution
-            Kpp_cpu = self.kernel_xx(P, theta, add_sigma2_n = False)
-            if not np.allclose(Kpp_cpu, Kpp):
-                logger.debug(f'evaluate(CPU PP):\n{Kpp_cpu}')
-                logger.debug(f'evaluate(GPU PP):\n{Kpp}')
-                raise
+            if logger.getEffectiveLevel() == logging.DEBUG:
+                Kpp_cpu = self.kernel_xx(P, theta, add_sigma2_n = False)
+                if not np.allclose(Kpp_cpu, Kpp):
+                    logger.debug(f'evaluate(CPU PP):\n{Kpp_cpu}')
+                    logger.debug(f'evaluate(GPU PP):\n{Kpp}')
+                    raise
         else:
             Kpp = self.kernel_xx(P, theta, add_sigma2_n = False)
 

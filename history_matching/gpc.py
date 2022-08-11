@@ -240,11 +240,12 @@ class GPC():
 
         Kxx = Kxx_gpu.get()
 
-        Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32))
-        if not np.allclose(Kxx_cpu, Kxx):
-            logger.debug(f'kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
-            logger.debug(f'kxx_gpu_wrapper(GPU):\n{Kxx}')
-            raise
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32))
+            if not np.allclose(Kxx_cpu, Kxx):
+                logger.debug(f'kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                logger.debug(f'kxx_gpu_wrapper(GPU):\n{Kxx}')
+                raise
 
         return Kxx
 
@@ -283,11 +284,12 @@ class GPC():
             grid = grid_dim
         )
 
-        Kxp_cpu = self.kernel_xp(X, P, theta)
-        if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-            logger.debug(f'kxp_gpu_wrapper(CPU):\n{Kxp_cpu}')
-            logger.debug(f'kxp_gpu_wrapper(GPU):\n{Kxp_gpu.get()}')
-            raise
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            Kxp_cpu = self.kernel_xp(X, P, theta)
+            if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
+                logger.debug(f'kxp_gpu_wrapper(CPU):\n{Kxp_cpu}')
+                logger.debug(f'kxp_gpu_wrapper(GPU):\n{Kxp_gpu.get()}')
+                raise
 
         return Kxp_gpu.get()
 

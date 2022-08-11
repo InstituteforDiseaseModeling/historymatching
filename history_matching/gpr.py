@@ -531,13 +531,14 @@ class GPR():
             # Add sigma_n^2 to the diagonal, observation noise
             Kxx[np.diag_indices(Nx)] += sigma2_n
 
-        if deriv < 0:
-            # Test on CPU
-            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
-            if not np.allclose(Kxx_cpu, Kxx):
-                logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
-                logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx}')
-                raise
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            if deriv < 0:
+                # Test on CPU
+                Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
+                if not np.allclose(Kxx_cpu, Kxx):
+                    logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                    logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx}')
+                    raise
 
         return Kxx
 
@@ -584,12 +585,13 @@ class GPR():
                 grid = grid_dim
             )
 
-            # Test on CPU
-            Kxp_cpu = self.kernel_xp(X, P, theta)
-            if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
-                logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx_gpu.get()}')
-                raise
+            if logger.getEffectiveLevel() == logging.DEBUG:
+                # Test on CPU
+                Kxp_cpu = self.kernel_xp(X, P, theta)
+                if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
+                    logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                    logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx_gpu.get()}')
+                    raise
 
             return Kxp_gpu.get()
 
@@ -615,12 +617,13 @@ class GPR():
 
         KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
 
-        # Compare to CPU
-        KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-        if not np.allclose(KXX_cpu, KXX):
-            logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
-            logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
-            raise
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            # Compare to CPU
+            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
+            if not np.allclose(KXX_cpu, KXX):
+                logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
+                logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
+                raise
 
         if self.use_gpu:
             KXX_gpu = gpuarray.to_gpu(np.asarray(KXX.copy(), np.float64))
@@ -670,12 +673,13 @@ class GPR():
         if self.use_gpu:
             KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
 
-            # Compare to CPU
-            KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-            if not np.allclose(KXX_cpu, KXX):
-                logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
-                logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
-                raise
+            if logger.getEffectiveLevel() == logging.DEBUG:
+                # Compare to CPU
+                KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
+                if not np.allclose(KXX_cpu, KXX):
+                    logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
+                    logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
+                    raise
         else:
             KXX = self.kernel_xx(X, theta, add_sigma2_n = True)
 
@@ -911,19 +915,21 @@ class GPR():
         logger.debug(f'P:{P.shape} flags:\n{P.flags}')
 
         Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
-        Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
-        if not np.allclose(Kxp_cpu, Kxp):
-            logger.debug(f'evaluate(CPU XP):\n{Kxp_cpu}')
-            logger.debug(f'evaluate(GPU XP):\n{Kxp}')
-            raise
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
+            if not np.allclose(Kxp_cpu, Kxp):
+                logger.debug(f'evaluate(CPU XP):\n{Kxp_cpu}')
+                logger.debug(f'evaluate(GPU XP):\n{Kxp}')
+                raise
 
         if self.use_gpu:
             Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
-            Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
-            if not np.allclose(Kpp_cpu, Kpp):
-                logger.debug(f'evaluate(CPU PP):\n{Kpp_cpu}')
-                logger.debug(f'evaluate(GPU PP):\n{Kpp}')
-                raise
+            if logger.getEffectiveLevel() == logging.DEBUG:
+                Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
+                if not np.allclose(Kpp_cpu, Kpp):
+                    logger.debug(f'evaluate(CPU PP):\n{Kpp_cpu}')
+                    logger.debug(f'evaluate(GPU PP):\n{Kpp}')
+                    raise
         else:
             Kpp = self.kernel_xx(P, self.theta, add_sigma2_n = False)
 
