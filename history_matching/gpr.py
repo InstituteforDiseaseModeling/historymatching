@@ -21,6 +21,9 @@ from string import Template
 from history_matching.basis import Basis
 
 import scipy.linalg
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     from pycuda import driver, compiler, gpuarray, tools
@@ -30,9 +33,9 @@ try:
     import skcuda.misc as misc
     import skcuda.linalg as linalg
 except ImportError as e:
-    print("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
+    logger.warning("Looks like you don't have CUDA, that's okay, we'll try using CPU but it will be SLOW!")
 except RuntimeError as e:
-    print("Runtime error starting cuda, message was:\n", e.message)
+    logger.error("Runtime error starting cuda, message was:\n {e.message}")
 
 # NOTE theta = [sigma_f^2, sigma_n^2, l_1^2, l_2^2, ..., l_D^2]
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
@@ -50,8 +53,6 @@ class GPR():
             normalize_y = True,
             sigma2_n = None,
             fig_type = 'pdf',
-            verbose = False,
-            debug = False,
             **kwargs
         ):
         """Initialize the GPR class.
@@ -89,21 +90,17 @@ class GPR():
                 If the responses should be normalized
             sigma_n: (None or instance of GPR)
                 For typical homoscedastic GPR, leave as None.  The kernel hyperparamter, sigma2_n, will be optimized.  Alternatively for heteroscedastic GPR, provide an instance of a GPR with the same input dimensions for which the optut is the log of the variance.
-            verbose: (boolean, optional with default False)
-            debug: (boolean, optional with default False)
             normalizer_mean (float, optional):  Allows specification or recovery of the mean of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
             normalizer_std (float, optional): Allows specification or recovery of the std of the Y-normalizer.  Must specify normalizer_mean and normalizer_std for this feature to work.  It is typically used when restoring a GPR from file.
         """
 
-        self.verbose = verbose
-
         try:
             device = pycuda.autoinit.device
-            if self.verbose: print('Autoinit GPU device name:', device.name())
+            logger.info(f'Autoinit GPU device name:{device.name()}')
             self.use_gpu = True
         except Exception as e:
-            print('WARNING: Not using GPU, computation will be slow...')
             self.use_gpu = False
+            logger.warning(f'WARNING: Not using GPU, computation will be slow...')
 
         if self.use_gpu:
             # Read in the RFB kernel
@@ -135,12 +132,10 @@ class GPR():
         self.normalizer = True #UserStandardize(mean=self.normalizer_mean, std=self.normalizer_std)
         self.poisson = False #is_poisson
 
-        self.debug = debug
-
         # Heteroscedastic GP setup
         self.fixed_sigma_n = True
         if isinstance(sigma2_n, GPR):
-            print('User has configured GPR with noise coming from another GPR')
+            logger.info('User has configured GPR with noise coming from another GPR')
             self.sigma2_n = sigma2_n
             self.fixed_sigma_n = False
 
@@ -217,7 +212,7 @@ class GPR():
                 return instance
                 '''
         except EnvironmentError:
-            print('Unable to load GPR from_config file', config_fn)
+            logger.info(f'Unable to load GPR from_config file {config_fn}')
             raise
 
     def set_training_data(self, new_training_data):
@@ -265,8 +260,7 @@ class GPR():
 
         """
 
-        if self.debug:
-            print('Updating cache of Kxx_inv and Kxx_inv_Y')
+        logger.debug('Updating cache of Kxx_inv and Kxx_inv_Y')
 
         train_mean = self.training_data.reset_index().groupby('Sample_Id').mean()
         self.X = self.basis.generate_dmatrix( train_mean, scaleX = True).values
@@ -276,7 +270,7 @@ class GPR():
             try:
                 Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
             except pycuda._driver.MemoryError:
-                print('Insufficient video memory for Kxx matrix of dimension', X.shape[0],', reverting to (slow) CPU computation.')
+                logger.info(f'Insufficient video memory for Kxx matrix of dimension {X.shape[0]} reverting to (slow) CPU computation.')
 
             Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
             linalg.init()
@@ -357,13 +351,12 @@ class GPR():
             block_dim, grid_dim = misc.select_block_grid_sizes(device, (Nx, Nx))
             max_blocks_per_grid = max(max_grid_dim)
 
-            if self.verbose:
-                print("max_threads_per_block", max_threads_per_block)
-                print("max_block_dim", max_block_dim)
-                print("max_grid_dim", max_grid_dim)
-                print("max_blocks_per_grid", max_blocks_per_grid)
-                print("block_dim", block_dim)
-                print("grid_dim", grid_dim)
+            logger.debug(f"max_threads_per_block {max_threads_per_block}")
+            logger.debug(f"max_block_dim {max_block_dim}")
+            logger.debug(f"max_grid_dim {max_grid_dim}")
+            logger.debug(f"max_blocks_per_grid {max_blocks_per_grid}")
+            logger.debug(f"block_dim {block_dim}")
+            logger.debug(f"grid_dim {grid_dim}")
 
             # Substitute in template to get kernel code
             kernel_code = kernel_code_template.substitute(
@@ -379,7 +372,7 @@ class GPR():
             self.kernel_xp_gpu = mod.get_function("kernel_xp")
 
         else:
-            print('Bad kernel mode, kernel_mode =',self.kernel_mode)
+            logger.debug(f'Bad kernel mode, kernel_mode ={self.kernel_mode}')
             raise
 
 
@@ -538,13 +531,14 @@ class GPR():
             # Add sigma_n^2 to the diagonal, observation noise
             Kxx[np.diag_indices(Nx)] += sigma2_n
 
-        if self.debug and deriv < 0:
-            # Test on CPU
-            Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
-            if not np.allclose(Kxx_cpu, Kxx):
-                print('Kxx_gpu_wrapper(CPU):\n', Kxx_cpu)
-                print('Kxx_gpu_wrapper(GPU):\n', Kxx)
-                raise
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            if deriv < 0:
+                # Test on CPU
+                Kxx_cpu = self.kernel_xx(X.astype(np.float32), theta.astype(np.float32), add_sigma2_n)
+                if not np.allclose(Kxx_cpu, Kxx):
+                    logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                    logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx}')
+                    raise
 
         return Kxx
 
@@ -591,12 +585,12 @@ class GPR():
                 grid = grid_dim
             )
 
-            if self.debug:
+            if logger.getEffectiveLevel() == logging.DEBUG:
                 # Test on CPU
                 Kxp_cpu = self.kernel_xp(X, P, theta)
                 if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                    print('kxp_gpu_wrapper(CPU):\n', Kxp_cpu)
-                    print('kxp_gpu_wrapper(GPU):\n', Kxp_gpu.get())
+                    logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
+                    logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx_gpu.get()}')
                     raise
 
             return Kxp_gpu.get()
@@ -622,12 +616,13 @@ class GPR():
         Y_mean = np.nanmean(Y, axis=1)
 
         KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-        if self.debug:
+
+        if logger.getEffectiveLevel() == logging.DEBUG:
             # Compare to CPU
             KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
             if not np.allclose(KXX_cpu, KXX):
-                print('loo_cross_validation(CPU XX):\n', KXX_cpu)
-                print('loo_cross_validation(GPU XX):\n', KXX)
+                logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
+                logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
                 raise
 
         if self.use_gpu:
@@ -677,12 +672,13 @@ class GPR():
 
         if self.use_gpu:
             KXX = self.kxx_gpu_wrapper(X, theta, add_sigma2_n = True) # Want predictive distribution, so add sigma2
-            if self.debug:
+
+            if logger.getEffectiveLevel() == logging.DEBUG:
                 # Compare to CPU
                 KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
                 if not np.allclose(KXX_cpu, KXX):
-                    print('loo_cross_validation(CPU XX):\n', KXX_cpu)
-                    print('loo_cross_validation(GPU XX):\n', KXX)
+                    logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
+                    logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
                     raise
         else:
             KXX = self.kernel_xx(X, theta, add_sigma2_n = True)
@@ -726,7 +722,7 @@ class GPR():
                 )
             dLLOO_dtheta[j] = np.sum( np.multiply(dLLOO_dthetaj, sigma2) )
 
-            if self.debug:
+            if logger.getEffectiveLevel() == logging.DEBUG:
                 # C. E. Rasmussen & C. K. I. Williams, Gaussian Processes for Machine Learning, the MIT Press, 2006, ISBN 026218253X.  2006 Massachusetts Institute of Technology.  www.GaussianProcess.org/gpml
                 # Page 117, equation (5.14)
                 # Note: Does not test dK_dthetaj calculation from above
@@ -737,6 +733,7 @@ class GPR():
                 mysum = 0
                 for i in range(len(alpha)):
                     mysum += (alpha[i] * Zj_alpha[i] - 0.5 * (1 + alpha[i]**2 / KXX_inv[i,i]) * (Zj_Kinv[i,i])) /  KXX_inv[i,i]
+                logger.debug(f'np.abs(mysum - dLLOO_dtheta[j]): {np.abs(mysum - dLLOO_dtheta[j])}')
                 assert( np.abs(mysum - dLLOO_dtheta[j]) < 1e-6 )
 
         if log_transform:
@@ -745,8 +742,7 @@ class GPR():
         if not optimize_sigma2_n:
             dLLOO_dtheta[1] = 0
 
-        if self.verbose:
-            print('\n\tLL:', -ll, '\n\tTheta:', theta, '\n\tDeriv:', -dLLOO_dtheta)
+        logger.debug(f'\n\tLL:{-ll}\n\nTheta:{theta}\n\tDeriv:{-dLLOO_dtheta}')
 
         return -ll, -dLLOO_dtheta
 
@@ -879,7 +875,7 @@ class GPR():
             options = optimizer_options
         )
 
-        if self.verbose: print('OPTIMIZATION RETURNED:\n', ret)
+        logger.debug(f'OPTIMIZATION RETURNED:\n{ret}')
 
         # Restore original index
         self.training_data.set_index(idx, inplace=True)
@@ -909,40 +905,37 @@ class GPR():
         """
 
         if self.X is None or self.Y is None or self.Kxx_inv is None and self.Kxx_inv_Y is None: # if no cache
-            if self.verbose:
-                print('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
+            logger.info('No cache for Kxx_inv or Kxx_inv_Y') # Does this happen?
             self.update_cache()
 
         P = self.basis.generate_dmatrix( data, scaleX = True).values
 
-        if self.debug:
-            print('X',self.X.shape,' flags:\n', self.X.flags)
-            print('Y',self.Y.shape,' flags:\n', self.Y.flags)
-            print('P',P.shape,' flags:\n', P.flags)
+        logger.debug(f'X:{self.X.shape}  flags:\n{self.X.flags}')
+        logger.debug(f'Y:{self.Y.shape}  flags:\n{self.Y.flags}')
+        logger.debug(f'P:{P.shape} flags:\n{P.flags}')
 
         Kxp = self.kxp_gpu_wrapper(self.X, P, self.theta)
-        if self.debug:
+        if logger.getEffectiveLevel() == logging.DEBUG:
             Kxp_cpu = self.kernel_xp(self.X, P, self.theta)
             if not np.allclose(Kxp_cpu, Kxp):
-                print('evaluate(CPU XP):\n', Kxp_cpu)
-                print('evaluate(GPU XP):\n', Kxp)
+                logger.debug(f'evaluate(CPU XP):\n{Kxp_cpu}')
+                logger.debug(f'evaluate(GPU XP):\n{Kxp}')
                 raise
 
         if self.use_gpu:
             Kpp = self.kxx_gpu_wrapper(P, self.theta, add_sigma2_n = False) # For latent distribution
-            if self.debug:
+            if logger.getEffectiveLevel() == logging.DEBUG:
                 Kpp_cpu = self.kernel_xx(P, self.theta, add_sigma2_n = False)
                 if not np.allclose(Kpp_cpu, Kpp):
-                    print('evaluate(CPU PP):\n', Kpp_cpu)
-                    print('evaluate(GPU PP):\n', Kpp)
+                    logger.debug(f'evaluate(CPU PP):\n{Kpp_cpu}')
+                    logger.debug(f'evaluate(GPU PP):\n{Kpp}')
                     raise
         else:
             Kpp = self.kernel_xx(P, self.theta, add_sigma2_n = False)
 
         f = np.dot(Kxp.T, self.Kxx_inv_Y)
 
-        if self.debug:
-            print('Using cache for covf')
+        logger.debug('Using cache for covf')
 
         # NOTE: Just computing diagonal elements of:
         #covf = Kpp - np.dot(Kxp.T, np.dot(self.Kxx_inv, Kxp))
@@ -1076,9 +1069,6 @@ class GPR():
 
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
-                    self.debug=False
-                    self.verbose=False
-
                     ret = self.evaluate( Xdf )
 
                     Y_mean = np.reshape(ret['Mean'], [res,res])
@@ -1089,7 +1079,7 @@ class GPR():
                         CS = ax.contour(X1, X2, Y_mean, zorder=100)
                         ax.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print('Unable to plot mean contour')
+                        logger.info('Unable to plot mean contour')
                         pass
 
                     ax.scatter(self.training_data[self.Xcols[row]], self.training_data[self.Xcols[col]], c=self.training_data[self.Ycol], s=25, cmap='jet')
@@ -1098,7 +1088,7 @@ class GPR():
                         CS = ax_std_latent.contour(X1, X2, Y_std_latent, zorder=100)
                         ax_std_latent.clabel(CS, inline=1, fontsize=10, zorder=100)
                     except:
-                        print('Unable to plot std contour')
+                        logger.info('Unable to plot std contour')
                         pass
 
                     if col == self.D-1:

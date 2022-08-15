@@ -133,8 +133,7 @@ basis = Basis.polynomial_basis(
             fourth_order = False,
             fifth_order = False,
             higher_order = False,
-            param_info = param_info,
-            verbose = True
+            param_info = param_info
     )
 
 Y_noisy = Y_star[obs,1] + sigma_n * np.random.randn(len(obs))
@@ -158,7 +157,6 @@ g = GPR(basis, Ycol, training_data, param_info,
         theta = None,   # kernel_params
         #is_poisson = False,
         normalize_y = True,
-        verbose = True,
         debug = False
     )
 sigma2_f_guess = 1
