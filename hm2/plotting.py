@@ -3,8 +3,10 @@ import random
 import matplotlib.pyplot as plt
 import plotnine as pn
 
-from .data_validation import *
+pn.options.fig_size = (10.0, 8.0)
+pn.options.dpi = 300
 
+from .data_validation import *
 
 
 class WrappedFigure:
@@ -32,7 +34,7 @@ class WrappedFigure:
         return self.__repr__()
 
 
-def plot_pairwise(X, color=None, figsize=None, cmap='viridis', alpha=0.5):
+def plot_pairwise(X, color=None, figsize=(10.0, 8.0), cmap='viridis', alpha=0.5):
     """Generates many pairwise scatter plots of the columns of X.
 
     Args:
@@ -61,10 +63,14 @@ def plot_pairwise(X, color=None, figsize=None, cmap='viridis', alpha=0.5):
     #Hold individual views for close-ups
     plots = dict()
     #Hold collective view for handy group display
-    collective_fig, collective_ax = plt.subplots(nrows=C, ncols=C, figsize=figsize)
+    collective_fig, collective_ax = plt.subplots(nrows=C, ncols=C, figsize=figsize, dpi=300)
 
     for rowi, row in enumerate(X):
         for coli, col in enumerate(X):
+
+            # if coli <= rowi:
+            #     continue
+
             fn = (row,col)
             x  = X[row]
             y  = X[col]
@@ -77,9 +83,12 @@ def plot_pairwise(X, color=None, figsize=None, cmap='viridis', alpha=0.5):
             plt.close(fig)
             plots[fn] = fig
 
-            collective_ax[rowi,coli].scatter(x, y, c=color, cmap=cmap, alpha=alpha)
-            collective_ax[rowi,coli].set_xlabel(row)
-            collective_ax[rowi,coli].set_ylabel(col)
+            # Subscript only if > 1 subplot.
+            collective = collective_ax[rowi,coli] if C > 1 else collective_ax
+
+            collective.scatter(x, y, c=color, cmap=cmap, alpha=alpha)
+            collective.set_xlabel(row)
+            collective.set_ylabel(col)
 
             #TODO
             # if circle_points.shape[0] > 0:

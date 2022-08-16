@@ -25,7 +25,7 @@ class GLMTest(unittest.TestCase):
         self.assertRaises(HistoryMatchingError, glm.predict, [1, 2, 3])
         self.assertRaises(HistoryMatchingError, glm.plot_fitted_vs_observed)
         self.assertRaises(HistoryMatchingError, glm.plot_pearson_residuals)
-        self.assertRaises(HistoryMatchingError, glm.plot_deviance_redisuals)
+        self.assertRaises(HistoryMatchingError, glm.plot_deviance_residuals)
         self.assertRaises(HistoryMatchingError, glm.plot_QQ)
 
     def test_fit_predict_line_through_origin(self):
@@ -63,7 +63,7 @@ class GLMTest(unittest.TestCase):
         glm.plot_fitted_vs_observed(figsize=None)
         glm.plot_training_vs_trained(colname="x")
         glm.plot_pearson_residuals()
-        glm.plot_deviance_redisuals()
+        glm.plot_deviance_residuals()
         glm.plot_QQ()
 
 

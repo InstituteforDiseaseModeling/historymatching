@@ -116,7 +116,7 @@ class GLM:
         return WrappedFigure(fig)
 
 
-    def plot_fitted_vs_observed(self, figsize=None):
+    def plot_fitted_vs_observed(self, figsize=(10.0, 8.0)):
         """Generates a plot of the fitted values vs the observed values from the training data.
         If these make 1:1 diagonal line, things are good.
 
@@ -128,7 +128,7 @@ class GLM:
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
 
-        fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots(figsize=figsize, dpi=300)
         ax.scatter(self._trainy, self.glmfit.mu, marker='+')
         ax.set_title('Fitted versus Observed Values')
         ax.set_xlabel('Observed values')
@@ -137,8 +137,8 @@ class GLM:
         return WrappedFigure(fig)
 
 
-    def plot_pearson_residuals(self, figsize=None):
-        """Generates a plot of the peasron residuals.
+    def plot_pearson_residuals(self, figsize=(10.0,8.0)):
+        """Generates a plot of the pearson residuals.
 
         Args:
             figsize(float,float): (width,height) in inches
@@ -148,7 +148,7 @@ class GLM:
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
 
-        fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots(figsize=figsize, dpi=300)
         ax.scatter(self.glmfit.mu, self.glmfit.resid_pearson, marker='+')
         ax.set_title('Residual Dependence Plot')
         ax.set_ylabel('Pearson Residuals')
@@ -157,7 +157,7 @@ class GLM:
         return WrappedFigure(fig)
 
 
-    def plot_deviance_redisuals(self, figsize=None, bins=25):
+    def plot_deviance_residuals(self, figsize=(10.0,8.0), bins=25):
         """Generates a plot of the deviance residuals.
 
         Args:
@@ -172,16 +172,16 @@ class GLM:
         assert isinstance(bins,int)
         assert bins>=2
 
-        fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots(figsize=figsize, dpi=300)
         resid = self.glmfit.resid_deviance.copy()
         resid_std = sp.stats.zscore(resid)
         ax.hist(resid_std, bins=bins)
-        ax.set_title('Standardized deviance residuals')
+        ax.set_title('Standardized Deviance Residuals')
 
         return WrappedFigure(fig)
 
 
-    def plot_QQ(self, figsize=None):
+    def plot_QQ(self, figsize=(10.0,8.0)):
         """Generates a QQ plot.
 
         Args:
@@ -192,7 +192,7 @@ class GLM:
         if self.glm is None:
             raise HistoryMatchingError("GLM is untrained!")
 
-        fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots(figsize=figsize, dpi=300)
         smg.gofplots.qqplot(self.glmfit.resid_deviance, line='45', fit=True, ax=ax)
 
         return WrappedFigure(fig)

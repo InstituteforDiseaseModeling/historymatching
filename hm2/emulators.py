@@ -188,11 +188,11 @@ class GLM_GPR_Emulator(EmulatorBase):
             self.glm_basis(self._train_x), self._train_y, *args, **kwargs
         )
 
-    def plot_emulated_vs_predicted(self, figsize=None):
+    def plot_emulated_vs_predicted(self, figsize=(10.0, 8.0)):
         #TODO: docstring
         predicted, stdev = self.predict(self._train_x)
 
-        fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots(figsize=figsize, dpi=300)
         ax.errorbar(self._train_y, predicted, yerr=stdev, fmt='o', ms=3, lw=0.5)
         ax.set_title('Model Output vs Predicted')
         ax.set_xlabel('Model Output')
