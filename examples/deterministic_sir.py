@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 
 from pathlib import Path
-import os
 
 from scipy.integrate import ode
 import pandas as pd
