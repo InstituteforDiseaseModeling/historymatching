@@ -506,7 +506,7 @@ class GPC():
             log_q_y_given_X_theta = -0.5 * np.dot(np.transpose(a), f_hat) + log_p_y_given_f - sum( np.log(np.diag(L)) )
 
             d_df_log_q_y_given_X_theta = d_df_log_p_y_given_f - np.linalg.solve(K, f_hat)
-            # print '***', log_q_y_given_X_theta, np.linalg.norm(d_df_log_q_y_given_X_theta)
+            # print('***', log_q_y_given_X_theta, np.linalg.norm(d_df_log_q_y_given_X_theta))
             norm_grad = np.linalg.norm(d_df_log_q_y_given_X_theta)
             if norm_grad < tol_grad:
                 break
@@ -907,7 +907,7 @@ class GPC():
 
     def plot_histogram(self):
         fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
-        sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
+        sns.displot(self.training_data[self.Ycol], rug=True)
 
         return fig
 

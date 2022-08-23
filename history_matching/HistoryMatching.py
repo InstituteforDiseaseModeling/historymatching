@@ -80,8 +80,8 @@ class HistoryMatching():
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id')
             self.data['Train'] = self.data['Train'].astype(bool)  # Annoying that I have to cast this!
             self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)#.sort_index()
-            self.training_data = self.data.loc[True]
-            self.test_data = self.data.loc[False]
+            self.training_data = self.data.loc[1]
+            self.test_data = self.data.loc[0]
             logger.info('Using train/test split as specified by user')
         else:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
@@ -388,7 +388,7 @@ class HistoryMatching():
             if os.path.isfile(gpr_model_fn):
                 timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
                 backup_fn = os.path.join(self.gprdir, f'model_{timestamp}.json')
-                logger.print(f'Backing up gpr model to {backup_fn}')
+                logger.info(f'Backing up gpr model to {backup_fn}')
                 copyfile(gpr_model_fn, backup_fn)
 
             #TODO: Check guess within bounds
@@ -415,7 +415,7 @@ class HistoryMatching():
         train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
         test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
-        logger.print('GPR evaluating training data')
+        logger.info('GPR evaluating training data')
         ret = self.gpr_model.evaluate(train_mean)
         train_mean['Mean_Err'] = ret['Mean']
         train_mean['Mean_Estimate'] = train_mean['Mean_Err']

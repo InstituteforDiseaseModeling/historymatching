@@ -85,8 +85,8 @@ for iteration in range(num_iterations):
     #samples_to_use_this_iter.index.name = 'Sample'
     #samples_to_use_this_iter.reset_index(inplace=True)
     #samples_to_use_this_iter.set_index('Train', inplace=True)
-    #train = samples_to_use_this_iter.loc[True].reset_index().set_index('Sample')
-    #test = samples_to_use_this_iter.loc[False].reset_index().set_index('Sample')
+    #train = samples_to_use_this_iter.loc[1].reset_index().set_index('Sample')
+    #test = samples_to_use_this_iter.loc[0].reset_index().set_index('Sample')
     train = samples_to_use_this_iter.loc[samples_to_use_this_iter['Train'] == True] #samples_to_use_this_iter.where('Train' == True)
     test = samples_to_use_this_iter.loc[samples_to_use_this_iter['Train'] == False] #samples_to_use_this_iter.where('Train' == False)
 
@@ -212,7 +212,7 @@ for iteration in range(num_iterations):
 
     # Add in points from p to increase plotting resolution
     #for it in reversed(range(iteration+1)):
-        # TODO: Only evaluate non-implausible points to save time, although will degrate plotting
+        # TODO: Only evaluate non-implausible points to save time, although will degrade plotting
     #prediction_grid_ret = g[iteration].evaluate(prediction_grid)
     prediction_grid['Implausibility_%d'%iteration] = np.sqrt( (prediction_grid_ret['Mean'] - target)**2 / prediction_grid_ret['Var'] )
     prediction_grid['Implausibile_%d'%iteration] = prediction_grid['Implausibility_%d'%iteration] > implausibility_threshold
@@ -233,7 +233,7 @@ for iteration in range(num_iterations):
     ax2.plot(train['x'], train['y'], 'cx')
     ax2.plot(test['x'], test['y'], 'mx')
     for idx, row in test.iterrows():
-        ax2.annotate(xy=(row['x'], row['y']), s=str(row['Sample']))
+        ax2.annotate(xy=(row['x'], row['y']), text=str(row['Sample']))
     ax2.contour(Px, Py, Pf, levels = [target], colors='k', linestyles='dashed', linewidths=2)
     ax2.set_xlabel('X')
     ax2.set_xlim([param_info.loc['x','Min'], param_info.loc['x','Max']])

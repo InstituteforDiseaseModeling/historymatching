@@ -984,13 +984,13 @@ class GPR_MO():
 
 
     def plot_histogram(self):
-        """Plots histograms of the training data using Seaborn's distplot routine.
+        """Plots histograms of the training data using Seaborn's displot routine.
 
         Returns: Matplotlib figure handle
         """
 
         fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
-        sns.distplot(self.training_data[self.Ycols], rug=True, ax = ax)
+        sns.displot(self.training_data[self.Ycols], rug=True)
 
         return fig
 
