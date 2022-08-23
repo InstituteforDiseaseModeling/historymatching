@@ -14,5 +14,7 @@ from .VariableSelection import VariableSelection
 from .MCMCCut import MCMCCut
 from .MCMCCutWorker import MCMCCutWorker
 
+__version__ = "0.1.1"
+
 current_dir = os.path.dirname(os.path.realpath(__file__))
 logging.config.fileConfig(os.path.join(current_dir, 'logging.ini'), disable_existing_loggers=False)
