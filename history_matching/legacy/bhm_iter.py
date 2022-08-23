@@ -591,7 +591,7 @@ def plot_implausibility_by_iter(data, save_fn=None):
 
 def histogram_implausibility(data, column, thresh=None, save_fn=None):
     fig, ax = plt.subplots()
-    sns.distplot( data[column], rug=True, ax = ax)
+    sns.displot( data[column], rug=True)
     yl = ax.get_ylim()
     if thresh is not None:
         plt.plot([thresh,thresh], yl, 'r-')

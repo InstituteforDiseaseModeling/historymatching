@@ -80,8 +80,8 @@ class HistoryMatching():
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id')
             self.data['Train'] = self.data['Train'].astype(bool)  # Annoying that I have to cast this!
             self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)#.sort_index()
-            self.training_data = self.data.loc[True]
-            self.test_data = self.data.loc[False]
+            self.training_data = self.data.loc[1]
+            self.test_data = self.data.loc[0]
             logger.info('Using train/test split as specified by user')
         else:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id'])#.sort_index()

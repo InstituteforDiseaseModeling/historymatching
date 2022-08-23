@@ -83,8 +83,8 @@ class GLM(object):
 
         if self.fitted_model is not None:
             logger.info(self.fitted_model.summary()) # Should work, but was causing errors with some versions of statsmodels.
-            logger.info(f'AIC: {self.fitted_model.aic}')
-            logger.info(f'BIC: {self.fitted_model.bic}')
+            logger.info(f'AIC:       {self.fitted_model.aic}')
+            logger.info(f'BIC (LLF): {self.fitted_model.bic_llf}')
             #logger.info(f'ITERATION: {self.fitted_model.fit_history["iteration"]}')
 
 
@@ -188,8 +188,8 @@ class GLM(object):
         self.fitted_model = self.model.fit(maxiter=maxiter)
 
         logger.info(self.fitted_model.summary())
-        logger.info(f'AIC: {self.fitted_model.aic}')
-        logger.info(f'BIC: {self.fitted_model.bic}')
+        logger.info(f'AIC:       {self.fitted_model.aic}')
+        logger.info(f'BIC (LLF): {self.fitted_model.bic_llf}')
         #logger.info(f'ITERATION: {self.fitted_model.fit_history["iteration"]}')
 
     def plot_fitted_vs_observed(self):
@@ -379,7 +379,7 @@ class GLM(object):
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
+        sns.displot(self.training_data[self.Ycol], rug=True)
 
         return fig
 

@@ -1,3 +1,9 @@
+#! / usr/bin/env python3
+
+from pathlib import Path
+
+WORK_DIR = Path(__file__).parent.absolute()
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -47,5 +53,5 @@ fig, ax = plt.subplots(1,1)
 ax.plot(x, kxx[N//2,:], 'k', lw=2)
 ax.plot(x, dkxx_dtheta0[N//2,:], 'r')
 ax.plot(x, dkxx_dtheta1[N//2,:], 'b')
+fig.savefig(WORK_DIR / "kernel_test.png")
 plt.show()
-

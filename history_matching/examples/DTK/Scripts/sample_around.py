@@ -93,7 +93,7 @@ def map_sample_to_model_input(config_builder, idx, replicate_idx, sample):
             table[p['MapTo']] = sample.pop( param_name )
 
     for name,value in sample.iteritems():
-        print 'UNUSED PARAMETER:', name
+        print('UNUSED PARAMETER:', name)
     assert( len(sample) == 0 ) # All params used
 
     return templates.mod_dynamic_parameters(config_builder, table)

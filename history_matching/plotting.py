@@ -148,9 +148,9 @@ def plot_errors(train, test, Ycol, desired_result):
     a=0.05
     for data, ax, label in zip( [train_impl, test_impl], [ax1,ax2], ['Train', 'Test']):
         if True in data.index:
-            ax.scatter(x=data.loc[True, Ycol], y=data.loc[True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25, label='Implausible')
+            ax.scatter(x=data.loc[1, Ycol], y=data.loc[1, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25, label='Implausible')
         if False in data.index:
-            ax.scatter(x=data.loc[False, Ycol], y=data.loc[False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25, label='Not Implausible')
+            ax.scatter(x=data.loc[0, Ycol], y=data.loc[0, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25, label='Not Implausible')
         ax.set_xlabel('Simulation Result')
         ax.set_ylabel('Z-Score')
         ax.margins(x=0,y=0.05)
@@ -185,8 +185,8 @@ def plot_errors_old(train, test, Ycol, desired_result):
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
     ax = ax1
-    ax.errorbar(x=test_impl.loc[True, Ycol], y=test_impl.loc[True, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[True, 'Var_Err_Predictive']), fmt='o', ms=3, c='r', lw=0.5)
-    ax.errorbar(x=test_impl.loc[False, Ycol], y=test_impl.loc[False, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[False, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
+    ax.errorbar(x=test_impl.loc[1, Ycol], y=test_impl.loc[1, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[1, 'Var_Err_Predictive']), fmt='o', ms=3, c='r', lw=0.5)
+    ax.errorbar(x=test_impl.loc[0, Ycol], y=test_impl.loc[0, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[0, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
     ax.errorbar(x=train[Ycol], y=train['Mean_Estimate'], yerr=2*np.sqrt(train['Var_Err_Predictive']), fmt='o', ms=3, c='c', lw=0.5)
     ax.margins(x=0,y=0.05)
     xlim = ax.get_xlim()
@@ -227,8 +227,8 @@ def plot_errors_old(train, test, Ycol, desired_result):
     ax = ax3
     ax.scatter(x=train[Ycol], y=train['Z_Noisy'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
     #ax.scatter(x=test[Ycol], y=test['Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
-    ax.scatter(x=test_impl.loc[True, Ycol], y=test_impl.loc[True, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='r')
-    ax.scatter(x=test_impl.loc[False, Ycol], y=test_impl.loc[False, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='k')
+    ax.scatter(x=test_impl.loc[1, Ycol], y=test_impl.loc[1, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='r')
+    ax.scatter(x=test_impl.loc[0, Ycol], y=test_impl.loc[0, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='k')
     ax.set_xlabel(Ycol)
     ax.set_ylabel('Z-Score')
     ax.margins(x=0,y=0.05)
@@ -249,7 +249,7 @@ def plot_errors_old(train, test, Ycol, desired_result):
 
 def histogram_implausibility(data, column, thresh=None):
     fig, ax = plt.subplots()
-    sns.distplot( data[column], rug=True, ax = ax)
+    sns.displot( data[column], rug=True)
     yl = ax.get_ylim()
     if thresh is not None:
         plt.plot([thresh,thresh], yl, 'r-')
