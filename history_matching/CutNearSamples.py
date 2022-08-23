@@ -150,7 +150,7 @@ class CutNearSamples():
 
 
         '''
-        print 'Drawing %d samples:'%nSamples
+        print('Drawing %d samples:'%nSamples)
 
         seeds = self.seeds.sample(n=nSamples, replace=True).reset_index(drop=True)
         sample = seeds.copy()
@@ -171,23 +171,23 @@ class CutNearSamples():
                             high = blur_frac * v_range,
                             size = 1 )
 
-        print 'DONE drawing %d samples:'%nSamples
+        print('DONE drawing %d samples:'%nSamples)
 
         return sample
         '''
 
         '''
-        print 'in draw_samples, nSamples=%d' % nSamples
+        print('in draw_samples, nSamples=%d' % nSamples)
 
         good = np.ones(nSamples, dtype=bool)
         sample = self.seeds.sample(n=nSamples, replace=True).reset_index(drop=True)
-        print 'in draw_samples, sample len is %d' % sample.shape[0]
-        print 'in draw_samples, here is sample head:\n', sample.head()
+        print('in draw_samples, sample len is %d' % sample.shape[0])
+        print('in draw_samples, here is sample head:\n', sample.head())
 
         for i, xc in enumerate(self.Xcols_all_orig):
             v = self.param_info.loc[xc]
-            print 'in draw_samples, here is v:\n', v
-            print 'blur fraction of range is %f', self.blur_fraction_of_range
+            print('in draw_samples, here is v:\n', v)
+            print('blur fraction of range is %f', self.blur_fraction_of_range)
             sample[xc] += \
                 np.random.uniform(
                     low=-self.blur_fraction_of_range*(v['Max']-v['Min']),
@@ -198,7 +198,7 @@ class CutNearSamples():
             df = (sample[xc] > v['Min']) & (sample[xc] < v['Max'])
             good &= df.values
 
-        print 'in draw_samples, good len is %d, sum is %d' % (good.shape[0], sum(good))
+        print('in draw_samples, good len is %d, sum is %d' % (good.shape[0], sum(good)))
         return sample.loc[good]
         '''
 

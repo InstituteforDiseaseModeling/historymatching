@@ -355,8 +355,8 @@ class Basis():
             fit = model.fit()
 
         logger.info(f'SUMMARY:\n{fit.summary()}')
-        logger.info(f'AIC:{fit.aic}')
-        logger.info(f'BIC:{fit.bic}')
+        logger.info(f'AIC:      {fit.aic}')
+        logger.info(f'BIC (LLF):{fit.bic_llf}')
 
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]
@@ -417,7 +417,7 @@ class Basis():
             params = params[abs(params)>0]
 
             num_params[i] = len(params)
-            bic[i] = fit.bic
+            bic[i] = fit.bic_llf    # fit.bic, previously
 
         lns = []
         fig, ax1 = plt.subplots()

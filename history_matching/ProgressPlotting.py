@@ -103,7 +103,7 @@ class ProgressPlotting():
         res = 100
         if 'resolution' in kwargs:
             res = kwargs['resolution']
-        #print 'KWARGS:', kwargs
+        #print('KWARGS:', kwargs)
 
         implausibility = kwargs['data']
 
@@ -147,7 +147,7 @@ class ProgressPlotting():
         logit = sm.Logit(~implausibility['Implausible'], points)
         result = logit.fit()
 
-        print result.conf_int()
+        print(result.conf_int())
 
         xx = np.linspace(x.min(), x.max(), res)
         yy = np.linspace(y.min(), y.max(), res)

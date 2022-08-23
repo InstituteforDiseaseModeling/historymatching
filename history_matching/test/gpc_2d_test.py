@@ -85,7 +85,9 @@ proposal['Logit-Mean'] = ret['Logit-Mean']
 proposal['Logit-Var'] = ret['Logit-Var']
 '''
 
-ret = g.evaluate(proposal).set_index('Sample')
+# ret = g.evaluate(proposal).set_index('Sample')
+ret = g.evaluate(proposal)
+ret.set_index('Sample')
 proposal = proposal.merge(ret, left_index=True, right_index=True)
 
 logit_target = np.log(target / (1-target))

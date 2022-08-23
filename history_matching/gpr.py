@@ -148,6 +148,10 @@ class GPR():
         else:
             self.set_theta(theta)
 
+        self.fig_type = fig_type
+
+        return
+
 
     @classmethod
     def from_config(cls, config_fn):
@@ -1022,13 +1026,13 @@ class GPR():
 
 
     def plot_histogram(self):
-        """Plots histograms of the training data using Seaborn's distplot routine.
+        """Plots histograms of the training data using Seaborn's displot routine.
 
         Returns: Matplotlib figure handle
         """
 
         fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
-        sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
+        sns.displot(self.training_data[self.Ycol], rug=True)
 
         return fig
 

@@ -154,13 +154,13 @@ class VariableSelection():
         #for alpha in np.logspace(5,1,10):
         fit = model.fit_regularized(alpha=alpha, refit=True)
         print('SUMMARY:\n', fit.summary())
-        print('AIC:', fit.aic)
-        print('BIC:', fit.bic)
+        print('AIC:      ', fit.aic)
+        print('BIC (LLF):', fit.bic_llf)
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[params>0]
-        #print 'FV:\n', fit.fittedvalues
+        #print('FV:\n', fit.fittedvalues)
         print('Non-Zero:', len(params), 'of', len(self.Xcols))
-        #print alpha, len(params), fit.bic
+        #print(alpha, len(params), fit.bic)
 
         # Dang you patsy!
         invdict = {s.replace(':','').replace('&',' ').replace(' ', '_'):s for s in self.Xcols}
@@ -209,13 +209,15 @@ class VariableSelection():
                 self.glm_model.Xcols = selected_X + [X]
                 self.glm_model.build_basis()
                 self.glm_model.fit()
-                #print self.fitted_model.bic, ':', self.Xcols
-                if best_new_X is None or np.isnan(lowest_bic) or self.glm_model.fitted_model.bic < lowest_bic:
+                #print(self.fitted_model.bic, ':', self.Xcols)
+                # if best_new_X is None or np.isnan(lowest_bic) or self.glm_model.fitted_model.bic < lowest_bic:
+                if best_new_X is None or np.isnan(lowest_bic) or self.glm_model.fitted_model.bic_llf < lowest_bic:
                     best_new_X = X
-                    lowest_bic = self.glm_model.fitted_model.bic
+                    # lowest_bic = self.glm_model.fitted_model.bic
+                    lowest_bic = self.glm_model.fitted_model.bic_llf
 
             bic[i] = lowest_bic
-            #print 'BEST_X:', best_new_X, ' with BIC =', lowest_bic
+            #print('BEST_X:', best_new_X, ' with BIC =', lowest_bic)
             selected_X.append(best_new_X)
             Xcols_all.remove(best_new_X)
             print('Selected:', selected_X, 'BIC =',lowest_bic)
@@ -234,7 +236,7 @@ class VariableSelection():
     def penalized_selection(self, param_info, alpha=0):
         #data = self.data.loc[ self.data[self.Ycol] < 25, : ]
         data = self.data.copy()
-        #print 'MAX:', np.max(data[self.Ycol].values)
+        #print('MAX:', np.max(data[self.Ycol].values))
 
         for xc in self.Xcols:
             data[xc] = (data[xc] - param_info.loc[xc,'Min']) / float(param_info.loc[xc,'Max'] - param_info.loc[xc,'Min'])
