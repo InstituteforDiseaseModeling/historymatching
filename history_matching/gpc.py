@@ -651,7 +651,7 @@ class GPC():
         ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var']) #, 'Trapz' 
         for idx, p_series in P.iterrows():
             logger.debug(f"{idx} x_star is {p_series['x (scaled)']}")
-            p = p_series.as_matrix()[np.newaxis,:]
+            p = p_series.to_numpy()[np.newaxis,:]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), d_df_log_p_y_given_f) # MEAN (vector of length 1)
 
@@ -725,7 +725,7 @@ class GPC():
         ret = pd.DataFrame(columns = ['Mean-Transformed', 'Var-Transformed', 'Mean', 'Var'])
         for idx, p_series in P.iterrows():
             logger.debug(f"{idx} x_star is {p_series['x (scaled)']}")
-            p = p_series.as_matrix()[np.newaxis,:]
+            p = p_series.to_numpy()[np.newaxis, :]
             KXp = self.kxp_gpu_wrapper(X, p, theta)
             f_bar_star = np.dot(np.transpose(KXp), nu-z) # MEAN (vector of length 1)
 
@@ -872,7 +872,7 @@ class GPC():
 
         #ret = data.merge(ret, left_index=True, right_index=True)
 
-        return ret
+        return ret.astype(float)
 
 
     def plot_data(self, samples_to_circle=[]):

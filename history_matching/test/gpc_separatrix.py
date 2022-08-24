@@ -233,7 +233,7 @@ for iteration in range(num_iterations):
     ax2.plot(train['x'], train['y'], 'cx')
     ax2.plot(test['x'], test['y'], 'mx')
     for idx, row in test.iterrows():
-        ax2.annotate(xy=(row['x'], row['y']), s=str(row['Sample']))
+        ax2.annotate(xy=(row['x'], row['y']), text=str(row['Sample']))
     ax2.contour(Px, Py, Pf, levels = [target], colors='k', linestyles='dashed', linewidths=2)
     ax2.set_xlabel('X')
     ax2.set_xlim([param_info.loc['x','Min'], param_info.loc['x','Max']])
