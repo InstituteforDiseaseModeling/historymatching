@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
 from setuptools import setup
+import history_matching
 
 setup(name='HistoryMatching',
-      version='0.1',
+      version=history_matching.__version__,
       description='Support for model calibration using the History Matching algorithm',
       author='Daniel J. Klein',
       author_email='dklein@idmod.org',
       url='https://github.com/InstituteforDiseaseModeling/history_matching',
       packages=['history_matching'],
+      include_package_data=True,
       install_requires=[ # Required packages -- install via pip install -e .
         "matplotlib",
         "numpy",
