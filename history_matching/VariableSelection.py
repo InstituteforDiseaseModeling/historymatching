@@ -209,7 +209,7 @@ class VariableSelection():
                 self.glm_model.Xcols = selected_X + [X]
                 self.glm_model.build_basis()
                 self.glm_model.fit()
-                #print(self.fitted_model.bic, ':', self.Xcols)
+                #print(self.fitted_model.bic_llf, ':', self.Xcols)
                 # if best_new_X is None or np.isnan(lowest_bic) or self.glm_model.fitted_model.bic < lowest_bic:
                 if best_new_X is None or np.isnan(lowest_bic) or self.glm_model.fitted_model.bic_llf < lowest_bic:
                     best_new_X = X
