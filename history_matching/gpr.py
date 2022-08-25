@@ -114,6 +114,7 @@ class GPR():
         self.Ycol = Ycol
 
         self.kernel_mode = kernel_mode
+        self.fig_type = fig_type
 
         if 'normalizer_mean' in kwargs and 'normalizer_std' in kwargs:
             self.normalizer_mean = kwargs['normalizer_mean']
