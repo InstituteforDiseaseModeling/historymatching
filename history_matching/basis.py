@@ -8,6 +8,7 @@ import itertools
 # For regularized selection:
 import pandas as pd
 import numpy as np
+from sys import exit
 import statsmodels.api as sm
 import logging
 
@@ -271,6 +272,9 @@ class Basis():
                 #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
                 print(data[data.isnull().any(axis=1)])
                 print('Data contains Null/None/NaN, see data above.')
+                # TODO: should we use exit() in library function to catch illegal parma cases?
+                # following require "from sys import exit" to work, but the more important questions is:
+                # should we use exit() at all here?  perhaps we should throw some error instead (TypeError/ValueError/..);
                 exit()
         return dmat
 

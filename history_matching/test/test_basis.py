@@ -1,9 +1,7 @@
 import numpy as np
 import pandas as pd
-import pickle
-import tempfile
 import unittest
-from io import BytesIO
+from patsy import PatsyError
 
 from history_matching.basis import Basis
 
@@ -23,10 +21,12 @@ class BasisTest(unittest.TestCase):
     def test_none_value(self):
         data = pd.DataFrame({'x':[1,2,3],'y':[4,None,6],'z':[7,8,9]})
         b = Basis.identity_basis(params=data.keys())
+        self.assertRaises(SystemExit, b.generate_dmatrix, data)
  
     def test_nan_value(self):
         data = pd.DataFrame({'x':[1,2,3],'y':[4,np.nan,6],'z':[7,8,9]})
         b = Basis.identity_basis(params=data.keys())
+        self.assertRaises(SystemExit, b.generate_dmatrix, data)
  
     def test_polynomial_intercept(self):
         data = pd.DataFrame({'x':[1,2,3],'y':[4,5,6],'z':[7,8,9]})
