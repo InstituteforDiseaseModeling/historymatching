@@ -272,7 +272,7 @@ class Basis():
                 #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
                 print(data[data.isnull().any(axis=1)])
                 print('Data contains Null/None/NaN, see data above.')
-                # TODO: should we use exit() in library function to catch illegal parma cases?
+                # TODO: should we use exit() in library function to catch illegal param cases?
                 # following require "from sys import exit" to work, but the more important questions is:
                 # should we use exit() at all here?  perhaps we should throw some error instead (TypeError/ValueError/..);
                 exit()
