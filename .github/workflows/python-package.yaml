@@ -33,7 +33,7 @@ jobs:
         python -m pip install flake8 pytest
         # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip3 install -e .
-        pip3 freeze freeze
+        pip3 freeze
         nvidia-smi
 #    - name: Lint with flake8
 #      if: ${{ false }}
