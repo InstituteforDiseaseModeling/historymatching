@@ -83,6 +83,17 @@ class BasisTest(unittest.TestCase):
         g = g.reindex(sorted(g.columns), axis=1)
         self.assertTrue((g==ans).all().all())
 
+    def test_polynomial_fourth_only(self):
+        # similar to test_polynomial_fourth() above, but this one illustrate when we specify four_order only then only 1st order(by default)
+        # and fourth_order terms are expected to be there
+        data = pd.DataFrame({'x':[1,2,3], 'y':[4,5,6], 'z':[7,8,9]})
+        b = Basis.polynomial_basis(params=data.keys(), intercept=True, fourth_order=True)
+        ans = pd.DataFrame({'Intercept': {0: 1.0, 1: 1.0, 2: 1.0}, 'x': {0: 1.0, 1: 2.0, 2: 3.0}, 'y': {0: 4.0, 1: 5.0, 2: 6.0}, 'z': {0: 7.0, 1: 8.0, 2: 9.0}, 'x ** 4': {0: 1.0, 1: 16.0, 2: 81.0}, 'y ** 4': {0: 256.0, 1: 625.0, 2: 1296.0}, 'z ** 4': {0: 2401.0, 1: 4096.0, 2: 6561.0}, 'x ** 3 * y': {0: 4.0, 1: 40.0, 2: 162.0}, 'x ** 3 * z': {0: 7.0, 1: 64.0, 2: 243.0}, 'y ** 3 * z': {0: 448.0, 1: 1000.0, 2: 1944.0}, 'x * y ** 3': {0: 64.0, 1: 250.0, 2: 648.0}, 'x * z ** 3': {0: 343.0, 1: 1024.0, 2: 2187.0}, 'y * z ** 3': {0: 1372.0, 1: 2560.0, 2: 4374.0}, 'x ** 2 * y ** 2': {0: 16.0, 1: 100.0, 2: 324.0}, 'x ** 2 * z ** 2': {0: 49.0, 1: 256.0, 2: 729.0}, 'y ** 2 * z ** 2': {0: 784.0, 1: 1600.0, 2: 2916.0}, 'x ** 2 * y * z': {0: 28.0, 1: 160.0, 2: 486.0}, 'x * y ** 2 * z': {0: 112.0, 1: 400.0, 2: 972.0}, 'x * y * z ** 2': {0: 196.0, 1: 640.0, 2: 1458.0}})
+        ans = ans.reindex(sorted(ans.columns), axis=1)
+        g = b.generate_dmatrix(data)
+        g = g.reindex(sorted(g.columns), axis=1)
+        self.assertTrue((g==ans).all().all())
+
     def test_polynomial_fifth(self):
         # test polynomial basis with 5th-order terms (see `test_polynomial_second()` above)
         data = pd.DataFrame({'x':[1,2,3], 'y':[4,5,6], 'z':[7,8,9]})
