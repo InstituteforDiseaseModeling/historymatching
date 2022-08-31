@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 from matplotlib.ticker import FormatStrFormatter
 import matplotlib.patches as patches
 import seaborn as sns
@@ -11,7 +12,7 @@ def plot_implausibility(data, Xcols, column, thresh):
     scaled = data[column] / data[column].max()
     good = data[column] < thresh
     D = len(Xcols)
-    fig = plt.figure(figsize=(128,128))
+    fig = plt.figure(figsize=(16,12), dpi=300)
     for row in range(D):
         for col in range(D):
             if col > row:
@@ -32,7 +33,7 @@ def plot_implausibility(data, Xcols, column, thresh):
     return fig
 
 def plot_implausibility_by_iter(data, Xcols):
-    fig = plt.figure(figsize=(20,20))
+    fig = plt.figure(figsize=(16,12), dpi=300)
 
     for it in range(iteration+2):
         col_first_only = 'c'
@@ -54,16 +55,16 @@ def plot_implausibility_by_iter(data, Xcols):
                     gs = gridspec.GridSpec(D-1, D-1)
                     ax = fig.add_subplot(gs[col-1,row])
 
-                    x = data.loc[first_only, Xcols[row]]; y = data.loc[first_only, Xcols[col]];
+                    x = data.loc[first_only, Xcols[row]]; y = data.loc[first_only, Xcols[col]]
                     h1 = plt.scatter(x, y, s=size, lw=0, c=col_first_only, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[second_only, Xcols[row]]; y = data.loc[second_only, Xcols[col]];
+                    x = data.loc[second_only, Xcols[row]]; y = data.loc[second_only, Xcols[col]]
                     h2 = plt.scatter(x, y, s=size, lw=0, c=col_second_only, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[neither, Xcols[row]]; y = data.loc[neither, Xcols[col]];
+                    x = data.loc[neither, Xcols[row]]; y = data.loc[neither, Xcols[col]]
                     h3 = plt.scatter(x, y, s=size, lw=0, c=col_neither, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[both, Xcols[row]]; y = data.loc[both, Xcols[col]];
+                    x = data.loc[both, Xcols[row]]; y = data.loc[both, Xcols[col]]
                     h4 = plt.scatter(x, y, s=size, lw=0, c=col_both, alpha=0.5) #, facecolors='none', edgecolors='g'
 
                     plt.autoscale(tight=True)
@@ -80,7 +81,7 @@ def plot_implausibility_by_iter(data, Xcols):
 
 
 def joint_plot(data, data_mean, Ycol, desired_result, log_x = False):
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,10), dpi=300)
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,12), dpi=300)
 
     data_mean_reset = data_mean.reset_index()
     data_reset = data.reset_index()
@@ -143,7 +144,7 @@ def plot_errors(train, test, Ycol, desired_result):
     test_impl = test.set_index('Implausible')
     train_impl = train.set_index('Implausible')
 
-    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12,8), sharex='row', sharey='row')
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(16,12), dpi=300, sharex='row', sharey='row')
 
     a=0.05
     for data, ax, label in zip( [train_impl, test_impl], [ax1,ax2], ['Train', 'Test']):
@@ -182,7 +183,7 @@ def plot_errors_old(train, test, Ycol, desired_result):
 
     test_impl = test.set_index('Implausible')
 
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,12), dpi=300)
 
     ax = ax1
     ax.errorbar(x=test_impl.loc[test_impl.index==True, Ycol], y=test_impl.loc[test_impl.index==True, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[test_impl.index==True, 'Var_Err_Predictive']), fmt='o', ms=3, c='r', lw=0.5)
@@ -248,7 +249,7 @@ def plot_errors_old(train, test, Ycol, desired_result):
 
 
 def histogram_implausibility(data, column, thresh=None):
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(16,12), dpi=300)
     sns.displot( data[column], rug=True)
     yl = ax.get_ylim()
     if thresh is not None:
@@ -284,7 +285,7 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
         for col in range(len(Xcols)):
             if col > row:
                 fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
-                fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+                fig = plt.figure(figsize=(16,12), dpi=300)
 
                 for true_or_false, ec in zip([False, True], ['k', 'r']):
                     if true_or_false not in td.index:

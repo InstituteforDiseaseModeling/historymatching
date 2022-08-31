@@ -293,7 +293,7 @@ class GPR_MO():
 
             if self.R > 1:
                 Kxx = np.kron(self.B, Kxx)
-                Kxx[np.diag_indices(Kxx.shape[0])] += sigma2_n
+                Kxx[np.diag_indices(Kxx.shape[0])] += self.sigma2_n
 
             Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
             linalg.init()
@@ -449,8 +449,8 @@ class GPR_MO():
                 Kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
 
                 if (deriv > 1): # Lengthscale derivatives
-                    d = deriv-2;
-                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d]);
+                    d = deriv-2
+                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d])
 
                 Kxx[j,i] = Kxx[i,j]
 
@@ -958,7 +958,7 @@ class GPR_MO():
             for col in range(self.D):
                 if col > row:
                     fn = '%s-%s.pdf' % (Xcols[row], Xcols[col])
-                    fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+                    fig = plt.figure(figsize=(16,12), dpi=300)
 
                     x = X[Xcols[row]]
                     y = X[Xcols[col]]
@@ -989,7 +989,7 @@ class GPR_MO():
         Returns: Matplotlib figure handle
         """
 
-        fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,12), dpi=300)
         sns.displot(self.training_data[self.Ycols], rug=True)
 
         return fig
@@ -1008,8 +1008,8 @@ class GPR_MO():
         """
         Xmu = np.repeat( np.array([Xcenter]), res*res, axis=0)
 
-        fig = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)))
-        fig_std_latent = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)))
+        fig = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)), dpi=300)
+        fig_std_latent = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)), dpi=300)
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
@@ -1081,7 +1081,7 @@ class GPR_MO():
         train['Z_Score'] = (train[self.Ycols_orig] - train[mean_col]) / np.sqrt(train[var_col])
         test['Z_Score'] = (test[self.Ycols_orig] - test[mean_col]) / np.sqrt(test[var_col])
 
-        fig, ax = plt.subplots(nrows=1, ncols=1, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+        fig, ax = plt.subplots(nrows=1, ncols=1, sharex='col', figsize=(16,12), dpi=300)
 
         ax.errorbar(x=test[self.Ycols_orig], y=test[mean_col], yerr=2*np.sqrt(test[var_col]), fmt='o', c='m', lw=0.5)
         ax.errorbar(x=train[self.Ycols_orig], y=train[mean_col], yerr=2*np.sqrt(train[var_col]), fmt='o', c='c', lw=0.5)

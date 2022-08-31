@@ -13,7 +13,7 @@ target = 0.7
 implausibility_threshold = 5
 training_frac = 0.80
 
-fs = (24, 15) # Figure size
+fs = (16, 12) # Figure size
 
 mean_var = 'Mean-Transformed'
 var_var = 'Var-Transformed'
@@ -153,7 +153,7 @@ for iteration in range(num_iterations):
     # PLOTS ###########################################################################################3
 
     ########## Hyperparameters and function value
-    fig, ax_vec = plt.subplots(nrows=1, ncols=hyperparameters.shape[1], sharex=True, figsize=fs)
+    fig, ax_vec = plt.subplots(nrows=1, ncols=hyperparameters.shape[1], sharex=True, figsize=fs, dpi=300)
     for i, ax in enumerate(ax_vec):
         hp_name = hyperparameters.columns[i]
         ax.plot(hyperparameters[hp_name])
@@ -187,7 +187,7 @@ for iteration in range(num_iterations):
     plt.savefig('Separatrix_it%d_Grid_Errors.png'%iteration)
 
     ###
-    fig = plt.figure(figsize=fs)
+    fig = plt.figure(figsize=fs, dpi=300)
     fig.suptitle('Iteration %d'%iteration, fontsize=12)
     ax1 = fig.add_subplot(1,2,1, projection='3d')
     ax2 = fig.add_subplot(1,2,2)

@@ -41,7 +41,7 @@ params = {
     },
 }
 
-fig, ax_vec = plt.subplots(2, len(params))
+fig, ax_vec = plt.subplots(2, len(params), figsize=(16,12), dpi=300)
 
 for j, (p,v) in enumerate(params.items()):
 

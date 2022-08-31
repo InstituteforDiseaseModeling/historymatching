@@ -243,7 +243,7 @@ print('Evaluating training and test data')
 train_mean['Yglm'] = glm_model.evaluate(train_mean)
 test_mean['Yglm'] = glm_model.evaluate(test_mean)
 
-fig = glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
+fig = glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index())
 fig.savefig( os.path.join(glmdir, 'errors.pdf') );             plt.close(fig)
 
 if False:
@@ -253,7 +253,7 @@ if False:
         #cp = pd.DataFrame()
         print(test_mean.loc[[2110]])
         cp = test_mean.loc[[2110]]
-        figs = glm_model.plot_data(circle_points=cp);
+        figs = glm_model.plot_data(circle_points=cp)
         pairdir = os.path.join(glmdir, 'PairwiseResults')
         if not os.path.exists( pairdir):
             os.mkdir( pairdir )
@@ -262,7 +262,7 @@ if False:
 
     fig = glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(glmdir, 'fitted_vs_observed.pdf') ); plt.close(fig)
     fig = glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(glmdir, 'pearson_residuals.pdf') );  plt.close(fig)
-    fig = glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(glmdir, 'deviance_redisuals.pdf') ); plt.close(fig)
+    fig = glm_model.plot_deviance_residuals();  fig.savefig( os.path.join(glmdir, 'deviance_residuals.pdf') ); plt.close(fig)
     fig = glm_model.plot_QQ();                  fig.savefig( os.path.join(glmdir, 'QQ.pdf') );                 plt.close(fig)
     fig = glm_model.plot_histogram();           fig.savefig( os.path.join(glmdir, 'histogram.pdf') );          plt.close(fig)
     fig = glm_model.plot_fit();                 fig.savefig( os.path.join(glmdir, 'fit.pdf') );                plt.close(fig)
@@ -328,13 +328,13 @@ test.set_index(['Sample', 'Sim_Id'], inplace=True)
 
 if False:
     print('Plotting')
-    fig = gpr_model.plot_errors(train.reset_index(), test.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent');
+    fig = gpr_model.plot_errors(train.reset_index(), test.reset_index(), 'Mean_Err', 'Var_Err_Predictive', 'Var_Err_Latent')
     fig.savefig( os.path.join(gprdir, 'errors.pdf') );             plt.close(fig)
 
     if False:
         #circle_samples = train.sort_values(by='Yerr').iloc[[0, -1]].reset_index()['Sample'].values
         circle_samples = pd.DataFrame()
-        figs = gpr_model.plot_data(samples_to_circle=circle_samples);
+        figs = gpr_model.plot_data(samples_to_circle=circle_samples)
         pairdir = os.path.join(gprdir, 'PairwiseResults')
         if not os.path.exists( pairdir):
             os.mkdir( pairdir )
@@ -346,19 +346,19 @@ if False:
         # TODO: Fix parameter ranges
         mu = train[Xcols].mean()
         #mu = train.loc[146][Xcols].mean(); print(mu)
-        (fig_mean, fig_std_latent) = gpr_model.plot(mu, res=25);
+        (fig_mean, fig_std_latent) = gpr_model.plot(mu, res=25)
         fig_mean.savefig( os.path.join(gprdir, 'plot_mean.pdf') );    plt.close(fig_mean) # SLOW
         fig_std_latent.savefig( os.path.join(gprdir, 'plot_std_latent.pdf') );    plt.close(fig_std_latent) # SLOW
 
-    fig = gpr_model.plot_histogram();
-    fig.savefig( os.path.join(gprdir, 'histogram.pdf') );
+    fig = gpr_model.plot_histogram()
+    fig.savefig( os.path.join(gprdir, 'histogram.pdf') )
     plt.close(fig)
 
 ###############################################################################
 print("Joint plot")
 ###############################################################################
 def joint_plot(data, data_mean, log_x = False):
-    fig = plt.figure(figsize=(16,32))
+    fig = plt.figure(figsize=(16,12), dpi=300)
 
     data_mean_reset = data_mean.reset_index()
     data_reset = data.reset_index()
@@ -422,7 +422,7 @@ def plot_errors(train, test):
     test['Z_Noisy'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Predictive'])
     test['Z_Noiseless'] = (test[Ycol] - test['Mean_Estimate']) / np.sqrt(test['Var_Err_Latent'])
 
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,12), dpi=300)
 
     ax = ax1
     ax.errorbar(x=test[Ycol], y=test['Mean_Estimate'], yerr=2*np.sqrt(test['Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
@@ -515,7 +515,7 @@ def plot_implausibility(data, column, thresh, save_fn=None):
     scaled = data[column] / data[column].max()
     good = data[column] < thresh
     D = len(Xcols)
-    fig = plt.figure(figsize=(128,128))
+    fig = plt.figure(figsize=(16,12), dpi=300)
     for row in range(D):
         for col in range(D):
             if col > row:
@@ -539,7 +539,7 @@ def plot_implausibility(data, column, thresh, save_fn=None):
     return fig
 
 def plot_implausibility_by_iter(data, save_fn=None):
-    fig = plt.figure(figsize=(20,20))
+    fig = plt.figure(figsize=(16,12), dpi=300)
 
     for it in range(iteration+2):
         col_first_only = 'c'
@@ -561,16 +561,16 @@ def plot_implausibility_by_iter(data, save_fn=None):
                     gs = gridspec.GridSpec(D-1, D-1)
                     ax = fig.add_subplot(gs[col-1,row])
 
-                    x = data.loc[first_only, Xcols[row]]; y = data.loc[first_only, Xcols[col]];
+                    x = data.loc[first_only, Xcols[row]]; y = data.loc[first_only, Xcols[col]]
                     h1 = plt.scatter(x, y, s=size, lw=0, c=col_first_only, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[second_only, Xcols[row]]; y = data.loc[second_only, Xcols[col]];
+                    x = data.loc[second_only, Xcols[row]]; y = data.loc[second_only, Xcols[col]]
                     h2 = plt.scatter(x, y, s=size, lw=0, c=col_second_only, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[neither, Xcols[row]]; y = data.loc[neither, Xcols[col]];
+                    x = data.loc[neither, Xcols[row]]; y = data.loc[neither, Xcols[col]]
                     h3 = plt.scatter(x, y, s=size, lw=0, c=col_neither, alpha=0.5) #, facecolors='none', edgecolors='g'
 
-                    x = data.loc[both, Xcols[row]]; y = data.loc[both, Xcols[col]];
+                    x = data.loc[both, Xcols[row]]; y = data.loc[both, Xcols[col]]
                     h4 = plt.scatter(x, y, s=size, lw=0, c=col_both, alpha=0.5) #, facecolors='none', edgecolors='g'
 
                     plt.autoscale(tight=True)
@@ -590,7 +590,7 @@ def plot_implausibility_by_iter(data, save_fn=None):
 
 
 def histogram_implausibility(data, column, thresh=None, save_fn=None):
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(16,12), dpi=300)
     sns.displot( data[column], rug=True)
     yl = ax.get_ylim()
     if thresh is not None:

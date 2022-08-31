@@ -223,7 +223,7 @@ class VariableSelection():
             print('Selected:', selected_X, 'BIC =',lowest_bic)
 
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(16,12), dpi=300)
         plt.plot(range(max_vars), bic, 'ko-')
         plt.xlabel('Number of Parameters')
         plt.ylabel('BIC')

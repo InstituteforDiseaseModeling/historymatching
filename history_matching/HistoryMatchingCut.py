@@ -1,9 +1,11 @@
 import json
-import os
+from pathlib import Path
 import time
+
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
+
 from history_matching.HistoryMatching import HistoryMatching
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
@@ -15,17 +17,19 @@ logger = logging.getLogger(__name__)
 
 class HistoryMatchingCut():
 
-    def __init__(self, cut_dir, iteration, iterdir_parent=None, saveto_hd5 = None):
-        self.cut_dir = cut_dir
+    def __init__(self, cut_dir, iteration, iterdir_parent=None, hdf_file=None):
+
+        self.cut_dir = Path(cut_dir)
         self.iteration = iteration
 
         self.param_info = None
         self.Xcols_all_orig = None
 
         if iterdir_parent == None:
-            self.iterdir_parent = '..' # Folder containing iter0, iter1, ...
+            # Folder containing iter0, iter1, ...
+            self.iterdir_parent = Path.cwd().parent.absolute()
         else:
-            self.iterdir_parent = iterdir_parent
+            self.iterdir_parent = Path(iterdir_parent)
 
         self.debug = False
         self.hm_params = {}
@@ -33,16 +37,16 @@ class HistoryMatchingCut():
         self.gpr_all = {}
         self.cuts = []
 
-        if saveto_hd5 == None:
-            self.saveto_hd5 = 'Candidates_for_iter%d.hd5'%(self.iteration+1)
+        if hdf_file == None:
+            self.hdf_file = self.iterdir_parent / f"iter{self.iteration}" / f"Candidates_for_iter{self.iteration+1}.hd5"
         else:
-            assert( os.path.splitext(saveto_hd5)[1].lower() in ['.hd5', '.hdf'] )
-            self.saveto_hd5 = saveto_hd5
+            assert( Path(hdf_file).suffix.lower() in [".hd5", ".hdf"])
+            self.hdf_file = Path(hdf_file)
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
-            cuts_dir = os.path.join(self.iterdir_parent, 'iter%d'%it, self.cut_dir)
+            cuts_dir = self.iterdir_parent / f"iter{it}" / self.cut_dir
 
-            for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
+            for cut_name in [name for name in cuts_dir.iterdir() if name.is_dir()]:
                 logger.info(f'Reading iteration {it} cut {cut_name}')
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
                 logger.info(f'\t Desired Result: {hm.desired_result}')
@@ -55,7 +59,7 @@ class HistoryMatchingCut():
 
                     #self.Xcols_all_orig = self.param_info.index.unique().values.tolist()
                     self.Xcols_all_orig = self.param_info.index.get_level_values('Name').unique().tolist()
-                    candidates = pd.DataFrame( columns=self.Xcols_all_orig )
+                    _candidates = pd.DataFrame( columns=self.Xcols_all_orig )
 
                 self.hm_params[(it, cut_name)] = {
                     'desired_result':hm.desired_result,
@@ -64,9 +68,11 @@ class HistoryMatchingCut():
                     'implausibility_threshold':hm.implausibility_threshold,
                 }
 
-                self.glm_all[(it, cut_name)] = GLM.from_config(os.path.join(cuts_dir, cut_name, 'GLM', 'model.json'), os.path.join(cuts_dir, cut_name, 'GLM', 'params.p'))
-                self.gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
+                self.glm_all[(it, cut_name)] = GLM.from_config(cuts_dir / cut_name / 'GLM' / 'model.json', cuts_dir / cut_name / 'GLM' / 'params.p')
+                self.gpr_all[(it, cut_name)] = GPR.from_config(cuts_dir / cut_name / 'GPR' / 'model_with_test_data.json')
                 self.cuts.append((it, cut_name))
+
+        return
 
 
     def assess_plausibility(self, points, constraint = None):
@@ -99,6 +105,12 @@ class HistoryMatchingCut():
         new_candidates = points.copy()
         new_candidates['Implausible'] = False
 
+        # This code appears to work, even though Pandas cannot guarantee whether
+        # `plausible_candidates` is a view or a slice copy.
+        # Let's silence warning for this, during this code.
+        pd_level = pd.get_option("mode.chained_assignment")
+        pd.set_option("mode.chained_assignment",None)
+
         for cut in self.cuts:
             (it, cut_name) = cut
 
@@ -125,6 +137,8 @@ class HistoryMatchingCut():
             plausible_candidates.loc[:,'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
 
             new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+
+        pd.set_option("mode.chained_assignment", pd_level)  # restore warnings outside this code
 
         return new_candidates['Implausible']
 
@@ -177,7 +191,7 @@ class HistoryMatchingCut():
 
             num_trials += new_candidates.shape[0]
             new_non_implausible_candidates = new_candidates.loc[ new_candidates['Implausible'] == False, :]
-            non_implausible_candidates = non_implausible_candidates.append(new_non_implausible_candidates)
+            non_implausible_candidates = pd.concat([non_implausible_candidates, new_non_implausible_candidates])
 
             stats['num_new_plausible_candidates'] = new_non_implausible_candidates.shape[0] # sum(new_candidates['Implausible'] == False)
             stats['num_plausible_candidates'] = non_implausible_candidates.shape[0]
@@ -189,8 +203,8 @@ class HistoryMatchingCut():
 
         #non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        logger.info(f'Saving to:{self.saveto_hd5}')
-        hdf = pd.HDFStore(self.saveto_hd5)
+        logger.info(f'Saving to:{self.hdf_file}')
+        hdf = pd.HDFStore(self.hdf_file)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
         #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
         #hdf.put('all', candidates.set_index(self.Xcols_all_orig))
@@ -203,13 +217,11 @@ class HistoryMatchingCut():
             'Num Implausible': num_trials-non_implausible_candidates.shape[0]
         }
 
-        (d, filename) = os.path.split(self.saveto_hd5)
-        (name, ext) = os.path.splitext(filename)
-        stats_fn = os.path.join(d, name + '_stats.json')
-        with open(stats_fn, 'w') as f:
+        stats_fn = self.hdf_file.parent / f"{self.hdf_file.stem}_stats.json"
+        with stats_fn.open("w") as f:
             json.dump(stats, f)
 
-        csv_fn = os.path.join(d, name + '.csv')
+        csv_fn = self.hdf_file.parent / f"{self.hdf_file.stem}.csv"
         non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn, index=False)
 
         '''

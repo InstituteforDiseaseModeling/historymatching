@@ -49,7 +49,7 @@ g = GPC(['x'], 'y', data, param_info,
             debug = False
         )
 
-fig, ax = plt.subplots(1,1)
+fig, ax = plt.subplots(1,1, figsize=(16,12), dpi=300)
 ax.plot(x, kxx[N//2,:], 'k', lw=2)
 ax.plot(x, dkxx_dtheta0[N//2,:], 'r')
 ax.plot(x, dkxx_dtheta1[N//2,:], 'b')

@@ -351,8 +351,8 @@ class Basis():
             fit = model.fit()
 
         logger.info(f'SUMMARY:\n{fit.summary()}')
-        logger.info(f'AIC:      {fit.aic}')
-        logger.info(f'BIC (LLF):{fit.bic_llf}')
+        logger.info(f'AIC:{fit.aic}')
+        logger.info(f'BIC:{fit.bic}')
 
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]
@@ -389,7 +389,7 @@ class Basis():
         return self.regularize(inputs, results, 0, scaleX)
 
 
-    def plot_regularize(self, inputs, results, alpha, scaleX = False, title = None):
+    def plot_regularize(self, inputs, results, alpha, scaleX = False, title = None, fig_file = None):
 
         if scaleX:
             assert(self.param_info is not None)
@@ -413,10 +413,10 @@ class Basis():
             params = params[abs(params)>0]
 
             num_params[i] = len(params)
-            bic[i] = fit.bic_llf    # fit.bic, previously
+            bic[i] = fit.bic
 
         lns = []
-        fig, ax1 = plt.subplots()
+        fig, ax1 = plt.subplots(figsize=(12, 9), dpi=300)
         lns += ax1.plot(alpha, bic, 'ro-', label='BIC')
         ax1.set_xscale('log')
         ax1.set_xlabel('alpha')
@@ -430,6 +430,7 @@ class Basis():
         if title is not None:
             plt.title(title)
         fig.tight_layout()
+        if fig_file: fig.savefig(fig_file)
         plt.show()
 
         return fig

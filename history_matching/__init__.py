@@ -1,7 +1,7 @@
 import os
 import logging.config
 from .basis import Basis
-from .quick_read import quick_read
+from .quick_read import quick_read_xl, quick_read_hdf
 from .HistoryMatching import HistoryMatching
 from .HistoryMatchingCut import HistoryMatchingCut
 from .ProgressPlotting import ProgressPlotting

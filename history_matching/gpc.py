@@ -883,10 +883,8 @@ class GPC():
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
-                    #gs = gridspec.GridSpec(self.D-1, self.D-1)
-                    #ax = fig.add_subplot(gs[col-1,row])
                     fn = '%s-%s' % (self.Xcols[row], self.Xcols[col]) + '.' + self.fig_type
-                    figs[fn] = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+                    figs[fn] = plt.figure(figsize=(16,12), dpi=300)
 
                     x = self.training_data[ self.Xcols[row] ]
                     y = self.training_data[ self.Xcols[col] ]
@@ -906,7 +904,7 @@ class GPC():
 
 
     def plot_histogram(self):
-        fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,12), dpi=300)
         sns.displot(self.training_data[self.Ycol], rug=True)
 
         return fig
@@ -915,8 +913,8 @@ class GPC():
     def plot(self, Xcenter, res=10):
         Xmu = np.repeat( np.array([Xcenter]), res*res, axis=0)
 
-        fig = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)))
-        fig_std_latent = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)))
+        fig = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)), dpi=300)
+        fig_std_latent = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)), dpi=300)
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
@@ -991,7 +989,7 @@ class GPC():
                 test['ZTrue_Predictive_Logit'] = (test['Truth-Logit'] - test['Mean-Transformed']) / np.sqrt(test['Var-Transformed'])
 
 
-        fig, ((ax1, ax2)) = plt.subplots(nrows=2, ncols=1, sharex='col', figsize=figsize) # , sharex='col', sharey='row')
+        fig, ((ax1, ax2)) = plt.subplots(nrows=2, ncols=1, sharex='col', figsize=figsize, dpi=300)
 
         ax = ax1
         if train is not None:

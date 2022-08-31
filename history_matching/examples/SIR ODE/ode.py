@@ -23,8 +23,8 @@ colors = [ cm.rainbow(x) for x in cm_subsection ]
 
 np.random.seed(1)
 
-f1, ax1 = plt.subplots(1,1,figsize=(15,7))
-f2, ax2 = plt.subplots(1,1,figsize=(15,7))
+f1, ax1 = plt.subplots(1,1,figsize=(16,12), dpi=300)
+f2, ax2 = plt.subplots(1,1,figsize=(16,12), dpi=300)
 
 beta_vec = np.linspace(0.025, 0.3, 25)
 #beta_vec = np.array([0.025, 0.05, 0.075, 0.20, 0.25, 0.30])
