@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 class HistoryMatchingCut():
 
-    def __init__(self, cut_dir, iteration, iterdir_parent=None, hdf_file=None):
+    def __init__(self, cut_folder, iteration, iterdir_parent=None, hdf_file=None):
 
-        self.cut_dir = Path(cut_dir)
+        self.cut_folder = cut_folder
         self.iteration = iteration
 
         self.param_info = None
@@ -44,9 +44,9 @@ class HistoryMatchingCut():
             self.hdf_file = Path(hdf_file)
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
-            cuts_dir = self.iterdir_parent / f"iter{it}" / self.cut_dir
+            cuts_dir = self.iterdir_parent / f"iter{it}" / self.cut_folder
 
-            for cut_name in [name for name in cuts_dir.iterdir() if name.is_dir()]:
+            for cut_name in [entry.name for entry in cuts_dir.iterdir() if entry.is_dir()]:
                 logger.info(f'Reading iteration {it} cut {cut_name}')
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
                 logger.info(f'\t Desired Result: {hm.desired_result}')
@@ -151,7 +151,8 @@ class HistoryMatchingCut():
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
-            logger.info('-'*80)
+
+            logger.info("-"*80)
             max_nSamples = 10000 # TODO: make a parameter or determine from GPU info
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
@@ -232,6 +233,6 @@ class HistoryMatchingCut():
         writer.save()
         '''
 
-        print('Rejected {0:.1f}% [{1:d} / {2:d}]'.format(rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials))
+        logger.info(f"Rejected {rejected_percent:.1f}% [{(num_trials-non_implausible_candidates.shape[0]):d} / {num_trials:d}]")
 
         return (non_implausible_candidates, stats)
