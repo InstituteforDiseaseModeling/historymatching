@@ -1,5 +1,11 @@
-import hashlib, os
+import hashlib
+import logging
+import os
+
 import pandas as pd
+
+logger = logging.getLogger(__name__)
+
 
 def md5(fname):
     hash_md5 = hashlib.md5()
@@ -9,26 +15,40 @@ def md5(fname):
     return hash_md5.hexdigest()
 
 
-def quick_read(excel_fn, sheetname, force_read=False, **kwargs):
-    kwargs['sheet_name'] = sheetname
+def quick_read(excel_fn, sheet_name, force_read=False, **kwargs):
+    kwargs['sheet_name'] = sheet_name
     excel_md5 = md5(excel_fn)
 
     filename = os.path.splitext(excel_fn)[0]
     hdf_fn = os.path.join( '%s_%s.hd5'%(filename, excel_md5) )
     if not force_read and os.path.isfile(hdf_fn):
-        print('Reading', sheetname, 'from', hdf_fn)
-        store = pd.HDFStore(hdf_fn)
-        if sheetname in store:
-            sheetdata = store[sheetname]
-            store.close()
-            return sheetdata
+
+        try:
+            return quick_read_hdf(hdf_fn, sheet_name)
+        except RuntimeError as rt:
+            logger.critical(rt)
 
     # Not in store, read and store now
-    print('Reading', sheetname, 'from', excel_fn)
-    sheetdata = pd.read_excel(excel_fn, **kwargs)
+    logger.info(f"Reading '{sheet_name}' from '{excel_fn}'...")
+    sheet_data = pd.read_excel(excel_fn, sheet_name=sheet_name, **kwargs)
 
     store = pd.HDFStore(hdf_fn)
-    store[sheetname] = sheetdata
+    store[sheet_name] = sheet_data
     store.close()
 
-    return sheetdata
+    return sheet_data
+
+
+def quick_read_hdf(hdf_fn, sheet_name):
+
+    logger.info(f"Reading '{sheet_name}' from '{hdf_fn}'...")
+    store = pd.HDFStore(hdf_fn)
+
+    if sheet_name in store:
+
+        sheet_data = store[sheet_name]
+        store.close()
+
+        return sheet_data
+
+    raise RuntimeError(f"Sheet '{sheet_name}' not found in HDF file '{hdf_fn}'.")

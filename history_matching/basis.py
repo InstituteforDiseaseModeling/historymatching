@@ -267,15 +267,13 @@ class Basis():
         try:
             dmat = patsy.dmatrix(md, data = data, return_type = 'dataframe', NA_action="raise")
         except Exception as e:
-            print(str(e))
+            logger.critical(str(e))
             if pd.isnull(data).any().any():
                 #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-                print(data[data.isnull().any(axis=1)])
-                print('Data contains Null/None/NaN, see data above.')
-                # TODO: should we use exit() in library function to catch illegal param cases?
-                # following require "from sys import exit" to work, but the more important questions is:
-                # should we use exit() at all here?  perhaps we should throw some error instead (TypeError/ValueError/..);
-                exit()
+                logger.critical(data[data.isnull().any(axis=1)])
+                logger.critical('Data contains Null/None/NaN, see data above.')
+            raise RuntimeError(f"Error creating dmatrix (patsy package) for basis.")
+
         return dmat
 
     def generate_dmatrices(self, data, Ycol, scaleX = False):
@@ -335,7 +333,7 @@ class Basis():
         Returns: The predicted results at the inputs.
         """
 
-        print('User selected alpha = %f' % alpha)
+        logger.info('User selected alpha = %f' % alpha)
 
         if scaleX:
             assert(self.param_info is not None)
@@ -360,7 +358,7 @@ class Basis():
 
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]
-        print('Non-Zero:', len(params), 'of', self.D)
+        logger.info('Non-Zero:', len(params), 'of', self.D)
 
         if len(params) == 0:
             raise ValueError('In regularize, no parameters had a non-zero coefficient.  Try making alpha smaller.')
@@ -410,7 +408,7 @@ class Basis():
         num_params = np.zeros_like(alpha)
         bic = np.zeros_like(alpha)
         for i,a in enumerate(alpha):
-            print('Regularize: ', i,' of ', len(alpha))
+            logger.info('Regularize: ', i,' of ', len(alpha))
             fit = model.fit_regularized(alpha=a, refit=True)
 
             params = pd.Series(fit.params, index=data_matrix.columns)

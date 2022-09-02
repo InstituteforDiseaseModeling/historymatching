@@ -1,16 +1,18 @@
-import json
-import matplotlib.pyplot as plt
-import seaborn as sns
+import logging
 import os
 import time
-from pyDOE import lhs
-import pandas as pd
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
+
 from history_matching import HistoryMatching
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
 
-import statsmodels.api as sm
+logger = logging.getLogger(__name__)
+
 
 class ProgressPlotting():
 
@@ -30,15 +32,20 @@ class ProgressPlotting():
         self.cuts = []
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
+
             cuts_dir = os.path.join('..', 'iter%d'%it, self.cut_dir)
 
-            for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
-                print('Reading iteration %d. cut %s' % (it,cut_name) )
+            for cut_name in [
+                str(name)
+                for name in cuts_dir.iterdir()
+                if name.is_dir()
+            ]:
+                logger.info("Reading iteration %d. cut %s" % (it, cut_name))
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print('\t Desired Result:', hm.desired_result)
-                print('\t Desired Result Var:', hm.desired_result_var)
-                print('\t Discrepancy Var:', hm.discrepancy_var)
-                print('\t Imp Thresh:', hm.implausibility_threshold)
+                logger.info("\tDesired Result:", hm.desired_result)
+                logger.info("\tDesired Result Var:", hm.desired_result_var)
+                logger.info("\tDiscrepancy Var:", hm.discrepancy_var)
+                logger.info("\tImp Thresh:", hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
@@ -185,7 +192,7 @@ class ProgressPlotting():
 
         D = self.samples.shape[1]
         if variables is not None:
-            for v in variabls:
+            for v in variables:
                 assert(v in self.samples.columns)
             D = len(variables)
 

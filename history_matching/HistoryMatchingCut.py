@@ -1,22 +1,25 @@
 import json
-import os
+import logging
+from pathlib import Path
 import time
-from pyDOE import lhs
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+from pyDOE import lhs
+
 from history_matching.HistoryMatching import HistoryMatching
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
 #pd.set_option('mode.chained_assignment', 'raise')
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class HistoryMatchingCut():
 
-    def __init__(self, cut_dir, iteration, iterdir_parent=None, saveto_hd5 = None):
-        self.cut_dir = cut_dir
+    def __init__(self, cut_folder: str, iteration: int, iterdir_parent: Path, hdf_file: Path):
+
+        self.cut_folder = cut_folder
         self.iteration = iteration
 
         self.param_info = None
@@ -33,16 +36,20 @@ class HistoryMatchingCut():
         self.gpr_all = {}
         self.cuts = []
 
-        if saveto_hd5 == None:
-            self.saveto_hd5 = 'Candidates_for_iter%d.hd5'%(self.iteration+1)
+        self.iter_dir = iterdir_parent / f"iter{iteration}"
+
+        if hdf_file == None:
+            self.hdf_file = self.iter_dir / f"Candidates_for_iter{self.iteration+1}.hd5"
         else:
-            assert( os.path.splitext(saveto_hd5)[1].lower() in ['.hd5', '.hdf'] )
-            self.saveto_hd5 = saveto_hd5
+            assert( hdf_file.suffix.lower() in [".hd5", ".hdf"] )
+            self.hdf_file = hdf_file
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
-            cuts_dir = os.path.join(self.iterdir_parent, 'iter%d'%it, self.cut_dir)
 
-            for cut_name in [name for name in os.listdir(cuts_dir) if os.path.isdir(os.path.join(cuts_dir, name))]:
+            cuts_dir = self.iterdir_parent / f"iter{it}" / self.cut_folder
+
+            for cut_name in [entry.name for entry in cuts_dir.iterdir() if entry.is_dir()]:
+
                 logger.info(f'Reading iteration {it} cut {cut_name}')
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
                 logger.info(f'\t Desired Result: {hm.desired_result}')
@@ -64,12 +71,17 @@ class HistoryMatchingCut():
                     'implausibility_threshold':hm.implausibility_threshold,
                 }
 
-                self.glm_all[(it, cut_name)] = GLM.from_config(os.path.join(cuts_dir, cut_name, 'GLM', 'model.json'), os.path.join(cuts_dir, cut_name, 'GLM', 'params.p'))
-                self.gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
+                cut_dir = cuts_dir / cut_name
+                glm_dir = cut_dir / "GLM"
+                self.glm_all[(it, cut_name)] = GLM.from_config( glm_dir / "model.json", glm_dir / "params.p")
+                gpr_dir = cut_dir / "GPR"
+                self.gpr_all[(it, cut_name)] = GPR.from_config( gpr_dir / "model_with_test_data.json" )
                 self.cuts.append((it, cut_name))
 
+        return
 
     def assess_plausibility(self, points, constraint = None):
+
         points['Implausible'] = False
 
         for cut in reversed(self.cuts):
@@ -93,13 +105,13 @@ class HistoryMatchingCut():
 
         return points
 
-
-
     def test_plausibility(self, points, constraint = None):
+
         new_candidates = points.copy()
         new_candidates['Implausible'] = False
 
         for cut in self.cuts:
+
             (it, cut_name) = cut
 
             plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
@@ -128,8 +140,8 @@ class HistoryMatchingCut():
 
         return new_candidates['Implausible']
 
-
     def cut(self, num_desired_candidates = 5000, constraint = None):
+
         non_implausible_candidates = pd.DataFrame()
         num_trials = 0
 
@@ -137,7 +149,8 @@ class HistoryMatchingCut():
         stats.update({'num_plausible_candidates':0, 'num_candidates':0, 'num_new_plausible_candidates':0})
 
         while stats['num_plausible_candidates'] < num_desired_candidates:
-            logger.info('-'*80)
+
+            logger.info("-"*80)
             max_nSamples = 10000 # TODO: make a parameter or determine from GPU info
             # Min here to avoid running out of GPU ram!
             if stats['num_candidates'] == 0:# or stats['num_plausible_candidates'] == 0:
@@ -174,7 +187,6 @@ class HistoryMatchingCut():
             logger.debug(f'Merge plausibility (needed?):{time.time() - t}')
             #new_candidates['Implausible'] = False
 
-
             num_trials += new_candidates.shape[0]
             new_non_implausible_candidates = new_candidates.loc[ new_candidates['Implausible'] == False, :]
             non_implausible_candidates = non_implausible_candidates.append(new_non_implausible_candidates)
@@ -189,8 +201,8 @@ class HistoryMatchingCut():
 
         #non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
 
-        logger.info(f'Saving to:{self.saveto_hd5}')
-        hdf = pd.HDFStore(self.saveto_hd5)
+        logger.info(f'Saving to:{self.hdf_file}')
+        hdf = pd.HDFStore(self.hdf_file)
         hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
         #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
         #hdf.put('all', candidates.set_index(self.Xcols_all_orig))
@@ -203,13 +215,13 @@ class HistoryMatchingCut():
             'Num Implausible': num_trials-non_implausible_candidates.shape[0]
         }
 
-        (d, filename) = os.path.split(self.saveto_hd5)
-        (name, ext) = os.path.splitext(filename)
-        stats_fn = os.path.join(d, name + '_stats.json')
-        with open(stats_fn, 'w') as f:
+        d = self.hdf_file.parent
+        name = self.hdf_file.stem
+        stats_fn = d / f"{name}_stats.json"
+        with stats_fn.open("w") as f:
             json.dump(stats, f)
 
-        csv_fn = os.path.join(d, name + '.csv')
+        csv_fn = d / f"{name}.csv"
         non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn, index=False)
 
         '''
@@ -220,6 +232,6 @@ class HistoryMatchingCut():
         writer.save()
         '''
 
-        print('Rejected {0:.1f}% [{1:d} / {2:d}]'.format(rejected_percent, (num_trials-non_implausible_candidates.shape[0]), num_trials))
+        logger.info(f"Rejected {rejected_percent:.1f}% [{(num_trials-non_implausible_candidates.shape[0]):d} / {num_trials:d}]")
 
         return (non_implausible_candidates, stats)

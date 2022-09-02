@@ -681,7 +681,7 @@ class GPR():
             if logger.getEffectiveLevel() == logging.DEBUG:
                 # Compare to CPU
                 KXX_cpu = self.kernel_xx(X, theta, add_sigma2_n = True)
-                if not np.allclose(KXX_cpu, KXX):
+                if not np.allclose(KXX, KXX_cpu, atol=2e-5):
                     logger.debug(f'loo_cross_validation(CPU XX):\n{KXX_cpu}')
                     logger.debug(f'loo_cross_validation(GPU XX):\n{KXX}')
                     raise
@@ -1060,7 +1060,7 @@ class GPR():
                     ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row]) # , projection='3d'
 
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
-                    print(row, col, row*self.D+col, fixed_inputs)
+                    logger.info(row, col, row*self.D+col, fixed_inputs)
 
                     (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
                     (col_min, col_max) = (self.training_data[self.Xcols[col]].min(), self.training_data[self.Xcols[col]].max())

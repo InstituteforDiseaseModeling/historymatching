@@ -236,7 +236,7 @@ class HistoryMatching():
         """
 
         if not self.use_glm:
-            print('use_glm is False, why are you calling glm?')
+            logger.error('use_glm is False, why are you calling glm?')
             return
 
         # Files to store the model and parameters
@@ -279,7 +279,7 @@ class HistoryMatching():
                 if not os.path.exists( pairdir):
                     os.mkdir( pairdir )
                 cp = pd.DataFrame() # To not circle a point, pass in an empty data frame.
-                #print(test_mean.loc[[2110]])
+                #logger.info(test_mean.loc[[2110]])
                 #cp = test_mean.loc[[2110]]
                 figs = self.glm_model.plot_data(circle_points=cp, saveto_dir = pairdir, log_scale=True)
 
@@ -455,8 +455,8 @@ class HistoryMatching():
             '''' # Useful debugging
             if False:
                 mu = self.training_data[self.Xcols_GPR].mean()
-                #mu = train.loc[146][Xcols_GPR].mean(); print(mu)
-                (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25);
+                #mu = train.loc[146][Xcols_GPR].mean(); logger.info(mu)
+                (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25)
                 fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean'+'.'+self.fig_type) );    plt.close(fig_mean) # SLOW
                 fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent'+'.'+self.fig_type) );    plt.close(fig_std_latent) # SLOW
             '''

@@ -34,7 +34,7 @@ plt.rcParams['image.cmap'] = 'jet'
 # Ack https://github.com/lebedov/scikit-cuda/blob/master/demos/indexing_2d_demo.py
 
 #with pd.option_context('display.max_rows', None): # , 'display.max_columns', 3
-#    print(ret)
+#    logger.info(ret)
 
 class GPC():
 
@@ -332,7 +332,7 @@ class GPC():
             prev_tau = tau
             prev_nu = nu
             for i in range(N):
-                #print(it, ' ', i,' ', '-'*80)
+                #logger.info(it, ' ', i,' ', '-'*80)
                 sigma2_i = Sigma[i,i] # Not sure on this one
                 tau_minus_i = 1/sigma2_i - tau[i]
                 nu_minus_i = mu[i]/sigma2_i - nu[i]
@@ -363,19 +363,19 @@ class GPC():
             B = np.eye(N) + np.dot(sqrtStilde, np.dot(K, sqrtStilde))
             L = np.linalg.cholesky(B)
             V = np.linalg.solve( np.transpose(L), np.dot(sqrtStilde,K) )
-            print('V', V)
-            print('K', K)
+            logger.info('V', V)
+            logger.info('K', K)
             Sigma = K - np.dot(np.transpose(V),V)
-            print('Sigma after', Sigma)
+            logger.info('Sigma after', Sigma)
 
             t = time.time()
             SigmaDIRECT = np.linalg.inv(np.linalg.inv(K) + Stilde)
-            print('Sigma DIRECT %f'%(time.time()-t), SigmaDIRECT)
+            logger.info('Sigma DIRECT %f'%(time.time()-t), SigmaDIRECT)
             '''
 
             #t = time.time()
             SigmaMIL = K - np.dot(K, np.linalg.solve( np.linalg.inv(Stilde)+K, K) )
-            #print('Sigma MIL %f'%(time.time()-t), SigmaMIL)
+            #logger.info('Sigma MIL %f'%(time.time()-t), SigmaMIL)
 
             '''
             import scipy as sp
@@ -384,13 +384,13 @@ class GPC():
             ainvsqrt = sp.linalg.sqrtm(np.linalg.inv(a))
             Vdjk = np.dot(ainvsqrt, K)
             SigmaDJK = K - np.dot(np.transpose(Vdjk),Vdjk)
-            print('Sigma DJK %f'%(time.time()-t), SigmaDJK)
-            print('Vdjk', Vdjk)
+            logger.info('Sigma DJK %f'%(time.time()-t), SigmaDJK)
+            logger.info('Vdjk', Vdjk)
 
             #Bdjk = np.linalg.inv(Stilde)+K
             #Ldjk = np.linalg.cholesky(Bdjk)
             #Vdjk2 = np.linalg.solve(np.transpose(Ldjk),K)
-            #print('Vdjk2', Vdjk2)
+            #logger.info('Vdjk2', Vdjk2)
             '''
 
             Sigma = SigmaMIL
@@ -424,10 +424,10 @@ class GPC():
         den = np.sqrt(1+tau_minus_i_vec)
         logZep_term_3 = np.sum( np.log( norm.cdf( np.multiply(num, np.reciprocal(den)))) )
 
-        #print('logZep_terms_1_and_4', logZep_terms_1_and_4)
-        #print('logZep_terms_5b_and_2', logZep_terms_5b_and_2)
-        #print('logZep_term_5a', logZep_term_5a)
-        #print('logZep_term_3', logZep_term_3)
+        #logger.info('logZep_terms_1_and_4', logZep_terms_1_and_4)
+        #logger.info('logZep_terms_5b_and_2', logZep_terms_5b_and_2)
+        #logger.info('logZep_term_5a', logZep_term_5a)
+        #logger.info('logZep_term_3', logZep_term_3)
 
         logZep = logZep_terms_1_and_4 + logZep_terms_5b_and_2 + logZep_term_5a + logZep_term_3
 
@@ -506,7 +506,7 @@ class GPC():
             log_q_y_given_X_theta = -0.5 * np.dot(np.transpose(a), f_hat) + log_p_y_given_f - sum( np.log(np.diag(L)) )
 
             d_df_log_q_y_given_X_theta = d_df_log_p_y_given_f - np.linalg.solve(K, f_hat)
-            # print('***', log_q_y_given_X_theta, np.linalg.norm(d_df_log_q_y_given_X_theta))
+            # logger.info('***', log_q_y_given_X_theta, np.linalg.norm(d_df_log_q_y_given_X_theta))
             norm_grad = np.linalg.norm(d_df_log_q_y_given_X_theta)
             if norm_grad < tol_grad:
                 break
@@ -565,7 +565,7 @@ class GPC():
 
         C = np.linalg.solve(L, np.dot(sqrtW, K))
 
-        #print(np.diag(K - np.dot(np.transpose(C),C)) - np.diag(K - np.dot(K,np.linalg.solve(np.linalg.inv(W)+K,K))))
+        #logger.info(np.diag(K - np.dot(np.transpose(C),C)) - np.diag(K - np.dot(K,np.linalg.solve(np.linalg.inv(W)+K,K))))
         #exit()
 
         N = f_hat.shape[0]
@@ -640,7 +640,7 @@ class GPC():
         B = np.eye(N) + np.multiply(KXX, w_outer)
         ###
         #Bslow = np.eye(N) + np.dot(sqrtW, np.dot(KXX, sqrtW))
-        #print( np.allclose(B, Bslow) )
+        #logger.info( np.allclose(B, Bslow) )
         #exit()
         ###
 
@@ -673,7 +673,7 @@ class GPC():
             mean_trapz = np.trapz(mean_integrand, x=fstar) # Average prediction (better)
             var_integrand = np.multiply( (logistic(fstar) - mean_trapz)**2, np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
             var_trapz = np.trapz(var_integrand, x=fstar) # Average prediction (better)
-            #print('TRAPZ', time.time()-tz)
+            #logger.info('TRAPZ', time.time()-tz)
 
             '''
             ### Monte Carlo
@@ -682,11 +682,11 @@ class GPC():
             yy = logistic(pts)
             mean = np.mean(yy)
             var = np.var(yy)
-            print('MC', time.time()-mc)
+            logger.info('MC', time.time()-mc)
             ###
             '''
 
-            #print('MC: (%f, %f)  VS  TRAPZ: (%f, %f)' % (mean, var, mean_trapz, var_trapz))
+            #logger.info('MC: (%f, %f)  VS  TRAPZ: (%f, %f)' % (mean, var, mean_trapz, var_trapz))
 
             logi = logistic(mu) # MAP prediction
 
@@ -742,7 +742,7 @@ class GPC():
             '''
             mean_integrand = np.multiply(norm.cdf(fstar), np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
             mean_trapz = np.trapz(mean_integrand, x=fstar) # Average prediction (better)
-            print(mean, mean_trapz)
+            logger.info(mean, mean_trapz)
             '''
 
             var_integrand = np.multiply( (norm.cdf(fstar) - mean)**2, np.exp(-(fstar-mu)**2/(2.0*sigma2)) / np.sqrt(2.0*np.pi*sigma2) )
@@ -925,7 +925,7 @@ class GPC():
                     ax_std_latent = fig_std_latent.add_subplot(gs[col-1,row]) # , projection='3d'
 
                     fixed_inputs = [ (x,mean) for (i, (x,mean)) in enumerate(zip(range(self.D), Xcenter)) if row is not i and col is not i]
-                    print(row, col, row*self.D+col, fixed_inputs)
+                    logger.info(row, col, row*self.D+col, fixed_inputs)
 
                     # TODO: Real parameter ranges here, not just 0-1
                     (row_min, row_max) = (self.training_data[self.Xcols[row]].min(), self.training_data[self.Xcols[row]].max())
@@ -941,7 +941,7 @@ class GPC():
 
                     Xdf = pd.DataFrame(X, columns=self.Xcols)
 
-                    #print('WARNING: DEBUG!\n')
+                    #logger.info('WARNING: DEBUG!\n')
 
                     ret = self.evaluate( Xdf )
 

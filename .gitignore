@@ -35,3 +35,8 @@ deprecate/
 
 # Helper
 *.ignore.*
+
+# Examples
+fig*/
+**/Stochastic*/iter*/Candidates*
+**/Stochastic*/iter*/Cuts/
