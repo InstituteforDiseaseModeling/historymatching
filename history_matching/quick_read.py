@@ -26,7 +26,7 @@ def quick_read(excel_fn, sheet_name, force_read=False, **kwargs):
         try:
             return quick_read_hdf(hdf_fn, sheet_name)
         except RuntimeError as rt:
-            logger.critical(rt)
+            logger.error(rt)
 
     # Not in store, read and store now
     logger.info(f"Reading '{sheet_name}' from '{excel_fn}'...")
