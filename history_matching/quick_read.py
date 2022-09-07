@@ -1,5 +1,9 @@
-import hashlib, os
+import hashlib
+import logging
+import os
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def md5(fname):
@@ -25,10 +29,10 @@ def quick_read_xl(excel_fn, sheet_name, force_read=False, **kwargs):
         try:
             return quick_read_hdf(hdf_fn, sheet_name)
         except RuntimeError as rt:
-            print(rt)
+            logger.critical(rt)
 
     # Not in store, read and store now
-    print(f"Reading '{sheet_name}' from '{excel_fn}'...")
+    logger.info(f"Reading '{sheet_name}' from '{excel_fn}'...")
     sheet_data = pd.read_excel(excel_fn, sheet_name=sheet_name, **kwargs)
 
     store = pd.HDFStore(hdf_fn)
@@ -40,7 +44,7 @@ def quick_read_xl(excel_fn, sheet_name, force_read=False, **kwargs):
 
 def quick_read_hdf(hdf_fn, sheet_name):
 
-    print(f"Reading '{sheet_name}' from '{hdf_fn}'...")
+    logger.info(f"Reading '{sheet_name}' from '{hdf_fn}'...")
     store = pd.HDFStore(hdf_fn)
 
     if sheet_name in store:

@@ -130,7 +130,7 @@ class GLM(object):
                     fitted_model = fitted_model
                 )
         except EnvironmentError:
-            print("Unable to load GLM from_config file", meta_fn, fitted_fn)
+            logger.critical(f"Unable to load GLM from_config file {meta_fn} {fitted_fn}")
             raise
 
 

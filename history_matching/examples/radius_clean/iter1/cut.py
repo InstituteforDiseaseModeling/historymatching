@@ -13,7 +13,7 @@ WORK_DIR = Path(__file__).parent.absolute()
 
 # History Matching!
 hm = HistoryMatchingCut(
-    cut_dir=WORK_DIR / "Cuts",
+    cut_folder="Cuts",
     iteration=int(re.search(r"[+-]?\d+", WORK_DIR.parts[-1]).group()),
     iterdir_parent=WORK_DIR.parent
 )

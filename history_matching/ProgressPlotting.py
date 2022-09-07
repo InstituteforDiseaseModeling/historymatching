@@ -1,4 +1,5 @@
 from ctypes import ArgumentError
+import logging
 import os
 from pathlib import Path
 import time
@@ -11,6 +12,8 @@ import seaborn as sns
 from history_matching import HistoryMatching
 from history_matching.glm import GLM
 from history_matching.gpr import GPR
+
+logger = logging.getLogger(__name__)
 
 
 class ProgressPlotting:
@@ -40,12 +43,12 @@ class ProgressPlotting:
                 for name in cuts_dir.iterdir()
                 if name.is_dir()
             ]:
-                print("Reading iteration %d. cut %s" % (it, cut_name))
+                logger.info("Reading iteration %d. cut %s" % (it, cut_name))
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                print("\t Desired Result:", hm.desired_result)
-                print("\t Desired Result Var:", hm.desired_result_var)
-                print("\t Discrepancy Var:", hm.discrepancy_var)
-                print("\t Imp Thresh:", hm.implausibility_threshold)
+                logger.info("\tDesired Result:", hm.desired_result)
+                logger.info("\tDesired Result Var:", hm.desired_result_var)
+                logger.info("\tDiscrepancy Var:", hm.discrepancy_var)
+                logger.info("\tImp Thresh:", hm.implausibility_threshold)
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
