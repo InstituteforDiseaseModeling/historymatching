@@ -2,23 +2,20 @@
 
 from pathlib import Path
 
-from scipy.integrate import ode
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import cm
-import os
-
 import matplotlib as mpl
-
-mpl.rcParams.update({"font.size": 22})
-
+from matplotlib import cm
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.integrate import ode
 import seaborn as sns
-
-sns.set_palette(sns.color_palette("hls", 25))
 
 from history_matching.gpr import GPR
 from history_matching.basis import Basis
+
+mpl.rcParams.update({"font.size": 22})
+sns.set_palette(sns.color_palette("hls", 25))
+
 
 def main():
 
@@ -52,7 +49,9 @@ def main():
 
     if not figdir.exists():
         figdir.mkdir()
+    print(f"Putting figures in '{figdir}'")
 
+    print("Running model (simulator) for different possible values of beta.")
     for beta_idx, beta in enumerate(beta_vec):
 
         y = [[0.95, 0.05]]
@@ -141,6 +140,7 @@ def main():
     lengthscale_bounds = (0.0001, 0.015)  # 0.0025
 
     bounds = (sigma2_f_bounds,) + (sigma2_n_bounds,) + basis.D * (lengthscale_bounds,)
+    print("Optimizing GPR emulator.")
     g.optimize_hyperparameters(x0, bounds, optimizer_options={})
 
     test = pd.DataFrame(
@@ -162,6 +162,8 @@ def main():
 
     save_figure_8(ax2_1, test, implausibility, implausibility_thresh, ax2, dBeta, f2, figdir, fmt)
 
+    print(f"Finished. See figures in '{figdir}'")
+
     return
 
 
@@ -173,7 +175,9 @@ def save_figure_1(ax1, t, f1, figdir, fmt):
     ax1.set_ylabel("Infected (%)")
     ax1.set_xlabel("Time")
 
-    f1.savefig( figdir / f"Infected_beta_sweep_1.{fmt}" )
+    fig_file = figdir / f"Infected_beta_sweep_1.{fmt}"
+    print(f"Saving % infected over time for possible values of beta to '{fig_file.name}'")
+    f1.savefig( fig_file )
 
     return
 
@@ -182,7 +186,10 @@ def save_figure_2(ax1, t_star, Y_star, D, f1, figdir, fmt):
 
     ax1.plot([t_star, t_star], [0, 1], "k", lw=2)
     ax1.plot(t_star * np.ones([1, D]), np.reshape(Y_star[:, 1], (1, D)), ".", ms=15)
-    f1.savefig( figdir / f"Infected_beta_sweep_2.{fmt}" )
+
+    fig_file = figdir / f"Infected_beta_sweep_2.{fmt}"
+    print(f"Saving % infected over time for possible values of beta with t={t_star} highlight to '{fig_file.name}'")
+    f1.savefig( fig_file )
 
     return
 
@@ -193,7 +200,10 @@ def save_figure_3(ax2, beta_vec, Y_star, t_star, f2, figdir, fmt):
     ax2.set_ylabel("Infected at t=%.0f (%%)" % t_star)
     ax2.set_xlim(beta_vec[[0, -1]])
     ax2.set_ylim([0, 1])
-    f2.savefig( figdir / f"Infected_beta_sweep_3.{fmt}" )
+
+    fig_file = figdir / f"Infected_beta_sweep_3.{fmt}"
+    print(f"Saving % infected at t={t_star} for possible balues of beta to '{fig_file.name}'")
+    f2.savefig( fig_file )
 
     return
 
@@ -213,7 +223,10 @@ def save_figure_4(ax2, beta_vec, Y_star, idx, target, sigma_y, f2, figdir, fmt):
     )
 
     ax2.plot(beta_vec[idx], [0], "kx", ms=15)
-    f2.savefig( figdir / f"Infected_beta_sweep_4.{fmt}" )
+
+    fig_file = figdir / f"Infected_beta_sweep_4.{fmt}"
+    print(f"Saving % infected at target time with plausibility bounds to '{fig_file.name}'")
+    f2.savefig( fig_file )
 
     return
 
@@ -222,7 +235,9 @@ def save_figure_5(ax2, beta_vec, obs, Y_noisy, f2, figdir, fmt):
 
     ax2.plot(beta_vec[obs], Y_noisy, "c+", ms=15, mew=3)
 
-    f2.savefig( figdir / f"Infected_beta_sweep_5.{fmt}" )
+    fig_file = figdir / f"Infected_beta_sweep_5.{fmt}"
+    print(f"Saving % infected at target time with plausibility bounds and observations to '{fig_file.name}'")
+    f2.savefig( fig_file )
 
     return
 
@@ -237,9 +252,12 @@ def save_figure_6(ax2, test, ret, f2, figdir, fmt):
         facecolor="b",
         color="b",
         edgecolor="b",
-        alpha=0.15,
+        alpha=0.15
     )
-    f2.savefig( figdir / f"Infected_beta_sweep_6.{fmt}" )
+
+    fig_file = figdir / f"Infected_beta_sweep_6.{fmt}"
+    print(f"Saving % infected at target time with plausibility bounds, observation, emulator, and confidence to '{fig_file.name}'")
+    f2.savefig( fig_file )
 
     return
 
@@ -268,7 +286,10 @@ def save_figure_7(ax2, test, implausibility, implausibility_thresh, beta_vec, f2
 
     ax2.set_xlim(beta_vec[[0, -1]])
     ax2_1.set_xlim(ax2.get_xlim())
-    f2.savefig( figdir / f"Infected_beta_sweep_7.{fmt}" )
+
+    fig_file = figdir / f"Infected_beta_sweep_7.{fmt}"
+    print(f"Saving % infected at target time with plausibility bounds, observation, emulator, confidence, and implausibility measures to '{fig_file.name}'")
+    f2.savefig( fig_file )
 
     return ax2_1, dBeta
 
@@ -289,10 +310,12 @@ def save_figure_8(ax2_1, test, implausibility, implausibility_thresh, ax2, dBeta
             ax2.fill_between(
                 [b, b + dBeta], [1, 1], hatch="\\\\\\", facecolor="k", alpha=0.5
             )
-    f2.savefig( figdir / f"Infected_beta_sweep_8.{fmt}" )
+
+    fig_file = figdir / f"Infected_beta_sweep_8.{fmt}"
+    print(f"Saving % infected at target time with plausibility bounds, observation, emulator, confidence, implausibility measures, and cut regions to '{fig_file.name}'")
+    f2.savefig( fig_file )
 
     return
-
 
 
 if __name__ == "__main__":
