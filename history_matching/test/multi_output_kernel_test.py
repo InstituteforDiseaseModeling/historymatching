@@ -39,7 +39,7 @@ for param_name, values in samples.iteritems():
         param_info.loc[param_name, "Max"] - param_info.loc[param_name, "Min"]
     )
 
-f, ax = plt.subplots(1, 3, figsize=(16, 10), dpi=300)
+f, ax = plt.subplots(1, 3, figsize=(16, 12), dpi=300)
 
 
 def sim(samples, ax, reps=1):
@@ -194,7 +194,7 @@ for trial in range(N_TEST):
             param_info.loc[param_name, "Max"] - param_info.loc[param_name, "Min"]
         )
 
-    fig_test, ax_test = plt.subplots(1, 3, figsize=(16, 10), dpi=300)
+    fig_test, ax_test = plt.subplots(1, 3, figsize=(16, 12), dpi=300)
     sim_results_test = sim(test, ax_test[0], reps=100)
     sim_results_test = pd.DataFrame(
         sim_results_test,
@@ -266,7 +266,7 @@ for trial in range(N_TEST):
     #    plt.plot( [result['Y1'], mean[idx,0]], [result['Y2'], mean[idx,1]], 'b-', lw=0.5, alpha=0.25)
 
     """
-    fig, ax = plt.subplots(1,2, figsize=(16,10))
+    fig, ax = plt.subplots(1,2, figsize=(16,12), dpi=300)
     ax[0].scatter(data['Beta'], data['Gamma'], data['Y1'], c='b', label='Y1')
     ax[0].scatter(data_test['Beta'], data_test['Gamma'], data_test['Y1'], c='r', label='Y1')
     ax[0].set_xlim(param_info.loc['Beta'][['Min', 'Max']])

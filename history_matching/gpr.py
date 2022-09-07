@@ -275,7 +275,7 @@ class GPR():
             try:
                 Kxx = self.kxx_gpu_wrapper(self.X, self.theta, add_sigma2_n = True)  # Y is noisy
             except pycuda._driver.MemoryError:
-                logger.info(f'Insufficient video memory for Kxx matrix of dimension {X.shape[0]} reverting to (slow) CPU computation.')
+                logger.info(f'Insufficient video memory for Kxx matrix of dimension {self.X.shape[0]} reverting to (slow) CPU computation.')
 
             Kxx_gpu = gpuarray.to_gpu(np.asarray(Kxx.copy(), np.float64))
             linalg.init()
@@ -425,8 +425,8 @@ class GPR():
                 Kxx[i,j] = sigma2_f * np.exp( -r2 / 2. )
 
                 if (deriv > 1): # Lengthscale derivatives
-                    d = deriv-2;
-                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d]);
+                    d = deriv-2
+                    Kxx[i,j] *= 0.5 * (dX[d] * dX[d]) / (theta[2+d] * theta[2+d])
 
                 Kxx[j,i] = Kxx[i,j]
 
@@ -594,8 +594,8 @@ class GPR():
                 # Test on CPU
                 Kxp_cpu = self.kernel_xp(X, P, theta)
                 if not np.allclose(Kxp_cpu, Kxp_gpu.get()):
-                    logger.debug(f'Kxx_gpu_wrapper(CPU):\n{Kxx_cpu}')
-                    logger.debug(f'Kxx_gpu_wrapper(GPU):\n{Kxx_gpu.get()}')
+                    logger.debug(f'Kxp_gpu_wrapper(CPU):\n{Kxp_cpu}')
+                    logger.debug(f'Kxp_gpu_wrapper(GPU):\n{Kxp_gpu.get()}')
                     raise
 
             return Kxp_gpu.get()
@@ -1000,7 +1000,7 @@ class GPR():
             for col in range(self.D):
                 if col > row:
                     fn = '%s-%s' % (Xcols[row], Xcols[col]) +'.'+self.fig_type
-                    fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+                    fig = plt.figure(figsize=(16,12), dpi=300)
 
                     x = X[Xcols[row]]
                     y = X[Xcols[col]]
@@ -1031,7 +1031,7 @@ class GPR():
         Returns: Matplotlib figure handle
         """
 
-        fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,12), dpi=300)
         sns.displot(self.training_data[self.Ycol], rug=True)
 
         return fig
@@ -1050,8 +1050,8 @@ class GPR():
         """
         Xmu = np.repeat( np.array([Xcenter]), res*res, axis=0)
 
-        fig = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)))
-        fig_std_latent = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)))
+        fig = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)), dpi=300)
+        fig_std_latent = plt.figure(figsize=(4*(self.D-1),4*(self.D-1)), dpi=300)
         for row in range(self.D):
             for col in range(self.D):
                 if col > row:
@@ -1123,7 +1123,7 @@ class GPR():
         train['Z_Score'] = (train[self.Ycol_orig] - train[mean_col]) / np.sqrt(train[var_col])
         test['Z_Score'] = (test[self.Ycol_orig] - test[mean_col]) / np.sqrt(test[var_col])
 
-        fig, ax = plt.subplots(nrows=1, ncols=1, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
+        fig, ax = plt.subplots(nrows=1, ncols=1, sharex='col', figsize=(16,12), dpi=300)
 
         ax.errorbar(x=test[self.Ycol_orig], y=test[mean_col], yerr=2*np.sqrt(test[var_col]), fmt='o', c='m', lw=0.5)
         ax.errorbar(x=train[self.Ycol_orig], y=train[mean_col], yerr=2*np.sqrt(train[var_col]), fmt='o', c='c', lw=0.5)

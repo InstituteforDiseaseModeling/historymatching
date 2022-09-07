@@ -198,7 +198,7 @@ class GLM(object):
         Returns: A matplotlib figure handle.
         """
 
-        fig, ax = plt.subplots(figsize=(16,6))
+        fig, ax = plt.subplots(figsize=(16,12), dpi=300)
         y = self.training_data[self.Ycol]
         ax.scatter(y, self.fitted_model.mu, marker='+')
         #line_fit = sm.OLS(y, sm.add_constant(yhat, prepend=True)).fit()
@@ -206,7 +206,7 @@ class GLM(object):
 
         ax.set_title('Model Fit Plot')
         ax.set_xlabel('Observed values')
-        ax.set_ylabel('Fitted values');
+        ax.set_ylabel('Fitted values')
 
         return fig
 
@@ -217,7 +217,7 @@ class GLM(object):
         Returns: A matplotlib figure handle.
         """
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(16,12), dpi=300)
         ax.scatter(self.fitted_model.mu, self.fitted_model.resid_pearson, marker='+')
         #ax.hlines(0, 0, 1)
         #ax.set_xlim(0, 1)
@@ -228,17 +228,17 @@ class GLM(object):
         return fig
 
 
-    def plot_deviance_redisuals(self):
+    def plot_deviance_residuals(self):
         """Generates a plot of the deviance residuals.
 
         Returns: A matplotlib figure handle.
         """
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(16,12), dpi=300)
         resid = self.fitted_model.resid_deviance.copy()
         resid_std = stats.zscore(resid)
         ax.hist(resid_std)#, bins=25)
-        ax.set_title('Standardized deviance residuals');
+        ax.set_title('Standardized deviance residuals')
 
         return fig
 
@@ -286,7 +286,7 @@ class GLM(object):
             for col in range(len(Xcols)):
                 if col > row:
                     fn = '%s-%s' % (Xcols[row], Xcols[col]) + '.'+self.fig_type
-                    fig = plt.figure(figsize=(6,6)) #GPy.plotting.plotting_library().figure()
+                    fig = plt.figure(figsize=(16, 12), dpi=300)
 
                     x_name = reverse_param_dict[ Xcols[row] ]
                     y_name = reverse_param_dict[ Xcols[col] ]
@@ -330,7 +330,7 @@ class GLM(object):
         scaled = np.log(1+self.training_data[self.Ycol])# / self.training_data[self.Ycol].max()
 
         Xcols = self.basis.get_terms()[0] # Not tested!
-        fig = plt.figure(figsize=(6,8)) #GPy.plotting.plotting_library().figure()
+        fig = plt.figure(figsize=(16,12), dpi=300)
         x = self.training_data[ Xcols ]
         y = self.training_data[self.Ycol]
 
@@ -377,7 +377,7 @@ class GLM(object):
         Returns: matplotlib figure handle.
         """
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(16, 12), dpi=300)
         ax = fig.add_subplot(111)
         sns.displot(self.training_data[self.Ycol], rug=True)
 
@@ -391,7 +391,7 @@ class GLM(object):
         Returns: matplotlib figure handle.
         """
 
-        fig, axes = plt.subplots(figsize=(16, 16))
+        fig, axes = plt.subplots(figsize=(16,12), dpi=300)
         #sns.despine(left=True)
 
         d = self.training_data.reset_index()
@@ -461,7 +461,7 @@ class GLM(object):
         test_exps = _ts.index.get_level_values(_tr.index.names.index('Exp_Id')).unique().tolist()
         exp_ids = list(set(train_exps + test_exps))
 
-        fig, ax = plt.subplots(figsize=(16,10))
+        fig, ax = plt.subplots(figsize=(16,12), dpi=300)
         ax.plot(train[self.Ycol], train['Yglm'], 'c+', ms=10, mew=1)
         ax.plot(test[self.Ycol], test['Yglm'], 'm+', ms=10, mew=1)
         ax.margins(x=0,y=0.05)
@@ -473,7 +473,7 @@ class GLM(object):
         figs['GLM Predicted vs Actual'] = fig
 
         for i, exp_id in enumerate(exp_ids):
-            fig, ax = plt.subplots(figsize=(16,10))
+            fig, ax = plt.subplots(figsize=(16,12), dpi=300)
             data_all = []
             cols = []
             if exp_id in train_exps: 

@@ -49,8 +49,8 @@ class SIR:
         P = [x / np.sum(x) * 100 for x in X]
         return T, X, P
 
-    def plot(self, figsize=(16, 10)):
-        fig, ax = plt.subplots(figsize=figsize)
+    def plot(self, figsize=(16, 12)):
+        fig, ax = plt.subplots(figsize=figsize, dpi=300)
         T, X, P = self.sim()
 
         plt.plot(T, P)

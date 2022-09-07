@@ -5,7 +5,7 @@ import os
 from pyDOE import lhs
 import pandas as pd
 import numpy as np
-from history_matching import HistoryMatching, quick_read
+from history_matching import HistoryMatching, quick_read_xl
 import random
 
 class MCMCCut():
@@ -18,9 +18,9 @@ class MCMCCut():
         self.Xcols_all_orig = None
 
         # Read in samples to choose initial points for the chains
-        self.samples = quick_read(samples_fn, sheetname='Samples')
+        self.samples = quick_read_xl(samples_fn, sheetname='Samples')
 
-        self.param_info = quick_read( os.path.join('..', 'Params.xlsx'), sheetname='Params').set_index('Name')
+        self.param_info = quick_read_xl( os.path.join('..', 'Params.xlsx'), sheetname='Params').set_index('Name')
 
 
     def cut(self, num_workers, num_desired_candidates, constraint):

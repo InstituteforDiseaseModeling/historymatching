@@ -80,8 +80,8 @@ class HistoryMatching():
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id')
             self.data['Train'] = self.data['Train'].astype(bool)  # Annoying that I have to cast this!
             self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)#.sort_index()
-            self.training_data = self.data.loc[self.data['Train'] == True]
-            self.test_data = self.data.loc[self.data['Train'] == False]
+            self.training_data = self.data.xs(True, level=0, axis=0, drop_level=False)
+            self.test_data = self.data.xs(False, level=0, axis=0, drop_level=False)
             logger.info('Using train/test split as specified by user')
         else:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
@@ -106,7 +106,7 @@ class HistoryMatching():
         # Dir prep
         if iterdir == None:
             iterdir = os.path.join('..', 'iter%d'%self.iteration)
-        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join(iterdir, 'Cuts',cut_name) )
+        self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join(iterdir, 'Cuts', cut_name) )
         self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
         self.gprdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GPR') )
         self.combineddir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'Implausibility') )
@@ -267,9 +267,9 @@ class HistoryMatching():
         test_mean['Yglm'] = self.glm_model.evaluate(test_mean)
 
         # Plot the errors and save to errors_glm.pdf
-        figs = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index());
+        figs = self.glm_model.plot_errors(train_mean.reset_index(), test_mean.reset_index())
         for key, fig in figs.items():
-            fig.savefig( os.path.join(self.glmdir, key+'.'+self.fig_type) );
+            fig.savefig( os.path.join(self.glmdir, key+'.'+self.fig_type) )
             plt.close(fig)
 
         if plot:
@@ -285,7 +285,7 @@ class HistoryMatching():
 
             fig = self.glm_model.plot_fitted_vs_observed();  fig.savefig( os.path.join(self.glmdir, 'fitted_vs_observed'+'.'+self.fig_type) ); plt.close(fig)
             fig = self.glm_model.plot_pearson_residuals();   fig.savefig( os.path.join(self.glmdir, 'pearson_residuals'+'.'+self.fig_type) );  plt.close(fig)
-            fig = self.glm_model.plot_deviance_redisuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_redisuals'+'.'+self.fig_type) ); plt.close(fig)
+            fig = self.glm_model.plot_deviance_residuals();  fig.savefig( os.path.join(self.glmdir, 'deviance_residuals'+'.'+self.fig_type) ); plt.close(fig)
             fig = self.glm_model.plot_QQ();                  fig.savefig( os.path.join(self.glmdir, 'QQ'+'.'+self.fig_type) );                 plt.close(fig)
             #SLOW: fig = self.glm_model.plot_histogram();           fig.savefig( os.path.join(self.glmdir, 'histogram'+'.'+self.fig_type) );          plt.close(fig)
             #SLOW: fig = self.glm_model.plot_fit();                 fig.savefig( os.path.join(self.glmdir, 'fit'+'.'+self.fig_type) );                plt.close(fig)
@@ -449,26 +449,27 @@ class HistoryMatching():
         self.gpr_model.save(gpr_model_with_test_fn)
 
         if plot:
-            fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive');
-            fig.savefig( os.path.join(self.gprdir, 'gpr'+'.'+self.fig_type) );             plt.close(fig)
+            fig = self.gpr_model.plot_errors(self.training_data.reset_index(), self.test_data.reset_index(), 'Mean_Err', 'Var_Err_Predictive')
+            fig.savefig( os.path.join(self.gprdir, 'gpr'+'.'+self.fig_type) )
+            plt.close(fig)
 
             '''' # Useful debugging
             if False:
                 mu = self.training_data[self.Xcols_GPR].mean()
                 #mu = train.loc[146][Xcols_GPR].mean(); print(mu)
-                (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25);
+                (fig_mean, fig_std_latent) = self.gpr_model.plot(mu, res=25)
                 fig_mean.savefig( os.path.join(self.gprdir, 'plot_mean'+'.'+self.fig_type) );    plt.close(fig_mean) # SLOW
                 fig_std_latent.savefig( os.path.join(self.gprdir, 'plot_std_latent'+'.'+self.fig_type) );    plt.close(fig_std_latent) # SLOW
             '''
 
-            fig = self.gpr_model.plot_histogram();
-            fig.savefig( os.path.join(self.gprdir, 'histogram'+'.'+self.fig_type) );
+            fig = self.gpr_model.plot_histogram()
+            fig.savefig( os.path.join(self.gprdir, 'histogram'+'.'+self.fig_type) )
             plt.close(fig)
 
             Ymean = self.training_data['Mean_Err'] + self.training_data['Yglm']
             Yvar = self.training_data['Var_Err_Predictive']
             #self.training_data['Sim_Result']
-            fig, ax = plt.subplots(figsize=(16,10))
+            fig, ax = plt.subplots(figsize=(16,12), dpi=300)
             ax.errorbar(
                 x=self.training_data['Sim_Result'], 
                 y=self.training_data['Mean_Err'] + self.training_data['Yglm'], 
@@ -484,15 +485,14 @@ class HistoryMatching():
             ax.plot( [xlim[0],xlim[1]], [xlim[0], xlim[1]], 'r-')
             ax.set_xlabel('Simulation Result')
             ax.set_ylabel('Predicted')
-            fig.savefig( os.path.join(self.gprdir, 'emulation'+'.'+self.fig_type) );
+            fig.savefig( os.path.join(self.gprdir, 'emulation'+'.'+self.fig_type) )
             plt.close(fig)
 
         return hyperopt
 
 
-
     def plot(self):
-        fig, ax = plt.subplots(figsize=(10,6)) # , sharex='col', sharey='row')
+        fig, ax = plt.subplots(figsize=(16,12), dpi=300)
 
         ax.errorbar(x=self.test_data[self.Ycol], y=self.test_data['Mean_Err'] + self.test_data['Yglm'], yerr=2*np.sqrt(self.test_data['Var_Err_Predictive']), fmt='o', c='m', lw=0.5)
         ax.errorbar(x=self.training_data[self.Ycol], y=self.training_data['Mean_Err'] + self.training_data['Yglm'], yerr=2*np.sqrt(self.training_data['Var_Err_Predictive']), fmt='o', c='c', lw=0.5)
@@ -544,7 +544,7 @@ class HistoryMatching():
             train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
             test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
-            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result);
+            fig = plot_errors(train_mean.reset_index(), test_mean.reset_index(), Ycol=self.Ycol, desired_result = self.desired_result)
             fig.savefig( os.path.join(self.combineddir, 'implausibility'+'.'+self.fig_type) );  plt.close(fig)
 
             if do_plot_data:

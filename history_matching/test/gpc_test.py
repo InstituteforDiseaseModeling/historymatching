@@ -100,7 +100,7 @@ print("Calling g.evaluate(...)...")
 prediction = g.evaluate(p)
 
 # PLOT
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 10), dpi=300)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 12), dpi=300)
 ax1.plot(x, f, "r-")
 ax1.scatter(x, (y + 1) / 2.0, s=100, color="g", marker="+")
 ax1.plot(p["x"], prediction["Mean"], "b-")  # TODO: Var
@@ -133,7 +133,7 @@ exit()
 # Slice across sigma2
 from matplotlib import cm
 
-fig = plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(16,12), dpi=300)
 ax1 = fig.add_subplot(1, 2, 1)
 ax2 = fig.add_subplot(1, 2, 2)
 
@@ -181,7 +181,7 @@ ax1.set_title("Negative log marginal likelihood wrt s2, l2=%f" % l2)
 # Slice across l2
 from matplotlib import cm
 
-fig = plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(16,12), dpi=300)
 ax1 = fig.add_subplot(1, 2, 1)
 ax2 = fig.add_subplot(1, 2, 2)
 
@@ -229,7 +229,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
-fig = plt.figure()
+fig = plt.figure(figsize=(16,12), dpi=300)
 ax1 = fig.add_subplot(1, 2, 1, projection="3d")
 ax2 = fig.add_subplot(1, 2, 2)  # , projection='3d')
 
