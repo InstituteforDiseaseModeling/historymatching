@@ -147,10 +147,10 @@ def plot_errors(train, test, Ycol, desired_result):
 
     a=0.05
     for data, ax, label in zip( [train_impl, test_impl], [ax1,ax2], ['Train', 'Test']):
-        if True in data.index:
-            ax.scatter(x=data.loc[True, Ycol], y=data.loc[True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25, label='Implausible')
-        if False in data.index:
-            ax.scatter(x=data.loc[False, Ycol], y=data.loc[False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25, label='Not Implausible')
+        if label=='Train':
+            ax.scatter(x=data[Ycol], y=data['Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25, label='Implausible')
+        if label=='Test':
+            ax.scatter(x=data[Ycol], y=data['Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25, label='Not Implausible')
         ax.set_xlabel('Simulation Result')
         ax.set_ylabel('Z-Score')
         ax.margins(x=0,y=0.05)
@@ -290,16 +290,16 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                     if true_or_false not in td.index:
                         continue
 
-                    x = td.loc[ true_or_false, [Xcols[row]] ].values
-                    y = td.loc[ true_or_false, [Xcols[col]] ].values
-                    s = scaled.loc[ true_or_false ]
+                    x = td[[Xcols[row]]].values
+                    y = td[[Xcols[col]]].values
+                    s = scaled
                     if not isinstance(s, np.float64): # If only one value
                         s = s.values[:,None]
                     else:
                         s = np.array([s])
 
                     sc = plt.scatter(x, y, s=s, c=s, cmap='jet', linewidths=1, alpha=0.5, edgecolors=ec, vmin=vmin, vmax=vmax)
-                    if False: #true_or_false == False:
+                    if true_or_false == False:
                         cbar = plt.colorbar(sc, ticks=ticks)
                         cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
                         cbar.ax.set_yticklabels(tick_labels)  # vertically oriented colorbar

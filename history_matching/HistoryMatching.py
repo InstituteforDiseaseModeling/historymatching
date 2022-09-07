@@ -79,9 +79,9 @@ class HistoryMatching():
         if 'Train' in self.inputs.columns:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id')
             self.data['Train'] = self.data['Train'].astype(bool)  # Annoying that I have to cast this!
-            self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)#.sort_index()
-            self.training_data = self.data.loc[True]
-            self.test_data = self.data.loc[False]
+            self.data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)  # .sort_index()
+            self.training_data = self.data[self.data.Train==True]
+            self.test_data = self.data[self.data.Train==False]
             logger.info('Using train/test split as specified by user')
         else:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
@@ -104,7 +104,7 @@ class HistoryMatching():
             logger.info(f"--> Testing  with {nTest} unique parameter configurations ({nTest*nRep} simulations including replicates)")
 
         # Dir prep
-        if iterdir == None:
+        if iterdir == None or np.isnan(iterdir):
             iterdir = os.path.join('..', 'iter%d'%self.iteration)
         self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join(iterdir, 'Cuts',cut_name) )
         self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
