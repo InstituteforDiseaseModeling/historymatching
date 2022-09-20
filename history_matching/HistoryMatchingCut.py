@@ -44,9 +44,11 @@ class HistoryMatchingCut():
             self.hdf_file = Path(hdf_file)
 
         for it in reversed(range(self.iteration + 1)): # Loop over previous iterations
+
             cuts_dir = self.iterdir_parent / f"iter{it}" / self.cut_folder
 
             for cut_name in [entry.name for entry in cuts_dir.iterdir() if entry.is_dir()]:
+
                 logger.info(f'Reading iteration {it} cut {cut_name}')
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
                 logger.info(f'\t Desired Result: {hm.desired_result}')
@@ -74,8 +76,8 @@ class HistoryMatchingCut():
 
         return
 
-
     def assess_plausibility(self, points, constraint = None):
+
         points['Implausible'] = False
 
         for cut in reversed(self.cuts):
@@ -99,51 +101,64 @@ class HistoryMatchingCut():
 
         return points
 
-
-
     def test_plausibility(self, points, constraint = None):
+
         new_candidates = points.copy()
         new_candidates['Implausible'] = False
 
-        # This code appears to work, even though Pandas cannot guarantee whether
-        # `plausible_candidates` is a view or a slice copy.
-        # Let's silence warning for this, during this code.
-        pd_level = pd.get_option("mode.chained_assignment")
-        pd.set_option("mode.chained_assignment",None)
-
         for cut in self.cuts:
+
             (it, cut_name) = cut
 
-            plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
+            # plausible_candidates = new_candidates.loc[new_candidates['Implausible']==False,:]
 
-            logger.debug(f'plausible_candidates.shape: {plausible_candidates.shape}')
-            if plausible_candidates.shape[0] == 0:
-                logger.info('Returning early because none of the candidates are plausible.')
-                return new_candidates['Implausible']
+            # logger.debug(f'plausible_candidates.shape: {plausible_candidates.shape}')
+            # if plausible_candidates.shape[0] == 0:
+            #     logger.info('Returning early because none of the candidates are plausible.')
+            #     return new_candidates['Implausible']
 
-            logger.info(f'Performing cut: iteration {it}, cut {cut_name}')
+            # logger.info(f'Performing cut: iteration {it}, cut {cut_name}')
+            # t = time.time()
+            # plausible_candidates.loc[:,'Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
+            # logger.debug(f'GLM:{time.time()-t}'); t=time.time()
+            # ret = self.gpr_all[cut].evaluate(plausible_candidates)
+            # logger.debug(f'GPR:{time.time()-t}'); t=time.time()
+            # plausible_candidates.loc[:,'Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
+            # plausible_candidates.loc[:,'Var_Predictive'] = ret['Var_Predictive']
+
+            # plausible_candidates.loc[:,'Implausibility_%d_%s'%(it, cut_name) ] = \
+            #     abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
+            #     np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
+
+            # plausible_candidates.loc[:,'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
+
+            # new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
+
+            plausible_candidates = (new_candidates["Implausible"] == False)
+            logger.debug(f"Num plausible candidates = {plausible_candidates.count()}")
+            if plausible_candidates.count() == 0:
+                logger.info("Returning early because non of the candidates are plausible.")
+                return new_candidates
+
+            logger.info(f"Performing cut: iteration {it}, cut '{cut_name}'")
             t = time.time()
-            plausible_candidates.loc[:,'Yglm'] = self.glm_all[cut].evaluate(plausible_candidates)
-            logger.debug(f'GLM:{time.time()-t}'); t=time.time()
-            ret = self.gpr_all[cut].evaluate(plausible_candidates)
-            logger.debug(f'GPR:{time.time()-t}'); t=time.time()
-            plausible_candidates.loc[:,'Mean_Estimate'] = plausible_candidates['Yglm'] + ret['Mean']
-            plausible_candidates.loc[:,'Var_Predictive'] = ret['Var_Predictive']
+            new_candidates.loc[plausible_candidates, "Yglm"] = self.glm_all[cut].evaluate(new_candidates[plausible_candidates])
+            logger.debug(f"GLM:{time.time() - t}"); t = time.time()
+            ret = self.gpr_all[cut].evaluate(new_candidates[plausible_candidates])
+            logger.debug(f"GPR:{time.time() - t}"); t = time.time()
+            new_candidates.loc[plausible_candidates, "Mean_Estimate"] = new_candidates.loc[plausible_candidates, "Yglm"] + ret["Mean"]
+            new_candidates.loc[plausible_candidates, "Var_Predictive"] = ret["Var_Predictive"]
 
-            plausible_candidates.loc[:,'Implausibility_%d_%s'%(it, cut_name) ] = \
-                abs( plausible_candidates['Mean_Estimate'] - self.hm_params[cut]['desired_result'] ) / \
-                np.sqrt(plausible_candidates['Var_Predictive'] + self.hm_params[cut]['desired_result_var'] + self.hm_params[cut]['discrepancy_var'] )
+            implausibility_col = f"Implausibility_{it}_{cut_name}"
+            new_candidates.loc[plausible_candidates, implausibility_col] = abs(new_candidates.loc[plausible_candidates, "Mean_Estimate"]) - self.hm_params[cut]["desired_result"] / np.sqrt(new_candidates.loc[plausible_candidates, "Var_Predictive"] + self.hm_params[cut]["desired_result_var"] + self.hm_params[cut]["discrepancy_var"])
+            implausible_col = f"Implausible_{it}_{cut_name}"
+            new_candidates[implausible_col] = np.isnan(new_candidates[implausibility_col]) | (new_candidates[implausibility_col] > self.hm_params[cut]["implausibility_threshold"])
+            new_candidates.loc[plausible_candidates, "Implausible"] |= new_candidates.loc[plausible_candidates, implausible_col]
 
-            plausible_candidates.loc[:,'Implausible_%d_%s'%(it, cut_name) ] = plausible_candidates[ 'Implausibility_%d_%s'%(it, cut_name) ] > self.hm_params[cut]['implausibility_threshold']
-
-            new_candidates['Implausible'] |= plausible_candidates[ 'Implausible_%d_%s'%(it, cut_name) ]
-
-        pd.set_option("mode.chained_assignment", pd_level)  # restore warnings outside this code
-
-        return new_candidates['Implausible']
-
+        return new_candidates   # new_candidates['Implausible']
 
     def cut(self, num_desired_candidates = 5000, constraint = None):
+
         non_implausible_candidates = pd.DataFrame()
         num_trials = 0
 
@@ -185,10 +200,11 @@ class HistoryMatchingCut():
             logger.debug(f'Test plausibility:{time.time() - t}')
 
             t = time.time()
-            new_candidates = new_candidates.merge(plausibility.to_frame(), left_index=True, right_index=True)
+            new_candidates = new_candidates.merge(plausibility, left_index=True, right_index=True, suffixes=(None, "_drop"))
+            drop_columns = [column for column in new_candidates.columns if column.endswith("_drop")]
+            new_candidates = new_candidates.drop(drop_columns, axis=1)
             logger.debug(f'Merge plausibility (needed?):{time.time() - t}')
             #new_candidates['Implausible'] = False
-
 
             num_trials += new_candidates.shape[0]
             new_non_implausible_candidates = new_candidates.loc[ new_candidates['Implausible'] == False, :]
@@ -202,13 +218,11 @@ class HistoryMatchingCut():
 
             logger.info(f"Plausible candidates: New ={stats['num_new_plausible_candidates']}, Tot ={stats['num_plausible_candidates']}")
 
-        #non_implausible_candidates = candidates.loc[ candidates['Implausible'] == False, :]
-
-        logger.info(f'Saving to:{self.hdf_file}')
+        logger.info(f"Saving non-implausible candidates to:{self.hdf_file}")
+        logger.info(f"non-implausible candidates DataFrame columns: {non_implausible_candidates.columns}")
         hdf = pd.HDFStore(self.hdf_file)
-        hdf.put('values', non_implausible_candidates[self.Xcols_all_orig].reset_index(drop=True))
-        #hdf.put('non_implausible', non_implausible_candidates.set_index(self.Xcols_all_orig))
-        #hdf.put('all', candidates.set_index(self.Xcols_all_orig))
+        assert any(map(lambda col: col.startswith("Implausib"), non_implausible_candidates.columns)), "No columns in non_implausible_candidates start with 'Implausib' ('Implausible...', 'Implausibility...')"
+        hdf.put("values", non_implausible_candidates.reset_index(drop=True))
         hdf.close()
 
         rejected_percent = 100 * (num_trials-non_implausible_candidates.shape[0]) / float(num_trials)
@@ -219,10 +233,12 @@ class HistoryMatchingCut():
         }
 
         stats_fn = self.hdf_file.parent / f"{self.hdf_file.stem}_stats.json"
+        logger.info(f"Saving stats to '{stats_fn}'...")
         with stats_fn.open("w") as f:
             json.dump(stats, f)
 
         csv_fn = self.hdf_file.parent / f"{self.hdf_file.stem}.csv"
+        logger.info(f"Saving non-implausible candidates to '{csv_fn}'...")
         non_implausible_candidates[self.Xcols_all_orig].to_csv(csv_fn, index=False)
 
         '''
@@ -233,6 +249,6 @@ class HistoryMatchingCut():
         writer.save()
         '''
 
-        logger.info(f"Rejected {rejected_percent:.1f}% [{(num_trials-non_implausible_candidates.shape[0]):d} / {num_trials:d}]")
+        logger.info(f"Rejected {rejected_percent:.2f}% [{(num_trials-non_implausible_candidates.shape[0]):d} / {num_trials:d}]")
 
         return (non_implausible_candidates, stats)

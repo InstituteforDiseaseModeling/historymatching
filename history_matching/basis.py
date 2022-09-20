@@ -358,7 +358,7 @@ class Basis():
 
         params = pd.Series(fit.params, index=data_matrix.columns)
         params = params[abs(params)>0]
-        logger.info('Non-Zero:', len(params), 'of', self.D)
+        logger.info(f"Non-Zero:{len(params)} of {self.D}")
 
         if len(params) == 0:
             raise ValueError('In regularize, no parameters had a non-zero coefficient.  Try making alpha smaller.')
@@ -408,7 +408,7 @@ class Basis():
         num_params = np.zeros_like(alpha)
         bic = np.zeros_like(alpha)
         for i,a in enumerate(alpha):
-            logger.info('Regularize: ', i,' of ', len(alpha))
+            logger.info(f"Regularize: {i} of {len(alpha)}")
             fit = model.fit_regularized(alpha=a, refit=True)
 
             params = pd.Series(fit.params, index=data_matrix.columns)

@@ -85,7 +85,8 @@ def main(alpha_glm=0.001, alpha_gpr=0.0, force_optimize_glm=True, force_optimize
     print(" *", "\n * ".join(param_names))
 
     # Choose GLM inputs
-    try:
+    glm_file = cuts_dir / "basis_glm.json"
+    if glm_file.exists():
         with (cuts_dir / "basis_glm.json").open("r") as data_file:
             config = json.load(data_file)
             basis_glm = Basis.deserialize(config["Basis"])
@@ -94,7 +95,7 @@ def main(alpha_glm=0.001, alpha_gpr=0.0, force_optimize_glm=True, force_optimize
                 .set_index(["Sample_Id", "Sim_Id"])
                 .squeeze()
             )
-    except:
+    else:
         basis_glm = Basis.polynomial_basis(
             params=param_names,
             intercept=True,
@@ -135,11 +136,12 @@ def main(alpha_glm=0.001, alpha_gpr=0.0, force_optimize_glm=True, force_optimize
             )
 
     # Choose GPR inputs
-    try:
-        with (cuts_dir / "basis_gpr.json").open("r") as data_file:
+    gpr_file = cuts_dir / "basis_gpr.json"
+    if gpr_file.exists():
+        with gpr_file.open("r") as data_file:
             config = json.load(data_file)
             basis_gpr = Basis.deserialize(config["Basis"])
-    except:
+    else:
         basis_gpr = Basis.polynomial_basis(
             params=param_names, intercept=False, first_order=True, param_info=param_info
         )
@@ -158,7 +160,7 @@ def main(alpha_glm=0.001, alpha_gpr=0.0, force_optimize_glm=True, force_optimize
         print(
             "Regularization for GPR selected:\n * " + "\n * ".join(basis_gpr.get_terms())
         )
-        with (cuts_dir / "basis_gpr.json").open("w") as fout:
+        with gpr_file.open("w") as fout:
             json.dump(
                 {
                     "Basis": basis_gpr.serialize(),

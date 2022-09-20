@@ -71,8 +71,8 @@ class CutNearSamples():
                 self.gpr_all[(it, cut_name)] = GPR.from_config(os.path.join(cuts_dir, cut_name, 'GPR', 'model_with_test_data.json'))
                 self.cuts.append((it, cut_name))
 
-
     def test_plausibility(self, points, constraint = None):
+
         new_candidates = points.copy()
         new_candidates['Implausible'] = False
 

@@ -43,12 +43,12 @@ class ProgressPlotting:
                 for name in cuts_dir.iterdir()
                 if name.is_dir()
             ]:
-                logger.info("Reading iteration %d. cut %s" % (it, cut_name))
+                logger.info(f"Reading iteration {it}. Cut '{cut_name}'")
                 hm = HistoryMatching.from_file(cuts_dir, cut_name)
-                logger.info("\tDesired Result:", hm.desired_result)
-                logger.info("\tDesired Result Var:", hm.desired_result_var)
-                logger.info("\tDiscrepancy Var:", hm.discrepancy_var)
-                logger.info("\tImp Thresh:", hm.implausibility_threshold)
+                logger.info(f"\tDesired Result:     {hm.desired_result}")
+                logger.info(f"\tDesired Result Var: {hm.desired_result_var}")
+                logger.info(f"\tDiscrepancy Var:    {hm.discrepancy_var}")
+                logger.info(f"\tImp Thresh:         {hm.implausibility_threshold}")
 
                 if self.param_info is None:
                     self.param_info = hm.param_info
