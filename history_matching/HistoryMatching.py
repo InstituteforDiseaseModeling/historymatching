@@ -1,3 +1,4 @@
+from math import isnan
 import pandas as pd
 import numpy as np
 import os, errno
@@ -76,12 +77,11 @@ class HistoryMatching():
 
         self.results.name = 'Sim_Result'
         self.Ycol = self.results.name
-        if 'Train' in self.inputs.columns:
+        if ("Train" in self.inputs.columns) and (self.inputs.Train.sum() > 0):
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id')
-            self.data['Train'] = self.data['Train'].astype(bool)  # Annoying that I have to cast this!
-            self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)#.sort_index()
-            self.training_data = self.data.loc[True]
-            self.test_data = self.data.loc[False]
+            self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)
+            self.training_data = self.data.loc[self.data.Train == True]
+            self.test_data = self.data.loc[self.data.Train == False]
             logger.info('Using train/test split as specified by user')
         else:
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id').set_index(['Sample_Id', 'Sim_Id'])#.sort_index()
@@ -104,7 +104,8 @@ class HistoryMatching():
             logger.info(f"--> Testing  with {nTest} unique parameter configurations ({nTest*nRep} simulations including replicates)")
 
         # Dir prep
-        if iterdir == None:
+        # TODO - fix situation allowing iterdir to be NaN (value from history_matching_config.xlsx)
+        if (iterdir == None) or isnan(iterdir):
             iterdir = os.path.join('..', 'iter%d'%self.iteration)
         self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join(iterdir, 'Cuts',cut_name) )
         self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
@@ -388,7 +389,7 @@ class HistoryMatching():
             if os.path.isfile(gpr_model_fn):
                 timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
                 backup_fn = os.path.join(self.gprdir, f'model_{timestamp}.json')
-                logger.print(f'Backing up gpr model to {backup_fn}')
+                logger.info(f'Backing up gpr model to {backup_fn}')
                 copyfile(gpr_model_fn, backup_fn)
 
             #TODO: Check guess within bounds
@@ -415,7 +416,7 @@ class HistoryMatching():
         train_mean = self.training_data.reset_index().groupby(['Sample_Id']).mean()
         test_mean = self.test_data.reset_index().groupby(['Sample_Id']).mean()
 
-        logger.print('GPR evaluating training data')
+        logger.info('GPR evaluating training data')
         ret = self.gpr_model.evaluate(train_mean)
         train_mean['Mean_Err'] = ret['Mean']
         train_mean['Mean_Estimate'] = train_mean['Mean_Err']

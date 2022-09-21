@@ -72,7 +72,7 @@ try:
         basis_glm = Basis.deserialize(config['Basis'])
         fitted_values = pd.read_json(config['Fitted_Values'], orient='split').set_index(['Sample_Id', 'Sim_Id']).squeeze()
 except:
-    basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info, verbose = True)
+    basis_glm = Basis.polynomial_basis(params=param_names, intercept = True, first_order=True, second_order=True, third_order=False, param_info=param_info)
 
     basis_glm.plot_regularize(inputs, results, alpha = np.logspace(-3,1, 25), scaleX=True)
     alpha_glm = float(input('What would you like to use for the GLM regularization parameter, alpha_glm = '))

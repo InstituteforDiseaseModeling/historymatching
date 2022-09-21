@@ -1021,13 +1021,15 @@ class GPR():
 
 
     def plot_histogram(self):
-        """Plots histograms of the training data using Seaborn's distplot routine.
+        """
+        Plots histograms of the training data using Seaborn's histplot routine.
 
         Returns: Matplotlib figure handle
         """
 
         fig, ax = plt.subplots(nrows=1, ncols=1) # , figsize=(5,5), sharex='col', sharey='row')
-        sns.distplot(self.training_data[self.Ycol], rug=True, ax = ax)
+        sns.histplot(self.training_data[self.Ycol], kde=True, stat="density", kde_kws=dict(cut=3))
+        sns.rugplot(self.training_data[self.Ycol])
 
         return fig
 
