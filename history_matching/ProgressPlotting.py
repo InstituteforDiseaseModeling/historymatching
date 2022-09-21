@@ -127,9 +127,9 @@ class ProgressPlotting():
         test_grid['Pred'] = clf.predict(test_grid)
 
         plt.contourf(
-            np.reshape(test_grid[x.name], (res,res)),
-            np.reshape(test_grid[y.name], (res,res)),
-            np.reshape(test_grid['Pred'], (res,res)),
+            np.reshape(test_grid[x.name].to_numpy(), (res,res)),
+            np.reshape(test_grid[y.name].to_numpy(), (res,res)),
+            np.reshape(test_grid['Pred'].to_numpy(), (res,res)),
             #cmap = plt.cm.jet,
             #vmin=0,
             #vmax=1

@@ -82,9 +82,9 @@ class GLM(object):
             self.glmfam = sm.families.Gaussian()
 
         if self.fitted_model is not None:
-            logger.info(self.fitted_model.summary()) # Should work, but was causing errors with some versions of statsmodels.
+            # logger.info(self.fitted_model.summary()) # Should work, but was causing errors with some versions of statsmodels.
             logger.info(f'AIC: {self.fitted_model.aic}')
-            logger.info(f'BIC: {self.fitted_model.bic}')
+            logger.info(f'BIC: {self.fitted_model.bic_llf}')
             #logger.info(f'ITERATION: {self.fitted_model.fit_history["iteration"]}')
 
 

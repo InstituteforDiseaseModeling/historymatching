@@ -148,9 +148,9 @@ def plot_errors(train, test, Ycol, desired_result):
     a=0.05
     for data, ax, label in zip( [train_impl, test_impl], [ax1,ax2], ['Train', 'Test']):
         if True in data.index:
-            ax.scatter(x=data.loc[True, Ycol], y=data.loc[True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25, label='Implausible')
+            ax.scatter(x=data.loc[data.Train==True, Ycol], y=data.loc[data.Train==True, 'Z_Noisy'], marker='x', facecolor='r', lw=1, alpha=0.5, s=25, label='Implausible')
         if False in data.index:
-            ax.scatter(x=data.loc[False, Ycol], y=data.loc[False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25, label='Not Implausible')
+            ax.scatter(x=data.loc[data.Train==False, Ycol], y=data.loc[data.Train==False, 'Z_Noisy'], marker='.', facecolor='k', lw=1, alpha=0.5, s=25, label='Not Implausible')
         ax.set_xlabel('Simulation Result')
         ax.set_ylabel('Z-Score')
         ax.margins(x=0,y=0.05)
@@ -185,8 +185,8 @@ def plot_errors_old(train, test, Ycol, desired_result):
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, sharex='col', figsize=(16,10)) # , sharex='col', sharey='row')
 
     ax = ax1
-    ax.errorbar(x=test_impl.loc[True, Ycol], y=test_impl.loc[True, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[True, 'Var_Err_Predictive']), fmt='o', ms=3, c='r', lw=0.5)
-    ax.errorbar(x=test_impl.loc[False, Ycol], y=test_impl.loc[False, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[False, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
+    ax.errorbar(x=test_impl.loc[test_impl.Implausible==True, Ycol], y=test_impl.loc[test_impl.Implausible==True, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[test_impl.Implausible==True, 'Var_Err_Predictive']), fmt='o', ms=3, c='r', lw=0.5)
+    ax.errorbar(x=test_impl.loc[test_impl.Implausible==False, Ycol], y=test_impl.loc[test_impl.Implausible==False, 'Mean_Estimate'], yerr=2*np.sqrt(test_impl.loc[test_impl.Implausible==False, 'Var_Err_Predictive']), fmt='o', ms=3, c='m', lw=0.5)
     ax.errorbar(x=train[Ycol], y=train['Mean_Estimate'], yerr=2*np.sqrt(train['Var_Err_Predictive']), fmt='o', ms=3, c='c', lw=0.5)
     ax.margins(x=0,y=0.05)
     xlim = ax.get_xlim()
@@ -227,8 +227,8 @@ def plot_errors_old(train, test, Ycol, desired_result):
     ax = ax3
     ax.scatter(x=train[Ycol], y=train['Z_Noisy'], facecolor='c', marker='.', lw=1, alpha=0.5, s=50)
     #ax.scatter(x=test[Ycol], y=test['Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50)
-    ax.scatter(x=test_impl.loc[True, Ycol], y=test_impl.loc[True, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='r')
-    ax.scatter(x=test_impl.loc[False, Ycol], y=test_impl.loc[False, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='k')
+    ax.scatter(x=test_impl.loc[test_impl.Implausible==True, Ycol], y=test_impl.loc[test_impl.Implausible==True, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='r')
+    ax.scatter(x=test_impl.loc[test_impl.Implausible==False, Ycol], y=test_impl.loc[test_impl.Implausible==False, 'Z_Noisy'], facecolor='m', marker='.', lw=1, alpha=0.5, s=50, edgecolors='k')
     ax.set_xlabel(Ycol)
     ax.set_ylabel('Z-Score')
     ax.margins(x=0,y=0.05)
@@ -290,9 +290,9 @@ def plot_data(data, Ycol, param_info, circle_points=pd.DataFrame(), saveto_dir =
                     if true_or_false not in td.index:
                         continue
 
-                    x = td.loc[ true_or_false, [Xcols[row]] ].values
-                    y = td.loc[ true_or_false, [Xcols[col]] ].values
-                    s = scaled.loc[ true_or_false ]
+                    x = td.loc[ td.index == true_or_false, [Xcols[row]] ].values
+                    y = td.loc[ td.index == true_or_false, [Xcols[col]] ].values
+                    s = scaled.loc[ scaled.index == true_or_false ]
                     if not isinstance(s, np.float64): # If only one value
                         s = s.values[:,None]
                     else:
