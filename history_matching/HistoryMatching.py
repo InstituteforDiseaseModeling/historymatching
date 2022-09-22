@@ -105,7 +105,7 @@ class HistoryMatching():
 
         # Dir prep
         # TODO - fix situation allowing iterdir to be NaN (value from history_matching_config.xlsx)
-        if (iterdir == None) or isnan(iterdir):
+        if (iterdir == None) or (isinstance(iterdir, float) and isnan(iterdir)):
             iterdir = os.path.join('..', 'iter%d'%self.iteration)
         self.cutdir = HistoryMatching.mkdir_if_needed(os.path.join(iterdir, 'Cuts',cut_name) )
         self.glmdir = HistoryMatching.mkdir_if_needed(os.path.join(self.cutdir, 'GLM') )
