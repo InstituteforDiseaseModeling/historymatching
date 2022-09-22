@@ -79,7 +79,7 @@ class HistoryMatching():
         self.Ycol = self.results.name
         if ("Train" in self.inputs.columns) and (self.inputs.Train.sum() > 0):
             self.data = pd.merge(self.inputs.reset_index(), self.results.reset_index(), on='Sample_Id')
-            self.data.set_index(['Train', 'Sample_Id', 'Sim_Id'], inplace=True)
+            self.data.set_index(['Sample_Id', 'Sim_Id'], inplace=True)
             self.training_data = self.data.loc[self.data.Train == True]
             self.test_data = self.data.loc[self.data.Train == False]
             logger.info('Using train/test split as specified by user')
