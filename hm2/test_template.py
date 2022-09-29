@@ -22,21 +22,36 @@ logger.addHandler(logging.StreamHandler())
 
 __prng: np.random.Generator = None
 
+# https://www.desmos.com/calculator/to2fujjctw
+# Note: parameter 'a' is in log2 space.
+ACTUAL_A = -9.0
+ACTUAL_B = 0.0
+ACTUAL_C = -1.5
+ACTUAL_D = 5.0
+
+FEATURE_POINTS = np.arange(0, 33)
 
 def main(num_observations=33, num_initial_samples=32):
 
-    # Note: parameter 'a' is in log2 space.
-    # Actual: a = -9 (1/512), b = 0, c = 1.5, d = 5
+    config = dict(
+        max_iterations = 10,
+        implausibility_threshold = 0.5,
+        non_implausible_target = 0.01,
+        username = "clorton"
+    )
+
+    config = hm2.Config(**config)
+
     parameter_space = pd.DataFrame(
-        [("a", -11.0, -7.0), ("b", -10.0, 10.0), ("c", 0, 3), ("d", 0, 10)],
+        [("a", ACTUAL_A-2, ACTUAL_A+2), ("b", ACTUAL_B-5, ACTUAL_B+5), ("c", ACTUAL_C-1.5, ACTUAL_C+1.5), ("d", ACTUAL_D-5, ACTUAL_D+5)],
         columns=["parameter", "min", "max"],
     )
     observations = generate_observations(parameter_space, num_observations)
     initial_sample_points = samplers.lhs(parameter_space, num_initial_samples)
     initial_sample_points["iteration"] = 0
 
-    config = hm2.Config(max_iterations=10, implausibility_threshold=0.5)
     state = hm2.State(parameter_space, observations, initial_sample_points)
+
     recipe = hm2.Recipe()
     recipe.start_step_callback = start_callback
     recipe.run_simulators = run_model
@@ -44,6 +59,9 @@ def main(num_observations=33, num_initial_samples=32):
     recipe.generate_next_sample_points = next_point_generation
 
     hm2.do_step(state, recipe, config)
+
+    state.iteration = 1
+    start_callback(state)    
 
     return
 
@@ -54,10 +72,10 @@ def generate_observations(
     percent_variance: float = 10.0,
 ) -> pd.DataFrame:
 
-    values = model(-9.0, 0, -1.5, 5)
+    values = model(ACTUAL_A, ACTUAL_B, ACTUAL_C, ACTUAL_D)
     noise = __prng.normal(size=values.shape[0])
     results = values + noise
-    ts = np.arange(0, 33)
+    ts = FEATURE_POINTS
     columns = list(map(lambda t: f"t{t}", ts))
     observations = pd.DataFrame(data={c: [v] for c, v in zip(columns, results)})
 
@@ -71,7 +89,7 @@ def generate_observations(
 
 def model(a, b, c, d):
 
-    ts = np.arange(0, 33)
+    ts = FEATURE_POINTS
     output = system(ts, 2.0**a, b, c, d)  # a is in log2 space
 
     return output
@@ -93,6 +111,9 @@ def start_callback(state: hm2.State) -> None:
         values = model(row.a, row.b, row.c, row.d)
         plt.plot(values)
 
+    actual = model(ACTUAL_A, ACTUAL_B, ACTUAL_C, ACTUAL_D)
+    plt.plot(actual, "ro")
+
     figure2.savefig(WORK_DIR / f"samples_{state.iteration}.png")
 
     return
@@ -109,7 +130,7 @@ def run_model(
         results[-1].extend(model_output)
 
     columns = ["iteration", "replicate", "a", "b", "c", "d"]
-    columns.extend(map(lambda t: f"t{t}", np.arange(0, 33)))
+    columns.extend(map(lambda t: f"t{t}", FEATURE_POINTS))
     results = pd.DataFrame(results, columns=columns)
 
     return results
@@ -155,7 +176,7 @@ def next_point_generation(
         target = observations[feature][
             0
         ]  # observations[feature] is a Series, we want a scalar
-        plausible = ((prediction.value - target) / target) < 0.75
+        plausible = ((prediction.value - target) / target) < 0.25
         if not any(plausible):
             logger.info(
                 f"Last remaining sample points:\n{proposed_sample_points.head()}"

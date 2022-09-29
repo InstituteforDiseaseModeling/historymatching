@@ -26,36 +26,36 @@ from .config import Config
 logger = logging.getLogger()
 
 
-def do_step(state: State, setup: Recipe, config: Config):
+def do_step(state: State, recipe: Recipe, config: Config):
 
     logger.info(f"Starting step{state.iteration}...")
 
     state.validate()
 
-    setup.start_step_callback(state)
+    recipe.start_step_callback(state)
 
     test_points = get_test_points_for_iteration(state.iteration, state.sample_points)
 
-    test_results = setup.run_simulators(state.iteration, test_points, config)
+    test_results = recipe.run_simulators(state.iteration, test_points, config)
 
     merge_results(state.iteration, test_results, state, config)
 
-    selected_features = setup.select_features(
+    selected_features = recipe.select_features(
         state.iteration, state.observations, state.simulator_results, config
     )
 
-    new_emulators = setup.generate_emulators(
+    new_emulators = recipe.generate_emulators(
         state.iteration,
         selected_features,
         state.observations,
         state.simulator_results,
-        setup.generate_emulator_for_feature,
+        recipe.generate_emulator_for_feature,
         config,
     )
 
     deposit_emulators(state.iteration, new_emulators, state, config)
 
-    (next_sample_points, non_implausible_fraction) = setup.generate_next_sample_points(
+    (next_sample_points, non_implausible_fraction) = recipe.generate_next_sample_points(
         state.iteration,
         state.parameter_space,
         state.observations,
@@ -66,11 +66,11 @@ def do_step(state: State, setup: Recipe, config: Config):
 
     update_test_points(state.iteration, next_sample_points, state)
 
-    setup.end_step_callback(state)
+    recipe.end_step_callback(state)
 
     logger.info(f"Finished step {state.iteration}...")
 
-    return setup.exit_predicate(state.iteration, non_implausible_fraction, config)
+    return recipe.exit_predicate(state.iteration, non_implausible_fraction, config.non_implausible_target, config)
 
 
 def get_test_points_for_iteration(
@@ -120,7 +120,7 @@ def update_test_points(
     logger.info(
         f"Adding {len(next_sample_points)} new sample points on step {iteration}..."
     )
-    next_sample_points["iteration"] = iteration
+    next_sample_points["iteration"] = iteration+1
     state.sample_points = pd.concat([state.sample_points, next_sample_points])
     state.sample_points.reset_index(drop=True)
 
