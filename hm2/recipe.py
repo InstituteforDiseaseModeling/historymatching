@@ -19,7 +19,7 @@ class Recipe:
         self.generate_emulator_for_feature = Recipe._generate_emulator_for_feature
         self.generate_next_sample_points = Recipe.next_point_generation
         self.end_step_callback = Recipe.pirates
-        self.exit_predicate = lambda iter, frac, cfg: True
+        self.exit_predicate = lambda iter, frac, target, cfg: True
         return
 
     @staticmethod
