@@ -105,7 +105,8 @@ def main():
 
     next_points = state.sample_points[state.sample_points.iteration == max(state.sample_points.iteration)].b
     print(f"Actual intercept = {ACTUAL_B}")
-    print(f"Correct intercept, based on noisy sampling = {np.int64(observations[observations.statistic == 'mean'].x5) - (5*SLOPE)}")
+    print(f"Correct intercept, based on noisy sampling = {np.float64(observations[observations.statistic == 'mean'].x5) - (SLOPE*5)}")
+    print(observations)
     print(f"Min/max of last selected test points: {next_points.min():0.04f}/{next_points.max():0.04f}")
     print(f"Selected the following points for next iteration:\n{next_points}")
 
