@@ -41,7 +41,7 @@ def main():
     initial_sample_points = samplers.lhs(parameter_space, 11)
     initial_sample_points["iteration"] = 0
 
-    state = hm2.State(parameter_space, observations, initial_sample_points)
+    state = hm2.Situation(parameter_space, observations, initial_sample_points)
 
     recipe = hm2.Recipe()
     recipe.start_step_callback = lambda s: print(f"Starting iteration {s.iteration}")

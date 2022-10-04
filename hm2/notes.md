@@ -9,11 +9,9 @@
 
 - `one_parameter.py` tries to find the intercept for a linear equation `y=mx+b` with some noise in the observations
   - first it specifies a few configuration parameters and puts them in a `Config` object (see `config.py`)
-  - second it creates an initial `State` object (see `state.py`)\* with a parameter space for search, statistics about the observations, and some initial sample points in parameter space
+  - second it creates an initial `Situation` object (see `situation.py`)\* with a parameter space for search, statistics about the observations, and some initial sample points in parameter space
   - third it creates a `Recipe` object (see `recipe.py`) which it customizes for running its model, generating an emulator (using @rnunez-IDM initial linear emulator), and choosing next points in the parameter space. We could use a dictionary with key:value pairs for steps of the "recipe" but I prefer an object to help catch spelling mistakes/typos.
   - finally it calls `do_step()` (see `step.py`) with the state, recipe, and config created above until `do_step()` returns `True` (== done)
-
-  \*I'm thinking about renaming `State` (very boring) to `Situation` [reference](https://en.wikipedia.org/wiki/Michael_Sorrentino).
 
 ----
 
@@ -31,10 +29,10 @@
 - [ ] need example generating other emulator(s) than the default
 - [ ] need to spec. emulator statistics returned from generating emulators (@rnunez-IDM) and spec. data structure for same (@clorton)
 - [ ] need example with custom next point(s) generation algorithm
-- [ ] need functions on `State` to save to/restore from disk
+- [ ] need functions on `Situation` to save to/restore from disk
 - [ ] need example hooking `end_step_callback` to output diagnostic information from each step of calibration
-- [ ] need example hooking `end_step_callback` to use `State` save to disk functionality
-- [ ] need example using `State` restore from disk functionality to re-start or branch a calibration
+- [ ] need example hooking `end_step_callback` to use `Situation` save to disk functionality
+- [ ] need example using `Situation` restore from disk functionality to re-start or branch a calibration
 ----
 - [ ] need to update `history_matching` examples to use `hm2`, when ready
   - radius complete

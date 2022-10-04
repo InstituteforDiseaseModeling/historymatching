@@ -9,7 +9,7 @@ import pandas as pd
 from hm2.config import Config
 from hm2.recipe import Recipe
 from hm2.samplers import lhs, grid, random
-from hm2.state import State
+from hm2.situation import Situation
 from hm2.step import do_step
 from hm2.utils import mean_and_variance_for_observations, features_from_observations
 from history_matching.emulators import BaseEmulator
@@ -45,10 +45,10 @@ class RecipeTests(unittest.TestCase):
 
         messages = []
 
-        def start_step(state: State) -> None:
+        def start_step(situation: Situation) -> None:
 
             messages.append("Start Step")
-            self.assertTrue(isinstance(state, State))
+            self.assertTrue(isinstance(situation, Situation))
 
             return
 
@@ -113,10 +113,10 @@ class RecipeTests(unittest.TestCase):
 
             return next_points, 1.0
 
-        def end_step(state: State) -> None:
+        def end_step(situation: Situation) -> None:
 
             messages.append("End Step")
-            self.assertTrue(isinstance(state, State))
+            self.assertTrue(isinstance(situation, Situation))
 
             return
 
@@ -140,10 +140,10 @@ class RecipeTests(unittest.TestCase):
         recipe.end_step_callback           = end_step
         recipe.exit_predicate              = predicate
 
-        state = State(parameter_space, observations, initial_sample_points)
+        situation = Situation(parameter_space, observations, initial_sample_points)
         config = Config(max_iterations=42, implausibility_threshold=0.125, non_implausible_target=0.95)
 
-        do_step(state, recipe, config)
+        do_step(situation, recipe, config)
 
         self.assertEqual(messages[0], "Start Step")
         self.assertEqual(messages[1], "Run Simulators")
@@ -197,82 +197,82 @@ class SamplerTests(unittest.TestCase):
         return
 
 
-class StateValidationTests(unittest.TestCase):
+class SituationValidationTests(unittest.TestCase):
 
     def test_valid_iteration(self):
 
-        State.validate_iteration(0)
-        State.validate_iteration(1)
-        State.validate_iteration(1<<30)     # ~1 million
+        Situation.validate_iteration(0)
+        Situation.validate_iteration(1)
+        Situation.validate_iteration(1<<30)     # ~1 million
 
         return
 
     def test_invalid_iteration(self):
 
         with self.assertRaises(TypeError):
-            State.validate_iteration("42")
+            Situation.validate_iteration("42")
 
         with self.assertRaises(ValueError):
-            State.validate_iteration(3.14159265)
+            Situation.validate_iteration(3.14159265)
 
         with self.assertRaises(ValueError):
-            State.validate_iteration(-1)
+            Situation.validate_iteration(-1)
 
         return
 
     def test_valid_parameter_space(self):
 
-        State.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"]))
+        Situation.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"]))
 
-        State.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10, "first axis"], ["y", 0, 100, "second axis"], ["z", 0, 1000, "third axis"]], columns=["parameter", "minimum", "maximum", "note"]))
+        Situation.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10, "first axis"], ["y", 0, 100, "second axis"], ["z", 0, 1000, "third axis"]], columns=["parameter", "minimum", "maximum", "note"]))
 
         return
 
     def test_invalid_parameter_space(self):
 
         parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
-        State.validate_parameter_space(parameter_space)
+        Situation.validate_parameter_space(parameter_space)
 
         # Must be pd.DataFrame, not list or Numpy array (or anything other than pd.DataFrame)
         with self.assertRaises(TypeError):
-            State.validate_parameter_space(["k", 0, 10])
+            Situation.validate_parameter_space(["k", 0, 10])
 
         with self.assertRaises(TypeError):
-            State.validate_parameter_space(np.arange(3))
+            Situation.validate_parameter_space(np.arange(3))
 
         # Must have "parameter", "minimum", and "maximum" columns
         with self.assertRaises(RuntimeError):
-            State.validate_parameter_space(pd.DataFrame(data=[[0, 10], [0, 100], [0, 1000]], columns=["minimum", "maximum"]))
+            Situation.validate_parameter_space(pd.DataFrame(data=[[0, 10], [0, 100], [0, 1000]], columns=["minimum", "maximum"]))
 
         with self.assertRaises(RuntimeError):
-            State.validate_parameter_space(pd.DataFrame(data=[["x", 10], ["y", 100], ["z", 1000]], columns=["parameter", "maximum"]))
+            Situation.validate_parameter_space(pd.DataFrame(data=[["x", 10], ["y", 100], ["z", 1000]], columns=["parameter", "maximum"]))
 
         with self.assertRaises(RuntimeError):
-            State.validate_parameter_space(pd.DataFrame(data=[["x", 0], ["y", 0], ["z", 0]], columns=["parameter", "minimum"]))
+            Situation.validate_parameter_space(pd.DataFrame(data=[["x", 0], ["y", 0], ["z", 0]], columns=["parameter", "minimum"]))
 
         # Must have at least one parameter
         with self.assertRaises(RuntimeError):
-            State.validate_parameter_space(pd.DataFrame(columns=["parameter", "minimum", "maximum"]))
+            Situation.validate_parameter_space(pd.DataFrame(columns=["parameter", "minimum", "maximum"]))
 
         # Each minimum must be <= corresponding maximum
         with self.assertRaises(ValueError):
-            State.validate_parameter_space(pd.DataFrame(data=[["x", 10, 0], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"]))
+            Situation.validate_parameter_space(pd.DataFrame(data=[["x", 10, 0], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"]))
 
         with self.assertRaises(ValueError):
-            State.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10], ["y", 100, 0], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"]))
+            Situation.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10], ["y", 100, 0], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"]))
 
         with self.assertRaises(ValueError):
-            State.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 1000, 0]], columns=["parameter", "minimum", "maximum"]))
+            Situation.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 1000, 0]], columns=["parameter", "minimum", "maximum"]))
 
         return
 
-    # State.validate_sample_points(self.sample_points, self.parameter_space)
+    # Situation.validate_sample_points(self.sample_points, self.parameter_space)
     def test_valid_sample_points(self):
 
         parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
         sample_points = lhs(parameter_space, 10)
         sample_points["iteration"] = 0
-        State.validate_sample_points(sample_points, parameter_space)
+        Situation.validate_sample_points(sample_points, parameter_space)
 
         return
 
@@ -283,7 +283,7 @@ class StateValidationTests(unittest.TestCase):
 
         # Must be pd.DataFrame -=> TypeError
         with self.assertRaises(TypeError):
-            State.validate_sample_points([5, 50, 500], parameter_space)
+            Situation.validate_sample_points([5, 50, 500], parameter_space)
 
         # Must contain "iteration" and all parameter space parameters -=> RuntimeError
         sample_points = lhs(parameter_space, 10)
@@ -291,35 +291,35 @@ class StateValidationTests(unittest.TestCase):
 
         missing_iteration = sample_points.drop(columns=["iteration"])
         with self.assertRaises(RuntimeError):
-            State.validate_sample_points(missing_iteration, parameter_space)
+            Situation.validate_sample_points(missing_iteration, parameter_space)
 
         missing_y = sample_points.drop(columns="y")
         with self.assertRaises(RuntimeError):
-            State.validate_sample_points(missing_y, parameter_space)
+            Situation.validate_sample_points(missing_y, parameter_space)
 
         # Must contain at least one sample point -=> RuntimeError
         no_samples = pd.DataFrame(columns=sample_points.columns)
         with self.assertRaises(RuntimeError):
-            State.validate_sample_points(no_samples, parameter_space)
+            Situation.validate_sample_points(no_samples, parameter_space)
 
         # Sample points must be within the parameter space -=> ValueError
         bad_mins = sample_points.copy()
         bad_mins.x -= 1_000_000
         with self.assertRaises(ValueError):
-            State.validate_sample_points(bad_mins, parameter_space)
+            Situation.validate_sample_points(bad_mins, parameter_space)
 
         bad_maxes = sample_points.copy()
         bad_maxes.y += 1_000_000
         with self.assertRaises(ValueError):
-            State.validate_sample_points(bad_maxes, parameter_space)
+            Situation.validate_sample_points(bad_maxes, parameter_space)
 
         return
 
-    # State.validate_observations(self.observations)
+    # Situation.validate_observations(self.observations)
     def test_valid_observations(self):
 
         observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
-        State.validate_observations(observations)
+        Situation.validate_observations(observations)
 
         return
 
@@ -328,33 +328,33 @@ class StateValidationTests(unittest.TestCase):
 
         # Must be pd.DataFrame -=> TypeError
         with self.assertRaises(TypeError):
-            State.validate_observations([0, 1, 1, 2])
+            Situation.validate_observations([0, 1, 1, 2])
 
         # Must have "statistic" column -=> RuntimeError
         observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
         observations.drop(columns="statistic", inplace=True)
         with self.assertRaises(RuntimeError):
-            State.validate_observations(observations)
+            Situation.validate_observations(observations)
 
         # Must have at least one feature column -=> RuntimeError
         observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
         observations.drop(columns=["height", "weight"], inplace=True)
         with self.assertRaises(RuntimeError):
-            State.validate_observations(observations)
+            Situation.validate_observations(observations)
 
         # Must have a row for mean
         observations = pd.DataFrame(data=[["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
         with self.assertRaises(RuntimeError):
-            State.validate_observations(observations)
+            Situation.validate_observations(observations)
 
         # Must have a row for variance
         observations = pd.DataFrame(data=[["mean", 1.75, 98.87]], columns=["statistic", "height", "weight"])
         with self.assertRaises(RuntimeError):
-            State.validate_observations(observations)
+            Situation.validate_observations(observations)
 
         return
 
-    # State.validate_simulator_results(self.simulator_results, self.parameter_space, self.observations)
+    # Situation.validate_simulator_results(self.simulator_results, self.parameter_space, self.observations)
     def test_valid_simulator_results(self):
 
         # Must be pd.DataFrame
@@ -367,7 +367,7 @@ class StateValidationTests(unittest.TestCase):
         parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
         observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
 
-        State.validate_simulator_results(results, parameter_space, observations)
+        Situation.validate_simulator_results(results, parameter_space, observations)
         
         return
 
@@ -378,22 +378,22 @@ class StateValidationTests(unittest.TestCase):
 
         # Must be pd.DataFrame -=> TypeError
         with self.assertRaises(TypeError):
-            State.validate_simulator_results([[0, 5, 50, 500, 1.76, 98.5]], parameter_space, observations)
+            Situation.validate_simulator_results([[0, 5, 50, 500, 1.76, 98.5]], parameter_space, observations)
 
         # Must have "replicate" column -=> RuntimeError
         results = pd.DataFrame(data=[[5, 50, 500, 1.76, 98.5]], columns=["x", "y", "z", "height", "weight"])
         with self.assertRaises(RuntimeError):
-            State.validate_simulator_results(results, parameter_space, observations)
+            Situation.validate_simulator_results(results, parameter_space, observations)
 
         # Must have same columns as parameter space parameters -=> RuntimeError
         results = pd.DataFrame(data=[[0, 5, 500, 1.76, 98.5]], columns=["replicate", "x", "z", "height", "weight"])
         with self.assertRaises(RuntimeError):
-            State.validate_simulator_results(results, parameter_space, observations)
+            Situation.validate_simulator_results(results, parameter_space, observations)
 
         # Must have same columns as features in observations -=> RuntimeError
         results = pd.DataFrame(data=[[0, 5, 50, 500, 98.5]], columns=["replicate", "x", "y", "z", "weight"])
         with self.assertRaises(RuntimeError):
-            State.validate_simulator_results(results, parameter_space, observations)
+            Situation.validate_simulator_results(results, parameter_space, observations)
         
         return
 
@@ -416,11 +416,11 @@ class StateValidationTests(unittest.TestCase):
 
         observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
         emulator_bank = {
-            0: { "height": StateValidationTests.dummyEmulator() },
-            1: { "height": StateValidationTests.dummyEmulator(), "weight": StateValidationTests.dummyEmulator() }
+            0: { "height": SituationValidationTests.dummyEmulator() },
+            1: { "height": SituationValidationTests.dummyEmulator(), "weight": SituationValidationTests.dummyEmulator() }
         }
 
-        State.validate_emulator_bank(emulator_bank, observations)
+        Situation.validate_emulator_bank(emulator_bank, observations)
 
         return
 
@@ -432,62 +432,62 @@ class StateValidationTests(unittest.TestCase):
         # Must be a dictionary mapping int:dict -=> TypeError
         # Keys here are strings.
         emulator_bank = {
-            "0": { "height": StateValidationTests.dummyEmulator() },
-            "1": { "height": StateValidationTests.dummyEmulator(), "weight": StateValidationTests.dummyEmulator() }
+            "0": { "height": SituationValidationTests.dummyEmulator() },
+            "1": { "height": SituationValidationTests.dummyEmulator(), "weight": SituationValidationTests.dummyEmulator() }
         }
 
         with self.assertRaises(TypeError):
-            State.validate_emulator_bank(emulator_bank, observations)
+            Situation.validate_emulator_bank(emulator_bank, observations)
 
         # Keys must be >= 0
         # -1 is not a valid iteration.
         emulator_bank = {
-            0: { "height": StateValidationTests.dummyEmulator() },
-            -1: { "height": StateValidationTests.dummyEmulator(), "weight": StateValidationTests.dummyEmulator() }
+            0: { "height": SituationValidationTests.dummyEmulator() },
+            -1: { "height": SituationValidationTests.dummyEmulator(), "weight": SituationValidationTests.dummyEmulator() }
         }
 
         with self.assertRaises(TypeError):
-            State.validate_emulator_bank([0, StateValidationTests.dummyEmulator()], observations)
+            Situation.validate_emulator_bank([0, SituationValidationTests.dummyEmulator()], observations)
 
         # Must be a dictionary mapping int:dict
         # Value in iteration 0 is a list.
         emulator_bank = {
-            0: [ "height", StateValidationTests.dummyEmulator() ],
-            1: { "height": StateValidationTests.dummyEmulator(), "weight": StateValidationTests.dummyEmulator() }
+            0: [ "height", SituationValidationTests.dummyEmulator() ],
+            1: { "height": SituationValidationTests.dummyEmulator(), "weight": SituationValidationTests.dummyEmulator() }
         }
 
         with self.assertRaises(TypeError):
-            State.validate_emulator_bank([0, StateValidationTests.dummyEmulator()], observations)
+            Situation.validate_emulator_bank([0, SituationValidationTests.dummyEmulator()], observations)
 
         # Values must be dictionaries mapping str:BaseEmulator
         # Iteration dictionary keys are integers.
         emulator_bank = {
-            0: { 0: StateValidationTests.dummyEmulator() },
-            1: { 0: StateValidationTests.dummyEmulator(), 1: StateValidationTests.dummyEmulator() }
+            0: { 0: SituationValidationTests.dummyEmulator() },
+            1: { 0: SituationValidationTests.dummyEmulator(), 1: SituationValidationTests.dummyEmulator() }
         }
 
         with self.assertRaises(TypeError):
-            State.validate_emulator_bank(emulator_bank, observations)
+            Situation.validate_emulator_bank(emulator_bank, observations)
 
         # Keys must be features from observations
         # Iteration 1 has key "mass" rather than "weight".
         emulator_bank = {
-            0: { "height": StateValidationTests.dummyEmulator() },
-            1: { "height": StateValidationTests.dummyEmulator(), "mass": StateValidationTests.dummyEmulator() }
+            0: { "height": SituationValidationTests.dummyEmulator() },
+            1: { "height": SituationValidationTests.dummyEmulator(), "mass": SituationValidationTests.dummyEmulator() }
         }
 
         with self.assertRaises(ValueError):
-            State.validate_emulator_bank(emulator_bank, observations)
+            Situation.validate_emulator_bank(emulator_bank, observations)
 
         # Values must be dictionaries mapping str:BaseEmulator
         # Iteration 0 maps "height" to a lambda, not BaseEmulator.
         emulator_bank = {
             0: { "height": lambda x : 3.14159265 },
-            1: { "height": StateValidationTests.dummyEmulator(), "weight": StateValidationTests.dummyEmulator() }
+            1: { "height": SituationValidationTests.dummyEmulator(), "weight": SituationValidationTests.dummyEmulator() }
         }
 
         with self.assertRaises(TypeError):
-            State.validate_emulator_bank(emulator_bank, observations)
+            Situation.validate_emulator_bank(emulator_bank, observations)
 
         return
     
