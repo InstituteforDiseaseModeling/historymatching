@@ -41,7 +41,7 @@ def main():
     initial_sample_points = samplers.lhs(parameter_space, 11)
     initial_sample_points["iteration"] = 0
 
-    state = hm2.Situation(parameter_space, observations, initial_sample_points)
+    situation = hm2.Situation(parameter_space, observations, initial_sample_points)
 
     recipe = hm2.Recipe()
     recipe.start_step_callback = lambda s: print(f"Starting iteration {s.iteration}")
@@ -99,11 +99,9 @@ def main():
 
     recipe.end_step_callback = lambda s: print(f"Finished iteration {s.iteration}")
 
-    while not hm2.do_step(state, recipe, config):
-        state.iteration += 1
-        print("Continuing...")
+    hm2.do_staircase(situation, recipe, config)    # do all steps
 
-    next_points = state.sample_points[state.sample_points.iteration == max(state.sample_points.iteration)].b
+    next_points = situation.sample_points[situation.sample_points.iteration == max(situation.sample_points.iteration)].b
     print(f"Actual intercept = {ACTUAL_B}")
     print(f"Correct intercept, based on noisy sampling = {np.float64(observations[observations.statistic == 'mean'].x5) - (SLOPE*5)}")
     print(observations)

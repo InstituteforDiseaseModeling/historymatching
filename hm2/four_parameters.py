@@ -1,9 +1,9 @@
-#! /usr/bin/env python3
+127#! /usr/bin/env python3
 
 from argparse import ArgumentParser
 import logging
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import List, Dict, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -54,15 +54,91 @@ def main(num_observations=33, num_initial_samples=32):
     situation = hm2.Situation(parameter_space, observations, initial_sample_points)
 
     recipe = hm2.Recipe()
+
+    def start_callback(situation: hm2.Situation) -> None:
+
+        figure2 = plt.figure(figsize=(16, 9), dpi=300)
+        for row in situation.sample_points.loc[
+            situation.sample_points.iteration == situation.iteration
+        ].itertuples():
+            values = model(row.a, row.b, row.c, row.d)
+            plt.plot(values)
+
+        actual = model(ACTUAL_A, ACTUAL_B, ACTUAL_C, ACTUAL_D)
+        plt.plot(actual, "ro")
+
+        figure2.savefig(WORK_DIR / f"samples_{situation.iteration}.png")
+
+        return
+
     recipe.start_step_callback = start_callback
+
+    def run_model(iteration: int, test_points: pd.DataFrame, config: hm2.Config) -> pd.DataFrame:
+
+        results = []
+        for row in test_points.itertuples():
+            model_output = model(row.a, row.b, row.c, row.d)
+            results.append([iteration, 0, row.a, row.b, row.c, row.d])
+            results[-1].extend(model_output)
+
+        columns = ["iteration", "replicate", "a", "b", "c", "d"]
+        columns.extend(map(lambda t: f"t{t:02}", FEATURE_POINTS))
+        results = pd.DataFrame(results, columns=columns)
+
+        return results
+
     recipe.run_simulators = run_model
+
+    def select_features(iteration, observations, simulator_results, config) -> List[str]:
+
+        all_features = utils.features_from_observations(observations)
+
+        by_iteration = {
+            0: ["t00"],
+            1: ["t00", "t10"],
+            2: ["t00", "t10", "t20"],
+            3: ["t00", "t10", "t20", "t30"]
+        }
+
+        if iteration in by_iteration:
+            selected_features = by_iteration[iteration]
+        elif iteration < len(all_features):
+            selected_features = all_features[0:iteration+1]
+        else:
+            selected_features = all_features
+
+        print(f"Iteration {iteration} using features {selected_features}.")
+
+        return selected_features
+
+    recipe.select_features = select_features
+
+    def emulator_for_feature(
+        feature: str,
+        observations: pd.DataFrame,
+        simulator_results: pd.DataFrame,
+        config: hm2.Config,
+    ) -> BaseEmulator:
+
+        x = simulator_results[["a", "b", "c", "d"]]
+        y = simulator_results[feature]
+        emulator = LinearModel(x=x, y=y)
+        emulator.train()
+
+        return emulator
+
     recipe.generate_emulator_for_feature = emulator_for_feature
     recipe.generate_next_sample_points = next_point_generation
 
-    hm2.do_step(situation, recipe, config)
+    hm2.do_staircase(situation, recipe, config)
 
     situation.iteration = 1
     start_callback(situation)    
+
+    next_points = situation.sample_points[situation.sample_points.iteration == max(situation.sample_points.iteration)]
+    print(f"Actual parameters: {ACTUAL_A}*x^3 + {ACTUAL_B}*x^2 + {ACTUAL_C}*x + {ACTUAL_D}")
+    print(f"Observations:\n{observations}")
+    print(f"Last selected points:\n{next_points}")
 
     return
 
@@ -77,7 +153,7 @@ def generate_observations(
     # noise = __prng.normal(size=values.shape[0])
     # results = values + noise
     ts = FEATURE_POINTS
-    columns = list(map(lambda t: f"t{t}", ts))
+    columns = list(map(lambda t: f"t{t:02}", ts))
     # observations = pd.DataFrame(data={c: [v] for c, v in zip(columns, results)})
 
     samples = []
@@ -112,60 +188,11 @@ def system(t, a=1.0 / 512, b=0, c=-1.5, d=5):
     return results
 
 
-def start_callback(situation: hm2.Situation) -> None:
-
-    figure2 = plt.figure(figsize=(16, 9), dpi=300)
-    for row in situation.sample_points.loc[
-        situation.sample_points.iteration == situation.iteration
-    ].itertuples():
-        values = model(row.a, row.b, row.c, row.d)
-        plt.plot(values)
-
-    actual = model(ACTUAL_A, ACTUAL_B, ACTUAL_C, ACTUAL_D)
-    plt.plot(actual, "ro")
-
-    figure2.savefig(WORK_DIR / f"samples_{situation.iteration}.png")
-
-    return
-
-
-def run_model(
-    iteration: int, test_points: pd.DataFrame, config: hm2.Config
-) -> pd.DataFrame:
-
-    results = []
-    for row in test_points.itertuples():
-        model_output = model(row.a, row.b, row.c, row.d)
-        results.append([iteration, 0, row.a, row.b, row.c, row.d])
-        results[-1].extend(model_output)
-
-    columns = ["iteration", "replicate", "a", "b", "c", "d"]
-    columns.extend(map(lambda t: f"t{t}", FEATURE_POINTS))
-    results = pd.DataFrame(results, columns=columns)
-
-    return results
-
-
-def emulator_for_feature(
-    feature: str,
-    observations: pd.DataFrame,
-    simulator_results: pd.DataFrame,
-    config: hm2.Config,
-) -> BaseEmulator:
-
-    x = simulator_results[["a", "b", "c", "d"]]
-    y = simulator_results[feature]
-    emulator = LinearModel(x=x, y=y)
-    emulator.train()
-
-    return emulator
-
-
 def next_point_generation(
     iteration: int,
     parameter_space: pd.DataFrame,
     observations: pd.DataFrame,
-    emulator_bank: Dict[int, Dict[str, Any]],
+    emulator_bank: Dict[int, Dict[str, BaseEmulator]],
     config: hm2.Config,
 ) -> Tuple[pd.DataFrame, float]:
 
@@ -174,7 +201,7 @@ def next_point_generation(
         parameter_space=parameter_space, samples_per_dimension=16
     )
     proposed_sample_points = samplers.random(
-        parameter_space=parameter_space, n_samples=65536
+        parameter_space=parameter_space, n_samples=8192     # 65536
     )
 
     total_proposed = len(proposed_sample_points)

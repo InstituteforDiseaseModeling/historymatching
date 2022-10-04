@@ -28,7 +28,7 @@ logger = logging.getLogger()
 
 def do_step(situation: Situation, recipe: Recipe, config: Config):
 
-    logger.info(f"Starting step{situation.iteration}...")
+    logger.info(f"Starting step {situation.iteration}...")
 
     situation.validate()
 
@@ -106,7 +106,7 @@ def deposit_emulators(
 ) -> None:
 
     logger.info(
-        f"Adding {len(new_emulators.keys())} to emulator_bank on step {iteration}..."
+        f"Adding {len(new_emulators.keys())} emulator(s) to emulator_bank on step {iteration}..."
     )
     situation.emulator_bank.update({iteration: new_emulators})
 
@@ -122,5 +122,15 @@ def update_test_points(
     )
     next_sample_points["iteration"] = iteration+1
     situation.sample_points = pd.concat([situation.sample_points, next_sample_points]).reset_index(drop=True)
+
+    return
+
+
+def do_staircase(situation: Situation, recipe: Recipe, config: Config) -> None:
+
+    # do_step() returns results of exit_predicate()
+    # exit_predicate return True when it's time to quit
+    while not do_step(situation, recipe, config):
+        situation.iteration += 1
 
     return
