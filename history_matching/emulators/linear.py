@@ -48,6 +48,11 @@ class LinearModel(BaseEmulator):
         logging.debug('... predicting outputs using the trained emulator')
         # Compute the prediction
         X_pred = x.to_numpy()
+        if len(X_pred.shape) == 1:
+            if X_pred.shape[0] > 1:
+                X_pred = X_pred.reshape(-1, 1)
+            else:
+                X_pred = X_pred.reshape(1, -1)
         y_pred = self.regression_model.predict( X_pred )
         
         # Compute uncertainty bounds
