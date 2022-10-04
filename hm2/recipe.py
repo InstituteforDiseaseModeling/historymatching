@@ -14,13 +14,13 @@ logger = logging.getLogger()
 class Recipe:
 
     def __init__(self):
-        self.start_step_callback = Recipe.pirates                                   # State
+        self.start_step_callback = Recipe.pirates                                   # Situation
         self.run_simulators = Recipe.null_simulator                                 # iteration, test points, config
         self.select_features = Recipe.all_features                                  # iteration, observations, simulator_results, config
         self.generate_emulators = Recipe._generate_emulators                        # iteration, selected_features, observations, simulator_results, generate_emulator_for_feature, config
         self.generate_emulator_for_feature = Recipe._generate_emulator_for_feature  #
         self.generate_next_sample_points = Recipe.next_point_generation             # iteration, parameter_space, observations, emulator_bank, config
-        self.end_step_callback = Recipe.pirates                                     # State
+        self.end_step_callback = Recipe.pirates                                     # Situation
         # iteration, non_implausible_fraction, non_implausible_target, config
         self.exit_predicate = lambda iter, frac, target, cfg: (iter >= cfg.max_iterations) or (frac <= target)
         return

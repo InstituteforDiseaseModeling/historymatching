@@ -51,7 +51,7 @@ def main(num_observations=33, num_initial_samples=32):
     initial_sample_points = samplers.lhs(parameter_space, num_initial_samples)
     initial_sample_points["iteration"] = 0
 
-    state = hm2.State(parameter_space, observations, initial_sample_points)
+    situation = hm2.Situation(parameter_space, observations, initial_sample_points)
 
     recipe = hm2.Recipe()
     recipe.start_step_callback = start_callback
@@ -59,10 +59,10 @@ def main(num_observations=33, num_initial_samples=32):
     recipe.generate_emulator_for_feature = emulator_for_feature
     recipe.generate_next_sample_points = next_point_generation
 
-    hm2.do_step(state, recipe, config)
+    hm2.do_step(situation, recipe, config)
 
-    state.iteration = 1
-    start_callback(state)    
+    situation.iteration = 1
+    start_callback(situation)    
 
     return
 
@@ -112,11 +112,11 @@ def system(t, a=1.0 / 512, b=0, c=-1.5, d=5):
     return results
 
 
-def start_callback(state: hm2.State) -> None:
+def start_callback(situation: hm2.Situation) -> None:
 
     figure2 = plt.figure(figsize=(16, 9), dpi=300)
-    for row in state.sample_points.loc[
-        state.sample_points.iteration == state.iteration
+    for row in situation.sample_points.loc[
+        situation.sample_points.iteration == situation.iteration
     ].itertuples():
         values = model(row.a, row.b, row.c, row.d)
         plt.plot(values)
@@ -124,7 +124,7 @@ def start_callback(state: hm2.State) -> None:
     actual = model(ACTUAL_A, ACTUAL_B, ACTUAL_C, ACTUAL_D)
     plt.plot(actual, "ro")
 
-    figure2.savefig(WORK_DIR / f"samples_{state.iteration}.png")
+    figure2.savefig(WORK_DIR / f"samples_{situation.iteration}.png")
 
     return
 
