@@ -11,7 +11,7 @@
   - first it specifies a few configuration parameters and puts them in a `Config` object (see `config.py`)
   - second it creates an initial `Situation` object (see `situation.py`)\* with a parameter space for search, statistics about the observations, and some initial sample points in parameter space
   - third it creates a `Recipe` object (see `recipe.py`) which it customizes for running its model, generating an emulator (using @rnunez-IDM initial linear emulator), and choosing next points in the parameter space. We could use a dictionary with key:value pairs for steps of the "recipe" but I prefer an object to help catch spelling mistakes/typos.
-  - finally it calls `do_step()` (see `step.py`) with the state, recipe, and config created above until `do_step()` returns `True` (== done)
+  - finally it calls `do_staircase()` (see `step.py`) with the state, recipe, and config created which steps until the exit predicate returns `True` (== done)
 
 ----
 
@@ -23,7 +23,7 @@
 
 ## TODO
 
-- [ ] need to wrap `do_step()` with a "run calibration" loop which does basically what `one_parameter.py` does, calling `do_step()` until it returns `True`.
+- [X] need to wrap `do_step()` with a "run calibration" loop which does basically what `one_parameter.py` does, calling `do_step()` until it returns `True`. Implemented trivial wrapper, `do_staircase()` (all steps).
 - [ ] need default functions in `Recipe` for 1) selecting features, 2) generating emulators, and 3) next point(s) generation
 - [ ] need example choosing different features at different iterations in the calibration
 - [ ] need example generating other emulator(s) than the default

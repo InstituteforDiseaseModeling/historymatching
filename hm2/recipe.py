@@ -101,7 +101,7 @@ class Recipe:
     ) -> Dict[str, object]:
 
         logger.info(
-            f"Generating emulators for {len(selected_features)} features ({selected_features})..."
+            f"Generating emulator(s) for {len(selected_features)} features ({selected_features})..."
         )
         emulators = {}
 
