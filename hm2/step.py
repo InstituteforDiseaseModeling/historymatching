@@ -50,7 +50,7 @@ def do_step(state: State, recipe: Recipe, config: Config):
         state.observations,
         state.simulator_results,
         recipe.generate_emulator_for_feature,
-        config,
+        config
     )
 
     deposit_emulators(state.iteration, new_emulators, state, config)
@@ -60,9 +60,9 @@ def do_step(state: State, recipe: Recipe, config: Config):
         state.parameter_space,
         state.observations,
         state.emulator_bank,
-        config,
+        config
     )
-    logger.info(f"Remaining non-implausible space: {non_implausible_fraction*100}%")
+    logger.info(f"Remaining non-implausible space: {non_implausible_fraction*100:0.04}%")
 
     update_test_points(state.iteration, next_sample_points, state)
 
@@ -121,7 +121,6 @@ def update_test_points(
         f"Adding {len(next_sample_points)} new sample points on step {iteration}..."
     )
     next_sample_points["iteration"] = iteration+1
-    state.sample_points = pd.concat([state.sample_points, next_sample_points])
-    state.sample_points.reset_index(drop=True)
+    state.sample_points = pd.concat([state.sample_points, next_sample_points]).reset_index(drop=True)
 
     return

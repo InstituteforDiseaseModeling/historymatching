@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple
 import pandas as pd
 
 from .config import Config
+from .utils import features_from_observations
 
 from history_matching.emulators import BaseEmulator
 
@@ -11,15 +12,17 @@ logger = logging.getLogger()
 
 
 class Recipe:
+
     def __init__(self):
-        self.start_step_callback = Recipe.pirates
-        self.run_simulators = Recipe.null_simulator
-        self.select_features = Recipe.all_features
-        self.generate_emulators = Recipe._generate_emulators
-        self.generate_emulator_for_feature = Recipe._generate_emulator_for_feature
-        self.generate_next_sample_points = Recipe.next_point_generation
-        self.end_step_callback = Recipe.pirates
-        self.exit_predicate = lambda iter, frac, target, cfg: True
+        self.start_step_callback = Recipe.pirates                                   # State
+        self.run_simulators = Recipe.null_simulator                                 # iteration, test points, config
+        self.select_features = Recipe.all_features                                  # iteration, observations, simulator_results, config
+        self.generate_emulators = Recipe._generate_emulators                        # iteration, selected_features, observations, simulator_results, generate_emulator_for_feature, config
+        self.generate_emulator_for_feature = Recipe._generate_emulator_for_feature  #
+        self.generate_next_sample_points = Recipe.next_point_generation             # iteration, parameter_space, observations, emulator_bank, config
+        self.end_step_callback = Recipe.pirates                                     # State
+        # iteration, non_implausible_fraction, non_implausible_target, config
+        self.exit_predicate = lambda iter, frac, target, cfg: (iter >= cfg.max_iterations) or (frac <= target)
         return
 
     @staticmethod
@@ -49,7 +52,10 @@ class Recipe:
 
         logger.info(f"Running simulator for {len(test_points)} test points...")
 
-        return pd.DataFrame()
+        columns = ["iteration"]
+        columns.extend(test_points.columns)
+
+        return pd.DataFrame(columns=columns)
 
     @staticmethod
     def all_features(
@@ -64,9 +70,10 @@ class Recipe:
             iteration: current iteration index (0 based)
             observations: dataframe with feature names in columns, and one row of target values
 
-        |<feature1>|<feature2>|...|<featureM>|
-        |----------|----------|---|----------|
-        | float    | float    |...| float    |
+        |statistic|<feature1>|<feature2>|...|<featureM>|
+        |---------|----------|----------|---|----------|
+        |mean     | float    | float    |...| float    |
+        |variance | float    | float    |...| float    |
 
             simulator_results: dataframe with simulator results for various test points in parameter space
 
@@ -79,7 +86,7 @@ class Recipe:
         """
 
         logger.info(f"Selecting features for iteration {iteration}...")
-        selected_features = list(observations.columns)
+        selected_features = features_from_observations(observations)
 
         return selected_features
 

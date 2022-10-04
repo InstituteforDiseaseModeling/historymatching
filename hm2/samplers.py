@@ -17,7 +17,7 @@ def lhs(parameter_space: pd.DataFrame, n_samples: int = 8) -> pd.DataFrame:
     for entry in parameter_space.itertuples():
 
         # n+1 edges = n buckets
-        edges = np.linspace(entry.min, entry.max, n_samples + 1)
+        edges = np.linspace(entry.minimum, entry.maximum, n_samples + 1)
         # choose points from center of buckets
         points = (edges[:-1] + edges[1:]) / 2
         indices = np.arange(n_samples)
@@ -33,7 +33,7 @@ def grid(
 
     values = []
     for entry in parameter_space.itertuples():
-        edges = np.linspace(entry.min, entry.max, samples_per_dimension + 1)
+        edges = np.linspace(entry.minimum, entry.maximum, samples_per_dimension + 1)
         points = (edges[:-1] + edges[1:]) / 2
         values.append(points)
     cartesian = product(*values)
@@ -48,7 +48,7 @@ def random(parameter_space: pd.DataFrame, n_samples: int = 16) -> pd.DataFrame:
 
     for entry in parameter_space.itertuples():
 
-        points = np.random.default_rng().uniform(entry.min, entry.max, n_samples)
+        points = np.random.default_rng().uniform(entry.minimum, entry.maximum, n_samples)
         samples[entry.parameter] = points
 
     return samples

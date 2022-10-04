@@ -11,6 +11,7 @@ import pandas as pd
 
 import hm2
 import hm2.samplers as samplers
+import hm2.utils as utils
 from history_matching.emulators import BaseEmulator, LinearModel
 
 
@@ -44,7 +45,7 @@ def main(num_observations=33, num_initial_samples=32):
 
     parameter_space = pd.DataFrame(
         [("a", ACTUAL_A-2, ACTUAL_A+2), ("b", ACTUAL_B-5, ACTUAL_B+5), ("c", ACTUAL_C-1.5, ACTUAL_C+1.5), ("d", ACTUAL_D-5, ACTUAL_D+5)],
-        columns=["parameter", "min", "max"],
+        columns=["parameter", "minimum", "maximum"],
     )
     observations = generate_observations(parameter_space, num_observations)
     initial_sample_points = samplers.lhs(parameter_space, num_initial_samples)
@@ -73,18 +74,27 @@ def generate_observations(
 ) -> pd.DataFrame:
 
     values = model(ACTUAL_A, ACTUAL_B, ACTUAL_C, ACTUAL_D)
-    noise = __prng.normal(size=values.shape[0])
-    results = values + noise
+    # noise = __prng.normal(size=values.shape[0])
+    # results = values + noise
     ts = FEATURE_POINTS
     columns = list(map(lambda t: f"t{t}", ts))
-    observations = pd.DataFrame(data={c: [v] for c, v in zip(columns, results)})
+    # observations = pd.DataFrame(data={c: [v] for c, v in zip(columns, results)})
+
+    samples = []
+    for _ in range(n_observations):
+        noise = __prng.normal(size=values.shape[0])
+        results = values + noise
+        samples.append(results)
+    observations = pd.DataFrame(data=samples, columns=columns)
+    statistics = utils.mean_and_variance_for_observations(observations=observations)
 
     figure = plt.figure(figsize=(16, 9), dpi=300)
-    plt.plot(values)
-    plt.plot(results)
+    for sample in samples:
+        plt.plot(sample)
+    plt.plot(values, color="black", linewidth=2)
     figure.savefig(WORK_DIR / "observations.png")
 
-    return observations
+    return statistics
 
 
 def model(a, b, c, d):
