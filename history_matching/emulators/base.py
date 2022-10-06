@@ -1,42 +1,23 @@
+from abc import abstractmethod
 import logging
+from typing import Dict
+
+from asdf.extension import Converter
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-from abc import abstractmethod
 from sklearn import model_selection
 
-
+from hm2.utils import dataframe_to_ndarray, ndarray_to_dataframe
 
 
 class BaseEmulator:
-    """Base class for emulators.
-    """
-    
-    # Data arrays
-    X_df    = None    # Input data (full set as a dataframe)
-    X_train = None    # Input data/parameters for training emulators
-    X_test  = None    # Input data/parameters for testing emulators
-    y_df    = None    # Model ouput data (full set as a dataframe)
-    y_train = None    # Model output data/observations for training emulators
-    y_test  = None    # Model output data/observations for testing emulators
-    y_pred  = None    # Array of data predicted by the emulator
-    y_pred_test    = None # Array of testing data predicted by the emulator
-    y_test_pred_df = None # Testing data predicted by the emulator (dataframe) 
-    
-    # Status flags
-    training_complete = False
-    testing_complete = False
-
-    # Performance metrics
-    mse = np.nan     # Mean Squared Error (MSE)
-    r2score = np.nan # R^2 regression score
-
-
-    def __init__( self, 
-                  x:pd.DataFrame(), 
-                  y:pd.DataFrame(), 
-                  test_fraction = 0.25,
+    """Base class for emulators."""
+  
+    def __init__( self,
+                  x:pd.DataFrame = None,
+                  y:pd.DataFrame = None,
+                  test_fraction = 0.25
                  ):
         """Initialize the emulator.
         
@@ -52,24 +33,45 @@ class BaseEmulator:
         Returns:
             None
         """
-        # Read arguments
-        X = x.to_numpy()
-        y = y.to_numpy()
-    
-        # Split data into testing and training datasets
-        self.X_train, \
-            self.X_test, \
-            self.y_train, \
-            self.y_test = model_selection    \
-                          .train_test_split( X, y, test_size=test_fraction )
 
-        # Save some additional initialization data
-        self.X_df = x.copy()
-        self.y_df = y.copy()
+        # Data arrays
+        self.X_df    = None    # Input data (full set as a dataframe)
+        self.X_train = None    # Input data/parameters for training emulators
+        self.X_test  = None    # Input data/parameters for testing emulators
+        self.y_df    = None    # Model ouput data (full set as a dataframe)
+        self.y_train = None    # Model output data/observations for training emulators
+        self.y_test  = None    # Model output data/observations for testing emulators
+        self.y_pred  = None    # Array of data predicted by the emulator
+        self.y_pred_test    = None # Array of testing data predicted by the emulator
+        self.y_test_pred_df = None # Testing data predicted by the emulator (dataframe) 
+        
+        # Status flags
+        self.training_complete = False
+        self.testing_complete = False
+
+        # Performance metrics
+        self.mse = np.nan     # Mean Squared Error (MSE)
+        self.r2score = np.nan # R^2 regression score
+
+        # Read arguments
+        if (x is not None) and (y is not None):
+
+            X = x.to_numpy()
+            Y = y.to_numpy()
+        
+            # Split data into testing and training datasets
+            self.X_train, \
+                self.X_test, \
+                self.y_train, \
+                self.y_test = model_selection    \
+                            .train_test_split( X, Y, test_size=test_fraction )
+
+            # Save some additional initialization data
+            self.X_df = pd.DataFrame(x)
+            self.y_df = pd.DataFrame(y)
 
         return
-    
-    
+
     @abstractmethod
     def train(self):
         """Trains the emulator.
@@ -239,4 +241,55 @@ class BaseEmulator:
 
         return
         
-        
+    def to_yaml_tree(self, tag, ctx) -> Dict:
+
+        dictionary = dict(
+            X_df              = dataframe_to_ndarray(self.X_df),
+            X_train           = self.X_train,
+            X_test            = self.X_test,
+            y_df              = dataframe_to_ndarray(self.y_df),
+            y_train           = self.y_train,
+            y_test            = self.y_test,
+            y_pred            = self.y_pred,
+            y_pred_test       = self.y_pred_test,
+            y_test_pred_df    = dataframe_to_ndarray(self.y_test_pred_df),
+            training_complete = self.training_complete,
+            testing_complete  = self.testing_complete,
+            mse               = self.mse,
+            r2score           = self.r2score
+        )
+
+        return dictionary
+
+    @staticmethod
+    def from_yaml_tree(node, tag, ctx) -> "BaseEmulator":
+
+        emulator = BaseEmulator()   # pass no initial values
+
+        emulator.X_df              = ndarray_to_dataframe(node["X_df"])
+        emulator.X_train           = node["X_train"]
+        emulator.X_test            = node["X_test"]
+        emulator.y_df              = ndarray_to_dataframe(node["y_df"])
+        emulator.y_train           = node["y_train"]
+        emulator.y_test            = node["y_test"]
+        emulator.y_pred            = node["y_pred"]
+        emulator.y_pred_test       = node["y_pred_test"]
+        emulator.y_test_pred_df    = ndarray_to_dataframe(node["y_test_pred_df"])
+        emulator.training_complete = node["training_complete"]
+        emulator.testing_complete  = node["testing_complete"]
+        emulator.mse               = node["mse"]
+        emulator.r2score           = node["r2score"]
+
+        return emulator
+
+
+class BaseEmulatorConverter(Converter):
+
+    tags = ["asdf://idmod.org/asdf/tags/emulators/baseemulator-1.0.0"]
+    types = ["history_matching.emulators.base.BaseEmulator"]
+
+    def to_yaml_tree(self, obj, tag, ctx):
+        return obj.to_yaml_tree(tag, ctx)
+
+    def from_yaml_tree(self, node, tag, ctx):
+        return BaseEmulator.from_yaml_tree(node, tag, ctx)

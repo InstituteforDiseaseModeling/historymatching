@@ -1,5 +1,7 @@
 #! /usr/bin/env python3
 
+import os
+import tempfile
 from typing import List, Dict, Tuple
 import unittest
 
@@ -14,6 +16,12 @@ from hm2.step import do_step
 from hm2.utils import mean_and_variance_for_observations, features_from_observations
 from history_matching.emulators import BaseEmulator
 
+
+valid_parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
+valid_observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
+valid_sample_points = lhs(valid_parameter_space, 10)
+valid_sample_points["iteration"] = 0
+valid_simulator_results = pd.DataFrame(data=[[0, 5, 50, 500, 1.76, 98.5]], columns=["replicate", "x", "y", "z", "height", "weight"])
 
 class ConfigTests(unittest.TestCase):
 
@@ -222,8 +230,8 @@ class SituationValidationTests(unittest.TestCase):
 
     def test_valid_parameter_space(self):
 
-        Situation.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"]))
-
+        Situation.validate_parameter_space(valid_parameter_space)
+        # Extra columns are acceptable.
         Situation.validate_parameter_space(pd.DataFrame(data=[["x", 0, 10, "first axis"], ["y", 0, 100, "second axis"], ["z", 0, 1000, "third axis"]], columns=["parameter", "minimum", "maximum", "note"]))
 
         return
@@ -269,13 +277,9 @@ class SituationValidationTests(unittest.TestCase):
     # Situation.validate_sample_points(self.sample_points, self.parameter_space)
     def test_valid_sample_points(self):
 
-        parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
-        sample_points = lhs(parameter_space, 10)
-        sample_points["iteration"] = 0
-        Situation.validate_sample_points(sample_points, parameter_space)
+        Situation.validate_sample_points(valid_sample_points, valid_parameter_space)
 
         return
-
 
     def test_invalid_sample_points(self):
 
@@ -318,11 +322,9 @@ class SituationValidationTests(unittest.TestCase):
     # Situation.validate_observations(self.observations)
     def test_valid_observations(self):
 
-        observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
-        Situation.validate_observations(observations)
+        Situation.validate_observations(valid_observations)
 
         return
-
 
     def test_invalid_observations(self):
 
@@ -362,13 +364,8 @@ class SituationValidationTests(unittest.TestCase):
         # Must have same columns as parameter space parameters
         # Must have same columns as features in observations
 
-        results = pd.DataFrame(data=[[0, 5, 50, 500, 1.76, 98.5]], columns=["replicate", "x", "y", "z", "height", "weight"])
+        Situation.validate_simulator_results(valid_simulator_results, valid_parameter_space, valid_observations)
 
-        parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
-        observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
-
-        Situation.validate_simulator_results(results, parameter_space, observations)
-        
         return
 
     def test_invalid_simulator_results(self):
@@ -414,20 +411,16 @@ class SituationValidationTests(unittest.TestCase):
         # Keys must be features from observations
         # Values must be dictionaries mapping str:BaseEmulator
 
-        observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
         emulator_bank = {
             0: { "height": SituationValidationTests.dummyEmulator() },
             1: { "height": SituationValidationTests.dummyEmulator(), "weight": SituationValidationTests.dummyEmulator() }
         }
 
-        Situation.validate_emulator_bank(emulator_bank, observations)
+        Situation.validate_emulator_bank(emulator_bank, valid_observations)
 
         return
 
-
     def test_invalid_emulator_bank(self):
-
-        observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
 
         # Must be a dictionary mapping int:dict -=> TypeError
         # Keys here are strings.
@@ -437,7 +430,7 @@ class SituationValidationTests(unittest.TestCase):
         }
 
         with self.assertRaises(TypeError):
-            Situation.validate_emulator_bank(emulator_bank, observations)
+            Situation.validate_emulator_bank(emulator_bank, valid_observations)
 
         # Keys must be >= 0
         # -1 is not a valid iteration.
@@ -447,7 +440,7 @@ class SituationValidationTests(unittest.TestCase):
         }
 
         with self.assertRaises(TypeError):
-            Situation.validate_emulator_bank([0, SituationValidationTests.dummyEmulator()], observations)
+            Situation.validate_emulator_bank([0, SituationValidationTests.dummyEmulator()], valid_observations)
 
         # Must be a dictionary mapping int:dict
         # Value in iteration 0 is a list.
@@ -457,7 +450,7 @@ class SituationValidationTests(unittest.TestCase):
         }
 
         with self.assertRaises(TypeError):
-            Situation.validate_emulator_bank([0, SituationValidationTests.dummyEmulator()], observations)
+            Situation.validate_emulator_bank([0, SituationValidationTests.dummyEmulator()], valid_observations)
 
         # Values must be dictionaries mapping str:BaseEmulator
         # Iteration dictionary keys are integers.
@@ -467,7 +460,7 @@ class SituationValidationTests(unittest.TestCase):
         }
 
         with self.assertRaises(TypeError):
-            Situation.validate_emulator_bank(emulator_bank, observations)
+            Situation.validate_emulator_bank(emulator_bank, valid_observations)
 
         # Keys must be features from observations
         # Iteration 1 has key "mass" rather than "weight".
@@ -477,7 +470,7 @@ class SituationValidationTests(unittest.TestCase):
         }
 
         with self.assertRaises(ValueError):
-            Situation.validate_emulator_bank(emulator_bank, observations)
+            Situation.validate_emulator_bank(emulator_bank, valid_observations)
 
         # Values must be dictionaries mapping str:BaseEmulator
         # Iteration 0 maps "height" to a lambda, not BaseEmulator.
@@ -487,10 +480,42 @@ class SituationValidationTests(unittest.TestCase):
         }
 
         with self.assertRaises(TypeError):
-            Situation.validate_emulator_bank(emulator_bank, observations)
+            Situation.validate_emulator_bank(emulator_bank, valid_observations)
 
         return
-    
+
+
+class SituationSaveReadTests(unittest.TestCase):
+
+    def test_roundtrip(self):
+
+        situation = Situation(valid_parameter_space, valid_observations, valid_sample_points, iteration=42)
+        situation.simulator_results = valid_simulator_results
+
+        try:
+            handle, filename = tempfile.mkstemp()
+            os.close(handle)
+            situation.save(filename)
+
+            copy = Situation.read(filename)
+
+            #TODO - consider using Pandas DataFrame.equal(), but it isn't exact
+
+            self.assertListEqual(list(copy.parameter_space.columns),   list(situation.parameter_space.columns))
+            self.assertListEqual(list(copy.observations.columns),      list(situation.observations.columns))
+            self.assertListEqual(list(copy.sample_points.columns),     list(situation.sample_points.columns))
+            self.assertListEqual(list(copy.simulator_results.columns), list(situation.simulator_results.columns))
+
+            self.assertTrue(all([actual == expected for (actual, expected) in zip(copy.parameter_space.itertuples(),   situation.parameter_space.itertuples())]))
+            self.assertTrue(all([actual == expected for (actual, expected) in zip(copy.observations.itertuples(),      situation.observations.itertuples())]))
+            self.assertTrue(all([actual == expected for (actual, expected) in zip(copy.sample_points.itertuples(),     situation.sample_points.itertuples())]))
+            self.assertTrue(all([actual == expected for (actual, expected) in zip(copy.simulator_results.itertuples(), situation.simulator_results.itertuples())]))
+            # TODO - verify emulator_bank, currently empty
+
+        finally:
+            os.remove(filename)
+
+        return
 
 class UtilityTests(unittest.TestCase):
 

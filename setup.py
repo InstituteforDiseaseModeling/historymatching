@@ -21,7 +21,9 @@ setup(name='HistoryMatching',
         "scikit-cuda",
         "seaborn",
         "statsmodels",
-        "pyDOE"
+        "pyDOE",
+        "asdf",
+        "pyarrow"
         ],
         extras_require={ # Required for the Jupyter notebook only -- use pip install -e .[jupyter]
             "jupyter": [

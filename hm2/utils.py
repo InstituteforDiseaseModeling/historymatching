@@ -1,5 +1,8 @@
+from io import BytesIO
 from typing import List
+from unittest import result
 
+import numpy as np
 import pandas as pd
 
 
@@ -18,3 +21,24 @@ def features_from_observations(observations: pd.DataFrame) -> List[str]:
     features = list([column for column in observations.columns if column != "statistic"])
 
     return features
+
+
+def dataframe_to_ndarray(df: pd.DataFrame) -> np.ndarray:
+
+    if df is not None:
+        buffer = BytesIO()
+        df.reset_index(drop=True).to_feather(buffer)
+        result = np.array(buffer.getbuffer(), dtype=np.uint8)
+    else:
+        result = None
+
+    return result
+
+def ndarray_to_dataframe(nd: np.ndarray) -> pd.DataFrame:
+
+    if nd is not None:
+        result = pd.read_feather(BytesIO(nd.data))
+    else:
+        result = None
+
+    return result
