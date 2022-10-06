@@ -1,18 +1,27 @@
+from io import BytesIO
 import logging
+from pathlib import Path
 from typing import Dict
+from unittest import result
 
+import asdf
+from asdf.extension import Converter, Extension
 import numpy as np
 import pandas as pd
 
-from .utils import features_from_observations
-
 from history_matching.emulators import BaseEmulator
+from history_matching.emulators.base import BaseEmulatorConverter
+from history_matching.emulators.linear import LinearModelConverter
+
+from .utils import features_from_observations, dataframe_to_ndarray, ndarray_to_dataframe
+
 
 logger = logging.getLogger()
 
 
 # https://en.wikipedia.org/wiki/Michael_Sorrentino
 class Situation:
+
     def __init__(
         self,
         parameter_space: pd.DataFrame,
@@ -221,3 +230,46 @@ class Situation:
                 )
 
         return
+
+    def save(self, filename: Path) -> None:
+
+        toc = dict(
+            iteration = self.iteration,
+            parameter_space = dataframe_to_ndarray(self.parameter_space),
+            observations = dataframe_to_ndarray(self.observations),
+            sample_points = dataframe_to_ndarray(self.sample_points),
+            simulator_results = dataframe_to_ndarray(self.simulator_results.reset_index(drop=True)),
+            emulators = self.emulator_bank
+        )
+
+        af = asdf.AsdfFile(toc)
+        af.write_to(filename, all_array_compression="bzp2")
+        
+        return
+
+    @staticmethod
+    # class Situation hasn't finished parsing yet, use string version for typing
+    def read(filename: Path) -> "Situation":
+
+        af = asdf.open(filename)
+        situation = Situation(
+            ndarray_to_dataframe(af["parameter_space"]),
+            ndarray_to_dataframe(af["observations"]),
+            ndarray_to_dataframe(af["sample_points"]),
+            af["iteration"]
+            )
+        situation.simulator_results = ndarray_to_dataframe(af["simulator_results"])
+        situation.emulator_bank = af["emulators"]
+
+        return situation
+
+
+class EmulatorsExtension(Extension):
+    extension_uri = "asdf://idmod.org/asdf/extensions/emulators-1.0.0"
+    converters = [BaseEmulatorConverter(), LinearModelConverter()]
+    tags = []
+    for converter in converters:
+        tags.extend(converter.tags)
+
+
+asdf.get_config().add_extension(EmulatorsExtension())

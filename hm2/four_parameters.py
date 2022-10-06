@@ -133,12 +133,15 @@ def main(num_observations=33, num_initial_samples=32):
     hm2.do_staircase(situation, recipe, config)
 
     situation.iteration = 1
-    start_callback(situation)    
+    start_callback(situation)
 
     next_points = situation.sample_points[situation.sample_points.iteration == max(situation.sample_points.iteration)]
     print(f"Actual parameters: {ACTUAL_A}*x^3 + {ACTUAL_B}*x^2 + {ACTUAL_C}*x + {ACTUAL_D}")
     print(f"Observations:\n{observations}")
     print(f"Last selected points:\n{next_points}")
+
+    situation.save("situation.asdf")
+    copy = hm2.Situation.read("situation.asdf")
 
     return
 

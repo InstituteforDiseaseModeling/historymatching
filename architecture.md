@@ -122,3 +122,77 @@ def generate_emulators(iteration, selected_features, model_results_db, emulator_
 
     return emulators
 ```
+
+## In-Memory Data Structures
+
+### Parameter Space
+
+(Pandas DataFrame)
+
+|"parameter"<br>(string)|"minimum"<br>(float)|"maximum"<br>(float)|
+|:-:|:-:|:-:|
+|_\<parameter1\>_|<min_value>|<max_value>|
+|_\<parameter2\>_|<min_value>|<max_value>|
+|⋮|⋮|⋮|
+|_\<parameterN\>_|<min_value>|<max_value>|
+
+### Observations / Ground Truth
+
+(Pandas DataFrame)
+
+|"statistic"<br>(literal)|_feature1_<br>(float)|_feature2_<br>(float)|...|_featureN_<br>(float)|
+|:---------:|:--------:|:--------:|:-:|:--------|
+|"mean"     |mean<sub>1</sub>|mean<sub>2</sub>|...|mean<sub>N</sub>|
+|"variance" |variance<sub>1</sub>|variance<sub>2</sub>|...|variance<sub>N</sub>|
+
+### Sample Points
+
+(Pandas DataFrame)
+
+|"iteration"<br>(integer)|_parameter1_<br>(float)|_parameter2_<br>(float)|...|_parameterN_<br>(float)|
+|:---------:|:----------:|:----------:|:-:|:----------:|
+|_iteration<sub>i</sub>_|value<sub>p1,i</sub>|value<sub>p2,i</sub>|...|value<sub>pN,i</sub>|
+
+### Simulator Results
+
+(Pandas DataFrame)
+
+|"replicate"<br>(integer)|_parameter1_<br>(float)|_parameter2_<br>(float)|...|_parameterN_<br>(float)|_feature1_<br>(float)|_feature2_<br>(float)|...|_featureM_<br>(float)|
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+|0|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
+|1|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
+|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
+|R|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
+|0|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
+|1|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
+|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
+|R|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
+
+- _parameter1_ ... _parameterN_ represent the actual names of these parameters, e.g. "beta", "gamma", etc.
+- _feature1_ ... _featureM_ represent the actual names of these features, e.g., "final_prevalence", "total_infections", etc.
+
+### Emulator Bank
+
+(dictionary[int, dictionary[string, emulator]])
+
+```python
+{
+    0: {
+        "<feature00>": emulator,
+        "<feature01>": emulator,
+        "...": ___,
+        "<feature0N>": emulator
+        },
+    1: {
+        "<feature10>": emulator,
+        "<feature11>": emulator,
+        "...": ___,
+        "<feature1N>": emulator
+        },
+    I: {
+        "<featureI0>": emulator,
+        "<featureI1>": emulator,
+        "...": ___,
+        "<featureIN>": emulator
+        },
+}
