@@ -16,13 +16,14 @@ class Recipe:
     def __init__(self):
         self.start_step_callback = Recipe.pirates                                   # Situation
         self.run_simulators = Recipe.null_simulator                                 # iteration, test points, config
-        self.select_features = Recipe.all_features                                  # iteration, observations, simulator_results, config
+        self.select_features = Recipe.default_feature_selection                     # iteration, observations, simulator_results, config
         self.generate_emulators = Recipe._generate_emulators                        # iteration, selected_features, observations, simulator_results, generate_emulator_for_feature, config
-        self.generate_emulator_for_feature = Recipe._generate_emulator_for_feature  #
-        self.generate_next_sample_points = Recipe.next_point_generation             # iteration, parameter_space, observations, emulator_bank, config
+        self.generate_emulator_for_feature = Recipe.default_emulator_generator      #
+        self.generate_next_sample_points = Recipe.default_next_point_generator      # iteration, parameter_space, observations, emulator_bank, config
         self.end_step_callback = Recipe.pirates                                     # Situation
         # iteration, non_implausible_fraction, non_implausible_target, config
-        self.exit_predicate = lambda iter, frac, target, cfg: (iter >= cfg.max_iterations) or (frac <= target)
+        self.exit_predicate = Recipe.default_exit_predicate
+
         return
 
     @staticmethod
@@ -143,3 +144,22 @@ class Recipe:
         logger.info("Generating next set of test points in parameter space...")
 
         return pd.DataFrame(), 1.0
+
+    @staticmethod
+    def standard_exit_predicate(iteration, non_implausible_fraction, non_implausible_target, config):
+
+        done = (iteration >= config.max_iterations) or (non_implausible_fraction <= non_implausible_target)
+
+        return done
+
+    default_feature_selection     = all_features
+    default_emulator_generator    = _generate_emulator_for_feature     # TODO - TBD
+    default_next_point_generator  = next_point_generation
+    default_exit_predicate        = standard_exit_predicate
+
+    def __setattr__(self, name, value):
+
+        if name not in ["default_feature_selection", "default_emulator_generator", "default_next_point_generator", "default_exit_predicate"]:
+            return super().__setattr__(name, value)
+        else:
+            raise RuntimeError(f"May not change the value of {name}.")
