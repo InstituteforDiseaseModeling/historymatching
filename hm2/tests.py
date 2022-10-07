@@ -163,6 +163,23 @@ class RecipeTests(unittest.TestCase):
 
         return
 
+    def test_writeonly_properties(self):
+
+        recipe = Recipe()
+
+        with self.assertRaises(RuntimeError):
+            recipe.default_feature_selection = lambda _: None
+
+        with self.assertRaises(RuntimeError):
+            recipe.default_emulator_generator = lambda _: None
+
+        with self.assertRaises(RuntimeError):
+            recipe.default_next_point_generator = lambda _: None
+
+        with self.assertRaises(RuntimeError):
+            recipe.default_exit_predicate = lambda _: None
+
+        return
 
 class SamplerTests(unittest.TestCase):
 
