@@ -23,16 +23,17 @@
 
 ## TODO
 
-- [X] need to wrap `do_step()` with a "run calibration" loop which does basically what `one_parameter.py` does, calling `do_step()` until it returns `True`. Implemented trivial wrapper, `do_staircase()` (all steps).
+- [X] need to wrap `do_step()` with a "run calibration" loop which does basically what `one_parameter.py` does, calling `do_step()` until it returns `True`. Implemented trivial wrapper, `do_staircase()` (all steps). Implemented `do_staircase()`.
 - [ ] need default functions in `Recipe` for 1) selecting features, 2) generating emulators, and 3) next point(s) generation
 - [ ] need example choosing different features at different iterations in the calibration
 - [ ] need example generating other emulator(s) than the default
 - [ ] need to spec. emulator statistics returned from generating emulators (@rnunez-IDM) and spec. data structure for same (@clorton)
 - [ ] need example with custom next point(s) generation algorithm
-- [ ] need functions on `Situation` to save to/restore from disk
+- [X] need functions on `Situation` to save to/restore from disk. Implemented `Situation.save()` and `Situation.read()`.
 - [ ] need example hooking `end_step_callback` to output diagnostic information from each step of calibration
 - [ ] need example hooking `end_step_callback` to use `Situation` save to disk functionality
 - [ ] need example using `Situation` restore from disk functionality to re-start or branch a calibration
+- [ ] consider bringing emulators from Richard Barnes into hm2
 ----
 - [ ] need to update `history_matching` examples to use `hm2`, when ready
   - radius complete
