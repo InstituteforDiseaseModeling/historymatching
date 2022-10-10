@@ -146,9 +146,9 @@ class Recipe:
         return pd.DataFrame(), 1.0
 
     @staticmethod
-    def standard_exit_predicate(iteration, non_implausible_fraction, non_implausible_target, config):
+    def standard_exit_predicate(iteration, non_implausible_fraction, config):
 
-        done = (iteration >= config.max_iterations) or (non_implausible_fraction <= non_implausible_target)
+        done = (iteration >= config.max_iterations) or (non_implausible_fraction <= config.non_implausible_target)
 
         return done
 
