@@ -128,12 +128,11 @@ class RecipeTests(unittest.TestCase):
 
             return
 
-        def predicate(iteration: int, non_implausible_fraction: float, non_implausible_target: float, config: Config) -> bool:
+        def predicate(iteration: int, non_implausible_fraction: float, config: Config) -> bool:
 
             messages.append("Exit Predicate")
             self.assertTrue(isinstance(iteration, int))
             self.assertTrue(isinstance(non_implausible_fraction, float))
-            self.assertTrue(isinstance(non_implausible_target, float))
             self.assertTrue(isinstance(config, Config))
 
             return True

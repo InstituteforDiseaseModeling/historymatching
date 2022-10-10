@@ -70,7 +70,7 @@ def do_step(situation: Situation, recipe: Recipe, config: Config):
 
     logger.info(f"Finished step {situation.iteration}...")
 
-    return recipe.exit_predicate(situation.iteration, non_implausible_fraction, config.non_implausible_target, config)
+    return recipe.exit_predicate(situation.iteration, non_implausible_fraction, config)
 
 
 def get_test_points_for_iteration(
