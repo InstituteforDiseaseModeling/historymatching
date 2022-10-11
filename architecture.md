@@ -196,3 +196,68 @@ def generate_emulators(iteration, selected_features, model_results_db, emulator_
         "<featureIN>": emulator
         },
 }
+```
+
+### Situation Object
+
+_Note:_ This is a lighthearted attempt to name something other than `State` which is accurate, but not very descriptive and used in many projects. [Reference](https://en.wikipedia.org/wiki/Michael_Sorrentino)
+
+This object contains all the current information about the current _state_ of the calibration process (¿What's the situation?)
+
+```python
+class Situation:
+
+    # Situation (a synonym for state or status) represents the information for an iteration
+    # of a history matching pass. Information below is listed roughly in the order it is
+    # needed/produced during the loop.
+
+    iteration           # integer >= 0
+    parameter_space     # see Parameter Space above in "In-Memory Data Structures" (input/read only)
+    sample_points       # see Sample Points above (input and output, R/W)
+    simulator_results   # see Simulator Results above (input and output, R/W)
+    observations        # see Observations above (input/read only)
+    emulator_bank       # see Emulator Bank above (input and output, R/W)
+
+    situation.save(filename) -> None        # write all current data to an [ASDF file](https://asdf.readthedocs.io/en/stable/)
+    Situation.read(filename) -> Situation   # create a Situation object populated with data from the given ASDF file
+
+```
+
+### Recipe Object
+
+_Note:_ "Recipe" is chosen as a synonym for "template".
+
+```python
+class Recipe:
+
+    # Recipe represents the pattern or template of a history matching pass.
+    # Each step has a default (sometime "no action") and can be overridden by a
+    # user to customize the process either overall or on a per-iteration basis.
+
+    start_step_callback             # generic callback marking the start of a pass
+    run_simulators                  # required override for calling the user simulator with the given point(s) in parameter space
+    select_features                 # function to select features to be passed to `generate_emulators` on this pass
+                                    # default is to return _all_ features
+    generate_emulators              # function to loop over selected features and call generate_emulator_for_feature on each one
+                                    # default is to call `generate_emulator_for_feature` on each selected feature
+    generate_emulator_for_feature   # function to generate an emulator for a given feature
+    generate_next_sample_points     # function to consider parameter space, ground truth observations, and existing emulators to determine next point(s)
+                                    # in parameter space for consideration
+    end_step_callback               # generic callback marking the end of a pass
+    exit_predicate                  # function to determine if conditions warrant exiting the history matching loop
+                                    # default function is to compare the current iteration against config.max_iteration _and_
+                                    # current non-implausible space to non-implausible target
+                                    # returns `True` _to exit_ the history matching loop (i.e., `False` == continue, do not exit)
+
+    # The defaults below exist so users can wrap them, e.g., inspect before or after execution,
+    # filter the results, e.g., apply additional conditions on emulator quality or proposed next
+    # points in parameter space, or extend without duplicating code, e.g., use `default_exit_predicate`
+    # to check iteration and remaining non-implausible parameter space _in addition_ to any custom
+    # checks.
+
+    default_feature_selection       # return _all_ features
+    default_emulator_generator      # call `generate_emulator_for_feature` on each selected feature
+    default_next_point_generator    # TODO - TBD
+    default_exit_predicate          # check iteration and remaining non-implausible parameter space
+
+```
