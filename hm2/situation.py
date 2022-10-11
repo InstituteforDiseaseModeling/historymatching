@@ -233,6 +233,12 @@ class Situation:
 
     def save(self, filename: Path) -> None:
 
+        try:
+            self.validate()
+        except Exception as ex:
+            logger.error(f"Situation object is not valid ({ex})")
+            raise ex
+
         toc = dict(
             iteration = self.iteration,
             parameter_space = dataframe_to_ndarray(self.parameter_space),
@@ -260,6 +266,12 @@ class Situation:
             )
         situation.simulator_results = ndarray_to_dataframe(af["simulator_results"])
         situation.emulator_bank = af["emulators"]
+
+        try:
+            situation.validate()
+        except Exception as ex:
+            logger.error(f"'{filename}' does not contain a valid Situation ({ex})")
+            raise ex
 
         return situation
 
