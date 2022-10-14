@@ -60,11 +60,17 @@ class BaseEmulator:
             Y = y.to_numpy()
         
             # Split data into testing and training datasets
-            self.X_train, \
-                self.X_test, \
-                self.y_train, \
-                self.y_test = model_selection    \
-                            .train_test_split( X, Y, test_size=test_fraction )
+            if test_fraction > 0:
+                self.X_train, \
+                    self.X_test, \
+                    self.y_train, \
+                    self.y_test = model_selection    \
+                                .train_test_split( X, Y, test_size=test_fraction )
+            else:
+                self.X_train = X
+                self.X_test = None
+                self.y_train = Y
+                self.y_test = None
 
             # Save some additional initialization data
             self.X_df = pd.DataFrame(x)

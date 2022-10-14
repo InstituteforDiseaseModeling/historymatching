@@ -33,7 +33,7 @@
 - [ ] need example hooking `end_step_callback` to output diagnostic information from each step of calibration
 - [ ] need example hooking `end_step_callback` to use `Situation` save to disk functionality
 - [ ] need example using `Situation` restore from disk functionality to re-start or branch a calibration
-- [ ] consider bringing emulators from Richard Barnes into hm2
+- [ ] <strike>consider bringing emulators from Richard Barnes into hm2</strike>
 ----
 - [ ] need to update `history_matching` examples to use `hm2`, when ready
   - radius complete

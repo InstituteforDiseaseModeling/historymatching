@@ -31,7 +31,7 @@ def main():
     ACTUAL_B = 42.0
 
     parameter_space = pd.DataFrame([["b", ACTUAL_B-5, ACTUAL_B+5]], columns=["parameter", "minimum", "maximum"])
-    
+
     taps = np.array([5.0, 8.0, 13.0, 21.0])
     solution = (taps * SLOPE) + ACTUAL_B
     features = list(map(lambda x: f"x{int(x)}", taps))
