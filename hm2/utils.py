@@ -1,24 +1,33 @@
 from io import BytesIO
-from typing import List
+from typing import Dict, List, Union
 from unittest import result
 
 import numpy as np
 import pandas as pd
 
 
-def mean_and_variance_for_observations(observations: pd.DataFrame) -> pd.DataFrame:
+def mean_and_variance_for_observations(observations: Dict[str, Union[List, np.ndarray]]) -> pd.DataFrame:
 
-    statistics = pd.DataFrame(data=["mean", "variance"], columns=["statistic"])    # one row for mean, one row for variance
+    """
+    Return a Pandas DataFrame with expected columns for a set of raw observations.
 
-    for feature in observations.columns:
-        statistics[feature] = [observations[feature].mean(), observations[feature].var()]
+    Args:
+        observations: a dictionary mapping one or more features to one or more recorded values for that feature
+
+    Returns:
+        Pandas DataFrame with columns "features" (feature name: string), "means" (mean of recorded values), and "variances" (variance of recorded values)
+    """
+
+    data = [(key, np.mean(values), np.var(values, ddof=1)) for key, values in observations.items()]
+
+    statistics = pd.DataFrame(data=data, columns=["features", "means", "variances"]).set_index("features", drop=False)
 
     return statistics
 
 
 def features_from_observations(observations: pd.DataFrame) -> List[str]:
 
-    features = list([column for column in observations.columns if column != "statistic"])
+    features = list(observations.features)
 
     return features
 
