@@ -1,11 +1,9 @@
-from io import BytesIO
 import logging
 from pathlib import Path
 from typing import Dict
-from unittest import result
 
 import asdf
-from asdf.extension import Converter, Extension
+from asdf.extension import Extension
 import numpy as np
 import pandas as pd
 

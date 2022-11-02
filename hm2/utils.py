@@ -1,6 +1,5 @@
 from io import BytesIO
 from typing import List
-from unittest import result
 
 import numpy as np
 import pandas as pd
