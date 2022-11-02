@@ -131,19 +131,22 @@ def generate_emulators(iteration, selected_features, model_results_db, emulator_
 
 |"parameter"<br>(string)|"minimum"<br>(float)|"maximum"<br>(float)|
 |:-:|:-:|:-:|
-|_\<parameter1\>_|<min_value>|<max_value>|
-|_\<parameter2\>_|<min_value>|<max_value>|
+|_\<parameter<sub>1</sub>\>_|<min_value>|<max_value>|
+|_\<parameter<sub>2</sub>\>_|<min_value>|<max_value>|
 |⋮|⋮|⋮|
-|_\<parameterN\>_|<min_value>|<max_value>|
+|_\<parameter<sub>N</sub>\>_|<min_value>|<max_value>|
 
 ### Observations / Ground Truth
 
 (Pandas DataFrame)
 
-|"statistic"<br>(literal)|_feature1_<br>(float)|_feature2_<br>(float)|...|_featureN_<br>(float)|
-|:---------:|:--------:|:--------:|:-:|:--------|
-|"mean"     |mean<sub>1</sub>|mean<sub>2</sub>|...|mean<sub>N</sub>|
-|"variance" |variance<sub>1</sub>|variance<sub>2</sub>|...|variance<sub>N</sub>|
+|"features"<br>(string)|"means"<br>(float)|"variances"<br>(float)|
+|:-:|:-:|:-:|
+|_\<feature<sub>1</sub>\>_|mean<sub>1</sub>|variance<sub>1</sub>|
+|_\<feature<sub>2</sub>\>_|mean<sub>2</sub>|variance<sub>2</sub>|
+|⋮|⋮|⋮|
+|_\<feature<sub>N</sub>\>_|mean<sub>N</sub>|variance<sub>N</sub>|
+
 
 ### Sample Points
 
