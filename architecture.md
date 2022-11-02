@@ -2,6 +2,8 @@
 
 ![History Matching Architecture Diagram (Rafael Nunez)](./history-matching-architecture.png "title")
 
+![History Matching Algorithm Diagram (Christopher Lorton)](./history-matching-flowchart.png "History Matching Algorithm")[https://app.diagrams.net]
+
 ## Overview
 
 Given some _observational data_, a _model_ (AKA simulator) which includes fixed configuration data opaque to the history matching package (HMP), and an initial _parameter space_ defined by a set of parameters and their minima and maxima, an iteration of the history matching algorithm is as follows:
