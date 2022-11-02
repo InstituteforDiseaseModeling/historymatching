@@ -42,7 +42,7 @@ class Situation:
         features = features_from_observations(observations)
         columns.extend(features)
         self.simulator_results = pd.DataFrame(columns=columns)
-        self.observations = observations
+        self.observations = observations.set_index("features", drop=False)
         self.emulator_bank = {}
 
         return
@@ -149,19 +149,11 @@ class Situation:
                 f"Situation observations should be Pandas DataFrame, not '{type(observations)}'"
             )
 
-        if not "statistic" in observations.columns:
-            raise RuntimeError(f"Situation observations must have 'statistic' column. Found {observations.columns}")
+        if set(observations.columns) != set(["features", "means", "variances"]):
+            raise RuntimeError(f"Situation observations should have columns 'feature', 'mean', and 'variance'. Found {set(observations.columns)}")
 
-        if len(observations.columns) <= 1:
-            raise RuntimeError(
-                f"Situation observations must have at least one feature column. Found {observations.columns}"
-            )
-
-        if len(observations[observations.statistic == "mean"]) != 1:
-            raise RuntimeError(f"Situation observations must have one row for means. Found {observations.statistic}")
-
-        if len(observations[observations.statistic == "variance"]) != 1:
-            raise RuntimeError(f"Situation observations must have one row for variances. Found {observations.statistic}")
+        if len(observations) < 1:
+            raise RuntimeEror(f"Situation observations must have at least one feature.")
 
         return
 
@@ -224,9 +216,10 @@ class Situation:
                 raise TypeError(f"Situation emulator bank values should be dictionaries mapping features to emulators. Found {list(map(lambda v: type(v), emulators.values()))}")
 
             # Keys must be features from observations
-            if not all([key in observations.columns for key in emulators.keys()]):
+            features = set(features_from_observations(observations))
+            if not all([key in features for key in emulators.keys()]):
                 raise ValueError(
-                    f"Found 'feature' in emulators dictionary ({emulators.keys()}, iteration {iteration}) which does not map to observation features ({observations.columns})."
+                    f"Found 'feature' in emulators dictionary ({emulators.keys()}, iteration {iteration}) which does not map to observation features ({features})."
                 )
 
         return
@@ -238,7 +231,7 @@ class Situation:
             parameter_space = dataframe_to_ndarray(self.parameter_space),
             observations = dataframe_to_ndarray(self.observations),
             sample_points = dataframe_to_ndarray(self.sample_points),
-            simulator_results = dataframe_to_ndarray(self.simulator_results.reset_index(drop=True)),
+            simulator_results = dataframe_to_ndarray(self.simulator_results),
             emulators = self.emulator_bank
         )
 
@@ -254,7 +247,7 @@ class Situation:
         af = asdf.open(filename)
         situation = Situation(
             ndarray_to_dataframe(af["parameter_space"]),
-            ndarray_to_dataframe(af["observations"]),
+            ndarray_to_dataframe(af["observations"]).set_index("features", drop=False),
             ndarray_to_dataframe(af["sample_points"]),
             af["iteration"]
             )

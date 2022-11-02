@@ -18,7 +18,7 @@ from history_matching.emulators import BaseEmulator
 
 
 valid_parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
-valid_observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
+valid_observations = pd.DataFrame(data=[["height", 1.75, 0.01], ["weight", 98.87, 1.13]], columns=["features", "means", "variances"])
 valid_sample_points = lhs(valid_parameter_space, 10)
 valid_sample_points["iteration"] = 0
 valid_simulator_results = pd.DataFrame(data=[[0, 5, 50, 500, 1.76, 98.5]], columns=["replicate", "x", "y", "z", "height", "weight"])
@@ -48,7 +48,7 @@ class RecipeTests(unittest.TestCase):
     def test_recipe_order(self):
 
         parameter_space = pd.DataFrame(data=[["k", 0.0, 1.0]], columns=["parameter", "minimum", "maximum"])
-        observations = pd.DataFrame(data=[["mean", 13.0], ["variance", 1.0]], columns=["statistic", "feature"])
+        observations = pd.DataFrame(data=[["feature", 13.0, 1.0]], columns=["features", "means", "variances"])
         initial_sample_points = pd.DataFrame(data=[[0, 0.0], [0, 0.25], [0, 0.5], [0, 0.75], [0, 1.0]], columns=["iteration", "k"])
 
         messages = []
@@ -387,7 +387,7 @@ class SituationValidationTests(unittest.TestCase):
     def test_invalid_simulator_results(self):
 
         parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
-        observations = pd.DataFrame(data=[["mean", 1.75, 98.87], ["variance", 0.01, 1.13]], columns=["statistic", "height", "weight"])
+        observations = pd.DataFrame(data=[["height", 1.75, 0.01], ["weight", 98.87, 1.13]], columns=["features", "means", "variances"])
 
         # Must be pd.DataFrame -=> TypeError
         with self.assertRaises(TypeError):
@@ -533,28 +533,35 @@ class SituationSaveReadTests(unittest.TestCase):
 
         return
 
+
 class UtilityTests(unittest.TestCase):
 
     def test_mean_and_variance_for_observations(self):
 
         # "Happy Path" only at this time
-        raw_observations = pd.DataFrame(data=[[175, 97], [175, 100], [173, 63], [163, 54], [61, 11]], columns=["height", "weight"])
+        raw_observations = {
+            "height": [175, 175, 173, 163,  61],
+            "weight": [ 97, 100,  63,  54,  11]
+        }
         mean_and_variance = mean_and_variance_for_observations(raw_observations)
         heights = np.array([175, 175, 173, 163, 61])
         weights = np.array([ 97, 100,  63,  54, 11])
-        self.assertEqual(np.float64(mean_and_variance[mean_and_variance.statistic == "mean"].height)    , heights.mean())
-        self.assertEqual(np.float64(mean_and_variance[mean_and_variance.statistic == "mean"].weight)    , weights.mean())
-        self.assertEqual(np.float64(mean_and_variance[mean_and_variance.statistic == "variance"].height), heights.var(ddof=1))  # Use N-1 for variance
-        self.assertEqual(np.float64(mean_and_variance[mean_and_variance.statistic == "variance"].weight), weights.var(ddof=1))  # Use N-1 for variance
+        self.assertEqual(np.float64(mean_and_variance.means["height"])    , heights.mean())
+        self.assertEqual(np.float64(mean_and_variance.means["weight"])    , weights.mean())
+        self.assertEqual(np.float64(mean_and_variance.variances["height"]), heights.var(ddof=1))  # Use N-1 for variance
+        self.assertEqual(np.float64(mean_and_variance.variances["weight"]), weights.var(ddof=1))  # Use N-1 for variance
 
         return
 
     def test_features_from_observations(self):
 
         # "Happy Path" only at this time
-        raw_observations = pd.DataFrame(data=[[175, 97], [175, 100], [173, 63], [163, 54], [61, 11]], columns=["height", "weight"])
+        raw_observations = {
+            "height": [175, 175, 173, 163,  61],
+            "weight": [ 97, 100,  63,  54,  11]
+        }
         mean_and_variance = mean_and_variance_for_observations(raw_observations)
-        self.assertSetEqual(set(features_from_observations(mean_and_variance)), set(raw_observations.columns))
+        self.assertSetEqual(set(features_from_observations(mean_and_variance)), set(raw_observations.keys()))
 
         return
 
