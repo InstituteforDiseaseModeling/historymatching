@@ -34,6 +34,8 @@ jobs:
         python -m pip install flake8 pytest
         # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip3 install -e .
+        # DEVNOTES:  remove this when related hm2 package changes get into setup.py
+        pip3 install scikit-learn
         pip3 freeze
         nvidia-smi
     - name: Lint with flake8
@@ -46,3 +48,16 @@ jobs:
     - name: Test with pytest
       run: |
         pytest -v history_matching/test/test_basis.py
+        cd hm2
+        python one_parameter.py
+        python four_parameters.py
+        pytest -v tests.py
+    - name: Test hm2 samples
+      run: |
+        cd hm2
+        python one_parameter.py
+        python four_parameters.py
+    - name: Test hm2 tests.py
+      run: |
+        cd hm2
+        pytest -v tests.py
