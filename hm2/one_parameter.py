@@ -86,7 +86,7 @@ def main():
                 emulators = emulator_bank[iteration]
                 for feature, emulator in emulators.items():
                     prediction = emulator.predict(candidates.b)
-                    difference = np.abs(prediction.value - np.float64(observations.loc[observations.statistic == "mean"][feature]))
+                    difference = np.abs(prediction.value - observations.means[feature])
                     candidates.plausible &= (difference < config.implausibility_threshold)
             points = pd.concat([points, candidates[candidates.plausible == True]])
 
@@ -103,7 +103,7 @@ def main():
 
     next_points = situation.sample_points[situation.sample_points.iteration == max(situation.sample_points.iteration)].b
     print(f"Actual intercept = {ACTUAL_B}")
-    print(f"Correct intercept, based on noisy sampling = {np.float64(observations[observations.statistic == 'mean'].x5) - (SLOPE*5)}")
+    print(f"Correct intercept, based on noisy sampling = {observations.means['x5'] - (SLOPE*5)}")
     print(observations)
     print(f"Min/max of last selected test points: {next_points.min():0.04f}/{next_points.max():0.04f}")
     print(f"Selected the following points for next iteration:\n{next_points}")
