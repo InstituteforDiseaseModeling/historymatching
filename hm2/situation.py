@@ -259,6 +259,7 @@ class Situation:
             )
         situation.simulator_results = ndarray_to_dataframe(af["simulator_results"])
         situation.emulator_bank = af["emulators"]
+        af.close()
 
         try:
             situation.validate()

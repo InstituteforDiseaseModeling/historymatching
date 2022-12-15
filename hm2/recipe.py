@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple
 import pandas as pd
 
 from .config import Config
+from .features import getFeatureStatistics, selectFeatures
 from .utils import features_from_observations
 
 from history_matching.emulators import BaseEmulator
@@ -87,9 +88,11 @@ class Recipe:
         """
 
         logger.info(f"Selecting features for iteration {iteration}...")
-        selected_features = features_from_observations(observations)
 
-        return selected_features
+        feature_statistics = getFeatureStatistics(simulator_results, None)  # None = all (?)
+        feature, target, simulated = selectFeatures(simulator_results, observations, feature_statistics, "fano", [])
+
+        return feature, target, simulated
 
     @staticmethod
     def _generate_emulators(
