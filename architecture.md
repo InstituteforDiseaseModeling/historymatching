@@ -1,3 +1,24 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [Architecture Proposal](#architecture-proposal)
+  - [Overview](#overview)
+  - [Notes](#notes)
+  - [Proposals](#proposals)
+  - [Questions](#questions)
+  - [Pseudocode](#pseudocode)
+  - [In-Memory Data Structures](#in-memory-data-structures)
+    - [Parameter Space](#parameter-space)
+    - [Observations / Ground Truth](#observations--ground-truth)
+    - [Sample Points](#sample-points)
+    - [Simulator Results](#simulator-results)
+    - [Emulator Bank](#emulator-bank)
+    - [Situation Object](#situation-object)
+    - [Recipe Object](#recipe-object)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Architecture Proposal
 
 ![History Matching Architecture Diagram (Rafael Nunez)](./history-matching-architecture.png "title")

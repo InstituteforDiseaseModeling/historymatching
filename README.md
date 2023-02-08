@@ -4,6 +4,15 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [User Installation](#user-installation)
+  - [Pre-requisites](#pre-requisites)
+- [Development Environment Setup](#development-environment-setup)
+  - [First Time Setup](#first-time-setup)
+  - [Development Tips](#development-tips)
+  - [Building docs](#building-docs)
+
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 
