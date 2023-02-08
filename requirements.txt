@@ -1,0 +1,9 @@
+--index-url=https://packages.idmod.org/api/pypi/pypi-production/simple
+patsy
+numpy
+pandas
+scikit-learn
+matplotlib
+asdf
+pyarrow
+tables

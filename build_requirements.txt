@@ -1,0 +1,7 @@
+--index-url=https://packages.idmod.org/api/pypi/pypi-production/simple
+flake8~=3.8.4
+coverage~=5.3.1
+coloredlogs
+idm-buildtools~=1.0.3
+twine
+wheel

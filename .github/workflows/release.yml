@@ -1,0 +1,39 @@
+name: "Staging: history_matching"
+
+on:
+  push:
+    branches:
+      # only run this on
+      - dev
+      - master
+      - release**
+    paths:
+      - 'history_matching/**'
+      - 'requirements.txt'
+      - 'dev_requirements.txt'
+      - 'setup.py'
+
+jobs:
+  release_history_matching:
+    name: "Release history_matching"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel twine bump2version
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+      - name: Build and publish
+        env:
+          TWINE_REPOSITORY_URL: https://packages.idmod.org/api/pypi/idm-pypi-staging/
+          TWINE_USERNAME: ${{ secrets.PYPI_STAGING_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_STAGING_PASSWORD }}
+        run: |
+          python setup.py sdist bdist_wheel
+          twine upload dist/*

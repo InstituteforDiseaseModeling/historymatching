@@ -6,9 +6,9 @@ import unittest
 
 import pandas as pd
 
-import hm2.features
+import history_matching.features
 
-WORK_DIR = Path(__file__).parent.absolute() / "test_data"
+WORK_DIR = Path(__file__).parent.absolute() / "data"
 
 class DerivedFeaturesTests(unittest.TestCase):
     
@@ -28,7 +28,7 @@ class DerivedFeaturesTests(unittest.TestCase):
         # active_features = set(["passthrough"])
         active_statistics = None    # None means use all set([])
 
-        computed_features, computed_stats = hm2.features.getFeatures( getFeatures_x, getFeatures_xref, active_features, active_statistics )
+        computed_features, computed_stats = history_matching.features.getFeatures( getFeatures_x, getFeatures_xref, active_features, active_statistics )
 
         self.assertEqual(set(computed_features.columns), set(getFeatures_ySim_features))
         for column in computed_features.columns:
@@ -53,9 +53,9 @@ class ClortonTests(unittest.TestCase):
         modelOutputs = pd.read_feather(GET_DIR / "in-x.ftr")        # simulation results
         observations = pd.read_feather(GET_DIR / "in-xref.ftr")     # observations
 
-        featureStats = hm2.features.getFeatureStatistics(modelOutputs)
+        featureStats = history_matching.features.getFeatureStatistics(modelOutputs)
 
-        selected, target, simulation = hm2.features.selectFeatures(modelOutputs, observations, featureStats, "fano", 1, [])
+        selected, target, simulation = history_matching.features.selectFeatures(modelOutputs, observations, featureStats, "fano", 1, [])
 
         return
 
@@ -80,7 +80,7 @@ class SelectFeaturesTests(unittest.TestCase):
         selectFeatures_fTarget    = pd.read_hdf(SEL_DIR / "out-fTarget.hdf", "fTarget")                 # simulation values for selected feature
 
         feature_history = []
-        computed_feature, reference_target, simulated_targets = hm2.features.selectFeatures(selectFeatures_f, selectFeatures_fref, selectFeatures_fStats, selectFeatures_metric, selectFeatures_iteration, feature_history)
+        computed_feature, reference_target, simulated_targets = history_matching.features.selectFeatures(selectFeatures_f, selectFeatures_fref, selectFeatures_fStats, selectFeatures_metric, selectFeatures_iteration, feature_history)
 
         self.assertEqual(computed_feature, selectFeatures_feature)
         self.assertEqual(reference_target, selectFeatures_frefTarget)

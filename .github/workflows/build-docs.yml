@@ -1,0 +1,40 @@
+name: "Build docs"
+on:
+  push:
+    paths:
+      - 'history_matching/**'
+      - 'docs/*'
+      - 'requirements.txt'
+      - 'setup.py'
+
+jobs:
+  build-documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('docs/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install dependencies
+        working-directory: 'docs'
+        run: |
+          sudo apt-get update
+          python -m pip install --upgrade pip py-make
+          sudo apt-get install make
+          pip install -r requirements.txt
+      - name: Install library
+        run: |
+          make setup-dev
+        env:
+          BUILD_DEBUG: 1
+      - name: Builds docs
+        working-directory: 'docs'
+        run: |
+          make html

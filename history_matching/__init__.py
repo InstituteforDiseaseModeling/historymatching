@@ -1,20 +1,8 @@
-import os
-import logging.config
-from .basis import Basis
-from .quick_read import quick_read
-from .HistoryMatching import HistoryMatching
-from .HistoryMatchingCut import HistoryMatchingCut
-from .ProgressPlotting import ProgressPlotting
-from .glm import GLM
-from .gpr import GPR
-from .gpr_mo import GPR_MO
+"""Import the following to make them local to history_matching module."""
 
-from .CutNearSamples import CutNearSamples
-from .VariableSelection import VariableSelection
-from .MCMCCut import MCMCCut
-from .MCMCCutWorker import MCMCCutWorker
+from .config import Config
+from .situation import Situation
+from .recipe import Recipe
+from .step import do_step, do_staircase
 
-__version__ = "0.1.1"
-
-current_dir = os.path.dirname(os.path.realpath(__file__))
-logging.config.fileConfig(os.path.join(current_dir, 'logging.ini'), disable_existing_loggers=False)
+__version__ = "0.0.1.dev"

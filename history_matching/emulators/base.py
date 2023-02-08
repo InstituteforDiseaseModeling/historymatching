@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn import model_selection
 
-from hm2.utils import dataframe_to_ndarray, ndarray_to_dataframe
+from history_matching.utils import dataframe_to_ndarray, ndarray_to_dataframe
 
 
 class BaseEmulator:

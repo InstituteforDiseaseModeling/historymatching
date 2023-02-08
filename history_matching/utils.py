@@ -1,6 +1,5 @@
 from io import BytesIO
 from typing import Dict, List, Union
-from unittest import result
 
 import numpy as np
 import pandas as pd
@@ -42,6 +41,7 @@ def dataframe_to_ndarray(df: pd.DataFrame) -> np.ndarray:
         result = None
 
     return result
+
 
 def ndarray_to_dataframe(nd: np.ndarray) -> pd.DataFrame:
 

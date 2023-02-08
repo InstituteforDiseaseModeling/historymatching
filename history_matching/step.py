@@ -120,7 +120,7 @@ def update_test_points(
     logger.info(
         f"Adding {len(next_sample_points)} new sample points on step {iteration}..."
     )
-    next_sample_points["iteration"] = iteration+1
+    next_sample_points["iteration"] = iteration + 1
     situation.sample_points = pd.concat([situation.sample_points, next_sample_points]).reset_index(drop=True)
 
     return

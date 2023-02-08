@@ -1,11 +1,9 @@
-from io import BytesIO
 import logging
 from pathlib import Path
 from typing import Dict
-from unittest import result
 
 import asdf
-from asdf.extension import Converter, Extension
+from asdf.extension import Extension
 import numpy as np
 import pandas as pd
 
@@ -153,7 +151,7 @@ class Situation:
             raise RuntimeError(f"Situation observations should have columns 'feature', 'mean', and 'variance'. Found {set(observations.columns)}")
 
         if len(observations) < 1:
-            raise RuntimeEror(f"Situation observations must have at least one feature.")
+            raise RuntimeError("Situation observations must have at least one feature.")
 
         return
 
@@ -233,17 +231,17 @@ class Situation:
             raise ex
 
         toc = dict(
-            iteration = self.iteration,
-            parameter_space = dataframe_to_ndarray(self.parameter_space),
-            observations = dataframe_to_ndarray(self.observations),
-            sample_points = dataframe_to_ndarray(self.sample_points),
-            simulator_results = dataframe_to_ndarray(self.simulator_results),
-            emulators = self.emulator_bank
+            iteration=self.iteration,
+            parameter_space=dataframe_to_ndarray(self.parameter_space),
+            observations=dataframe_to_ndarray(self.observations),
+            sample_points=dataframe_to_ndarray(self.sample_points),
+            simulator_results=dataframe_to_ndarray(self.simulator_results),
+            emulators=self.emulator_bank
         )
 
         af = asdf.AsdfFile(toc)
         af.write_to(filename, all_array_compression="bzp2")
-        
+
         return
 
     @staticmethod
@@ -256,7 +254,7 @@ class Situation:
             ndarray_to_dataframe(af["observations"]).set_index("features", drop=False),
             ndarray_to_dataframe(af["sample_points"]),
             af["iteration"]
-            )
+        )
         situation.simulator_results = ndarray_to_dataframe(af["simulator_results"])
         situation.emulator_bank = af["emulators"]
         af.close()

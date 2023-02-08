@@ -8,7 +8,7 @@ import scipy
 from sklearn import linear_model as sklm
 
 from .base import BaseEmulator
-from hm2.utils import ndarray_to_dataframe
+from history_matching.utils import ndarray_to_dataframe
 
 
 class LinearModel(BaseEmulator):

@@ -5,7 +5,6 @@ import pandas as pd
 
 from .config import Config
 from .features import getFeatureStatistics, selectFeatures
-from .utils import features_from_observations
 
 from history_matching.emulators import BaseEmulator
 
@@ -155,10 +154,10 @@ class Recipe:
 
         return done
 
-    default_feature_selection     = all_features
-    default_emulator_generator    = _generate_emulator_for_feature     # TODO - TBD
-    default_next_point_generator  = next_point_generation
-    default_exit_predicate        = standard_exit_predicate
+    default_feature_selection = all_features
+    default_emulator_generator = _generate_emulator_for_feature     # TODO - TBD
+    default_next_point_generator = next_point_generation
+    default_exit_predicate = standard_exit_predicate
 
     def __setattr__(self, name, value):
 

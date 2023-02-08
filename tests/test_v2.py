@@ -8,13 +8,12 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from hm2.config import Config
-from hm2.recipe import Recipe
-from hm2.samplers import lhs, grid, random
-from hm2.situation import Situation
-from hm2.step import do_step
-from hm2.utils import mean_and_variance_for_observations, features_from_observations
-from history_matching.emulators import BaseEmulator
+from history_matching.config import Config
+from history_matching.recipe import Recipe
+from history_matching.samplers import lhs, grid, random
+from history_matching.situation import Situation
+from history_matching.step import do_step
+from history_matching.utils import mean_and_variance_for_observations, features_from_observations
 
 
 valid_parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
