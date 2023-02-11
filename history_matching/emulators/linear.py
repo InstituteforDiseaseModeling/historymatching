@@ -18,9 +18,9 @@ class LinearModel(BaseEmulator):
     """
 
     def __init__(self,
-                  x:pd.DataFrame = None,
-                  y:pd.DataFrame = None,
-                  test_fraction: float = 0.25
+                 x: pd.DataFrame = None,
+                 y: pd.DataFrame = None,
+                 test_fraction: float = 0.25
                  ) -> None:
         self.regression_model = None
         super().__init__(x, y, test_fraction)
@@ -33,25 +33,24 @@ class LinearModel(BaseEmulator):
         predicted by the linear approximation.
         """
         logging.debug('... training emulator')
-     
+
         self.regression_model = sklm.LinearRegression()
-        self.regression_model.fit( self.X_train, self.y_train )
-        
-        #self.var = numpy.var( self.y_train )
+        self.regression_model.fit(self.X_train, self.y_train)
+
+        # self.var = numpy.var(self.y_train)
         self.training_complete = True
         logging.debug('     training complete')
         return
-    
-    
-    def predict(self, x:pd.DataFrame(), qlow=0.05, qhi=0.95 ):    
+
+    def predict(self, x: pd.DataFrame(), qlow=0.05, qhi=0.95):
         """Predict an output using the trained emulator.
-        
+
         Args:
             x : Input data. Pandas dataframe with columns representing parameter
                 values.
             qlow  : Lower quantile for the estimated uncertainty interval.
             qhigh : Upper quantile for the estimated uncertainty interval.
-            
+
         Returns:
             Pandas dataframe with predicted values and uncertainty intervals.
         """
@@ -63,36 +62,35 @@ class LinearModel(BaseEmulator):
                 X_pred = X_pred.reshape(-1, 1)
             else:
                 X_pred = X_pred.reshape(1, -1)
-        y_pred = self.regression_model.predict( X_pred )
-        
+        y_pred = self.regression_model.predict(X_pred)
+
         # Compute uncertainty bounds
-        variance = np.var( self.y_train )
+        variance = np.var(self.y_train)
         sigma = variance**0.5
-        low = scipy.stats.norm.ppf( q=qlow, scale=sigma )
-        hi  = scipy.stats.norm.ppf( q=qhi , scale=sigma )
-        
+        low = scipy.stats.norm.ppf(q=qlow, scale=sigma)
+        hi = scipy.stats.norm.ppf(q=qhi, scale=sigma)
+
         # Prepare output and return
-        out = pd.DataFrame( index=x.index )
+        out = pd.DataFrame(index=x.index)
         out['value'] = y_pred
-        out['low' ] = out['value'] + low
+        out['low'] = out['value'] + low
         out['high'] = out['value'] + hi
         return out
-    
-    
+
     def print_emulator_description(self):
         """Display detailed specifications (for example, emulator coefficients)
         for the trained emulator.
         """
-        print('      coefficients: ', self.regression_model.coef_ )
-        print('      intercept   : ', self.regression_model.intercept_ )
+        print('      coefficients: ', self.regression_model.coef_)
+        print('      intercept   : ', self.regression_model.intercept_)
         return
 
     def to_yaml_tree(self, tag, ctx) -> Dict:
 
         dictionary = super().to_yaml_tree(tag, ctx)
         dictionary.update(dict(
-            regression_model_params = self.regression_model.get_params(),
-            regression_model_state = self.regression_model.__getstate__()
+            regression_model_params=self.regression_model.get_params(),
+            regression_model_state=self.regression_model.__getstate__()
         ))
 
         return dictionary
@@ -107,19 +105,19 @@ class LinearModel(BaseEmulator):
 
         emulator = LinearModel()   # pass no initial values
 
-        emulator.X_df              = ndarray_to_dataframe(node["X_df"])
-        emulator.X_train           = node["X_train"]
-        emulator.X_test            = node["X_test"]
-        emulator.y_df              = ndarray_to_dataframe(node["y_df"])
-        emulator.y_train           = node["y_train"]
-        emulator.y_test            = node["y_test"]
-        emulator.y_pred            = node["y_pred"]
-        emulator.y_pred_test       = node["y_pred_test"]
-        emulator.y_test_pred_df    = ndarray_to_dataframe(node["y_test_pred_df"])
+        emulator.X_df = ndarray_to_dataframe(node["X_df"])
+        emulator.X_train = node["X_train"]
+        emulator.X_test = node["X_test"]
+        emulator.y_df = ndarray_to_dataframe(node["y_df"])
+        emulator.y_train = node["y_train"]
+        emulator.y_test = node["y_test"]
+        emulator.y_pred = node["y_pred"]
+        emulator.y_pred_test = node["y_pred_test"]
+        emulator.y_test_pred_df = ndarray_to_dataframe(node["y_test_pred_df"])
         emulator.training_complete = node["training_complete"]
-        emulator.testing_complete  = node["testing_complete"]
-        emulator.mse               = node["mse"]
-        emulator.r2score           = node["r2score"]
+        emulator.testing_complete = node["testing_complete"]
+        emulator.mse = node["mse"]
+        emulator.r2score = node["r2score"]
 
         emulator.regression_model = sklm.LinearRegression(**node["regression_model_params"])
         emulator.regression_model.__setstate__(node["regression_model_state"])
@@ -127,6 +125,7 @@ class LinearModel(BaseEmulator):
         return emulator
 
         return super().from_yaml_tree(node, tag, ctx)
+
 
 class LinearModelConverter(Converter):
 

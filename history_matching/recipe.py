@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple
 import pandas as pd
 
 from .config import Config
-from .features import getFeatureStatistics, selectFeatures
+from .features import getFeatureStatistics, select_features
 
 from history_matching.emulators import BaseEmulator
 
@@ -37,6 +37,12 @@ class Recipe:
     ) -> pd.DataFrame:
         """Method description
 
+             ========= ======== ======== === ======== ========== ========== ========== === ==========
+             iteration <param0> <param1> ... <paramN> replicate# <feature1> <feature2> ... <featureM>
+             ========= ======== ======== === ======== ========== ========== ========== === ==========
+                int     float    float   ...  float      int      float      float     ...  float
+             ========= ======== ======== === ======== ========== ========== ========== === ==========
+
         Args:
             iteration: current iteration index (0 based)
             test_points: dataframe of parameter names in columns, each row represents a test point in parameter space
@@ -44,10 +50,6 @@ class Recipe:
 
         Returns:
             pd.DataFrame: simulator results for the given test points in parameter space
-
-        |iteration|<param0>|<param1>|...|<paramN>|replicate#|<feature1>|<feature2>|...|<featureM>|
-        |---------|--------|--------|---|--------|----------|----------|----------|---|----------|
-        |   int   | float  | float  |...| float  |   int    | float    | float    |...| float    |
 
         """
 
@@ -67,20 +69,28 @@ class Recipe:
     ) -> List[str]:
         """Returns _all_ features found in the observations and simulator results.
 
+            observations-
+
+            ========= ========== ========== === ==========
+            statistic <feature1> <feature2> ... <featureM> 
+            ========= ========== ========== === ==========
+            mean       float      float     ...  float     
+            variance   float      float     ...  float     
+            ========= ========== ========== === ==========
+
+            simulation results-
+
+            ========= ======== ======== === ======== ========== ========== ========== === ========== 
+            iteration <param0> <param1> ... <paramN> replicate# <feature1> <feature2> ... <featureM> 
+            ========= ======== ======== === ======== ========== ========== ========== === ========== 
+            int       float    float    ... float    int        float      float      ... float     
+            ========= ======== ======== === ======== ========== ========== ========== === ========== 
+
         Args:
             iteration: current iteration index (0 based)
             observations: dataframe with feature names in columns, and one row of target values
 
-        |statistic|<feature1>|<feature2>|...|<featureM>|
-        |---------|----------|----------|---|----------|
-        |mean     | float    | float    |...| float    |
-        |variance | float    | float    |...| float    |
-
             simulator_results: dataframe with simulator results for various test points in parameter space
-
-        |iteration|<param0>|<param1>|...|<paramN>|replicate#|<feature1>|<feature2>|...|<featureM>|
-        |---------|--------|--------|---|--------|----------|----------|----------|---|----------|
-        |   int   | float  | float  |...| float  |   int    | float    | float    |...| float    |
 
             config: history matching configuration
 
@@ -89,7 +99,7 @@ class Recipe:
         logger.info(f"Selecting features for iteration {iteration}...")
 
         feature_statistics = getFeatureStatistics(simulator_results, None)  # None = all (?)
-        feature, target, simulated = selectFeatures(simulator_results, observations, feature_statistics, "fano", [])
+        feature, target, simulated = select_features(simulator_results, observations, feature_statistics, "fano", [])
 
         return feature, target, simulated
 

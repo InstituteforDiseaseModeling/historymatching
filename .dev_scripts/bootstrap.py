@@ -26,12 +26,13 @@ if sys.platform == "win32" and 'VIRTUAL_ENV' in os.environ:
 # python bootstrap.py
 
 base_directory = abspath(join(dirname(__file__), '..'))
+print(f"base_directory is {base_directory}")
 
 default_install = ['test']
 data_class_default = default_install
 
-escapes = ''.join([chr(char) for char in range(1, 32)])
-translator = str.maketrans('', '', escapes)
+ESCAPES = ''.join([chr(char) for char in range(1, 32)])
+translator = str.maketrans('', '', ESCAPES)
 logger = getLogger("bootstrap")
 
 
@@ -51,12 +52,18 @@ def execute(cmd: List['str'], cwd: str = base_directory, ignore_error: bool = Fa
         CalledProcessError if the return code was not 0
     """
     logger.debug(f'Running {" ".join(cmd)}')
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, cwd=cwd)
+    process = subprocess.Popen(cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        cwd=cwd)
     yield from iter(process.stdout.readline, "")
     process.stdout.close()
     return_code = process.wait()
     if return_code and not ignore_error:
         raise subprocess.CalledProcessError(return_code, cmd)
+
+    return
 
 
 def process_output(line):
@@ -79,16 +86,23 @@ def process_output(line):
         line = line.strip().translate(translator)
         logger.debug("".join(ch for ch in line if unicodedata.category(ch)[0] != "C"))
 
+    return
+
 
 def install_base_environment(pip_url):
-    for line in execute(["pip", "uninstall", "-y", "py-make"], ignore_error=True):
+
+    """install base environment"""
+
+    for line in execute(["python3", "-m", "pip", "uninstall", "-y", "py-make"], ignore_error=True):
         process_output(line)
     # install docs
     for install_dir in [join(base_directory, 'docs')]:
-        for line in execute(["pip", "install", "-r", "requirements.txt"], cwd=install_dir):
+        for line in execute(["python3", "-m", "pip", "install", "-r", "requirements.txt"], cwd=install_dir):
             process_output(line)
-    for line in execute(["pip", "install", "-e", ".[dev]", f"--extra-index-url={pip_url}"], cwd=base_directory):
+    for line in execute(["python3", "-m", "pip", "install", "-e", ".[dev]", f"--extra-index-url={pip_url}"], cwd=base_directory):
         process_output(line)
+
+    return
 
 
 if __name__ == "__main__":

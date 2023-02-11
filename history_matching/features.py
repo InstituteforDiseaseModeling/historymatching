@@ -166,7 +166,7 @@ class DerivedFeatures:
     @staticmethod
     def diff_Linf(x, xref):
         """
-        Returns the L_{\inf} norm of the difference between each time series in x
+        Returns the L_{\\inf} norm of the difference between each time series in x
         and xref. The output is a pandas dataframe.
         """
 
@@ -457,7 +457,7 @@ def getFeatureStatistics(features: pd.DataFrame, active_statistics: set = None) 
     return featureStatistics
 
 
-def selectFeatures(simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFrame, featureStatistics: pd.DataFrame, metric: str, iteration: int, history: List = None) -> Tuple[str, Union[int, float, np.number], pd.DataFrame]:
+def select_features(simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFrame, featureStatistics: pd.DataFrame, metric: str, iteration: int, history: List = None) -> Tuple[str, Union[int, float, np.number], pd.DataFrame]:
 
     """
       Select target feature for history matching.

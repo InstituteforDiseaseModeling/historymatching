@@ -54,7 +54,7 @@ generate-api:
 	rm -rf temp
 	-rm history_matching_index.rst
 	-rm modules.rst
-	SPHINX_APIDOC_OPTIONS=members,undoc-members,show-inheritance,ignore-module-all sphinx-apidoc -f -e -o -M . ../history_matching
+	SPHINX_APIDOC_OPTIONS=members,undoc-members,show-inheritance,ignore-module-all sphinx-apidoc -f -e -M -o . ../history_matching
 	-rm dummy.rst
 	mv modules.rst history_matching_index.rst
 
