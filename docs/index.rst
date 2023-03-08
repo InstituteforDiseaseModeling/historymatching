@@ -1,12 +1,10 @@
-=================================================
-Welcome to |history_matching|
-=================================================
+==============================
+|HM| documentation
+==============================
 
-|history_matching| give short description on purpose of library,
-which can be found on Github_.
-
-.. _GitHub: https://github.com/InstituteforDiseaseModeling/history_matching
-
+|HM| is a collection of Python code for calibration of modeling results to
+reference data using history matching. History matching finds regions of
+parameter space that are non-implausible with respect to observed data.
 
 
 .. toctree::
@@ -15,5 +13,5 @@ which can be found on Github_.
 
    installation
    overview
-   history_matching_index
-   glossary
+   modules
+   faq

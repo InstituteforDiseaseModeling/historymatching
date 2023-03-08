@@ -23,12 +23,10 @@ formats:
 python:
    version: 3.7
    install:
-      - requirements: dev_scripts/package_requirements.txt
+      - requirements: requirements.txt
       - requirements: docs/requirements.txt
-      - method: pip
-        path: history_matching
-        extra_requirements:
-          - test
+      - method: setuptools
+        path: .
 
 
 # Optionally rank topics in search results, between -10 (lower) and 10 (higher).
@@ -37,4 +35,4 @@ python:
 search:
   ranking:
     installation.html: 3
-    history_matching.html: 2
+    modules.html: 2

@@ -30,6 +30,16 @@ if sys.platform in ["linux", "darwin"]:
 else:
     subprocess.check_output(["make.bat", "generate-api"], cwd=os.path.dirname(os.path.abspath(__file__)))
 
+# Rename "history-matching" to "API reference"
+filename = 'modules.rst' # This must match the Makefile
+with open(filename) as f: # Read existing file
+    lines = f.readlines()
+lines[0] = "=============\n" # Ensure the heading is the right length
+lines[1] = "API reference\n" # Blast away the existing heading and replace with this
+lines[2] = "=============\n" # Ensure the heading is the right length
+with open(filename, "w") as f: # Write new file
+    f.writelines(lines)
+
 # -- General configuration ------------------------------------------------
 
 tags.add('history-matching')
@@ -74,8 +84,7 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = ['.rst']
 
 # The encoding of source files.
 #
@@ -260,7 +269,7 @@ html_show_sphinx = False
 # contain a <link> tag referring to it.  The value of this option must be the
 # base URL from which the finished HTML is served.
 #
-html_use_opensearch = 'www.idmod.org/docs/'
+html_use_opensearch = 'www.docs.idmod.org'
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
 # html_file_suffix = None
@@ -392,31 +401,6 @@ texinfo_documents = [
 # intersphinx_mapping = {'https://docs.python.org/': None}
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
-                    #    'emod_api': ('https://docs.idmod.org/projects/emod-api/en/latest/', None),
-                    #    'emodpy': ('https://docs.idmod.org/projects/emodpy/en/latest/', None),
-                    #    'idmtools': ('https://docs.idmod.org/projects/idmtools/en/latest/', None),
-                    #    'idmtools-calibra': ('https://docs.idmod.org/projects/idmtools_calibra/en/latest/', None),
-                    #    'idmtools-joblib': ('https://docs.idmod.org/projects/idmtools-joblib/en/latest/', None),
-                    #    'emodpy-calibra': ('https://docs.idmod.org/projects/emodpy-calibra/en/latest/', None),
-                    #    'emodpy-malaria': ('https://docs.idmod.org/projects/emodpy-malaria/en/latest/', None),
-                    #    'emodpy-measles': ('https://docs.idmod.org/projects/emodpy-measles/en/latest/', None),
-                    #    'emodpy-tbhiv': ('https://docs.idmod.org/projects/emodpy-tbhiv/en/latest/', None),
-                    #    'emodpy-covid': ('https://docs.idmod.org/projects/emodpy-covid/en/latest/', None),
-                    #    'emodpy-generic': ('https://docs.idmod.org/projects/emodpy-generic/en/latest/', None),
-                    #    'emodpy-hiv': ('https://docs.idmod.org/projects/emodpy-hiv/en/latest/', None),
-                    #    'emod-generic': ('https://docs.idmod.org/projects/emod-generic/en/latest/', None),
-                    #    'emod-malaria': ('https://docs.idmod.org/projects/emod-malaria/en/latest/', None),
-                    #    'emod-vector': ('https://docs.idmod.org/projects/emod-vector/en/latest/', None),
-                    #    'emod-hiv': ('https://docs.idmod.org/projects/emod-hiv/en/latest/', None),
-                    #    'emod-sti': ('https://docs.idmod.org/projects/emod-sti/en/latest/', None),
-                    #    'emod-airborne': ('https://docs.idmod.org/projects/emod-airborne/en/latest/', None),
-                    #    'emod-tbhiv': ('https://docs.idmod.org/projects/emod-tuberculosis/en/latest/', None),
-                    #    'emod-environmental': ('https://docs.idmod.org/projects/emod-environmental/en/latest/', None),
-                    #    'emod-typhoid': ('https://docs.idmod.org/projects/emod-typhoid/en/latest/', None),
-                    #    'vis-tools': ('https://docs.idmod.org/projects/vis-tools/en/latest/', None),
-                    #    'pycomps': ('https://docs.idmod.org/projects/pycomps/en/latest/', None),
-                    #    'covasim': ('https://docs.idmod.org/projects/covasim/en/latest/', None),
-                    #    'synthpops': ('https://docs.idmod.org/projects/synthpops/en/latest/', None),
-                    #    'dymodetron': ('https://docs.idmod.org/projects/dymodetron/en/latest/', None),
-                    #    'cms': ('https://docs.idmod.org/projects/cms/en/latest/', None)
+                        'idmtools': ('https://docs.idmod.org/projects/idmtools/en/latest/', None),
+                        'idmtools-calibra': ('https://docs.idmod.org/projects/idmtools_calibra/en/latest/', None)
                        }

@@ -114,6 +114,8 @@ tests/reports/*
 
 # Sphinx docs
 docs/_build/
+docs/modules.rst
+docs/history_matching*.rst
 
 # PyBuilder
 target/
@@ -158,4 +160,4 @@ venv.bak/
 docs/_build
 *.buildlog
 # Ignore generated docs
-docs/history_matching_*
+docs/history_matching*

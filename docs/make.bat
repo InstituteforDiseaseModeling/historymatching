@@ -5,7 +5,7 @@ REM Command file for Sphinx documentation
 if "%SPHINXBUILD%" == "" (
 	set SPHINXBUILD=sphinx-build
 )
-set SPHINXOPTS=-W -t history-matching
+set SPHINXOPTS=-t history-matching 
 set BUILDDIR=_build
 set ALLSPHINXOPTS=-d %BUILDDIR%/doctrees %SPHINXOPTS% .
 set I18NSPHINXOPTS=%SPHINXOPTS% .
@@ -47,6 +47,8 @@ if "%1" == "help" (
 if "%1" == "clean" (
 	for /d %%i in (%BUILDDIR%\*) do rmdir /q /s %%i
 	del /q /s %BUILDDIR%\*
+	del history_matching*.rst >nul 2>&1
+	del modules.rst >nul 2>&1
 	goto end
 )
 
@@ -75,16 +77,15 @@ if errorlevel 9009 (
 :sphinx_ok
 if "%1" == "generate-api" (
     set SPHINX_APIDOC_OPTIONS=members,undoc-members,show-inheritance,ignore-module-all
-
     del modules.rst >nul 2>&1
+    del history_matching*.rst >nul 2>&1
     sphinx-apidoc -f -e -M -o . ../history_matching
-	REN modules.rst history_matching_index.rst
 	goto end
 )
 
 
 if "%1" == "html" (
-	call make.bat generate-api
+rem	call make.bat generate-api
 	%SPHINXBUILD% -b html %ALLSPHINXOPTS% %BUILDDIR%/html
 	if errorlevel 1 exit /b 1
 	echo.

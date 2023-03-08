@@ -1,3 +1,4 @@
+
 .. this file contains are the "replace" variables for feature names or other teams that either
 .. take a lot of time to type or are likely to change in the future. Instead of hard-coding the
 .. word or phrase in source files, you can include the variable surrounded by pipes (|).
@@ -14,25 +15,16 @@
 .. subsequent use. If the term changes, you will only need to manually update the :term: links.
 
 .. |IDM_l| replace:: Institute for Disease Modeling (IDM)
+.. |HM| replace:: history-matching
 .. |IDM_s| replace:: IDM
-.. |history_matching| replace:: History Matching
-.. |Python_supp| replace:: Python 3.6 64-bit
-.. |EMODPY_s| replace:: emodpy
-.. |EMODPY_malaria| replace:: emodpy-malaria
-.. |EMODPY_generic| replace:: emodpy-generic
-.. |EMODPY_hiv| replace:: emodpy-hiv
-.. |EMODPY_tbhiv| replace:: emodpy-tbhiv
-.. |emod_api| replace:: emod-api
 .. |EMOD_l| replace:: Epidemiological MODeling software (EMOD)
 .. |EMOD_s| replace:: EMOD
 .. |IT_l| replace:: idmtools
 .. |IT_s| replace:: idmtools
 .. |SSMT_l| replace:: Server-Side Modeling Tools (SSMT)
 .. |SSMT_s| replace:: SSMT
+.. |DT| replace:: DTK-Tools
+.. |DTM| replace:: DTK-Tools-Malaria
 .. |COMPS_l| replace:: COmputational Modeling Platform Service (COMPS)
 .. |COMPS_s| replace:: COMPS
-.. |exe_l| replace:: EMOD executable (Eradication.exe)
-.. |exe_s| replace:: Eradication.exe
-.. |linux_binary| replace:: Eradication binary for Linux
-
-.. _GitHub: https://github.com/InstituteforDiseaseModeling/history_matching
+.. |Python_supp| replace:: Python 3.9 64-bit
