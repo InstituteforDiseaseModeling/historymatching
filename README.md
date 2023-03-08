@@ -7,7 +7,7 @@
 **Table of Contents**
 
 - [User Installation](#user-installation)
-  - [Pre-requisites](#pre-requisites)
+  - [Prerequisites](#prerequisites)
 - [Development Environment Setup](#development-environment-setup)
   - [First Time Setup](#first-time-setup)
   - [Development Tips](#development-tips)
@@ -15,22 +15,21 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-
-# User Installation
+## User installation
 
 ```bash
 pip install history_matching --index-url=https://packages.idmod.org/api/pypi/pypi-production/simple
 ```
 
-## Pre-requisites
+### Prerequisites
 - Python 3.6/3.7 x64
 
 
-# Development Environment Setup
+## Development environment setup
 
 When setting up your environment for the first time, you can use the following instructions
 
-## First Time Setup
+### First Time Setup
 1) Clone the repository:
 
    ```bash
@@ -47,7 +46,7 @@ When setting up your environment for the first time, you can use the following i
 4) If you are on windows, run `pip install py-make --upgrade --force-reinstall`
 5) Then run `python ./.dev_scripts/bootstrap.py`. This will install all the tools. 
 
-## Development Tips
+### Development tips
 
 There is a Makefile file available for most common development tasks. Here is a list of commands
 
@@ -61,6 +60,6 @@ coverage    -   Run tests and generate coverage report that is shown in browser
 On Windows, you can use `pymake` instead of `make`
 
 
-## Building docs
+### Building docs
 
 ```make docs```
