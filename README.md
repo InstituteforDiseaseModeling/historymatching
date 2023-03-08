@@ -9,7 +9,7 @@
 - [User installation](#user-installation)
   - [Prerequisites](#prerequisites)
 - [Development environment setup](#development-environment-setup)
-  - [First time setup](#first-time-setup)
+  - [First Time Setup](#first-time-setup)
   - [Development tips](#development-tips)
   - [Building docs](#building-docs)
 
