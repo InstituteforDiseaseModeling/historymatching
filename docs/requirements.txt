@@ -1,8 +1,7 @@
-plantweb
-PyGithub
-sphinx-rtd-theme
-sphinxcontrib-napoleon
-sphinxcontrib-programoutput
 sphinx
+sphinx-rtd-theme
+plantweb~=1.2.1
+sphinx-copybutton~=0.3.1
+sphinxcontrib-napoleon~=0.7
+sphinxcontrib-programoutput~=0.16
 sphinxext.remoteliteralinclude
-sphinx-copybutton
