@@ -61,7 +61,8 @@ extensions = [
     'sphinxcontrib.programoutput',
     'sphinx.ext.intersphinx',
     'sphinxext.remoteliteralinclude',
-    'sphinx_copybutton'
+    'sphinx_copybutton',
+    'myst_parser'
 ]
 
 plantuml = 'plantweb'
@@ -164,6 +165,10 @@ todo_include_todos = False
 # directives to use across the docset.
 
 rst_epilog = "\n.. include:: /variables.txt"
+
+# -- MyST parser configuration to include md files
+
+suppress_warnings = ['myst.header']
 
 # -- Options for HTML output ----------------------------------------------
 
