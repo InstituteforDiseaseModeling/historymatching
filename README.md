@@ -6,11 +6,11 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
 
-- [User Installation](#user-installation)
+- [User installation](#user-installation)
   - [Prerequisites](#prerequisites)
-- [Development Environment Setup](#development-environment-setup)
+- [Development environment setup](#development-environment-setup)
   - [First Time Setup](#first-time-setup)
-  - [Development Tips](#development-tips)
+  - [Development tips](#development-tips)
   - [Building docs](#building-docs)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
