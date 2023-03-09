@@ -168,7 +168,7 @@ rst_epilog = "\n.. include:: /variables.txt"
 
 # -- MyST parser configuration to include md files
 
-suppress_warnings = ['myst.header']
+suppress_warnings = ['myst.header', 'myst.iref_missing']
 
 # -- Options for HTML output ----------------------------------------------
 
