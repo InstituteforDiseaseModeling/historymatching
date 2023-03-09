@@ -9,7 +9,7 @@
 - [User installation](#user-installation)
   - [Prerequisites](#prerequisites)
 - [Development environment setup](#development-environment-setup)
-  - [First time setup](#first-time-setup)
+  - [First Time Setup](#first-time-setup)
   - [Development tips](#development-tips)
   - [Building docs](#building-docs)
 
@@ -29,7 +29,7 @@ pip install history_matching --index-url=https://packages.idmod.org/api/pypi/pyp
 
 When setting up your environment for the first time, you can use the following instructions
 
-### First Time Setup
+### First time setup
 1) Clone the repository:
 
    ```bash
