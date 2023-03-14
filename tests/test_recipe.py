@@ -6,12 +6,12 @@ import unittest
 import pandas as pd
 
 from history_matching import \
-    BaseEmulator, \
     Config, \
     Recipe, \
     Situation, \
     do_step, \
     features_from_observations
+from history_matching.emulators import BaseEmulator
 
 class RecipeTests(unittest.TestCase):
 

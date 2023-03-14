@@ -7,7 +7,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from history_matching import BaseEmulator, Situation, latin_hypercube_sampler
+from history_matching import Situation, latin_hypercube_sampler
+from history_matching.emulators import BaseEmulator
 
 valid_parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
 valid_observations = pd.DataFrame(data=[["height", 1.75, 0.01], ["weight", 98.87, 1.13]], columns=["features", "means", "variances"])
