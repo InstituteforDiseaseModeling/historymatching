@@ -1,12 +1,12 @@
 import logging
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 import pandas as pd
 
+from history_matching.emulators import BaseEmulator
+
 from .config import Config
 from .features import getFeatureStatistics, select_features
-
-from history_matching.emulators import BaseEmulator
 
 logger = logging.getLogger()
 

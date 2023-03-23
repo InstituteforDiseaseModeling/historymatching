@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 
 import math
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 import pandas as pd
 

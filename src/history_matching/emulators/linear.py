@@ -1,14 +1,15 @@
 import logging
 from typing import Dict
 
-from asdf.extension import Converter
 import numpy as np
 import pandas as pd
 import scipy
+from asdf.extension import Converter
 from sklearn import linear_model as sklm
 
-from .base import BaseEmulator
 from history_matching.utils import ndarray_to_dataframe
+
+from .base import BaseEmulator
 
 
 class LinearModel(BaseEmulator):

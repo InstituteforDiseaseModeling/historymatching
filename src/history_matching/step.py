@@ -19,9 +19,9 @@ import pandas as pd
 
 from history_matching.emulators import BaseEmulator
 
-from .situation import Situation
-from .recipe import Recipe
 from .config import Config
+from .recipe import Recipe
+from .situation import Situation
 
 logger = logging.getLogger()
 

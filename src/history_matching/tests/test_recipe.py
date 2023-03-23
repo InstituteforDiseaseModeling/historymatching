@@ -1,16 +1,11 @@
 #! /usr/bin/env python3
 
-from typing import Dict, List, Tuple
 import unittest
+from typing import Dict, List, Tuple
 
 import pandas as pd
 
-from history_matching import \
-    Config, \
-    Recipe, \
-    Situation, \
-    do_step, \
-    features_from_observations
+from history_matching import Config, Recipe, Situation, do_step, features_from_observations
 from history_matching.emulators import BaseEmulator
 
 

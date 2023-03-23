@@ -1,12 +1,9 @@
 """Parameter space point samplers."""
 
 from itertools import product
-# import logging
 
 import numpy as np
 import pandas as pd
-
-# logger = logging.getLogger()
 
 
 def lhs(parameter_space: pd.DataFrame, n_samples: int = 8) -> pd.DataFrame:

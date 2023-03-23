@@ -3,16 +3,15 @@ from pathlib import Path
 from typing import Dict
 
 import asdf
-from asdf.extension import Extension
 import numpy as np
 import pandas as pd
+from asdf.extension import Extension
 
 from history_matching.emulators import BaseEmulator
 from history_matching.emulators.base import BaseEmulatorConverter
 from history_matching.emulators.linear import LinearModelConverter
 
-from .utils import features_from_observations, dataframe_to_ndarray, ndarray_to_dataframe
-
+from .utils import dataframe_to_ndarray, features_from_observations, ndarray_to_dataframe
 
 logger = logging.getLogger()
 
