@@ -1,0 +1,69 @@
+# This file exists so you can easily regenerate your project.
+#
+# `cookiepatcher` is a convenient shim around `cookiecutter`
+# for regenerating projects (it will generate a .cookiecutterrc
+# automatically for any template). To use it:
+#
+#    pip install cookiepatcher
+#    cookiepatcher gh:ionelmc/cookiecutter-pylibrary history_matching
+#
+# See:
+#    https://pypi.org/project/cookiepatcher
+#
+# Alternatively, you can run:
+#
+#    cookiecutter --overwrite-if-exists --config-file=history_matching/.cookiecutterrc gh:ionelmc/cookiecutter-pylibrary
+
+default_context:
+    allow_tests_inside_package: 'yes'
+    appveyor:                  'no'
+    c_extension_function:      'longest'
+    c_extension_module:        '_history_matching'
+    c_extension_optional:      'no'
+    c_extension_support:       'no'
+    c_extension_test_pypi:     'no'
+    c_extension_test_pypi_username: 'clorton'
+    codacy:                    'no'
+    codacy_projectid:          '[Get ID from https://app.codacy.com/gh/clorton/history_matching/settings]'
+    codeclimate:               'no'
+    codecov:                   'yes'
+    command_line_interface:    'argparse'
+    command_line_interface_bin_name: 'history-matching'
+    coveralls:                 'no'
+    distribution_name:         'history-matching'
+    email:                     'christopher.lorton@gatesfoundation.org'
+    full_name:                 'Christopher Lorton'
+    github_actions:            'yes'
+    github_actions_osx:        'yes'
+    github_actions_windows:    'yes'
+    license:                   'MIT license'
+    linter:                    'flake8'
+    package_name:              'history_matching'
+    pre_commit:                'yes'
+    pre_commit_formatter:      'black'
+    project_name:              'History Matching'
+    project_short_description: 'History Matching package generated with cookiecutter-pylibrary.'
+    pypi_badge:                'no'
+    pypi_disable_upload:       'yes'
+    release_date:              'today'
+    repo_hosting:              'github.com'
+    repo_hosting_domain:       'github.com'
+    repo_main_branch:          'main'
+    repo_name:                 'history_matching'
+    repo_username:             'clorton'
+    scrutinizer:               'no'
+    setup_py_uses_pytest_runner: 'yes'
+    setup_py_uses_setuptools_scm: 'yes'
+    sphinx_docs:               'yes'
+    sphinx_docs_hosting:       'https://history_matching.readthedocs.io/'
+    sphinx_doctest:            'no'
+    sphinx_theme:              'sphinx-rtd-theme'
+    test_matrix_configurator:  'yes'
+    test_matrix_separate_coverage: 'yes'
+    travis:                    'no'
+    travis_osx:                'no'
+    version:                   '0.0.0'
+    version_manager:           'bump2version'
+    website:                   'https://www.idmod.org'
+    year_from:                 '2023'
+    year_to:                   '2023'

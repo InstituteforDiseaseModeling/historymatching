@@ -1,53 +1,99 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# -*- encoding: utf-8 -*-
+import io
+import re
+from glob import glob
+from os.path import basename
+from os.path import dirname
+from os.path import join
+from os.path import splitext
 
-"""The setup script for the history_matching"""
+from setuptools import find_packages
+from setuptools import setup
 
-from setuptools import setup, find_packages
 
-with open("README.md", encoding="utf-8") as readme_file:
-    readme = readme_file.read()
+def read(*names, **kwargs):
+    with io.open(join(dirname(__file__), *names), encoding=kwargs.get('encoding', 'utf8')) as fh:
+        return fh.read()
 
-# Load our Requirements files
-extra_require_files = dict()
-for file_prefix in ["", "dev_", "build_"]:
-    filename = f"{file_prefix}requirements"
-    with open(f"{filename}.txt", encoding="utf-8") as requirements_file:
-        fk = file_prefix.strip("_") if file_prefix else filename
-        extra_require_files[fk] = [r for r in requirements_file.read().split("\n") if not r.startswith("--")]
-
-extras = dict(
-    test=extra_require_files["build"] + extra_require_files["dev"],
-    dev=extra_require_files["build"] + extra_require_files["dev"],
-    build=extra_require_files["build"],
-    packaging=extra_require_files["build"]
-)
-
-# TODO review
-authors = [
-    ("Daniel Klein, PhD", "daniel.klein@gatesfoundation.org"),
-    ("Rafael Núñez, PhD", "rafael.nunez@gatesfoundation.org"),
-    ("Christopher Lorton", "christopher.lorton@gatesfoundation.org"),
-]
 
 setup(
-    author=[author[0] for author in authors],
-    author_email=[author[1] for author in authors],
-    classifiers=[
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10"
-    ],
-    description="Implementation of Bayesian History Matching, in Python, for model calibration.",
-    install_requires=extra_require_files["requirements"],
-    long_description=readme,
+    name='history-matching',
+    use_scm_version={
+        'local_scheme': 'dirty-tag',
+        'write_to': 'src/history_matching/_version.py',
+        'fallback_version': '0.0.0',
+    },
+    license='MIT',
+    description='History Matching package generated with cookiecutter-pylibrary.',
+    long_description='{}\n{}'.format(
+        re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.rst')),
+        re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGELOG.rst')),
+    ),
+    author='Christopher Lorton',
+    author_email='christopher.lorton@gatesfoundation.org',
+    url='https://github.com/clorton/history_matching',
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
+    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     include_package_data=True,
-    keywords="modeling, IDM",
-    name="history_matching",
-    packages=find_packages(),
-    setup_requires=[],
-    python_requires=">=3.7.2",
-    test_suite="tests",
-    extras_require=extras,
-    version="0.0.1.dev"
+    zip_safe=False,
+    classifiers=[
+        # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: Unix',
+        'Operating System :: POSIX',
+        'Operating System :: Microsoft :: Windows',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: Implementation :: CPython',
+        'Programming Language :: Python :: Implementation :: PyPy',
+        # uncomment if you test on these interpreters:
+        # 'Programming Language :: Python :: Implementation :: IronPython',
+        # 'Programming Language :: Python :: Implementation :: Jython',
+        # 'Programming Language :: Python :: Implementation :: Stackless',
+        'Topic :: Utilities',
+        'Private :: Do Not Upload',
+    ],
+    project_urls={
+        'Documentation': 'https://history_matching.readthedocs.io/',
+        'Changelog': 'https://history_matching.readthedocs.io/en/latest/changelog.html',
+        'Issue Tracker': 'https://github.com/clorton/history_matching/issues',
+    },
+    keywords=[
+        # eg: 'keyword1', 'keyword2', 'keyword3',
+    ],
+    python_requires='>=3.7',
+    install_requires=[
+        # eg: 'aspectlib==1.1.1', 'six>=1.7',
+        "numpy",
+        "pandas",
+        "matplotlib",
+        "scikit-learn",
+        "asdf",
+        "pyarrow",
+        "tables"
+    ],
+    extras_require={
+        # eg:
+        #   'rst': ['docutils>=0.11'],
+        #   ':python_version=="2.6"': ['argparse'],
+    },
+    setup_requires=[
+        'pytest-runner',
+        'setuptools_scm>=3.3.1',
+    ],
+    entry_points={
+        'console_scripts': [
+            'history-matching = history_matching.cli:main',
+        ]
+    },
 )

@@ -1,5 +1,0 @@
-include requirements.txt
-include dev_requirements.txt
-include build_requirements.txt
-include README.md
-prune tests

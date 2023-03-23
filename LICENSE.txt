@@ -1,3 +1,0 @@
-history_matching is licensed under the MIT License.
-
-To view a copy of this license, visit https://mit-license.org/

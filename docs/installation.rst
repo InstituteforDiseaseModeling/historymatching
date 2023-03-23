@@ -2,13 +2,9 @@
 Installation
 ============
 
-.. include:: ../README.md
-   :parser: myst_parser.sphinx_
-   :start-after: -->
+At the command line::
 
-.. _#user-installation: 
-.. _#prerequisites:
-.. _#development-environment-setup:
-.. _#first-time-setup:
-.. _#development-tips:
-.. _#building-docs:
+    On macOS need homebrew, brew install hdf5 c-blosc lzo bzip2, HDF5_DIR=/opt/homebrew/opt/hdf5, export HDF5_DIR
+    https://stackoverflow.com/a/67189321
+
+    pip install history-matching
