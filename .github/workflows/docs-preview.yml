@@ -1,7 +1,7 @@
 
-# This workflow will Rebuild history-matching Docs triggered when changes to rst, python or requirements.txt files are intended.
+# This workflow will build history-matching documentation triggered on a push to the repository or creation of a pull request.
 # Integrated with AZURE Static Site and BLOB Storage 
-# it treats failures as warnings so that it builds as many docs as it can.
+# It treats failures as warnings so that it builds as much of the documentation as it can for preview.
 # TRIGGERED FROM A PR: It pushes the resulting link to the PR itself. TODO: update github token with a service account one.
 name: history-matching Documents Preview - Azure Staging
 
@@ -31,7 +31,7 @@ jobs:
 
     - name: Install history-matching requirements
       run: |
-        python -mpip install --progress-bar=off -r ci/requirements.txt
+        python3 -m pip install --progress-bar=off -r ci/requirements.txt
         pip list --format=freeze
 
     # Documents building - treat failures as warnings      
