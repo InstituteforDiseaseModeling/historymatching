@@ -8,3 +8,14 @@ At the command line::
     https://stackoverflow.com/a/67189321
 
     pip install history-matching
+
+.. include:: ../README.rst
+   :parser: myst_parser.sphinx_
+   :start-after: -->
+
+.. _#user-installation: 
+.. _#prerequisites:
+.. _#development-environment-setup:
+.. _#first-time-setup:
+.. _#development-tips:
+.. _#building-docs:

@@ -28,7 +28,7 @@ setup(
     ),
     author='Christopher Lorton',
     author_email='christopher.lorton@gatesfoundation.org',
-    url='https://github.com/clorton/history_matching',
+    url='https://github.com/InstituteforDiseaseModeling/history_matching',
     packages=find_packages('src'),
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
@@ -62,7 +62,7 @@ setup(
     project_urls={
         'Documentation': 'https://history_matching.readthedocs.io/',
         'Changelog': 'https://history_matching.readthedocs.io/en/latest/changelog.html',
-        'Issue Tracker': 'https://github.com/clorton/history_matching/issues',
+        'Issue Tracker': 'https://github.com/InstituteforDiseaseModeling/history_matching/issues',
     },
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',

@@ -1,3 +1,6 @@
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ========
 Overview
 ========
@@ -18,17 +21,17 @@ Overview
     :target: https://history_matching.readthedocs.io/
     :alt: Documentation Status
 
-.. |github-actions| image:: https://github.com/clorton/history_matching/actions/workflows/github-actions.yml/badge.svg
+.. |github-actions| image:: https://github.com/InstituteforDiseaseModeling/history_matching/actions/workflows/github-actions.yml/badge.svg
     :alt: GitHub Actions Build Status
-    :target: https://github.com/clorton/history_matching/actions
+    :target: https://github.com/InstituteforDiseaseModeling/history_matching/actions
 
-.. |codecov| image:: https://codecov.io/gh/clorton/history_matching/branch/main/graphs/badge.svg?branch=main
+.. |codecov| image:: https://codecov.io/gh/InstituteforDiseaseModeling/history_matching/branch/main/graphs/badge.svg?branch=main
     :alt: Coverage Status
-    :target: https://codecov.io/github/clorton/history_matching
+    :target: https://codecov.io/github/InstituteforDiseaseModeling/history_matching
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/clorton/history_matching/v0.0.0.svg
+.. |commits-since| image:: https://img.shields.io/github/commits-since/InstituteforDiseaseModeling/history_matching/v0.0.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/clorton/history_matching/compare/v0.0.0...main
+    :target: https://github.com/InstituteforDiseaseModeling/history_matching/compare/v0.0.0...main
 
 
 
@@ -49,7 +52,7 @@ Installation
 
 You can also install the in-development version with::
 
-    pip install https://github.com/clorton/history_matching/archive/main.zip
+    pip install https://github.com/InstituteforDiseaseModeling/history_matching/archive/main.zip
 
 
 Documentation

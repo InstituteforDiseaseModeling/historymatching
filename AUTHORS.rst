@@ -2,4 +2,4 @@
 Authors
 =======
 
-* Christopher Lorton - https://www.idmod.org
+* Institute for Disease Modeling - https://www.idmod.org
