@@ -9,10 +9,6 @@ At the command line::
 
     pip install history-matching
 
-.. include:: ../README.rst
-   :parser: myst_parser.sphinx_
-   :start-after: -->
-
 .. _#user-installation: 
 .. _#prerequisites:
 .. _#development-environment-setup:
