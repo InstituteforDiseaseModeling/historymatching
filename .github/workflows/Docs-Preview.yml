@@ -1,0 +1,92 @@
+
+# This workflow will Rebuild history-matching Docs triggered when changes to rst, python or requirements.txt files are intended.
+# Integrated with AZURE Static Site and BLOB Storage 
+# it treats failures as warnings so that it builds as many docs as it can.
+# TRIGGERED FROM A PR: It pushes the resulting link to the PR itself. TODO: update github token with a service account one.
+name: history-matching Documents Preview - Azure Staging
+
+on: [push, pull_request]
+     
+jobs:
+  history-matching-Docs-Preview:
+    env:
+      SUBFOLDER_NAME: 'dist/docs'
+      BLOB_ENDPOINT: 'https://idmdocsstaging.z5.web.core.windows.net'
+      REPO_IDENTIFIER: 'idm/${{github.repository}}'   
+      BLOB_CONTAINER_NAME: '$web'
+      INDEX_HTML: 'index.html'
+      
+    runs-on: ubuntu-latest
+    steps:
+    - name: Repo Checkout
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.inputs.branch }}
+
+    # Environment Setup
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+          python-version: 3.9
+
+    - name: Install history-matching requirements
+      run: |
+        python -mpip install --progress-bar=off -r ci/requirements.txt
+        pip list --format=freeze
+
+    # Documents building - treat failures as warnings      
+    - name: Build docs - html - no break
+      id: build-docs
+      working-directory: 'docs'
+      run: |
+        tox -e docspreview
+    
+    # Generates Unique folder name
+    - name: Get current date to generate partial url link
+      id: date
+      run: |
+        echo "::set-output name=getdate::$(TZ='America/Los_Angeles' date +'%B %d %H:%M:%S')"        
+        echo "THIS_RUN=$(TZ='America/Los_Angeles' date +'%B%d-%H%M%S')" >> $GITHUB_ENV
+        
+    # AZURE LOGIN:
+    - name: Azure login
+      uses: azure/login@v1
+      with:
+          creds: ${{ secrets.BLOB_JSON_SERVICE_PRINCIPAL_CREDENTIALS }} 
+          
+    # AZURE UPLOAD:
+    - name: Upload to blob storage under $web
+      if: always()
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+            az storage blob upload-batch -s ${SUBFOLDER_NAME} --account-name idmdocsstaging  --auth-mode key -d ${BLOB_CONTAINER_NAME}/${REPO_IDENTIFIER}/${{env.THIS_RUN}}/${SUBFOLDER_NAME}
+            done
+    # GENERATE LINKS        
+    - name: YOUR LINK
+      run: |
+        LINK_URL=${BLOB_ENDPOINT}/${REPO_IDENTIFIER}/${{env.THIS_RUN}}/${SUBFOLDER_NAME}/${INDEX_HTML}
+        echo ${LINK_URL}
+            
+    # AZURE PURGE CDN
+    - name: Purge Azure CDN endpoint
+      if: always()
+      uses: azure/CLI@v1
+      with:
+          inlineScript: |
+               az cdn endpoint purge --content-paths  "/*" --profile-name "idmdocs-cdn-webprofile" --name "idmdocs-cdn-webendpoint" --resource-group "IDMDocsPreviewGroup"
+    
+    # AZURE LOGOUT
+    - name: Azure logout
+      if: always()    
+      run: |
+            az logout
+    # Updates PR
+    - name: Updates PR
+      if: always()
+      uses: mshick/add-pr-comment@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          message: |
+            ${{ steps.date.outputs.getdate }} - Run Id: ${{github.run_id}} **[->> Link to documents preview](${{ env.LINK_URL }})**
