@@ -1,8 +1,9 @@
-
-# This workflow will Rebuild history-matching Docs triggered when changes to rst, python or requirements.txt files are intended.
-# Integrated with AZURE Static Site and BLOB Storage 
+# This workflow will Rebuild history-matching Docs and provide a preview Link.
+# It is Integrated with AZURE Static Site and BLOB Storage 
 # it treats failures as warnings so that it builds as many docs as it can.
-# TRIGGERED FROM A PR: It pushes the resulting link to the PR itself. TODO: update github token with a service account one.
+# IF TRIGGERED FROM A PR: It pushes the resulting link to the PR itself.
+# TODO: Review the triggers. Right now is very open, please suggest how do you want them or feel free to update them.
+
 name: history-matching Documents Preview - Azure Staging
 
 on: [push, pull_request]
