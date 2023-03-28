@@ -48,6 +48,12 @@ jobs:
         echo "::set-output name=getdate::$(TZ='America/Los_Angeles' date +'%B %d %H:%M:%S')"        
         echo "THIS_RUN=$(TZ='America/Los_Angeles' date +'%B%d-%H%M%S')" >> $GITHUB_ENV
         
+    # GENERATE LINKS        
+    - name: YOUR LINK
+      run: |
+        LINK_URL=${BLOB_ENDPOINT}/${REPO_IDENTIFIER}/${{env.THIS_RUN}}/${SUBFOLDER_NAME}/${INDEX_HTML}
+        echo ${LINK_URL}
+
     # AZURE LOGIN:
     - name: Azure login
       uses: azure/login@v1
@@ -61,12 +67,7 @@ jobs:
       with:
         inlineScript: |
             az storage blob upload-batch -s ${SUBFOLDER_NAME} --account-name idmdocsstaging  --auth-mode key -d ${BLOB_CONTAINER_NAME}/${REPO_IDENTIFIER}/${{env.THIS_RUN}}/${SUBFOLDER_NAME}
-            done
-    # GENERATE LINKS        
-    - name: YOUR LINK
-      run: |
-        LINK_URL=${BLOB_ENDPOINT}/${REPO_IDENTIFIER}/${{env.THIS_RUN}}/${SUBFOLDER_NAME}/${INDEX_HTML}
-        echo ${LINK_URL}
+
             
     # AZURE PURGE CDN
     - name: Purge Azure CDN endpoint
@@ -81,6 +82,7 @@ jobs:
       if: always()    
       run: |
             az logout
+            
     # Updates PR
     - name: Updates PR
       if: always()
