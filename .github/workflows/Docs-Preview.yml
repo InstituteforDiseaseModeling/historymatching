@@ -51,8 +51,11 @@ jobs:
     # GENERATE LINKS        
     - name: YOUR LINK
       run: |
-        LINK_URL=${BLOB_ENDPOINT}/${REPO_IDENTIFIER}/${{env.THIS_RUN}}/${SUBFOLDER_NAME}/${INDEX_HTML}
-        echo ${LINK_URL}
+        echo "LINK_URL=${BLOB_ENDPOINT}/${REPO_IDENTIFIER}/${{env.THIS_RUN}}/${SUBFOLDER_NAME}/${INDEX_HTML}" >> $GITHUB_ENV
+
+    - name: YOUR LINK
+      run: |
+        echo "${{ env.LINK_URL }}"
 
     # AZURE LOGIN:
     - name: Azure login
