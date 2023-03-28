@@ -53,9 +53,6 @@ jobs:
     - name: YOUR LINK
       run: |
         echo "LINK_URL=${BLOB_ENDPOINT}/${REPO_IDENTIFIER}/${{env.THIS_RUN}}/${SUBFOLDER_NAME}/${INDEX_HTML}" >> $GITHUB_ENV
-
-    - name: YOUR LINK
-      run: |
         echo "${{ env.LINK_URL }}"
 
     # AZURE LOGIN:
