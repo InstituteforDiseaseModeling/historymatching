@@ -45,7 +45,7 @@ jobs:
     - name: Get current date to generate partial url link
       id: date
       run: |
-        echo "::set-output name=getdate::$(TZ='America/Los_Angeles' date +'%B %d %H:%M:%S')"        
+        echo "RUN_DATE=$(TZ='America/Los_Angeles' date +'%B %d %H:%M:%S')" >> $GITHUB_ENV
         echo "THIS_RUN=$(TZ='America/Los_Angeles' date +'%B%d-%H%M%S')" >> $GITHUB_ENV
         
     # GENERATE LINKS        
@@ -94,4 +94,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
           message: |
-            ${{ steps.date.outputs.getdate }} - Run Id: ${{github.run_id}} **[->> Link to documents preview](${{ env.LINK_URL }})**
+            ${{ env.RUN_DATE }} - Run Id: ${{github.run_id}} **[->> Link to documents preview](${{ env.LINK_URL }})**
