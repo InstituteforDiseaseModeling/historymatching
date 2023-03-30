@@ -79,3 +79,4 @@ src/*/_version.py
 .venv/
 docs/reference/modules.rst
 docs/reference/history_matching*.rst
+src/history_matching/tests/*.png
