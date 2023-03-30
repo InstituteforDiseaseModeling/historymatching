@@ -8,3 +8,7 @@ pytest-runner~=5.2
 pytest-timeout~=1.4.2
 pytest-xdist~=2.2
 pytest>=6.1
+# include these so linter(s) are happy
+numpy
+pandas
+matplotlib

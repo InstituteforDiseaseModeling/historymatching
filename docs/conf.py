@@ -84,11 +84,11 @@ with open(filename, "w") as f: # Write new file
 # add these directories to sys.path here. If the directory is relative to the
 # docs root, use os.path.abspath to make it absolute, like shown here.
 #
-import sys
 import subprocess
-import sphinx_rtd_theme
-
+import sys
 from datetime import datetime
+
+import sphinx_rtd_theme
 
 # if sys.platform in ["linux", "darwin"]:
 #     subprocess.check_output(["make", "generate-api"], cwd=os.path.dirname(os.path.abspath(__file__)))
@@ -134,6 +134,7 @@ templates_path = ['_templates']
 # built documents.
 #
 import history_matching
+
 # The short X.Y version.
 version = history_matching.__version__
 # The full version, including alpha/beta/rc tags.
