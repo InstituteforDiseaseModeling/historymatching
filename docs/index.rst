@@ -13,7 +13,7 @@ parameter space that are non-implausible with respect to observed data.
    installation
    overview
    usage
-   reference/modules
+   api/modules
    faq
    contributing
    authors

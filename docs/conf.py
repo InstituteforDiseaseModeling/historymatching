@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import os
+import subprocess
 import traceback
 from datetime import datetime
+from pathlib import Path
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -56,15 +58,32 @@ napoleon_use_param = False
 
 exclude_patterns = ['Thumbs.db', '.DS_Store', 'setup.rst', 'og_cut.rst', 'reference/index.rst']
 
-# Rename "history-matching" to "API reference"
-# filename = 'reference/modules.rst' # This must match the Makefile
-# with open(filename) as f: # Read existing file
-#     lines = f.readlines()
-# lines[0] = "=============\n" # Ensure the heading is the right length
-# lines[1] = "API reference\n" # Blast away the existing heading and replace with this
-# lines[2] = "=============\n" # Ensure the heading is the right length
-# with open(filename, "w") as f: # Write new file
-#     f.writelines(lines)
+# Remove "modules.rst" from the "api" directory
+DOCS_DIR = Path(__file__).parent.absolute()
+print(f"DOCS_DIR: {DOCS_DIR}")
+modules_file = Path(__file__).parent.absolute() / "api" / "modules.rst"
+if modules_file.exists():
+    modules_file.unlink()
+# Remove "history_matching*.rst" from the "api" directory
+for file in (DOCS_DIR / "api").glob("history_matching*.rst"):
+    file.unlink()
+# Invoke `sphinx-apidoc` to generate the API api
+subprocess.check_output(["sphinx-apidoc", "-f", "-e", "-M", "-o", "./api", "../src"], cwd=DOCS_DIR)
+
+# Replace first two lines of "api/modules.rst" with the following:
+# =============
+# API reference
+# =============
+with modules_file.open() as f:
+    lines = f.readlines()   # read all lines
+header = [
+    "=============\n",
+    "API reference\n",
+    "=============\n",
+]
+with modules_file.open("w") as f:
+    f.writelines(header)        # write the new lines
+    f.writelines(lines[2:])     # write the rest of the lines, skipping the first two
 
 # -*- coding: utf-8 -*-
 #

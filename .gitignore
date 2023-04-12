@@ -77,6 +77,6 @@ docs/_build
 src/*/_version.py
 
 .venv/
-docs/reference/modules.rst
-docs/reference/history_matching*.rst
+docs/api/modules.rst
+docs/api/history_matching*.rst
 src/history_matching/tests/*.png
