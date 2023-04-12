@@ -57,14 +57,14 @@ napoleon_use_param = False
 exclude_patterns = ['Thumbs.db', '.DS_Store', 'setup.rst', 'og_cut.rst', 'reference/index.rst']
 
 # Rename "history-matching" to "API reference"
-filename = 'reference/modules.rst' # This must match the Makefile
-with open(filename) as f: # Read existing file
-    lines = f.readlines()
-lines[0] = "=============\n" # Ensure the heading is the right length
-lines[1] = "API reference\n" # Blast away the existing heading and replace with this
-lines[2] = "=============\n" # Ensure the heading is the right length
-with open(filename, "w") as f: # Write new file
-    f.writelines(lines)
+# filename = 'reference/modules.rst' # This must match the Makefile
+# with open(filename) as f: # Read existing file
+#     lines = f.readlines()
+# lines[0] = "=============\n" # Ensure the heading is the right length
+# lines[1] = "API reference\n" # Blast away the existing heading and replace with this
+# lines[2] = "=============\n" # Ensure the heading is the right length
+# with open(filename, "w") as f: # Write new file
+#     f.writelines(lines)
 
 # -*- coding: utf-8 -*-
 #
