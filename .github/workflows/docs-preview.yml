@@ -29,7 +29,7 @@ jobs:
       with:
           python-version: 3.9
 
-    - name: Install history-matching requirements
+    - name: Install history-matching CI requirements
       run: |
         python3 -m pip install --progress-bar=off -r ci/requirements.txt
         pip list --format=freeze
@@ -39,7 +39,7 @@ jobs:
       id: build-docs
       working-directory: 'docs'
       run: |
-        tox -e docspreview
+        tox -e docs
     
     # Generates Unique folder name
     - name: Get current date to generate partial url link
