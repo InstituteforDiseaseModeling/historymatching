@@ -10,7 +10,7 @@ on: [push, pull_request]
 jobs:
   history-matching-Docs-Preview:
     env:
-      SUBFOLDER_NAME: 'dist/docs'
+      SUBFOLDER_NAME: 'docs/_build/html'
       BLOB_ENDPOINT: 'https://idmdocsstaging.z5.web.core.windows.net'
       REPO_IDENTIFIER: 'idm/${{github.repository}}'   
       BLOB_CONTAINER_NAME: '$web'
