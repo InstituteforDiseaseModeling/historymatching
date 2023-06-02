@@ -10,9 +10,10 @@ parameter space that are non-implausible with respect to observed data.
    :maxdepth: 3
 
    readme
-   installation
    overview
-   usage
+   gettingstarted   
+   using
+   architecture
    api/modules
    faq
    contributing
