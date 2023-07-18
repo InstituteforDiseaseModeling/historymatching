@@ -14,13 +14,13 @@ class SamplerTests(unittest.TestCase):
 
     def test_lhs(self):
         points = latin_hypercube_sampler(SamplerTests.parameter_space, 10)
-        self.assertSetEqual(set(points.x), {0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5})
+        assert set(points.x) == {0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5}
         # Chances these are equal = 1:10! (1/3628800)
         assert not list(points.x) == [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5]
-        self.assertSetEqual(set(points.y), {5, 15, 25, 35, 45, 55, 65, 75, 85, 95})
+        assert set(points.y) == {5, 15, 25, 35, 45, 55, 65, 75, 85, 95}
         # Chances these are equal = 1:10! (1/3628800)
         assert not list(points.y) == [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]
-        self.assertSetEqual(set(points.z), {50, 150, 250, 350, 450, 550, 650, 750, 850, 950})
+        assert set(points.z) == {50, 150, 250, 350, 450, 550, 650, 750, 850, 950}
         # Chances these are equal = 1:10! (1/3628800)
         assert not list(points.z) == [50, 150, 250, 350, 450, 550, 650, 750, 850, 950]
 
@@ -28,9 +28,9 @@ class SamplerTests(unittest.TestCase):
 
     def test_grid(self):
         points = grid_sampler(SamplerTests.parameter_space, 10)
-        self.assertSetEqual(set(points.x), {0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5})
-        self.assertSetEqual(set(points.y), {5, 15, 25, 35, 45, 55, 65, 75, 85, 95})
-        self.assertSetEqual(set(points.z), {50, 150, 250, 350, 450, 550, 650, 750, 850, 950})
+        assert set(points.x) == {0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5}
+        assert set(points.y) == {5, 15, 25, 35, 45, 55, 65, 75, 85, 95}
+        assert set(points.z) == {50, 150, 250, 350, 450, 550, 650, 750, 850, 950}
 
         return
 

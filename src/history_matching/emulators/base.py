@@ -1,6 +1,8 @@
 import logging
 from abc import abstractmethod
+from typing import ClassVar
 from typing import Dict
+from typing import List
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -225,8 +227,8 @@ class BaseEmulator:
 
 
 class BaseEmulatorConverter(Converter):
-    tags = ["asdf://idmod.org/asdf/tags/emulators/baseemulator-1.0.0"]
-    types = ["history_matching.emulators.base.BaseEmulator"]
+    tags: ClassVar[List[str]] = ["asdf://idmod.org/asdf/tags/emulators/baseemulator-1.0.0"]
+    types: ClassVar[List[str]] = ["history_matching.emulators.base.BaseEmulator"]
 
     def to_yaml_tree(self, obj, tag, ctx):
         return obj.to_yaml_tree(tag, ctx)

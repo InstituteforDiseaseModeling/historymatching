@@ -1,6 +1,8 @@
 import logging
 from pathlib import Path
+from typing import ClassVar
 from typing import Dict
+from typing import List
 
 import asdf
 import numpy as np
@@ -400,9 +402,9 @@ class Situation:
 
 
 class EmulatorsExtension(Extension):
-    extension_uri = "asdf://idmod.org/asdf/extensions/emulators-1.0.0"
-    converters = [BaseEmulatorConverter(), LinearModelConverter()]
-    tags = []
+    extension_uri: ClassVar[str] = "asdf://idmod.org/asdf/extensions/emulators-1.0.0"
+    converters: ClassVar[List] = [BaseEmulatorConverter(), LinearModelConverter()]
+    tags: ClassVar[List] = []
     for converter in converters:
         tags.extend(converter.tags)
 

@@ -1,5 +1,7 @@
 import logging
+from typing import ClassVar
 from typing import Dict
+from typing import List
 from typing import Optional
 
 import numpy as np
@@ -121,8 +123,8 @@ class LinearModel(BaseEmulator):
 
 
 class LinearModelConverter(Converter):
-    tags = ["asdf://idmod.org/asdf/tags/emulators/linearmodel-1.0.0"]
-    types = ["history_matching.emulators.linear.LinearModel"]
+    tags: ClassVar[List[str]] = ["asdf://idmod.org/asdf/tags/emulators/linearmodel-1.0.0"]
+    types: ClassVar[List[str]] = ["history_matching.emulators.linear.LinearModel"]
 
     def to_yaml_tree(self, obj, tag, ctx):
         return obj.to_yaml_tree(tag, ctx)

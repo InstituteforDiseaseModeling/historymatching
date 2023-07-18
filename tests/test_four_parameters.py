@@ -84,7 +84,7 @@ class FourParameterTests(unittest.TestCase):
 
         do_staircase(situation, recipe, config)
 
-        # make sure it run at least 1 iteration but less than max
+        # make sure it ran at least 1 iteration but less than max
         assert 1 <= situation.iteration <= config.max_iterations - 1, f"Invalid situation.iteration value: {situation.iteration}"
         # make sure implausible fraction < config value
         df = situation.sample_points

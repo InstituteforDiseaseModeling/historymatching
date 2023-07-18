@@ -128,16 +128,21 @@ class DerivedFeaturesTests(unittest.TestCase):
         assert set(computed_features.columns) == set(getFeatures_ySim_features)
         for column in computed_features.columns:
             # self.assertTrue((computed_features[column] == getFeatures_ySim_features[column]).all())
-            for computed, saved in zip(computed_features[column], getFeatures_ySim_features[column]):
-                self.assertAlmostEqual(computed, saved, delta=saved / 1e6)
+            # for computed, saved in zip(computed_features[column], getFeatures_ySim_features[column]):
+            #     self.assertAlmostEqual(computed, saved, delta=saved / 1e6)
+            np.testing.assert_allclose(computed_features[column], getFeatures_ySim_features[column], rtol=1e-6, atol=1e-6)
 
         assert set(computed_stats.columns) == set(getFeatures_ySim_featureStats)
         for column in computed_stats.columns:
-            for row in getFeatures_ySim_featureStats.index:
-                test = computed_stats[column][row]
-                expected = getFeatures_ySim_featureStats[column][row]
-                if not (math.isnan(test) and math.isnan(expected)):
-                    self.assertAlmostEqual(test, expected, delta=expected / 1e6)
+            # for row in getFeatures_ySim_featureStats.index:
+            #     test = computed_stats[column][row]
+            #     expected = getFeatures_ySim_featureStats[column][row]
+            #     if not (math.isnan(test) and math.isnan(expected)):
+            #         self.assertAlmostEqual(test, expected, delta=expected / 1e6)
+            test = computed_stats[column][getFeatures_ySim_featureStats.index]
+            expected = getFeatures_ySim_featureStats[column][getFeatures_ySim_featureStats.index]
+            indices = np.logical_not(np.logical_and(np.isnan(test), np.isnan(expected)))
+            np.testing.assert_allclose(test[indices], expected[indices], rtol=1e-6, atol=0)
 
         return
 

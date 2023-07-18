@@ -26,7 +26,7 @@ class UtilityTests(unittest.TestCase):
         # "Happy Path" only at this time
         raw_observations = {"height": [175, 175, 173, 163, 61], "weight": [97, 100, 63, 54, 11]}
         mean_and_variance = mean_and_variance_for_observations(raw_observations)
-        self.assertSetEqual(set(features_from_observations(mean_and_variance)), set(raw_observations.keys()))
+        assert set(features_from_observations(mean_and_variance)) == set(raw_observations.keys())
 
         return
 

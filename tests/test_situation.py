@@ -3,6 +3,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -279,19 +280,19 @@ class SituationSaveReadTests(unittest.TestCase):
 
             # TODO - consider using Pandas DataFrame.equal(), but it isn't exact
 
-            self.assertListEqual(list(copy.parameter_space.columns), list(situation.parameter_space.columns))
-            self.assertListEqual(list(copy.observations.columns), list(situation.observations.columns))
-            self.assertListEqual(list(copy.sample_points.columns), list(situation.sample_points.columns))
-            self.assertListEqual(list(copy.simulator_results.columns), list(situation.simulator_results.columns))
+            assert list(copy.parameter_space.columns) == list(situation.parameter_space.columns)
+            assert list(copy.observations.columns) == list(situation.observations.columns)
+            assert list(copy.sample_points.columns) == list(situation.sample_points.columns)
+            assert list(copy.simulator_results.columns) == list(situation.simulator_results.columns)
 
-            assert all((actual == expected) for actual, expected in zip(copy.parameter_space.itertuples(), situation.parameter_space.itertuples()))
-            assert all((actual == expected) for actual, expected in zip(copy.observations.itertuples(), situation.observations.itertuples()))
-            assert all((actual == expected) for actual, expected in zip(copy.sample_points.itertuples(), situation.sample_points.itertuples()))
-            assert all((actual == expected) for actual, expected in zip(copy.simulator_results.itertuples(), situation.simulator_results.itertuples()))
+            assert all(actual == expected for actual, expected in zip(copy.parameter_space.itertuples(), situation.parameter_space.itertuples()))
+            assert all(actual == expected for actual, expected in zip(copy.observations.itertuples(), situation.observations.itertuples()))
+            assert all(actual == expected for actual, expected in zip(copy.sample_points.itertuples(), situation.sample_points.itertuples()))
+            assert all(actual == expected for actual, expected in zip(copy.simulator_results.itertuples(), situation.simulator_results.itertuples()))
             # TODO - verify emulator_bank, currently empty
 
         finally:
-            os.remove(filename)
+            Path(filename).unlink()
 
         return
 

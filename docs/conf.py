@@ -1,4 +1,8 @@
 import os
+import subprocess
+from pathlib import Path
+
+import sphinx_rtd_theme
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -45,8 +49,6 @@ napoleon_use_param = False
 
 ############################## IDM specific code ##############################
 
-from pathlib import Path
-
 exclude_patterns = ["Thumbs.db", ".DS_Store", "setup.rst", "og_cut.rst", "reference/index.rst"]
 
 # Remove "modules.rst" from the "api" directory
@@ -60,7 +62,6 @@ for file in (DOCS_DIR / "api").glob("history_matching*.rst"):
     file.unlink()
 
 # Invoke `sphinx-apidoc` to generate the API api
-import subprocess
 
 subprocess.check_output(["sphinx-apidoc", "-f", "-e", "-M", "-o", "./api", "../src"], cwd=DOCS_DIR)
 
@@ -81,11 +82,9 @@ with modules_file.open("w") as f:
     f.writelines(header)  # write the new lines
     f.writelines(lines[2:])  # write the rest of the lines, skipping the first two
 
-import sphinx_rtd_theme
-
 # -- General configuration ------------------------------------------------
 
-tags.add("history-matching")
+# clorton tags.add("history-matching")
 
 extensions.extend(
     [

@@ -498,7 +498,7 @@ def select_features(
 
         # Check that feature stats are neither NaN nor Inf (which would be the last indices in sortedFeatureIndices)
         if not np.isfinite(unsortedFeatureSelectionMetric[candidateIndex]):
-            warnings.warn(f"Unable to find valid feature (stopping search at position {rankIndex} of {nFeatures} potential features)")
+            warnings.warn(f"Unable to find valid feature (stopping search at position {rankIndex} of {nFeatures} potential features)", stacklevel=1)
             candidateIndex = sortedFeatureIndices[0]
             break
 
