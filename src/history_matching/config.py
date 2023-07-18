@@ -10,7 +10,6 @@ class Config:
     """
 
     def __init__(self, max_iterations, candidates_per_iteration, implausibility_threshold, non_implausible_target, **kwargs):
-
         """
         Args:
             max_iterations: maximum number of iterations to run

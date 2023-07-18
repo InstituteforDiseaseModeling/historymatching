@@ -3,15 +3,25 @@
 import logging
 import unittest
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 # from history_matching import Config, Recipe, Situation, grid_sampler, latin_hypercube_sampler, random_sampler, do_staircase
-from history_matching import Config, Recipe, Situation, do_staircase, features_from_observations, latin_hypercube_sampler, mean_and_variance_for_observations, random_sampler
-from history_matching.emulators import BaseEmulator, LinearModel
+from history_matching import Config
+from history_matching import Recipe
+from history_matching import Situation
+from history_matching import do_staircase
+from history_matching import features_from_observations
+from history_matching import latin_hypercube_sampler
+from history_matching import mean_and_variance_for_observations
+from history_matching import random_sampler
+from history_matching.emulators import BaseEmulator
+from history_matching.emulators import LinearModel
 
 WORK_DIR = Path(__file__).parent.absolute()
 
@@ -39,17 +49,15 @@ __prng = np.random.default_rng(SEED)
 
 
 class FourParameterTests(unittest.TestCase):
-
     def test_four_parameter(self):
-
-        config = dict(
-            max_iterations=10,
-            implausibility_threshold=0.5,
+        config = {
+            "max_iterations": 10,
+            "implausibility_threshold": 0.5,
             # non_implausible_target = 0.01,
-            non_implausible_target=0.001,
-            candidates_per_iteration=100,
-            username="clorton"
-        )
+            "non_implausible_target": 0.001,
+            "candidates_per_iteration": 100,
+            "username": "clorton",
+        }
 
         config = Config(**config)
 
@@ -77,13 +85,11 @@ class FourParameterTests(unittest.TestCase):
         do_staircase(situation, recipe, config)
 
         # make sure it run at least 1 iteration but less than max
-        self.assertTrue(1 <= situation.iteration <= config.max_iterations - 1,
-                        f"Invalid situation.iteration value: {situation.iteration}")
+        assert 1 <= situation.iteration <= config.max_iterations - 1, f"Invalid situation.iteration value: {situation.iteration}"
         # make sure implausible fraction < config value
         df = situation.sample_points
-        implausible_fraction = len(df[df['iteration'] == situation.iteration + 1]) / NUM_RANDOM_SAMPLES
-        self.assertLess(implausible_fraction, config.non_implausible_target,
-                        f"implausible Fraction ({implausible_fraction}) > config.non_implausible_target ({config.non_implausible_target})")
+        implausible_fraction = len(df[df["iteration"] == situation.iteration + 1]) / NUM_RANDOM_SAMPLES
+        assert implausible_fraction < config.non_implausible_target, f"implausible Fraction ({implausible_fraction}) > config.non_implausible_target ({config.non_implausible_target})"
 
         situation.iteration = 1
         start_callback(situation)
@@ -100,12 +106,9 @@ class FourParameterTests(unittest.TestCase):
 
 
 def start_callback(situation: Situation) -> None:
-
     # figure2 = plt.figure(figsize=(16, 9), dpi=300)
     _ = plt.figure(figsize=(16, 9), dpi=300)
-    for row in situation.sample_points.loc[
-        situation.sample_points.iteration == situation.iteration
-    ].itertuples():
+    for row in situation.sample_points.loc[situation.sample_points.iteration == situation.iteration].itertuples():
         values = model(row.a, row.b, row.c, row.d)
         plt.plot(values)
 
@@ -119,7 +122,6 @@ def start_callback(situation: Situation) -> None:
 
 
 def run_model(iteration: int, test_points: pd.DataFrame, config: Config) -> pd.DataFrame:
-
     results = []
     for row in test_points.itertuples():
         model_output = model(row.a, row.b, row.c, row.d)
@@ -127,27 +129,21 @@ def run_model(iteration: int, test_points: pd.DataFrame, config: Config) -> pd.D
         results[-1].extend(model_output)
 
     columns = ["iteration", "replicate", "a", "b", "c", "d"]
-    columns.extend(map(lambda t: f"t{t:02}", FEATURE_POINTS))
+    columns.extend(f"t{t:02}" for t in FEATURE_POINTS)
     results = pd.DataFrame(results, columns=columns)
 
     return results
 
 
 def select_features(iteration, observations, simulator_results, config) -> List[str]:
-
     all_features = features_from_observations(observations)
 
-    by_iteration = {
-        0: ["t00"],
-        1: ["t00", "t10"],
-        2: ["t00", "t10", "t20"],
-        3: ["t00", "t10", "t20", "t30"]
-    }
+    by_iteration = {0: ["t00"], 1: ["t00", "t10"], 2: ["t00", "t10", "t20"], 3: ["t00", "t10", "t20", "t30"]}
 
     if iteration in by_iteration:
         selected_features = by_iteration[iteration]
     elif iteration < len(all_features):
-        selected_features = all_features[0:iteration + 1]
+        selected_features = all_features[0 : iteration + 1]
     else:
         selected_features = all_features
 
@@ -162,7 +158,6 @@ def emulator_for_feature(
     simulator_results: pd.DataFrame,
     config: Config,
 ) -> BaseEmulator:
-
     x = simulator_results[["a", "b", "c", "d"]]
     y = simulator_results[feature]
     emulator = LinearModel(x=x, y=y)
@@ -176,12 +171,11 @@ def generate_observations(
     n_observations: int = 8,
     percent_variance: float = 10.0,
 ) -> pd.DataFrame:
-
     values = model(ACTUAL_A, ACTUAL_B, ACTUAL_C, ACTUAL_D)
     # noise = __prng.normal(size=values.shape[0])
     # results = values + noise
     ts = FEATURE_POINTS
-    columns = list(map(lambda t: f"t{t:02}", ts))
+    columns = [f"t{t:02}" for t in ts]
     # observations = pd.DataFrame(data={c: [v] for c, v in zip(columns, results)})
 
     samples = []
@@ -202,7 +196,6 @@ def generate_observations(
 
 
 def model(a, b, c, d):
-
     ts = FEATURE_POINTS
     output = system(ts, 2.0**a, b, c, d)  # a is in log2 space
 
@@ -210,7 +203,6 @@ def model(a, b, c, d):
 
 
 def system(t, a=1.0 / 512, b=0, c=-1.5, d=5):
-
     results = a * (t**3) + b * (t**2) + c * t + d
 
     return results
@@ -223,32 +215,24 @@ def next_point_generation(
     emulator_bank: Dict[int, Dict[str, BaseEmulator]],
     config: Config,
 ) -> Tuple[pd.DataFrame, float]:
-
     # pick new sample points with a grid
     # proposed_sample_points = grid_sampler(
     #     parameter_space=parameter_space, samples_per_dimension=16
     # )
-    proposed_sample_points = random_sampler(
-        parameter_space=parameter_space, n_samples=NUM_RANDOM_SAMPLES     # 65536
-    )
+    proposed_sample_points = random_sampler(parameter_space=parameter_space, n_samples=NUM_RANDOM_SAMPLES)  # 65536
 
     total_proposed = len(proposed_sample_points)
 
     # predict features from each emulator, disqualify points outside range
     for feature, emulator in emulator_bank[iteration].items():
-
         prediction = emulator.predict(proposed_sample_points)
         target = observations.means[feature]  # observations[feature] is a Series, we want a scalar
         plausible = ((prediction.value - target) / target) < 0.25
         if not any(plausible):
-            logger.info(
-                f"Last remaining sample points:\n{proposed_sample_points.head()}"
-            )
+            logger.info(f"Last remaining sample points:\n{proposed_sample_points.head()}")
             break
         proposed_sample_points = proposed_sample_points[plausible]
-        logger.info(
-            f"{len(proposed_sample_points)} remaining after '{feature}' = {100.0*len(proposed_sample_points)/total_proposed}%"
-        )
+        logger.info(f"{len(proposed_sample_points)} remaining after '{feature}' = {100.0*len(proposed_sample_points)/total_proposed}%")
 
     non_implausible_fraction = len(proposed_sample_points) / total_proposed
 

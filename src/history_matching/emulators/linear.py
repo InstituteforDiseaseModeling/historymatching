@@ -1,5 +1,6 @@
 import logging
 from typing import Dict
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -19,11 +20,7 @@ class LinearModel(BaseEmulator):
     The emulator fits a linear regression model to minimize the residual sum of squares between observed targets in the training data and the targets predicted by the linear approximation.
     """
 
-    def __init__(self,
-                 x: pd.DataFrame = None,
-                 y: pd.DataFrame = None,
-                 test_fraction: float = 0.25
-                 ) -> None:
+    def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction: float = 0.25) -> None:
         self.regression_model = None
         super().__init__(x, y, test_fraction)
 
@@ -33,14 +30,14 @@ class LinearModel(BaseEmulator):
         """
         Fits a linear regression model to minimize the residual sum of squares between observed targets in the training data and the targets predicted by the linear approximation.
         """
-        logging.debug('... training emulator')
+        logging.debug("... training emulator")
 
         self.regression_model = sklm.LinearRegression()
         self.regression_model.fit(self.X_train, self.y_train)
 
         # self.var = numpy.var(self.y_train)
         self.training_complete = True
-        logging.debug('     training complete')
+        logging.debug("     training complete")
         return
 
     def predict(self, x: pd.DataFrame(), qlow=0.05, qhi=0.95):
@@ -55,7 +52,7 @@ class LinearModel(BaseEmulator):
         Returns:
             Pandas dataframe with predicted values and uncertainty intervals.
         """
-        logging.debug('... predicting outputs using the trained emulator')
+        logging.debug("... predicting outputs using the trained emulator")
         # Compute the prediction
         X_pred = x.to_numpy()
         if len(X_pred.shape) == 1:
@@ -73,38 +70,33 @@ class LinearModel(BaseEmulator):
 
         # Prepare output and return
         out = pd.DataFrame(index=x.index)
-        out['value'] = y_pred
-        out['low'] = out['value'] + low
-        out['high'] = out['value'] + hi
+        out["value"] = y_pred
+        out["low"] = out["value"] + low
+        out["high"] = out["value"] + hi
         return out
 
     def print_emulator_description(self):
         """Display detailed specifications (for example, emulator coefficients)
         for the trained emulator.
         """
-        print('      coefficients: ', self.regression_model.coef_)
-        print('      intercept   : ', self.regression_model.intercept_)
+        print("      coefficients: ", self.regression_model.coef_)
+        print("      intercept   : ", self.regression_model.intercept_)
         return
 
     def to_yaml_tree(self, tag, ctx) -> Dict:
-
         dictionary = super().to_yaml_tree(tag, ctx)
-        dictionary.update(dict(
-            regression_model_params=self.regression_model.get_params(),
-            regression_model_state=self.regression_model.__getstate__()
-        ))
+        dictionary.update({"regression_model_params": self.regression_model.get_params(), "regression_model_state": self.regression_model.__getstate__()})
 
         return dictionary
 
     @staticmethod
     def from_yaml_tree(node, tag, ctx) -> "LinearModel":
-
         # Would prefer something like the following:
         # emulator = super().from_yaml_tree(node, tag, ctx)
         # emulator.regression_model = node.regression_model
         # but BaseEmulator doesn't know to create a LinearModel. :(
 
-        emulator = LinearModel()   # pass no initial values
+        emulator = LinearModel()  # pass no initial values
 
         emulator.X_df = ndarray_to_dataframe(node["X_df"])
         emulator.X_train = node["X_train"]
@@ -129,7 +121,6 @@ class LinearModel(BaseEmulator):
 
 
 class LinearModelConverter(Converter):
-
     tags = ["asdf://idmod.org/asdf/tags/emulators/linearmodel-1.0.0"]
     types = ["history_matching.emulators.linear.LinearModel"]
 

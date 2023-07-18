@@ -98,7 +98,7 @@ for iteration in range(config.max_iterations):
 
     start_iteration_callback(iteration)
 
-    # test_points is a list of points in parameter space where a 
+    # test_points is a list of points in parameter space where a
     # sample point is a dictionary of parameter:value pairs, one for each parameter in the param_space dictionary
     metrics, sample_points = generate_sample_points(iteration, param_space, emulator_bank, config)
 

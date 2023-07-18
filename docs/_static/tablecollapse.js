@@ -2,24 +2,24 @@
 (function ($) {
 
     $(document).ready(function () {
-  
+
       // Original tablecollapse.js functionality
       // Initialize table to fadeOut
       $('.toggle-table').fadeIn();
-  
+
       //Bind Expand-button method
       $('.collapse-table-button').click(
           function () {
             $('.toggle-table').fadeOut();
           }
       );
-  
+
       //Bind the toggle button method
       $('.toggle-button').click(
           function () {
             $(this).parent().find("table").fadeToggle("2000", "linear");
           });
-  
+
       // New code-collapse functionality
       var kCollapseThresholdBytes = 1024;
       $(".highlight-json").each(function (index, elem) {
@@ -30,14 +30,13 @@
         var $elem = $(elem);
         if ($elem.text().length < kCollapseThresholdBytes)
           $elem.addClass("expanded");
-  
+
         // Attach the click handler
         $elem.on("click", function (evt) {
           $(evt.target).closest(".highlight-json").toggleClass("expanded");
         });
       });
-  
+
     });
-  
+
   })(jQuery);
-  

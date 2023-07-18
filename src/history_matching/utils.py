@@ -1,12 +1,13 @@
 from io import BytesIO
-from typing import Dict, List, Union
+from typing import Dict
+from typing import List
+from typing import Union
 
 import numpy as np
 import pandas as pd
 
 
 def mean_and_variance_for_observations(observations: Dict[str, Union[List, np.ndarray]]) -> pd.DataFrame:
-
     """
     Return a Pandas DataFrame with expected columns for a set of raw observations.
 
@@ -25,7 +26,6 @@ def mean_and_variance_for_observations(observations: Dict[str, Union[List, np.nd
 
 
 def features_from_observations(observations: pd.DataFrame) -> List[str]:
-
     """
     Return a list of features from a Pandas DataFrame of observations.
 
@@ -42,7 +42,6 @@ def features_from_observations(observations: pd.DataFrame) -> List[str]:
 
 
 def dataframe_to_ndarray(df: pd.DataFrame) -> np.ndarray:
-
     """
     Convert a Pandas DataFrame to a NumPy ndarray.
 
@@ -64,7 +63,6 @@ def dataframe_to_ndarray(df: pd.DataFrame) -> np.ndarray:
 
 
 def ndarray_to_dataframe(nd: np.ndarray) -> pd.DataFrame:
-
     if nd is not None:
         result = pd.read_feather(BytesIO(nd.data))
     else:
