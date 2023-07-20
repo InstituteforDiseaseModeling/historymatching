@@ -240,7 +240,7 @@ class Situation:
             raise TypeError(f"Situation observations should be Pandas DataFrame, not '{type(observations)}'")
 
         if set(observations.columns) != {"features", "means", "variances"}:
-            raise RuntimeError(f"Situation observations should have columns 'feature', 'mean', and 'variance'. Found {set(observations.columns)}")
+            raise RuntimeError(f"Situation observations should have columns 'features', 'means', and 'variances'. Found {set(observations.columns)}")
 
         if len(observations) < 1:
             raise RuntimeError("Situation observations must have at least one feature.")

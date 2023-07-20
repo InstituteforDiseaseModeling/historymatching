@@ -1,5 +1,4 @@
 import logging
-import pickle
 from typing import ClassVar
 from typing import Dict
 from typing import List
@@ -101,6 +100,7 @@ class LinearModel(BaseEmulator):
 
         emulator = LinearModel()  # pass no initial values
 
+        # BaseEmulator attributes
         emulator.X_df = ndarray_to_dataframe(node["X_df"])
         emulator.X_train = node["X_train"]
         emulator.X_test = node["X_test"]
@@ -126,9 +126,9 @@ class LinearModelConverter(Converter):
     types: ClassVar[List[str]] = ["history_matching.emulators.linear.LinearModel"]
 
     def to_yaml_tree(self, obj, tag, ctx):
-        # return obj.to_yaml_tree(tag, ctx)
-        return {"pickle": pickle.dumps(obj)}
+        return obj.to_yaml_tree(tag, ctx)
+        # return {"pickle": pickle.dumps(obj)}
 
     def from_yaml_tree(self, node, tag, ctx):
-        # return LinearModel.from_yaml_tree(node, tag, ctx)
-        return pickle.loads(node["pickle"])
+        return LinearModel.from_yaml_tree(node, tag, ctx)
+        # return pickle.loads(node["pickle"])
