@@ -11,6 +11,7 @@ from asdf.extension import Extension
 
 from history_matching.emulators import BaseEmulator
 from history_matching.emulators.base import BaseEmulatorConverter
+from history_matching.emulators.gaussian_process import GaussianModelConverter
 from history_matching.emulators.linear import LinearModelConverter
 
 from .utils import dataframe_to_ndarray
@@ -403,7 +404,7 @@ class Situation:
 
 class EmulatorsExtension(Extension):
     extension_uri: ClassVar[str] = "asdf://idmod.org/asdf/extensions/emulators-1.0.0"
-    converters: ClassVar[List] = [BaseEmulatorConverter(), LinearModelConverter()]
+    converters: ClassVar[List] = [BaseEmulatorConverter(), LinearModelConverter(), GaussianModelConverter()]
     tags: ClassVar[List] = []
     for converter in converters:
         tags.extend(converter.tags)

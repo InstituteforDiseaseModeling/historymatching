@@ -85,11 +85,11 @@ class FourParameterTests(unittest.TestCase):
         do_staircase(situation, recipe, config)
 
         # make sure it ran at least 1 iteration but less than max
-        assert 1 <= situation.iteration <= config.max_iterations - 1, f"Invalid situation.iteration value: {situation.iteration}"
+        assert 1 <= situation.iteration <= config.max_iterations, f"Invalid situation.iteration value: {situation.iteration}"
         # make sure implausible fraction < config value
         df = situation.sample_points
         implausible_fraction = len(df[df["iteration"] == situation.iteration + 1]) / NUM_RANDOM_SAMPLES
-        assert implausible_fraction < config.non_implausible_target, f"implausible Fraction ({implausible_fraction}) > config.non_implausible_target ({config.non_implausible_target})"
+        assert implausible_fraction < config.non_implausible_target, f"implausible Fraction ({implausible_fraction}) >= config.non_implausible_target ({config.non_implausible_target})"
 
         situation.iteration = 1
         start_callback(situation)

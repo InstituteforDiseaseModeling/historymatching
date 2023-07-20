@@ -1,4 +1,5 @@
 import logging
+import pickle
 from typing import ClassVar
 from typing import Dict
 from typing import List
@@ -119,15 +120,15 @@ class LinearModel(BaseEmulator):
 
         return emulator
 
-        return super().from_yaml_tree(node, tag, ctx)
-
 
 class LinearModelConverter(Converter):
     tags: ClassVar[List[str]] = ["asdf://idmod.org/asdf/tags/emulators/linearmodel-1.0.0"]
     types: ClassVar[List[str]] = ["history_matching.emulators.linear.LinearModel"]
 
     def to_yaml_tree(self, obj, tag, ctx):
-        return obj.to_yaml_tree(tag, ctx)
+        # return obj.to_yaml_tree(tag, ctx)
+        return {"pickle": pickle.dumps(obj)}
 
     def from_yaml_tree(self, node, tag, ctx):
-        return LinearModel.from_yaml_tree(node, tag, ctx)
+        # return LinearModel.from_yaml_tree(node, tag, ctx)
+        return pickle.loads(node["pickle"])
