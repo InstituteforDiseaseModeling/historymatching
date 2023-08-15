@@ -4,9 +4,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-import numpy as np
 import pandas as pd
-import scipy
 from asdf.extension import Converter
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
@@ -65,10 +63,11 @@ class GaussianModel(BaseEmulator):
         y_pred, y_std = self.regression_model.predict(X_pred, return_std=True)
 
         # Compute uncertainty bounds
-        variance = np.var(self.y_train)
-        sigma = variance**0.5
-        low = scipy.stats.norm.ppf(q=qlow, scale=sigma)
-        hi = scipy.stats.norm.ppf(q=qhigh, scale=sigma)
+        # import scipy.stats above if you uncomment lines below
+        # variance = np.var(self.y_train)
+        # sigma = variance**0.5
+        # low = scipy.stats.norm.ppf(q=qlow, scale=sigma)
+        # hi = scipy.stats.norm.ppf(q=qhigh, scale=sigma)
 
         # Prepare output and return
         out = pd.DataFrame(index=x.index)

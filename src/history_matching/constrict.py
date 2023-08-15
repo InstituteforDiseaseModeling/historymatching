@@ -7,9 +7,9 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
-from history_matching import Config
-from history_matching import latin_hypercube_sampler as lhs
-from history_matching.emulators import BaseEmulator
+from .config import Config
+from .samplers import lhs
+from .emulators import BaseEmulator
 
 _tictimes = []
 
@@ -28,7 +28,7 @@ def toc(msg: str = "", dopop: bool = True) -> int:
     return elapsed
 
 
-def npg(
+def next_point_generation(
     iteration: int,
     parameter_space: pd.DataFrame,
     observations: pd.DataFrame,
@@ -96,8 +96,9 @@ def test_plausibility(candidates: pd.DataFrame, emulator_bank: Dict[int, Dict[st
             # implausibility = abs(mean - observation) / sqrt(variance + observation_variance + discrepancy_variance)
             observation = observations.means[feature]
             observation_variance = observations.variances[feature]
-            discrepancy_variance = config.discrepancy_variance
-            implausibility = abs(mean - observation) / np.sqrt(variance + observation_variance + discrepancy_variance)
+            # discrepancy_variance = config.discrepancy_variance
+            # implausibility = abs(mean - observation) / np.sqrt(variance + observation_variance + discrepancy_variance)
+            implausibility = abs(mean - observation) / np.sqrt(variance + observation_variance)
 
             implausible = implausibility > config.implausibility_threshold
 
