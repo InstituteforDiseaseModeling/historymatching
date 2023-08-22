@@ -34,7 +34,7 @@
 ## TODO
 
 - [X] need to wrap `do_step()` with a "run calibration" loop which does basically what `one_parameter.py` does, calling `do_step()` until it returns `True`. Implemented trivial wrapper, `do_staircase()` (all steps). Implemented `do_staircase()`.
-- [ ] need default functions in `Recipe` for 1) selecting features, 2) generating emulators, and 3) next point(s) generation
+- [X] need default functions in `Recipe` for 1) selecting features, 2) generating emulators, and 3) next point(s) generation
 - [ ] need example choosing different features at different iterations in the calibration
 - [ ] need example generating other emulator(s) than the default
 - [ ] need to spec. emulator statistics returned from generating emulators (@rnunez-IDM) and spec. data structure for same (@clorton)

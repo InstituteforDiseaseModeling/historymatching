@@ -163,7 +163,7 @@ def generate_emulators(iteration, selected_features, model_results_db, emulator_
 
 (Pandas DataFrame)
 
-|"features"<br>(string)|"means"<br>(float)|"variances"<br>(float)|
+|"feature"<br>(string)|"mean"<br>(float)|"variance"<br>(float)|
 |:-:|:-:|:-:|
 |_\<feature<sub>1</sub>\>_|mean<sub>1</sub>|variance<sub>1</sub>|
 |_\<feature<sub>2</sub>\>_|mean<sub>2</sub>|variance<sub>2</sub>|
@@ -183,16 +183,16 @@ def generate_emulators(iteration, selected_features, model_results_db, emulator_
 
 (Pandas DataFrame)
 
-|"replicate"<br>(integer)|_parameter1_<br>(float)|_parameter2_<br>(float)|...|_parameterN_<br>(float)|_feature1_<br>(float)|_feature2_<br>(float)|...|_featureM_<br>(float)|
-|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-|0|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
-|1|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
-|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
-|R|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
-|0|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
-|1|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
-|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
-|R|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
+|"iteration"<br>(integer)|"replicate"<br>(integer)|_parameter1_<br>(float)|_parameter2_<br>(float)|...|_parameterN_<br>(float)|_feature1_<br>(float)|_feature2_<br>(float)|...|_featureM_<br>(float)|
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+|_iter_|0|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
+|_iter_|1|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
+|⋮|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
+|_iter_|R|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
+|_iter_|0|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
+|_iter_|1|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
+|⋮|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
+|_iter_|R|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
 
 - _parameter1_ ... _parameterN_ represent the actual names of these parameters, e.g. "beta", "gamma", etc.
 - _feature1_ ... _featureM_ represent the actual names of these features, e.g., "final_prevalence", "total_infections", etc.
@@ -263,7 +263,7 @@ class Recipe:
     start_step_callback             # generic callback marking the start of a pass
     run_simulators                  # required override for calling the user simulator with the given point(s) in parameter space
     select_features                 # function to select features to be passed to `generate_emulators` on this pass
-                                    # default is to return _all_ features
+                                    # default is to return "best" feature based on Fano factor
     generate_emulators              # function to loop over selected features and call generate_emulator_for_feature on each one
                                     # default is to call `generate_emulator_for_feature` on each selected feature
     generate_emulator_for_feature   # function to generate an emulator for a given feature
@@ -281,7 +281,7 @@ class Recipe:
     # to check iteration and remaining non-implausible parameter space _in addition_ to any custom
     # checks.
 
-    default_feature_selection       # return _all_ features
+    default_feature_selection       # return "best" feature based on Fano factor
     default_emulator_generator      # call `generate_emulator_for_feature` on each selected feature
     default_next_point_generator    # TODO - TBD
     default_exit_predicate          # check iteration and remaining non-implausible parameter space

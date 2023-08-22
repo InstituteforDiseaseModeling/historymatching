@@ -70,6 +70,8 @@ setup(
         "asdf",
         "pyarrow",
         "tables",
+        "tensorflow",
+        "gpflow",
     ],
     extras_require={
         # eg:

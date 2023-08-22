@@ -11,6 +11,7 @@ import pandas as pd
 from asdf.extension import Converter
 from sklearn import model_selection
 
+from history_matching.config import Config
 from history_matching.utils import dataframe_to_ndarray
 from history_matching.utils import ndarray_to_dataframe
 
@@ -86,6 +87,32 @@ class BaseEmulator:
             Pandas dataframe with predicted values and uncertainty intervals.
         """
         raise NotImplementedError
+
+    def get_implausibility(self, x: pd.DataFrame, observations: pd.DataFrame, feature: str, config: Config, qlow=0.05, qhigh=0.95):
+        """Get implausibility for a given set of parameters.
+
+        Args:
+            x : Input data. Pandas dataframe with columns representing parameter
+                values.
+            qlow  : Lower quantile for the estimated uncertainty interval.
+            qhigh : Upper quantile for the estimated uncertainty interval.
+
+        Returns:
+            Numpy array with implausibility values.
+        """
+        predictions = self.predict(x, qlow, qhigh)
+
+        emulator_mean = predictions["value"]
+        emulator_variance = predictions["variance"]
+
+        # implausibility = abs(mean - observation) / sqrt(variance + observation_variance + discrepancy_variance)
+        observation = observations.mean[feature]
+        observation_variance = observations.variance[feature]
+        model_variance = config.model_variance  # clorton: model_variance = discrepancy_variance from OG code
+        # implausibility = abs(mean - observation) / np.sqrt(variance + observation_variance + discrepancy_variance)
+        implausibility = abs(emulator_mean - observation) / np.sqrt(emulator_variance + observation_variance + model_variance)
+
+        return implausibility
 
     @abstractmethod
     def print_emulator_description(self):

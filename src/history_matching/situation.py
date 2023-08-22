@@ -14,6 +14,8 @@ from history_matching.emulators.base import BaseEmulatorConverter
 from history_matching.emulators.gaussian_process import GaussianModelConverter
 from history_matching.emulators.linear import LinearModelConverter
 
+from .utils import OBSERVATIONS_COLUMNS
+from .utils import PARAMETER_SPACE_COLUMNS
 from .utils import dataframe_to_ndarray
 from .utils import features_from_observations
 from .utils import ndarray_to_dataframe
@@ -55,7 +57,7 @@ class Situation:
         features = features_from_observations(observations)
         columns.extend(features)
         self.simulator_results = pd.DataFrame(columns=columns)
-        self.observations = observations.set_index("features", drop=False)
+        self.observations = observations.set_index("feature", drop=False)
         self.emulator_bank = {}
 
         return
@@ -162,8 +164,8 @@ class Situation:
 
         if not isinstance(parameter_space, pd.DataFrame):
             raise TypeError(f"Situation parameter space should be Pandas DataFrame, not '{type(parameter_space)}'")
-        if not all(column in parameter_space.columns for column in ["parameter", "minimum", "maximum"]):
-            raise RuntimeError(f"Situation parameter space must contain the columns 'parameter', 'minimum', 'maximum'. Found {parameter_space.columns}.")
+        if not all(column in parameter_space.columns for column in PARAMETER_SPACE_COLUMNS):
+            raise RuntimeError(f"Situation parameter space must contain the columns {PARAMETER_SPACE_COLUMNS}. Found {parameter_space.columns}.")
         if len(parameter_space) == 0:
             raise RuntimeError("Situation parameter space must specify at least one parameter. Found none.")
         ordered = True
@@ -239,8 +241,8 @@ class Situation:
         if not isinstance(observations, pd.DataFrame):
             raise TypeError(f"Situation observations should be Pandas DataFrame, not '{type(observations)}'")
 
-        if set(observations.columns) != {"features", "means", "variances"}:
-            raise RuntimeError(f"Situation observations should have columns 'features', 'means', and 'variances'. Found {set(observations.columns)}")
+        if set(observations.columns) != set(OBSERVATIONS_COLUMNS):
+            raise RuntimeError(f"Situation observations should have columns 'feature', 'mean', and 'variance'. Found {set(observations.columns)}")
 
         if len(observations) < 1:
             raise RuntimeError("Situation observations must have at least one feature.")
@@ -274,8 +276,9 @@ class Situation:
 
         if not isinstance(simulator_results, pd.DataFrame):
             raise TypeError(f"Situation simulator results should be Pandas DataFrame, not '{type(simulator_results)}'")
-        required_columns = ["replicate"]
-        required_columns.extend(parameter_space.parameter)
+        required_columns = ["iteration", "replicate"]
+        parameter_names = parameter_space.parameter  # column is named 'parameter', but the contents of the column are the parameter names (plural)
+        required_columns.extend(parameter_names)
         features = features_from_observations(observations)
         required_columns.extend(features)
         if not all(column in simulator_results.columns for column in required_columns):
@@ -387,7 +390,7 @@ class Situation:
 
         af = asdf.open(filename)
         situation = Situation(
-            ndarray_to_dataframe(af["parameter_space"]), ndarray_to_dataframe(af["observations"]).set_index("features", drop=False), ndarray_to_dataframe(af["sample_points"]), af["iteration"]
+            ndarray_to_dataframe(af["parameter_space"]), ndarray_to_dataframe(af["observations"]).set_index("feature", drop=False), ndarray_to_dataframe(af["sample_points"]), af["iteration"]
         )
         situation.simulator_results = ndarray_to_dataframe(af["simulator_results"])
         situation.emulator_bank = af["emulators"]

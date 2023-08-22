@@ -8,19 +8,21 @@ import numpy as np
 import pandas as pd
 
 from .config import Config
-from .samplers import lhs
 from .emulators import BaseEmulator
+from .samplers import lhs
 
 _tictimes = []
 
 
 def tic() -> int:
+    """Start a timer."""
     t = time.time_ns()
     _tictimes.append(t)
     return t
 
 
 def toc(msg: str = "", dopop: bool = True) -> int:
+    """Stop a timer and print the elapsed time."""
     t = time.time_ns()
     s = _tictimes.pop() if dopop else _tictimes[-1]
     elapsed = t - s
@@ -82,23 +84,15 @@ def test_plausibility(candidates: pd.DataFrame, emulator_bank: Dict[int, Dict[st
     # Initially, all candidates are plausible
     plausible = np.ones(len(candidates), dtype=bool)
 
-    for iteration in sorted(emulator_bank.keys(), reverse=True):
+    # Visit iterations in order because earlier iterations will have been
+    # trained on a wider range of parameter space.
+    for iteration in sorted(emulator_bank.keys()):
         for feature in emulator_bank[iteration]:
             emulator = emulator_bank[iteration][feature]
             tic()
             # candidates[f"{feature}_estimate"] = emulator.predict(candidates)
-            predictions = emulator.predict(candidates[plausible])
+            implausibility = emulator.get_implausibility(candidates[plausible], observations, feature, config)
             toc(f"{feature}_estimate: ")
-
-            mean = predictions["value"]
-            variance = predictions["variance"]
-
-            # implausibility = abs(mean - observation) / sqrt(variance + observation_variance + discrepancy_variance)
-            observation = observations.means[feature]
-            observation_variance = observations.variances[feature]
-            # discrepancy_variance = config.discrepancy_variance
-            # implausibility = abs(mean - observation) / np.sqrt(variance + observation_variance + discrepancy_variance)
-            implausibility = abs(mean - observation) / np.sqrt(variance + observation_variance)
 
             implausible = implausibility > config.implausibility_threshold
 

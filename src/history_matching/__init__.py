@@ -9,3 +9,4 @@ from .samplers import grid as grid_sampler, lhs as latin_hypercube_sampler, rand
 from .situation import Situation  # noqa: F401 isort: skip
 from .step import do_step, do_staircase  # noqa: F401 isort: skip
 from .utils import mean_and_variance_for_observations, features_from_observations  # noqa: F401 isort: skip
+from .utils import PARAMETER_SPACE_COLUMNS, OBSERVATIONS_COLUMNS  # noqa: F401 isort: skip

@@ -4,13 +4,14 @@ import unittest
 
 import pandas as pd
 
+from history_matching import PARAMETER_SPACE_COLUMNS
 from history_matching import grid_sampler
 from history_matching import latin_hypercube_sampler
 from history_matching import random_sampler
 
 
 class SamplerTests(unittest.TestCase):
-    parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=["parameter", "minimum", "maximum"])
+    parameter_space = pd.DataFrame(data=[["x", 0, 10], ["y", 0, 100], ["z", 0, 1000]], columns=PARAMETER_SPACE_COLUMNS)
 
     def test_lhs(self):
         points = latin_hypercube_sampler(SamplerTests.parameter_space, 10)

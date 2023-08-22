@@ -1,15 +1,19 @@
+"""Implement Recipe class (template for history matching process)."""
+
 import logging
 from typing import Dict
 from typing import List
-from typing import Tuple
 
 import pandas as pd
 
 from history_matching.emulators import BaseEmulator
 
 from .config import Config
+from .constrict import next_point_generation
+from .emulators import GPFlowGPR
 from .features import getFeatureStatistics
 from .features import select_features
+from .utils import features_from_observations
 
 logger = logging.getLogger()
 
@@ -31,6 +35,7 @@ class Recipe:
     """
 
     def __init__(self):
+        """Constructor."""
         self.start_step_callback = Recipe.pirates  # Situation
         self.run_simulators = Recipe.null_simulator  # iteration, test points, config
         self.select_features = Recipe.default_feature_selection  # iteration, observations, simulator_results, config
@@ -45,6 +50,7 @@ class Recipe:
 
     @staticmethod
     def pirates(*args):  # https://www.youtube.com/watch?v=XaWU1CmrJNc
+        """Do nothing."""
         logger.info(f"Recipe.pirates() called with {args}")
         return
 
@@ -115,10 +121,11 @@ class Recipe:
 
         logger.info(f"Selecting features for iteration {iteration}...")
 
-        feature_statistics = getFeatureStatistics(simulator_results, None)  # None = all (?)
-        feature, target, simulated = select_features(simulator_results, observations, feature_statistics, "fano", [])
+        feature_columns = features_from_observations(observations)
+        feature_statistics = getFeatureStatistics(simulator_results[feature_columns], None)  # None = all (?)
+        features = select_features(simulator_results[feature_columns], observations, feature_statistics, "fano", [])
 
-        return feature, target, simulated
+        return features
 
     @staticmethod
     def _generate_emulators(
@@ -129,6 +136,7 @@ class Recipe:
         emulator_for_feature_fn,
         config: Config,
     ) -> Dict[str, object]:
+        """Generate emulators for the selected features."""
         logger.info(f"Generating emulator(s) for {len(selected_features)} features ({selected_features})...")
         emulators = {}
 
@@ -144,40 +152,42 @@ class Recipe:
         simulator_results: pd.DataFrame,
         config: Config,
     ) -> BaseEmulator:
+        """Generate an emulator for a single feature."""
         logger.info(f"Generating emulator for feature '{feature}'...")
-        mean = simulator_results[feature].mean()
 
-        # TODO - input argument should be a pd.DataFrame of points in parameter space
-        def emulator(*args):
-            print(f"emulator{args} => {mean}")
-            return mean
+        feature_names = features_from_observations(observations)
+        parameter_names = [column for column in simulator_results if column not in set(feature_names) + {"iteration", "replicate"}]
+        X_train = simulator_results[parameter_names]
+        y_train = simulator_results[feature]
+        emulator = GPFlowGPR(X_train, y_train)
+        emulator.train()
 
         return emulator
 
-    @staticmethod
-    def next_point_generation(
-        iteration: int,
-        parameter_space: pd.DataFrame,
-        observations: pd.DataFrame,
-        emulator_bank: Dict[int, Dict[str, BaseEmulator]],
-        config: Config,
-    ) -> Tuple[pd.DataFrame, float]:
-        """
-        Args:
-            iteration: current iteration index (0 based)
-            parameter_space: dataframe of parameter names in columns, each row represents a point in parameter space
-            observations: dataframe with feature names in columns, and one row of target values
-            emulator_bank: dictionary of emulators for each feature
-            config: history matching configuration
+    # @staticmethod
+    # def next_point_generation(
+    #     iteration: int,
+    #     parameter_space: pd.DataFrame,
+    #     observations: pd.DataFrame,
+    #     emulator_bank: Dict[int, Dict[str, BaseEmulator]],
+    #     config: Config,
+    # ) -> Tuple[pd.DataFrame, float]:
+    #     """
+    #     Args:
+    #         iteration: current iteration index (0 based)
+    #         parameter_space: dataframe of parameter names in columns, each row represents a point in parameter space
+    #         observations: dataframe with feature names in columns, and one row of target values
+    #         emulator_bank: dictionary of emulators for each feature
+    #         config: history matching configuration
 
-        Returns:
-            pd.DataFrame: dataframe of parameter names in columns, each row represents a test point in parameter space
-            float: fraction of test points that are non-implausible
-        """
+    #     Returns:
+    #         pd.DataFrame: dataframe of parameter names in columns, each row represents a test point in parameter space
+    #         float: fraction of test points that are non-implausible
+    #     """
 
-        logger.info("Generating next set of test points in parameter space...")
+    #     logger.info("Generating next set of test points in parameter space...")
 
-        return pd.DataFrame(), 1.0
+    #     return pd.DataFrame(), 1.0
 
     @staticmethod
     def standard_exit_predicate(iteration, non_implausible_fraction, config):

@@ -12,7 +12,7 @@ class ConfigTests(unittest.TestCase):
     def test_constructor(self):
         """Test Config constructor"""
 
-        parameters = {"max_iterations": 9000, "candidates_per_iteration": 1000, "implausibility_threshold": 3.14159265, "non_implausible_target": 0.99997, "user_val": 42}
+        parameters = {"max_iterations": 9000, "candidates_per_iteration": 1000, "implausibility_threshold": 3.14159265, "non_implausible_target": 0.99997, "model_variance": 0.5, "user_val": 42}
         config = Config(**parameters)
 
         assert config.max_iterations == parameters["max_iterations"]

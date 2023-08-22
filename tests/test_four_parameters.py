@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from history_matching import PARAMETER_SPACE_COLUMNS
+
 # from history_matching import Config, Recipe, Situation, grid_sampler, latin_hypercube_sampler, random_sampler, do_staircase
 from history_matching import Config
 from history_matching import Recipe
@@ -56,6 +58,7 @@ class FourParameterTests(unittest.TestCase):
             # non_implausible_target = 0.01,
             "non_implausible_target": 0.001,
             "candidates_per_iteration": 100,
+            "model_variance": 0.0,
             "username": "clorton",
         }
 
@@ -63,7 +66,7 @@ class FourParameterTests(unittest.TestCase):
 
         parameter_space = pd.DataFrame(
             [("a", ACTUAL_A - 2, ACTUAL_A + 2), ("b", ACTUAL_B - 5, ACTUAL_B + 5), ("c", ACTUAL_C - 1.5, ACTUAL_C + 1.5), ("d", ACTUAL_D - 5, ACTUAL_D + 5)],
-            columns=["parameter", "minimum", "maximum"],
+            columns=PARAMETER_SPACE_COLUMNS,
         )
         observations = generate_observations(parameter_space, NUM_OBSERVATIONS)
         initial_sample_points = latin_hypercube_sampler(parameter_space, NUM_INITIAL_SAMPLES)
@@ -226,7 +229,7 @@ def next_point_generation(
     # predict features from each emulator, disqualify points outside range
     for feature, emulator in emulator_bank[iteration].items():
         prediction = emulator.predict(proposed_sample_points)
-        target = observations.means[feature]  # observations[feature] is a Series, we want a scalar
+        target = observations.mean[feature]  # observations[feature] is a Series, we want a scalar
         plausible = ((prediction.value - target) / target) < 0.25
         if not any(plausible):
             logger.info(f"Last remaining sample points:\n{proposed_sample_points.head()}")

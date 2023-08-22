@@ -8,11 +8,14 @@ from itertools import product
 import numpy as np
 import pandas as pd
 
+from history_matching import OBSERVATIONS_COLUMNS
+from history_matching import PARAMETER_SPACE_COLUMNS
 from history_matching.config import Config
 from history_matching.constrict import next_point_generation
 from history_matching.emulators import GaussianModel
 
 
+# Non-linear function for testing GPR.
 def a_sin_bx_over_x(x: float, a: float, b: float) -> float:
     """Calculate y = a sin(bx)/x."""
     return a * np.sin(b * x) / x
@@ -41,15 +44,15 @@ class NextPointGenerationTests(unittest.TestCase):
         # npg needs an iteration - let's choose 1
         iteration = 1
         # npg needs a parameter space DataFrame
-        parameter_space = pd.DataFrame(data=[["amplitude", 1.0, 11.0], ["frequency", 0.1, 1.1]], columns=["parameter", "minimum", "maximum"])
+        parameter_space = pd.DataFrame(data=[["amplitude", 1.0, 11.0], ["frequency", 0.1, 1.1]], columns=PARAMETER_SPACE_COLUMNS)
         # npg needs an observations DataFrame
         observation = a_sin_bx_over_x(13.0, 1.3, 4.2 / 10.0)
-        observations = pd.DataFrame(data=[["magnitude", observation, 0.0]], columns=["features", "means", "variances"])
-        observations.set_index("features", inplace=True)
+        observations = pd.DataFrame(data=[["magnitude", observation, 0.0]], columns=OBSERVATIONS_COLUMNS)
+        observations.set_index("feature", inplace=True)
         # npg needs an emulator database
         emulators = {0: {"magnitude": emulator}}
         # npg needs a Config object
-        parameters = {"max_iterations": 9000, "candidates_per_iteration": 1000, "implausibility_threshold": 3.14159265, "non_implausible_target": 0.99997, "user_val": 42, "discrepancy_variance": 0.0}
+        parameters = {"max_iterations": 9000, "candidates_per_iteration": 1000, "implausibility_threshold": 3.14159265, "non_implausible_target": 0.99997, "user_val": 42, "model_variance": 0.0}
         config = Config(**parameters)
 
         # run npg

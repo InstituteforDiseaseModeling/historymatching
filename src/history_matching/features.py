@@ -1,3 +1,5 @@
+"""Library of functions to compute derived features from time series."""
+
 import inspect
 import warnings
 from typing import List
@@ -11,6 +13,9 @@ import scipy.stats
 
 
 class DerivedFeatures:
+
+    """Library of functions to compute derived features from time series."""
+
     @staticmethod
     def derivative_cauchyFit(x, *args):
         """
@@ -299,6 +304,8 @@ class DerivedFeatures:
 
 
 def __diffL__(x, xref, order, column: str) -> pd.DataFrame:
+    """Common code for L1, L2, and Linf norms."""
+
     m = len(x)
     diff = np.add(x, -np.repeat(xref, m, axis=0))
     diff_L = np.linalg.norm(diff, ord=order, axis=1)
@@ -307,6 +314,8 @@ def __diffL__(x, xref, order, column: str) -> pd.DataFrame:
 
 
 def __partialSum__(x, intervalSize: int) -> pd.DataFrame:
+    """Common code for partialSum2, partialSum7, partialSum10, partialSum15, and partialSum30."""
+
     n = x.shape[1]
     nIntervals = int(np.floor((n - 1) / intervalSize))
     partialSum = np.full((len(x), nIntervals + 1), np.nan)
@@ -324,6 +333,9 @@ def __partialSum__(x, intervalSize: int) -> pd.DataFrame:
 
 
 class Statistics:
+
+    """Functions for feature statistics."""
+
     @staticmethod
     def fano(f: pd.DataFrame) -> pd.DataFrame:
         """
@@ -406,6 +418,8 @@ class Statistics:
 
 
 def __og_stats__(data, fn, column) -> pd.DataFrame:
+    """Common code for mean, std, and var."""
+
     stat = fn(data)
     df = pd.DataFrame({column: stat})
 
@@ -433,6 +447,8 @@ def getFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, act
 
 
 def getDerivedFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: Optional[set] = None) -> pd.DataFrame:
+    """Gets derived features from the current simulation outputs."""
+
     simulationOutputs_np = simulationOutputs.to_numpy(copy=True)
     observations_np = observations.to_numpy(copy=True)
 
@@ -450,6 +466,8 @@ def getDerivedFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFra
 
 
 def getFeatureStatistics(features: pd.DataFrame, active_statistics: Optional[set] = None) -> pd.DataFrame:
+    """Gets statistics for derived features."""
+
     if active_statistics is None:
         # all statistics, _ for unused function value
         active_statistics = {name for name, _ in inspect.getmembers(Statistics, inspect.isfunction)}
@@ -518,8 +536,9 @@ def select_features(
     feature_name = simulatedFeatures.columns[candidateIndex]
 
     # Extract values for the selected feature
-    observedFeatureValue = observedFeatures[feature_name][0]
-    simulatedFeatureValues = simulatedFeatures[feature_name]
+    # We don't need these, they are available from the observations and simulator results
+    # observedFeatureValue = observedFeatures[observedFeatures.feature == feature_name].mean
+    # simulatedFeatureValues = simulatedFeatures[feature_name]
 
     # Add this feature to the list of recently used features
     history.append(feature_name)
@@ -532,4 +551,4 @@ def select_features(
     # simulatedFeatures.to_csv(f"features_iter_{iteration}.csv")
     # featureStatistics.to_csv(f"featureStats_iter_{iteration}.csv")
 
-    return feature_name, observedFeatureValue, simulatedFeatureValues
+    return [feature_name]
