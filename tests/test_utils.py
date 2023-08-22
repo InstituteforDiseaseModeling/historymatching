@@ -21,8 +21,8 @@ class UtilityTests(unittest.TestCase):
         mean_and_variance = mean_and_variance_for_observations(raw_observations)
         heights = np.array([175, 175, 173, 163, 61])
         weights = np.array([97, 100, 63, 54, 11])
-        assert np.float64(mean_and_variance.mean["height"]) == heights.mean()
-        assert np.float64(mean_and_variance.mean["weight"]) == weights.mean()
+        assert np.float64(mean_and_variance.at["height", "mean"]) == heights.mean()
+        assert np.float64(mean_and_variance.at["weight", "mean"]) == weights.mean()
         assert np.float64(mean_and_variance.variance["height"]) == heights.var(ddof=1)  # Use N-1 for variance
         assert np.float64(mean_and_variance.variance["weight"]) == weights.var(ddof=1)  # Use N-1 for variance
 

@@ -106,8 +106,8 @@ class BaseEmulator:
         emulator_variance = predictions["variance"]
 
         # implausibility = abs(mean - observation) / sqrt(variance + observation_variance + discrepancy_variance)
-        observation = observations.mean[feature]
-        observation_variance = observations.variance[feature]
+        observation = observations.at[feature, "mean"]
+        observation_variance = observations.at[feature, "variance"]
         model_variance = config.model_variance  # clorton: model_variance = discrepancy_variance from OG code
         # implausibility = abs(mean - observation) / np.sqrt(variance + observation_variance + discrepancy_variance)
         implausibility = abs(emulator_mean - observation) / np.sqrt(emulator_variance + observation_variance + model_variance)

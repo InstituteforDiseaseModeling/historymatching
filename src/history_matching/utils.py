@@ -23,7 +23,7 @@ def mean_and_variance_for_observations(observations: Dict[str, Union[List, np.nd
 
     data = [(key, np.mean(values), np.var(values, ddof=1)) for key, values in observations.items()]
 
-    statistics = pd.DataFrame(data=data, columns=OBSERVATIONS_COLUMNS).set_index("features", drop=False)
+    statistics = pd.DataFrame(data=data, columns=OBSERVATIONS_COLUMNS).set_index("feature", drop=False)
 
     return statistics
 

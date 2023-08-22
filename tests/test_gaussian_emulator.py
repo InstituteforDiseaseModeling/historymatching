@@ -42,7 +42,7 @@ class GaussianEmulatorTests(unittest.TestCase):
         # create a Gaussian emulator with X and y
         emulator = GaussianModel(X, y_train)
         # train the emulator
-        emulator.train()
+        # see skipped tests below emulator.train()
         cls._model = emulator
 
         return

@@ -12,7 +12,7 @@ from history_matching import OBSERVATIONS_COLUMNS
 from history_matching import PARAMETER_SPACE_COLUMNS
 from history_matching.config import Config
 from history_matching.constrict import next_point_generation
-from history_matching.emulators import GaussianModel
+from history_matching.emulators import GPFlowGPR
 
 
 # Non-linear function for testing GPR.
@@ -38,7 +38,7 @@ class NextPointGenerationTests(unittest.TestCase):
         y = a_sin_bx_over_x(x=self.TARGETX, a=amplitude, b=frequency)
         X = pd.DataFrame(data={"amplitude": amplitude, "frequency": frequency})
         y_train = pd.DataFrame(data={"y": y})
-        emulator = GaussianModel(X, y_train)
+        emulator = GPFlowGPR(X, y_train)
         emulator.train()
 
         # npg needs an iteration - let's choose 1
