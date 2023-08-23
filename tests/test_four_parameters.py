@@ -229,7 +229,7 @@ def next_point_generation(
     # predict features from each emulator, disqualify points outside range
     for feature, emulator in emulator_bank[iteration].items():
         prediction = emulator.predict(proposed_sample_points)
-        target = observations.at[feature, "mean"]   # observations[feature] is a Series, we want a scalar
+        target = observations.at[feature, "mean"]  # observations[feature] is a Series, we want a scalar
         plausible = ((prediction.value - target) / target) < 0.25
         if not any(plausible):
             logger.info(f"Last remaining sample points:\n{proposed_sample_points.head()}")

@@ -156,7 +156,6 @@ class ClortonTests(unittest.TestCase):
     """Check that current code generates same features and stats as previous code."""
 
     def test_selectModelFeatures(self):
-
         """Check that current code generates same features and stats as previous code."""
 
         GET_DIR = WORK_DIR / "getFeatures"
@@ -166,7 +165,7 @@ class ClortonTests(unittest.TestCase):
 
         featureStats = hmf.getFeatureStatistics(modelOutputs)
 
-        selected = hmf.select_features(modelOutputs, observations, featureStats, "fano", 1, [])
+        hmf.select_features(modelOutputs, observations, featureStats, "fano", 1, [])
 
         return
 
@@ -193,9 +192,7 @@ class SelectFeaturesTests(unittest.TestCase):
         select_features_fTarget = pd.read_hdf(SEL_DIR / "out-fTarget.hdf", "fTarget")  # simulation values for selected feature
 
         feature_history = []
-        computed_feature = hmf.select_features(
-            select_features_f, select_features_fref, select_features_fStats, select_features_metric, select_features_iteration, feature_history
-        )
+        computed_feature = hmf.select_features(select_features_f, select_features_fref, select_features_fStats, select_features_metric, select_features_iteration, feature_history)
 
         assert len(computed_feature) == 1, f"select_features should return 1 feature, got {len(computed_feature)}"
         computed_feature = computed_feature[0]

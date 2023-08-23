@@ -24,10 +24,12 @@ include architecture.md
 include history-matching-architecture.png
 include history-matching-flowchart.png
 
+graft examples
+
 exclude clorton-notes.md
 exclude tests/observations.png
 
 recursive-exclude docs *
 recursive-exclude docker *
 
-global-exclude *.py[cod] __pycache__/* *.so *.dylib
+global-exclude *.py[cod] __pycache__/* *.so *.dylib .DS_Store

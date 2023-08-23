@@ -480,8 +480,10 @@ def getFeatureStatistics(features: pd.DataFrame, active_statistics: Optional[set
 
     return featureStatistics
 
+
 # TODO - move selected feature history into Situation(?)
 __history__ = []
+
 
 def select_features(
     simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFrame, featureStatistics: pd.DataFrame, metric: str, iteration: int, history: Optional[List] = None

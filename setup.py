@@ -72,6 +72,7 @@ setup(
         "tables",
         "tensorflow",
         "gpflow",
+        "numexpr<2.8.5",  # until RE string issue gets fixed
     ],
     extras_require={
         # eg:
