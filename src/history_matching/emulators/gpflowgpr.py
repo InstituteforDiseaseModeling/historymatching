@@ -8,6 +8,9 @@ from .base import BaseEmulator
 
 
 class GPFlowGPR(BaseEmulator):
+
+    """Gaussian Process Regression emulator implemented in GPFlow."""
+
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction=0.25):
         """Initialise the Gaussian Process Regression emulator implemented in GPFlow."""
 
@@ -22,6 +25,11 @@ class GPFlowGPR(BaseEmulator):
         logging.debug("... training emulator")
 
         kernel = gpf.kernels.Matern52()
+
+        # TODO - do this elsewhere?
+        if len(self.y_train.shape) == 1:
+            self.y_train = self.y_train.reshape(-1, 1)
+
         self.regression_model = gpf.models.GPR(data=(self.X_train, self.y_train), kernel=kernel)
         gpf.utilities.print_summary(self.regression_model)
         opt = gpf.optimizers.Scipy()

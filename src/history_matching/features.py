@@ -480,6 +480,8 @@ def getFeatureStatistics(features: pd.DataFrame, active_statistics: Optional[set
 
     return featureStatistics
 
+# TODO - move selected feature history into Situation(?)
+__history__ = []
 
 def select_features(
     simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFrame, featureStatistics: pd.DataFrame, metric: str, iteration: int, history: Optional[List] = None
@@ -499,8 +501,8 @@ def select_features(
       Tuple of selected feature name, observed value for that feature, and simulated values for that feature
     """
 
-    if history is None:
-        history = []
+    # if history is None:
+    #     history = []
 
     FEATURE_SELECTION_QUARANTINE_PERIOD = 8
     FEATURE_SELECTION_CLOSE_CORRELATION_THRESHOLD = 0.90
@@ -524,7 +526,8 @@ def select_features(
         acceptCandidate = True
         candidateCorrelation = simulatedFeatures.corr(method="pearson").iloc[:, candidateIndex]
 
-        for recentFeature in history:
+        # for recentFeature in history:
+        for recentFeature in __history__:
             # only acceptble if candidate was not recently used
             acceptCandidate &= simulatedFeatures.columns[candidateIndex] != recentFeature
             # only acceptable if candidate does _not_ correlate highly with a recently used feature
@@ -541,11 +544,14 @@ def select_features(
     # simulatedFeatureValues = simulatedFeatures[feature_name]
 
     # Add this feature to the list of recently used features
-    history.append(feature_name)
+    # history.append(feature_name)
+    __history__.append(feature_name)
 
     # Remove previously used features from history after quarantine period
-    while len(history) > FEATURE_SELECTION_QUARANTINE_PERIOD:
-        history.pop(0)
+    # while (len(history) > FEATURE_SELECTION_QUARANTINE_PERIOD) or (len(history) >= nFeatures):
+    #     history.pop(0)
+    while (len(__history__) > FEATURE_SELECTION_QUARANTINE_PERIOD) or (len(__history__) >= nFeatures):
+        __history__.pop(0)
 
     # Finalize and return
     # simulatedFeatures.to_csv(f"features_iter_{iteration}.csv")

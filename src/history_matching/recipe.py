@@ -156,7 +156,7 @@ class Recipe:
         logger.info(f"Generating emulator for feature '{feature}'...")
 
         feature_names = features_from_observations(observations)
-        parameter_names = [column for column in simulator_results if column not in set(feature_names) + {"iteration", "replicate"}]
+        parameter_names = [column for column in simulator_results if column not in set(feature_names) | {"iteration", "replicate"}]
         X_train = simulator_results[parameter_names]
         y_train = simulator_results[feature]
         emulator = GPFlowGPR(X_train, y_train)

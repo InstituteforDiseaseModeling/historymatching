@@ -48,8 +48,10 @@ def next_point_generation(
     while (num_non_implausible_candidates := len(non_implausible_candidates)) < num_desired_candidates:
         if num_candidates_considered == 0:
             nSamples = num_desired_candidates
-        else:
+        elif num_non_implausible_candidates > 0:
             nSamples = int(1.25 * (num_desired_candidates - num_non_implausible_candidates) * num_candidates_considered / num_non_implausible_candidates)
+        else:
+            nSamples = int(1.25 * num_desired_candidates)
 
         nSamples = min(max_nSamples, nSamples)
 
