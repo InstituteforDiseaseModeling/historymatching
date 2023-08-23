@@ -1,7 +1,15 @@
+"""Gaussian Process Regression emulator implemented in GPFlow."""
+
 import logging
+import warnings
 from typing import Optional
 
-import gpflow as gpf
+# gpflow import tensorflow-probability
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import gpflow as gpf
+
+
 import pandas as pd
 
 from .base import BaseEmulator

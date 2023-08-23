@@ -70,13 +70,15 @@ def do_step(situation: Situation, recipe: Recipe, config: Config) -> bool:
 
 
 def get_test_points_for_iteration(iteration: int, sample_points: pd.DataFrame) -> pd.DataFrame:
-    logger.info(f"getting test points for iteration {iteration} from sample points dataframe")
+    """Get the sample points specified or generated in the previous iteration."""
+    logger.info(f"getting test points for iteration {iteration} in the sample points dataframe")
     test_points = sample_points[sample_points.iteration == iteration].copy()
 
     return test_points
 
 
 def merge_results(iteration: int, test_results: pd.DataFrame, situation: Situation, config: Config) -> None:
+    """Add simulator results from this iteration into the full set of simulator results."""
     logger.info(f"Merging {len(test_results)} new simulator results with {len(situation.simulator_results)} existing results...")
     assert all(test_results.iteration == iteration), "Test results include results from a different iteration."
     situation.simulator_results = pd.concat([situation.simulator_results, test_results])
@@ -86,6 +88,7 @@ def merge_results(iteration: int, test_results: pd.DataFrame, situation: Situati
 
 
 def deposit_emulators(iteration: int, new_emulators: Dict[str, BaseEmulator], situation: Situation, config: Config) -> None:
+    """Add emulator(s) from this iteration to the complete set of emulators."""
     logger.info(f"Adding {len(new_emulators.keys())} emulator(s) to emulator_bank on step {iteration}...")
     situation.emulator_bank.update({iteration: new_emulators})
 
@@ -93,8 +96,9 @@ def deposit_emulators(iteration: int, new_emulators: Dict[str, BaseEmulator], si
 
 
 def update_test_points(iteration: int, next_sample_points: pd.DataFrame, situation: Situation) -> None:
+    """Add sample points generated on this iteration to the full set of sample points."""
     logger.info(f"Adding {len(next_sample_points)} new sample points on step {iteration}...")
-    next_sample_points["iteration"] = iteration + 1
+    next_sample_points["iteration"] = iteration
     situation.sample_points = pd.concat([situation.sample_points, next_sample_points]).reset_index(drop=True)
 
     return

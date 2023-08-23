@@ -1,10 +1,16 @@
 import logging
+import warnings
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tensorflow_probability as tfp
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import tensorflow_probability as tfp
+
+    print(f"Loaded tensorflow-probability version {tfp.__version__}.")
 
 from .base import BaseEmulator
 
@@ -30,7 +36,11 @@ class TensorFlowGLM(BaseEmulator):
         # response     (Batch of) vector-shaped Tensor where each element represents a sample's observed response (to the corresponding row of features). Must have same dtype as model_matrix.
         # model        tfp.glm.ExponentialFamily-like instance which implicitly characterizes a negative log-likelihood loss by specifying the distribuion's mean, gradient_mean, and variance.
 
-        model_coefficients, linear_response, is_converged, num_iter = tfp.glm.fit(model_matrix=self.X_train, response=self.y_train.reshape((len(self.y_train),)), model=tfp.glm.Normal())
+        # tensorflow-probability uses deprecated portions of setuptools which don't warn
+        # until tensorflow-probability is lazily loaded here.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model_coefficients, linear_response, is_converged, num_iter = tfp.glm.fit(model_matrix=self.X_train, response=self.y_train.reshape((len(self.y_train),)), model=tfp.glm.Normal())
 
         self.model_coefficients = model_coefficients
         self.linear_response = linear_response

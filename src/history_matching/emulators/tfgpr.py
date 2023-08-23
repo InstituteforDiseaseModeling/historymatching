@@ -1,10 +1,16 @@
 """Placeholder for a TensorFlow implementation of a Gaussian Process Regression emulator."""
 
 import logging
+import warnings
 from typing import Optional
 
 import pandas as pd
-import tensorflow_probability as tfp
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import tensorflow_probability as tfp
+
+    print(f"Loaded tensorflow-probability version {tfp.__version__}.")
 
 from .base import BaseEmulator
 

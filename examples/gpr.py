@@ -167,6 +167,8 @@ def main():
             c[1:] = i[1:] - i[:-1]
             plt.subplot(1, 3, 3)
             plt.plot(c, linewidth=1)
+
+        # Get "actual" trajectory for comparison.
         s, i, r = trajectory(np.array([TARGET_BETA, TARGET_GAMMA, TARGET_INITIAL]))
         plt.subplot(1, 3, 1)
         plt.plot(s, color="green", linewidth=2)

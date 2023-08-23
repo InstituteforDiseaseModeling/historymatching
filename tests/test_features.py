@@ -192,6 +192,7 @@ class SelectFeaturesTests(unittest.TestCase):
         select_features_fTarget = pd.read_hdf(SEL_DIR / "out-fTarget.hdf", "fTarget")  # simulation values for selected feature
 
         feature_history = []
+        hmf.__history__ = []  # TODO - remove ugly workaround
         computed_feature = hmf.select_features(select_features_f, select_features_fref, select_features_fStats, select_features_metric, select_features_iteration, feature_history)
 
         assert len(computed_feature) == 1, f"select_features should return 1 feature, got {len(computed_feature)}"
