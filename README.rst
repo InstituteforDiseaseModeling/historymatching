@@ -43,9 +43,9 @@ README
     :alt: Supported implementations
     :target: https://pypi.org/project/bhm
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/clorton/history_matching/v0.2.0.svg
+.. |commits-since| image:: https://img.shields.io/github/commits-since/clorton/history_matching/v0.9.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/clorton/history_matching/compare/v0.2.0...main
+    :target: https://github.com/clorton/history_matching/compare/v0.9.0...main
 
 
 

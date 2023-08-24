@@ -21,7 +21,7 @@ project = "history_matching"
 year = "2017-2023"
 author = "Dan Klein, Rafael Nunez, Christopher Lorton, et al."
 copyright = f"{year}, {author}"
-version = release = "0.2.0"
+version = release = "0.9.0"
 
 pygments_style = "trac"
 templates_path = ["."]

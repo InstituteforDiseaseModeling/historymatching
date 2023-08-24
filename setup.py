@@ -13,7 +13,7 @@ def read(*names, **kwargs):
 
 setup(
     name="history-matching",
-    version="0.2.0",
+    version="0.9.0",
     license="MIT",
     description="A Python implementation of the Bayesian History Matching algorithm.",
     long_description="{}\n{}".format(
