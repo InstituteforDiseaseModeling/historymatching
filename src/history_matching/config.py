@@ -30,7 +30,11 @@ class Config:
         self.implausibility_threshold = implausibility_threshold
         self.non_implausible_target = non_implausible_target
         self.model_variance = model_variance
-        self.user = {}
-        self.user.update(kwargs)
+
+        class User:
+            pass
+
+        self.user = User()
+        self.user.__dict__.update(kwargs)
 
         return

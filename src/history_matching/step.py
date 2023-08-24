@@ -98,7 +98,7 @@ def deposit_emulators(iteration: int, new_emulators: Dict[str, BaseEmulator], si
 def update_test_points(iteration: int, next_sample_points: pd.DataFrame, situation: Situation) -> None:
     """Add sample points generated on this iteration to the full set of sample points."""
     logger.info(f"Adding {len(next_sample_points)} new sample points on step {iteration}...")
-    next_sample_points["iteration"] = iteration
+    next_sample_points["iteration"] = iteration + 1
     situation.sample_points = pd.concat([situation.sample_points, next_sample_points]).reset_index(drop=True)
 
     return

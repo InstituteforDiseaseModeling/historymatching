@@ -2,6 +2,7 @@
 
 """Example with Gaussian process regression."""
 
+from argparse import ArgumentParser
 from typing import Tuple
 
 import matplotlib.pyplot as plt
@@ -76,9 +77,9 @@ def run_model(iteration: int, points: pd.DataFrame, config: Config) -> pd.DataFr
     """Run model."""
 
     # features are:
-    # infected at day 14
-    # incidence at day 21
-    # susceptible at day 90
+    # infected at day 14 (default)
+    # incidence at day 21 (default)
+    # susceptible at day 90 (default)
 
     inf = np.zeros(len(points))
     inc = np.zeros(len(points))
@@ -87,9 +88,9 @@ def run_model(iteration: int, points: pd.DataFrame, config: Config) -> pd.DataFr
     for index, parameters in enumerate(points.itertuples()):
         params = np.array([parameters.beta, parameters.gamma, parameters.initial])
         susceptible, infected, _ = trajectory(params)  # We don't use recovered.
-        inf[index] = infected[14]
-        inc[index] = infected[21] - infected[20]
-        sus[index] = susceptible[90]
+        inf[index] = infected[config.user.t_inf]
+        inc[index] = infected[config.user.t_inc] - infected[config.user.t_inc - 1]
+        sus[index] = susceptible[config.user.t_sus]
 
     results = pd.DataFrame(
         {
@@ -111,6 +112,10 @@ TARGET_BETA = 2.5
 TARGET_GAMMA = 0.2
 TARGET_INITIAL = 10.0
 
+T_INF = 14
+T_INC = 21
+T_SUS = 90
+
 
 def main():
     """Main function."""
@@ -120,20 +125,12 @@ def main():
     # gamma = 1/5   (recovery rate, ~5 days of infectiousness)
     # I0 = 10       (initial number of infected individuals)
     params = np.array([TARGET_BETA, TARGET_GAMMA, TARGET_INITIAL])
-    susceptible, infected, _ = trajectory(params)  # we don't use recovered
-    inf14 = infected[14]
-    inc21 = infected[21] - infected[20]
-    sus90 = susceptible[90]
+    susceptible, infected, recovered = trajectory(params)
+    inf14 = infected[T_INF]
+    inc21 = infected[T_INC] - infected[T_INC - 1]
+    sus90 = susceptible[T_SUS]
 
-    # points = pd.DataFrame({"beta": [2.5, 0.5, 1.0, 1.5, 2.0, 2.5], "gamma": [1/5, 1/10, 1/8, 1/6, 1/5, 1/4], "infected": [10, 1, 2, 5, 10, 20]})
-    # results = run_model(points)
-
-    # import matplotlib.pyplot as plt
-    # plt.plot(susceptible, label="S")
-    # plt.plot(infected, label="I")
-    # plt.plot(recovered, label="R")
-    # plt.legend()
-    # plt.show()
+    # plot_epidemic(susceptible, infected, recovered)
 
     parameter_space = pd.DataFrame([["beta", 0.5, 5.0], ["gamma", 1 / 10, 1 / 2], ["initial", 1, 20]], columns=PARAMETER_SPACE_COLUMNS)
     observations = pd.DataFrame([["infected", inf14, 0.0], ["incidence", inc21, 0.0], ["susceptible", sus90, 0.0]], columns=OBSERVATIONS_COLUMNS)
@@ -146,52 +143,86 @@ def main():
     recipe.run_simulators = run_model
     recipe.end_step_callback = lambda situation: print(f"Ending step {situation.iteration}")
 
-    config = Config(max_iterations=10, candidates_per_iteration=250, implausibility_threshold=1.5, non_implausible_target=0.01, model_variance=0.0)
+    config = Config(max_iterations=10, candidates_per_iteration=250, implausibility_threshold=1.5, non_implausible_target=0.01, model_variance=0.0, t_inf=T_INF, t_inc=T_INC, t_sus=T_SUS)
 
     do_staircase(situation, recipe, config)
 
-    for iteration in sorted(set(situation.simulator_results.iteration)):
-        # # get rows of situation.simulator_results for this iteration
-        # rows = situation.simulator_results[situation.simulator_results.iteration == iteration]
-        # get the rows of situation.points for this iteration
-        points = situation.sample_points[situation.sample_points.iteration == iteration]
-        # iterate over each row, getting beta, gamma, and initial
-        # for row in rows.itertuples():
-        for row in points.itertuples():
-            s, i, r = trajectory(np.array([row.beta, row.gamma, row.initial]))
-            plt.subplot(1, 3, 1)
-            plt.plot(s, linewidth=1)
-            plt.subplot(1, 3, 2)
-            plt.plot(i, linewidth=1)
-            c = np.zeros_like(i)
-            c[1:] = i[1:] - i[:-1]
-            plt.subplot(1, 3, 3)
-            plt.plot(c, linewidth=1)
+    plot_epidemic(susceptible, infected, recovered)
 
-        # Get "actual" trajectory for comparison.
-        s, i, r = trajectory(np.array([TARGET_BETA, TARGET_GAMMA, TARGET_INITIAL]))
+    for iteration in sorted(set(situation.sample_points.iteration)):
+        plot_iteration(iteration, situation)
+
+    return
+
+
+def plot_epidemic(susceptible: np.array, infected: np.array, recovered: np.array) -> None:
+    plt.figure("Epidemic Scenario")
+    plt.plot(susceptible, label="susceptible", color="blue")
+    plt.plot(infected, label="infected", color="red")
+    plt.plot(recovered, label="recovered", color="green")
+    incidence = np.zeros_like(infected)
+    incidence[1:] = infected[1:] - infected[:-1]
+    plt.plot(incidence, label="incidence", color="purple")
+    plt.plot(T_INF, infected[T_INF], "o", color="red")
+    plt.plot(T_INC, incidence[T_INC], "o", color="purple")
+    plt.plot(T_SUS, susceptible[T_SUS], "o", color="blue")
+    plt.legend()
+    plt.show()
+
+    return
+
+
+def plot_iteration(iteration: int, situation: Situation) -> None:
+    print(f"Plotting iteration {iteration}...")
+
+    title = f"Iteration {iteration} ({list(situation.emulator_bank[iteration-1].keys())[0]})" if iteration > 0 else f"Iteration {iteration}"
+    plt.figure(title)
+
+    points = situation.sample_points[situation.sample_points.iteration == iteration]
+    for row in points.itertuples():
+        s, i, r = trajectory(np.array([row.beta, row.gamma, row.initial]))
         plt.subplot(1, 3, 1)
-        plt.plot(s, color="green", linewidth=2)
+        plt.plot(s, linewidth=1)
         plt.subplot(1, 3, 2)
-        plt.plot(i, color="red", linewidth=2)
+        plt.plot(i, linewidth=1)
         c = np.zeros_like(i)
         c[1:] = i[1:] - i[:-1]
         plt.subplot(1, 3, 3)
-        plt.plot(c, color="blue", linewidth=2)
+        plt.plot(c, linewidth=1)
 
-        plt.subplot(1, 3, 1)
-        plt.plot(90, s[90], "o", color="green")
-        plt.subplot(1, 3, 2)
-        plt.plot(14, i[14], "o", color="red")
-        plt.subplot(1, 3, 3)
-        plt.plot(21, i[21] - i[20], "o", color="blue")
+    # Get "actual" trajectory for comparison.
+    s, i, r = trajectory(np.array([TARGET_BETA, TARGET_GAMMA, TARGET_INITIAL]))
+    plt.subplot(1, 3, 1)
+    plt.plot(s, color="green", linewidth=2)
+    plt.subplot(1, 3, 2)
+    plt.plot(i, color="red", linewidth=2)
+    c = np.zeros_like(i)
+    c[1:] = i[1:] - i[:-1]
+    plt.subplot(1, 3, 3)
+    plt.plot(c, color="blue", linewidth=2)
 
-        plt.title(f"Iteration {iteration} ({list(situation.emulator_bank[iteration].keys())[0]})")
-        plt.tight_layout()
-        plt.show()
+    plt.subplot(1, 3, 1)
+    plt.plot(T_SUS, s[T_SUS], "o", color="green")
+    plt.subplot(1, 3, 2)
+    plt.plot(T_INF, i[T_INF], "o", color="red")
+    plt.subplot(1, 3, 3)
+    plt.plot(T_INC, i[T_INC] - i[T_INC - 1], "o", color="blue")
+
+    plt.tight_layout()
+    plt.show()
 
     return
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("--tinf", type=int, default=14, help="Time of measurement for # of infected [14].")
+    parser.add_argument("--tinc", type=int, default=21, help="Time of measurement of incidence [21].")
+    parser.add_argument("--tsus", type=int, default=90, help="Time of measurement of 'final' susceptible population [90].")
+
+    args = parser.parse_args()
+    T_INF = args.tinf
+    T_INC = args.tinc
+    T_SUS = args.tsus
+
     main()

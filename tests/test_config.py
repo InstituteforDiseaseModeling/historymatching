@@ -19,7 +19,8 @@ class ConfigTests(unittest.TestCase):
         assert config.candidates_per_iteration == parameters["candidates_per_iteration"]
         assert config.implausibility_threshold == parameters["implausibility_threshold"]
         assert config.non_implausible_target == parameters["non_implausible_target"]
-        assert config.user["user_val"] == parameters["user_val"]
+        assert config.model_variance == parameters["model_variance"]
+        assert config.user.user_val == parameters["user_val"]
 
         return
 
