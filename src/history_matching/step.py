@@ -66,6 +66,8 @@ def do_step(situation: Situation, recipe: Recipe, config: Config) -> bool:
 
     logger.info(f"Finished step {situation.iteration}...")
 
+    situation.iteration += 1
+
     return recipe.exit_predicate(situation.iteration, non_implausible_fraction, config)
 
 
@@ -120,6 +122,6 @@ def do_staircase(situation: Situation, recipe: Recipe, config: Config) -> None:
     # do_step() returns results of exit_predicate()
     # exit_predicate return True when it's time to quit
     while not do_step(situation, recipe, config):
-        situation.iteration += 1
+        pass  # all the work is in `do_step()`
 
     return

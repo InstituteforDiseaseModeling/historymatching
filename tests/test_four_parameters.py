@@ -189,11 +189,12 @@ def generate_observations(
     observations = pd.DataFrame(data=samples, columns=columns)
     statistics = mean_and_variance_for_observations(observations=observations)
 
-    figure = plt.figure(figsize=(16, 9), dpi=300)
+    # fgure = plt.figure(figsize=(16, 9), dpi=300)
+    plt.figure(figsize=(16, 9), dpi=300)
     for sample in samples:
         plt.plot(sample)
     plt.plot(values, color="black", linewidth=2)
-    figure.savefig(WORK_DIR / "observations.png")
+    # figure.savefig(WORK_DIR / "observations.png")
 
     return statistics
 

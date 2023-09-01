@@ -27,9 +27,13 @@ def model(_: float, y: np.array, params: np.array) -> np.array:
 
     dydt = np.zeros_like(y)
 
-    dydt[0] = -y[0] * y[1] * params[0] * params[1] / POPULATION  # S, susceptible, params[0] = beta, params[1] = gamma
-    dydt[1] = +y[0] * y[1] * params[0] * params[1] / POPULATION - y[1] * params[1]  # I, infected
-    dydt[2] = +y[1] * params[1]  # R, recovered
+    r0 = params[0]
+    gamma = params[1]
+    beta = r0 * gamma
+
+    dydt[0] = -y[0] * y[1] * beta / POPULATION  # S, susceptible
+    dydt[1] = +y[0] * y[1] * beta / POPULATION - y[1] * gamma  # I, infected
+    dydt[2] = +y[1] * gamma  # R, recovered
 
     return dydt
 
@@ -37,12 +41,16 @@ def model(_: float, y: np.array, params: np.array) -> np.array:
 def jacobian(_: float, y: np.array, params: np.array) -> np.array:
     """Jacobian."""
 
+    r0 = params[0]
+    gamma = params[1]
+    beta = r0 * gamma
+
     J = np.zeros((3, 3))
-    J[0, 0] = -params[0] * y[1] / POPULATION
-    J[0, 1] = -params[0] * y[0] / POPULATION
-    J[1, 0] = +params[0] * y[1] / POPULATION
-    J[1, 1] = +params[0] * y[0] / POPULATION - params[1]
-    J[2, 1] = +params[1]
+    J[0, 0] = -beta * y[1] / POPULATION
+    J[0, 1] = -beta * y[0] / POPULATION
+    J[1, 0] = +beta * y[1] / POPULATION
+    J[1, 1] = +beta * y[0] / POPULATION - gamma
+    J[2, 1] = +gamma
 
     return J
 

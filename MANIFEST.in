@@ -33,3 +33,4 @@ recursive-exclude docs *
 recursive-exclude docker *
 
 global-exclude *.py[cod] __pycache__/* *.so *.dylib .DS_Store
+global-exclude *checkpoint.ipynb
