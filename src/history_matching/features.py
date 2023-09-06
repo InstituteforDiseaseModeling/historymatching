@@ -406,7 +406,7 @@ class Statistics:
         """
 
         # return __og_stats__(f, np.std, "std")
-        return __og_stats__(f, lambda f: np.std(f, ddof=1), "std")
+        return __og_stats__(f, lambda f: np.std(f, axis=0, ddof=1), "std")
 
     @staticmethod
     def var(f: pd.DataFrame) -> pd.DataFrame:
@@ -414,7 +414,7 @@ class Statistics:
         Returns variance of each column of the input dataframe.
         """
 
-        return __og_stats__(f, lambda f: np.var(f, ddof=1), "var")
+        return __og_stats__(f, lambda f: np.var(f, axis=0, ddof=1), "var")
 
 
 def __og_stats__(data, fn, column) -> pd.DataFrame:
