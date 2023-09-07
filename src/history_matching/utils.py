@@ -1,4 +1,5 @@
-from io import BytesIO
+"""Implementation of various helper functions."""
+
 from typing import Dict
 from typing import List
 from typing import Union
@@ -42,35 +43,3 @@ def features_from_observations(observations: pd.DataFrame) -> List[str]:
     features = list(observations.feature)
 
     return features
-
-
-def dataframe_to_ndarray(df: pd.DataFrame) -> np.ndarray:
-    """
-    Convert a Pandas DataFrame to a NumPy ndarray.
-
-    Args:
-        df: Pandas DataFrame
-
-    Returns:
-        NumPy ndarray
-    """
-
-    if df is not None:
-        buffer = BytesIO()
-        df.reset_index(drop=True).to_feather(buffer)
-        result = np.array(buffer.getbuffer(), dtype=np.uint8)
-    else:
-        result = None
-
-    return result
-
-
-def ndarray_to_dataframe(nd: np.ndarray) -> pd.DataFrame:
-    """Deserialize a NumPy ndarray to a Pandas DataFrame."""
-
-    if nd is not None:
-        result = pd.read_feather(BytesIO(nd.data))
-    else:
-        result = None
-
-    return result

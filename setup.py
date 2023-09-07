@@ -67,17 +67,15 @@ setup(
         "pandas",
         "matplotlib",
         "scikit-learn",
-        "asdf",
-        "pyarrow",
-        "tables",
         "tensorflow",
         "gpflow",
-        "numexpr<2.8.5",  # until RE string issue gets fixed
+        "numexpr!=2.8.5",  # until RE string issue gets fixed
     ],
     extras_require={
         # eg:
         #   "rst": ["docutils>=0.11"],
         #   ":python_version=="2.6"": ["argparse"],
+        "notebooks": ["jupyterlab"]
     },
     entry_points={
         "console_scripts": [

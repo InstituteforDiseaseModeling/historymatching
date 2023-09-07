@@ -3,12 +3,12 @@
 """Unit tests for the history_matching.emulators.GaussianModel class."""
 
 import os
+import pickle
 import tempfile
 import unittest
 from itertools import product
 from pathlib import Path
 
-import asdf
 import numpy as np
 import pandas as pd
 
@@ -79,19 +79,19 @@ class GaussianEmulatorTests(unittest.TestCase):
     def test_gaussian_emulator_serialization(self):
         """Test the serialization and deserialization (roundtrip) of the trained Gaussian emulator."""
 
-        handle, filename = tempfile.mkstemp(suffix=".asdf")
+        handle, filename = tempfile.mkstemp(suffix=".pickle")
         os.close(handle)
-        af = asdf.AsdfFile({"emulator": self._model})
-        af.write_to(filename)
+        filename = Path(filename)
+        with filename.open("wb") as file:
+            pickle.dump(self._model, file)
 
-        assert Path(filename).exists(), f"{filename} does not exist"
+        assert filename.exists(), f"{filename} does not exist"
 
         try:
-            af = asdf.open(filename)
-            emulator = af["emulator"]
+            with filename.open("rb") as file:
+                emulator = pickle.load(file)  # noqa: S301
         finally:
-            af.close()
-            Path(filename).unlink()
+            filename.unlink()
         assert isinstance(emulator, GaussianModel), f"{emulator=} is not a GaussianModel"
 
         # predict the value of y at a = 1.3 and b = 4.2/FSCALE

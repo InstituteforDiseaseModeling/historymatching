@@ -1,16 +1,10 @@
 import logging
-from typing import ClassVar
-from typing import Dict
-from typing import List
 from typing import Optional
 
 import pandas as pd
-from asdf.extension import Converter
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process.kernels import ConstantKernel
-
-from history_matching.utils import ndarray_to_dataframe
 
 from .base import BaseEmulator
 
@@ -77,51 +71,3 @@ class GaussianModel(BaseEmulator):
         out["variance"] = y_std**2
 
         return out
-
-    def to_yaml_tree(self, tag, ctx) -> Dict:
-        dictionary = super().to_yaml_tree(tag, ctx)
-        dictionary.update({"regression_model_params": self.regression_model.get_params(), "regression_model_state": self.regression_model.__getstate__()})
-
-        return dictionary
-
-    @staticmethod
-    def from_yaml_tree(node, tag, ctx) -> "GaussianModel":
-        # Would prefer something like the following:
-        # emulator = super().from_yaml_tree(node, tag, ctx)
-        # emulator.regression_model = node.regression_model
-        # but BaseEmulator doesn't know to create a GaussianModel. :(
-
-        emulator = GaussianModel()  # pass no initial values
-
-        # BaseEmulator attributes
-        emulator.X_df = ndarray_to_dataframe(node["X_df"])
-        emulator.X_train = node["X_train"]
-        emulator.X_test = node["X_test"]
-        emulator.y_df = ndarray_to_dataframe(node["y_df"])
-        emulator.y_train = node["y_train"]
-        emulator.y_test = node["y_test"]
-        emulator.y_pred = node["y_pred"]
-        emulator.y_pred_test = node["y_pred_test"]
-        emulator.y_test_pred_df = ndarray_to_dataframe(node["y_test_pred_df"])
-        emulator.training_complete = node["training_complete"]
-        emulator.testing_complete = node["testing_complete"]
-        emulator.mse = node["mse"]
-        emulator.r2score = node["r2score"]
-
-        emulator.regression_model = GaussianProcessRegressor(**node["regression_model_params"])
-        emulator.regression_model.__setstate__(node["regression_model_state"])
-
-        return emulator
-
-
-class GaussianModelConverter(Converter):
-    tags: ClassVar[List[str]] = ["asdf://idmod.org/asdf/tags/emulators/gaussian_model-1.0.0"]
-    types: ClassVar[List[type]] = ["history_matching.emulators.gaussian_process.GaussianModel"]
-
-    def to_yaml_tree(self, obj, tag, ctx):
-        return obj.to_yaml_tree(tag, ctx)
-        # return {"pickle": pickle.dumps(obj)}
-
-    def from_yaml_tree(self, node, tag, ctx):
-        return GaussianModel.from_yaml_tree(node, tag, ctx)
-        # return pickle.loads(node["pickle"])

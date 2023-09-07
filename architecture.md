@@ -244,8 +244,8 @@ class Situation:
     observations        # see Observations above (input/read only)
     emulator_bank       # see Emulator Bank above (input and output, R/W)
 
-    situation.save(filename) -> None        # write all current data to an [ASDF file](https://asdf.readthedocs.io/en/stable/)
-    Situation.read(filename) -> Situation   # create a Situation object populated with data from the given ASDF file
+    situation.save(filename) -> None        # write all current data, with pickle, to a file
+    Situation.read(filename) -> Situation   # create a Situation object populated with data from the given file
 
 ```
 

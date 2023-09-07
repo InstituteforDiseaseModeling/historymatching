@@ -315,6 +315,7 @@ class SituationSaveReadTests(unittest.TestCase):
         try:
             handle, filename = tempfile.mkstemp()
             os.close(handle)
+            filename = Path(filename)
             situation.save(filename)
 
             copy = Situation.read(filename)

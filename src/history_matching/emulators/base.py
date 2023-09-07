@@ -1,19 +1,13 @@
 import logging
 from abc import abstractmethod
-from typing import ClassVar
-from typing import Dict
-from typing import List
 from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from asdf.extension import Converter
 from sklearn import model_selection
 
 from history_matching.config import Config
-from history_matching.utils import dataframe_to_ndarray
-from history_matching.utils import ndarray_to_dataframe
 
 
 class BaseEmulator:
@@ -212,53 +206,3 @@ class BaseEmulator:
         predictions_vs_true.plot(x="theta", y="true", style="x", color="k", markersize=14, ax=ax_ts)
 
         return
-
-    def to_yaml_tree(self, tag, ctx) -> Dict:
-        dictionary = {
-            "X_df": dataframe_to_ndarray(self.X_df),
-            "X_train": self.X_train,
-            "X_test": self.X_test,
-            "y_df": dataframe_to_ndarray(self.y_df),
-            "y_train": self.y_train,
-            "y_test": self.y_test,
-            "y_pred": self.y_pred,
-            "y_pred_test": self.y_pred_test,
-            "y_test_pred_df": dataframe_to_ndarray(self.y_test_pred_df),
-            "training_complete": self.training_complete,
-            "testing_complete": self.testing_complete,
-            "mse": self.mse,
-            "r2score": self.r2score,
-        }
-
-        return dictionary
-
-    @staticmethod
-    def from_yaml_tree(node, tag, ctx) -> "BaseEmulator":
-        emulator = BaseEmulator()  # pass no initial values
-
-        emulator.X_df = ndarray_to_dataframe(node["X_df"])
-        emulator.X_train = node["X_train"]
-        emulator.X_test = node["X_test"]
-        emulator.y_df = ndarray_to_dataframe(node["y_df"])
-        emulator.y_train = node["y_train"]
-        emulator.y_test = node["y_test"]
-        emulator.y_pred = node["y_pred"]
-        emulator.y_pred_test = node["y_pred_test"]
-        emulator.y_test_pred_df = ndarray_to_dataframe(node["y_test_pred_df"])
-        emulator.training_complete = node["training_complete"]
-        emulator.testing_complete = node["testing_complete"]
-        emulator.mse = node["mse"]
-        emulator.r2score = node["r2score"]
-
-        return emulator
-
-
-class BaseEmulatorConverter(Converter):
-    tags: ClassVar[List[str]] = ["asdf://idmod.org/asdf/tags/emulators/baseemulator-1.0.0"]
-    types: ClassVar[List[str]] = ["history_matching.emulators.base.BaseEmulator"]
-
-    def to_yaml_tree(self, obj, tag, ctx):
-        return obj.to_yaml_tree(tag, ctx)
-
-    def from_yaml_tree(self, node, tag, ctx):
-        return BaseEmulator.from_yaml_tree(node, tag, ctx)

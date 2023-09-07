@@ -1,16 +1,10 @@
 import logging
-from typing import ClassVar
-from typing import Dict
-from typing import List
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 import scipy
-from asdf.extension import Converter
 from sklearn import linear_model as sklm
-
-from history_matching.utils import ndarray_to_dataframe
 
 from .base import BaseEmulator
 
@@ -84,51 +78,3 @@ class LinearModel(BaseEmulator):
         print("      coefficients: ", self.regression_model.coef_)
         print("      intercept   : ", self.regression_model.intercept_)
         return
-
-    def to_yaml_tree(self, tag, ctx) -> Dict:
-        dictionary = super().to_yaml_tree(tag, ctx)
-        dictionary.update({"regression_model_params": self.regression_model.get_params(), "regression_model_state": self.regression_model.__getstate__()})
-
-        return dictionary
-
-    @staticmethod
-    def from_yaml_tree(node, tag, ctx) -> "LinearModel":
-        # Would prefer something like the following:
-        # emulator = super().from_yaml_tree(node, tag, ctx)
-        # emulator.regression_model = node.regression_model
-        # but BaseEmulator doesn't know to create a LinearModel. :(
-
-        emulator = LinearModel()  # pass no initial values
-
-        # BaseEmulator attributes
-        emulator.X_df = ndarray_to_dataframe(node["X_df"])
-        emulator.X_train = node["X_train"]
-        emulator.X_test = node["X_test"]
-        emulator.y_df = ndarray_to_dataframe(node["y_df"])
-        emulator.y_train = node["y_train"]
-        emulator.y_test = node["y_test"]
-        emulator.y_pred = node["y_pred"]
-        emulator.y_pred_test = node["y_pred_test"]
-        emulator.y_test_pred_df = ndarray_to_dataframe(node["y_test_pred_df"])
-        emulator.training_complete = node["training_complete"]
-        emulator.testing_complete = node["testing_complete"]
-        emulator.mse = node["mse"]
-        emulator.r2score = node["r2score"]
-
-        emulator.regression_model = sklm.LinearRegression(**node["regression_model_params"])
-        emulator.regression_model.__setstate__(node["regression_model_state"])
-
-        return emulator
-
-
-class LinearModelConverter(Converter):
-    tags: ClassVar[List[str]] = ["asdf://idmod.org/asdf/tags/emulators/linearmodel-1.0.0"]
-    types: ClassVar[List[str]] = ["history_matching.emulators.linear.LinearModel"]
-
-    def to_yaml_tree(self, obj, tag, ctx):
-        return obj.to_yaml_tree(tag, ctx)
-        # return {"pickle": pickle.dumps(obj)}
-
-    def from_yaml_tree(self, node, tag, ctx):
-        return LinearModel.from_yaml_tree(node, tag, ctx)
-        # return pickle.loads(node["pickle"])

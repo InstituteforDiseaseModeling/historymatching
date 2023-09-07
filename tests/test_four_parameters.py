@@ -102,8 +102,8 @@ class FourParameterTests(unittest.TestCase):
         print(f"Observations:\n{observations}")
         print(f"Last selected points:\n{next_points}")
 
-        # situation.save("situation.asdf")
-        # copy = Situation.read("situation.asdf")
+        # situation.save("situation.pickle")
+        # copy = Situation.read("situation.pickle")
 
         return
 

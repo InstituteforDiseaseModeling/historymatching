@@ -1,24 +1,18 @@
-import logging
-from pathlib import Path
-from typing import ClassVar
-from typing import Dict
-from typing import List
+"""Implementation of current situation (e.g., modeled points in parameter space, resulting features, emulators, etc.)."""
 
-import asdf
+import logging
+import pickle
+from pathlib import Path
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from asdf.extension import Extension
 
 from history_matching.emulators import BaseEmulator
-from history_matching.emulators.base import BaseEmulatorConverter
-from history_matching.emulators.gaussian_process import GaussianModelConverter
-from history_matching.emulators.linear import LinearModelConverter
 
 from .utils import OBSERVATIONS_COLUMNS
 from .utils import PARAMETER_SPACE_COLUMNS
-from .utils import dataframe_to_ndarray
 from .utils import features_from_observations
-from .utils import ndarray_to_dataframe
 
 logger = logging.getLogger()
 
@@ -354,20 +348,11 @@ class Situation:
         try:
             self.validate()
         except Exception as ex:
-            logger.error(f"Situation object is not valid ({ex})")
+            logger.error("Situation object is not valid.", exc_info=ex)
             raise ex
 
-        toc = {
-            "iteration": self.iteration,
-            "parameter_space": dataframe_to_ndarray(self.parameter_space),
-            "observations": dataframe_to_ndarray(self.observations),
-            "sample_points": dataframe_to_ndarray(self.sample_points),
-            "simulator_results": dataframe_to_ndarray(self.simulator_results),
-            "emulators": self.emulator_bank,
-        }
-
-        af = asdf.AsdfFile(toc)
-        af.write_to(filename, all_array_compression="bzp2")
+        with filename.open("wb") as file:
+            pickle.dump(self, file)
 
         return
 
@@ -388,29 +373,13 @@ class Situation:
 
         """
 
-        af = asdf.open(filename)
-        situation = Situation(
-            ndarray_to_dataframe(af["parameter_space"]), ndarray_to_dataframe(af["observations"]).set_index("feature", drop=False), ndarray_to_dataframe(af["sample_points"]), af["iteration"]
-        )
-        situation.simulator_results = ndarray_to_dataframe(af["simulator_results"])
-        situation.emulator_bank = af["emulators"]
-        af.close()
+        with filename.open("rb") as file:
+            situation = pickle.load(file)  # noqa: S301
 
         try:
             situation.validate()
         except Exception as ex:
-            logger.error(f"'{filename}' does not contain a valid Situation ({ex})")
+            logger.error(f"'{filename}' does not contain a valid Situation.", exc_info=ex)
             raise ex
 
         return situation
-
-
-class EmulatorsExtension(Extension):
-    extension_uri: ClassVar[str] = "asdf://idmod.org/asdf/extensions/emulators-1.0.0"
-    converters: ClassVar[List] = [BaseEmulatorConverter(), LinearModelConverter(), GaussianModelConverter()]
-    tags: ClassVar[List] = []
-    for converter in converters:
-        tags.extend(converter.tags)
-
-
-asdf.get_config().add_extension(EmulatorsExtension())

@@ -3,12 +3,12 @@
 """Unit tests for the history_matching.emulators.LinearModel class."""
 
 import os
+import pickle
 import unittest
 from itertools import product
 from pathlib import Path
 from tempfile import mkstemp
 
-import asdf
 import numpy as np
 import pandas as pd
 
@@ -67,16 +67,17 @@ class LinearEmulatorTests(unittest.TestCase):
     def test_linear_emulator_serialization(self):
         """Test the serialization and deserialization (roundtrip) of the trained linear emulator."""
 
-        handle, filename = mkstemp(suffix=".asdf")
+        handle, filename = mkstemp(suffix=".pickle")
         os.close(handle)
-        af = asdf.AsdfFile({"emulator": self._model})
-        af.write_to(filename)
+        filename = Path(filename)
+        with filename.open("wb") as file:
+            pickle.dump(self._model, file)
 
-        assert Path(filename).exists(), f"{filename} does not exist"
+        assert filename.exists(), f"{filename} does not exist"
 
         try:
-            af = asdf.open(filename)
-            emulator = af["emulator"]
+            with filename.open("rb") as file:
+                emulator = pickle.load(file)  # noqa: S301
 
             assert isinstance(emulator, LinearModel), f"{emulator=} is not a LinearModel"
 
@@ -89,8 +90,7 @@ class LinearEmulatorTests(unittest.TestCase):
             assert np.allclose(y_hat["value"], y_expect), f"{y_hat['value']=} != {y_expect=}"
 
         finally:
-            af.close()
-            Path(filename).unlink()
+            filename.unlink()
 
         return
 
