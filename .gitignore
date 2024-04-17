@@ -1,37 +1,79 @@
-# Python
 *.py[cod]
+__pycache__
 
-# Visual Studio
-*.pyproj*
-*.sln
-*.suo
-*.vscode*
-*.vs*
+# Temp files
+.*.sw[po]
+*~
+*.bak
+.DS_Store
 
-# Simulation meta-data
-*simulations/
+# C extensions
+*.so
 
-# dtk-tools
-overseer_check_lock
-.overseer_check_lock
-*.db
+# Build and package files
+*.egg
+*.egg-info
+.bootstrap
+.build
+.cache
+.eggs
+.env
+.installed.cfg
+.ve
+bin
+build
+develop-eggs
+dist
+eggs
+lib
+lib64
+parts
+pip-wheel-metadata/
+pyvenv*/
+sdist
+var
+venv*/
+.venv*/
+wheelhouse
 
-# Old stuff
-deprecate/
+# Installer logs
+pip-log.txt
 
-# Setup
-*.eggs
-*egg-info
-*build/
-*dist/
+# Unit test / coverage reports
+.benchmarks
+.coverage
+.coverage.*
+.pytest
+.pytest_cache/
+.tox
+coverage.xml
+htmlcov
+nosetests.xml
 
-# PyCharm
-*.idea*
-*.log
-.ipynb_checkpoints
+# Translations
+*.mo
 
-# Vim
-*.sw[nop]
+# Buildout
+.mr.developer.cfg
 
-# Helper
-*.ignore.*
+# IDE project files
+*.iml
+*.komodoproject
+.idea
+.project
+.pydevproject
+.vscode
+
+# Complexity
+output/*.html
+output/*/index.html
+
+# Sphinx
+docs/api
+docs/_build
+
+# Mypy Cache
+.mypy_cache/
+
+# Jupyter[-Lab]
+*checkpoint.ipynb

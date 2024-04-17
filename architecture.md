@@ -1,3 +1,24 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [Architecture Proposal](#architecture-proposal)
+  - [Overview](#overview)
+  - [Notes](#notes)
+  - [Proposals](#proposals)
+  - [Questions](#questions)
+  - [Pseudocode](#pseudocode)
+  - [In-Memory Data Structures](#in-memory-data-structures)
+    - [Parameter Space](#parameter-space)
+    - [Observations / Ground Truth](#observations--ground-truth)
+    - [Sample Points](#sample-points)
+    - [Simulator Results](#simulator-results)
+    - [Emulator Bank](#emulator-bank)
+    - [Situation Object](#situation-object)
+    - [Recipe Object](#recipe-object)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Architecture Proposal
 
 ![History Matching Architecture Diagram (Rafael Nunez)](./history-matching-architecture.png "title")
@@ -77,7 +98,7 @@ for iteration in range(config.max_iterations):
 
     start_iteration_callback(iteration)
 
-    # test_points is a list of points in parameter space where a 
+    # test_points is a list of points in parameter space where a
     # sample point is a dictionary of parameter:value pairs, one for each parameter in the param_space dictionary
     metrics, sample_points = generate_sample_points(iteration, param_space, emulator_bank, config)
 
@@ -142,7 +163,7 @@ def generate_emulators(iteration, selected_features, model_results_db, emulator_
 
 (Pandas DataFrame)
 
-|"features"<br>(string)|"means"<br>(float)|"variances"<br>(float)|
+|"feature"<br>(string)|"mean"<br>(float)|"variance"<br>(float)|
 |:-:|:-:|:-:|
 |_\<feature<sub>1</sub>\>_|mean<sub>1</sub>|variance<sub>1</sub>|
 |_\<feature<sub>2</sub>\>_|mean<sub>2</sub>|variance<sub>2</sub>|
@@ -162,16 +183,16 @@ def generate_emulators(iteration, selected_features, model_results_db, emulator_
 
 (Pandas DataFrame)
 
-|"replicate"<br>(integer)|_parameter1_<br>(float)|_parameter2_<br>(float)|...|_parameterN_<br>(float)|_feature1_<br>(float)|_feature2_<br>(float)|...|_featureM_<br>(float)|
-|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-|0|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
-|1|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
-|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
-|R|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
-|0|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
-|1|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
-|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
-|R|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
+|"iteration"<br>(integer)|"replicate"<br>(integer)|_parameter1_<br>(float)|_parameter2_<br>(float)|...|_parameterN_<br>(float)|_feature1_<br>(float)|_feature2_<br>(float)|...|_featureM_<br>(float)|
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+|_iter_|0|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
+|_iter_|1|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
+|⋮|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
+|_iter_|R|value<sub>p1,0</sub>|value<sub>p2,0</sub>|...|value<sub>pN,0</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
+|_iter_|0|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,0</sub>|value<sub>f2,0</sub>|...|value<sub>fM,0</sub>|
+|_iter_|1|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,1</sub>|value<sub>f2,1</sub>|...|value<sub>fM,1</sub>|
+|⋮|⋮|⋮|⋮|...|⋮|⋮|⋮|...|⋮|
+|_iter_|R|value<sub>p1,1</sub>|value<sub>p2,1</sub>|...|value<sub>pN,1</sub>|value<sub>f1,R</sub>|value<sub>f2,R</sub>|...|value<sub>fM,R</sub>|
 
 - _parameter1_ ... _parameterN_ represent the actual names of these parameters, e.g. "beta", "gamma", etc.
 - _feature1_ ... _featureM_ represent the actual names of these features, e.g., "final_prevalence", "total_infections", etc.
@@ -223,8 +244,8 @@ class Situation:
     observations        # see Observations above (input/read only)
     emulator_bank       # see Emulator Bank above (input and output, R/W)
 
-    situation.save(filename) -> None        # write all current data to an [ASDF file](https://asdf.readthedocs.io/en/stable/)
-    Situation.read(filename) -> Situation   # create a Situation object populated with data from the given ASDF file
+    situation.save(filename) -> None        # write all current data, with pickle, to a file
+    Situation.read(filename) -> Situation   # create a Situation object populated with data from the given file
 
 ```
 
@@ -242,7 +263,7 @@ class Recipe:
     start_step_callback             # generic callback marking the start of a pass
     run_simulators                  # required override for calling the user simulator with the given point(s) in parameter space
     select_features                 # function to select features to be passed to `generate_emulators` on this pass
-                                    # default is to return _all_ features
+                                    # default is to return "best" feature based on Fano factor
     generate_emulators              # function to loop over selected features and call generate_emulator_for_feature on each one
                                     # default is to call `generate_emulator_for_feature` on each selected feature
     generate_emulator_for_feature   # function to generate an emulator for a given feature
@@ -260,7 +281,7 @@ class Recipe:
     # to check iteration and remaining non-implausible parameter space _in addition_ to any custom
     # checks.
 
-    default_feature_selection       # return _all_ features
+    default_feature_selection       # return "best" feature based on Fano factor
     default_emulator_generator      # call `generate_emulator_for_feature` on each selected feature
     default_next_point_generator    # TODO - TBD
     default_exit_predicate          # check iteration and remaining non-implausible parameter space
