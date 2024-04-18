@@ -17,4 +17,3 @@ Getting started
    installation
    tutorial-gs-dm
    tutorial-gs-ce
-   

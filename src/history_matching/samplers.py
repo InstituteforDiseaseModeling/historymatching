@@ -7,7 +7,6 @@ import pandas as pd
 
 
 def lhs(parameter_space: pd.DataFrame, n_samples: int = 8) -> pd.DataFrame:
-
     """
     Generate a Latin hypercube sample of points in parameter space.
 
@@ -23,7 +22,6 @@ def lhs(parameter_space: pd.DataFrame, n_samples: int = 8) -> pd.DataFrame:
     samples = pd.DataFrame()
 
     for entry in parameter_space.itertuples():
-
         # n+1 edges = n buckets
         edges = np.linspace(entry.minimum, entry.maximum, n_samples + 1)
         # choose points from center of buckets
@@ -35,10 +33,7 @@ def lhs(parameter_space: pd.DataFrame, n_samples: int = 8) -> pd.DataFrame:
     return samples
 
 
-def grid(
-    parameter_space: pd.DataFrame, samples_per_dimension: int = 16
-) -> pd.DataFrame:
-
+def grid(parameter_space: pd.DataFrame, samples_per_dimension: int = 16) -> pd.DataFrame:
     """
     Generate a grid of samples in parameter space.
 
@@ -62,7 +57,6 @@ def grid(
 
 
 def random(parameter_space: pd.DataFrame, n_samples: int = 16) -> pd.DataFrame:
-
     """
     Generate a random sample of points in parameter space.
 
@@ -77,7 +71,6 @@ def random(parameter_space: pd.DataFrame, n_samples: int = 16) -> pd.DataFrame:
     samples = pd.DataFrame()
 
     for entry in parameter_space.itertuples():
-
         points = np.random.default_rng().uniform(entry.minimum, entry.maximum, n_samples)
         samples[entry.parameter] = points
 

@@ -8,7 +8,7 @@ little bit helps, and credit will always be given.
 Bug reports
 ===========
 
-When `reporting a bug <https://github.com/InstituteforDiseaseModeling/history_matching/issues>`_ please include:
+When `reporting a bug <https://github.com/clorton/history_matching/issues>`_ please include:
 
     * Your operating system name and version.
     * Any details about your local setup that might be helpful in troubleshooting.
@@ -17,14 +17,14 @@ When `reporting a bug <https://github.com/InstituteforDiseaseModeling/history_ma
 Documentation improvements
 ==========================
 
-History Matching could always use more documentation, whether as part of the
-official History Matching docs, in docstrings, or even on the web in blog posts,
+history_matching could always use more documentation, whether as part of the
+official history_matching docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
 Feature requests and feedback
 =============================
 
-The best way to send feedback is to file an issue at https://github.com/InstituteforDiseaseModeling/history_matching/issues.
+The best way to send feedback is to file an issue at https://github.com/clorton/history_matching/issues.
 
 If you are proposing a feature:
 
@@ -37,7 +37,7 @@ Development
 
 To set up `history_matching` for local development:
 
-1. Fork `history_matching <https://github.com/InstituteforDiseaseModeling/history_matching>`_
+1. Fork `history_matching <https://github.com/clorton/history_matching>`_
    (look for the "Fork" button).
 2. Clone your fork locally::
 
@@ -49,7 +49,7 @@ To set up `history_matching` for local development:
 
    Now you can make your changes locally.
 
-4. When you're done making changes run all the checks and docs builder with `tox <https://tox.wiki/en/latest/install.html>`_ one command::
+4. When you're done making changes run all the checks and docs builder with one command::
 
     tox
 
@@ -72,8 +72,6 @@ For merging, you should:
 2. Update documentation when there's new API, functionality etc.
 3. Add a note to ``CHANGELOG.rst`` about the changes.
 4. Add yourself to ``AUTHORS.rst``.
-
-
 
 Tips
 ----

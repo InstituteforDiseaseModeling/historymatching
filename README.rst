@@ -1,6 +1,3 @@
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
 ======
 Readme
 ======
@@ -16,28 +13,45 @@ Readme
       - | |github-actions|
         | |codecov|
     * - package
-      - | |commits-since|
-.. |docs| image:: https://readthedocs.org/projects/history_matching/badge/?style=flat
-    :target: https://history_matching.readthedocs.io/
+      - | |version| |wheel| |supported-versions| |supported-implementations|
+        | |commits-since|
+.. |docs| image:: https://readthedocs.com/projects/institute-for-disease-modeling-history-matching/badge/?style=flat
+    :target: https://docs.idmod.org/projects/history-matching/
     :alt: Documentation Status
 
-.. |github-actions| image:: https://github.com/InstituteforDiseaseModeling/history_matching/actions/workflows/github-actions.yml/badge.svg
+.. |github-actions| image:: https://github.com/clorton/history_matching/actions/workflows/github-actions.yml/badge.svg
     :alt: GitHub Actions Build Status
-    :target: https://github.com/InstituteforDiseaseModeling/history_matching/actions
+    :target: https://github.com/clorton/history_matching/actions
 
 .. |codecov| image:: https://codecov.io/gh/InstituteforDiseaseModeling/history_matching/branch/main/graphs/badge.svg?branch=main
     :alt: Coverage Status
-    :target: https://codecov.io/github/InstituteforDiseaseModeling/history_matching
+    :target: https://app.codecov.io/github/InstituteforDiseaseModeling/history_matching
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/InstituteforDiseaseModeling/history_matching/v0.0.0.svg
+.. |version| image:: https://img.shields.io/pypi/v/bhm.svg
+    :alt: PyPI Package latest release
+    :target: https://pypi.org/project/bhm
+
+.. |wheel| image:: https://img.shields.io/pypi/wheel/bhm.svg
+    :alt: PyPI Wheel
+    :target: https://pypi.org/project/bhm
+
+.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/bhm.svg
+    :alt: Supported versions
+    :target: https://pypi.org/project/bhm
+
+.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/bhm.svg
+    :alt: Supported implementations
+    :target: https://pypi.org/project/bhm
+
+.. |commits-since| image:: https://img.shields.io/github/commits-since/clorton/history_matching/v0.9.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/InstituteforDiseaseModeling/history_matching/compare/v0.0.0...main
+    :target: https://github.com/clorton/history_matching/compare/v0.9.0...main
 
 
 
 .. end-badges
 
-History Matching package generated with cookiecutter-pylibrary.
+A Python implementation of the Bayesian History Matching algorithm.
 
 * Free software: MIT license
 
@@ -52,14 +66,14 @@ Installation
 
 You can also install the in-development version with::
 
-    pip install https://github.com/InstituteforDiseaseModeling/history_matching/archive/main.zip
+    pip install https://github.com/clorton/history_matching/archive/main.zip
 
 
 Documentation
 =============
 
 
-https://history_matching.readthedocs.io/
+https://docs.idmod.org/projects/history-matching
 
 
 Development

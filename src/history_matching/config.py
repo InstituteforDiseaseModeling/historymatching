@@ -9,8 +9,7 @@ class Config:
     Configuration for a history matching process.
     """
 
-    def __init__(self, max_iterations, candidates_per_iteration, implausibility_threshold, non_implausible_target, **kwargs):
-
+    def __init__(self, max_iterations, candidates_per_iteration, implausibility_threshold, non_implausible_target, model_variance, **kwargs):
         """
         Args:
             max_iterations: maximum number of iterations to run
@@ -30,7 +29,12 @@ class Config:
         self.candidates_per_iteration = candidates_per_iteration
         self.implausibility_threshold = implausibility_threshold
         self.non_implausible_target = non_implausible_target
-        self.user = {}
-        self.user.update(kwargs)
+        self.model_variance = model_variance
+
+        class User:
+            pass
+
+        self.user = User()
+        self.user.__dict__.update(kwargs)
 
         return

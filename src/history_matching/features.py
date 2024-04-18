@@ -1,6 +1,11 @@
+"""Library of functions to compute derived features from time series."""
+
 import inspect
 import warnings
-from typing import List, Tuple, Union
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -8,6 +13,8 @@ import scipy.stats
 
 
 class DerivedFeatures:
+
+    """Library of functions to compute derived features from time series."""
 
     @staticmethod
     def derivative_cauchyFit(x, *args):
@@ -22,10 +29,12 @@ class DerivedFeatures:
         scale = np.zeros(n)
         for i in range(0, n):
             loc[i], scale[i] = scipy.stats.cauchy.fit(dx[i, :])
-        dxCauchyFit_df = pd.DataFrame({
-            "dx_cauchy_loc": loc,
-            "dx_cauchy_scale": scale,
-        })
+        dxCauchyFit_df = pd.DataFrame(
+            {
+                "dx_cauchy_loc": loc,
+                "dx_cauchy_scale": scale,
+            }
+        )
         return dxCauchyFit_df
 
     @staticmethod
@@ -38,10 +47,12 @@ class DerivedFeatures:
         dx = np.gradient(x, axis=1)
         mean = np.mean(dx, axis=1)
         var = np.var(dx, axis=1)
-        dxGaussianFit_df = pd.DataFrame({
-            "dx_mean": mean,
-            "dx_var": var,
-        })
+        dxGaussianFit_df = pd.DataFrame(
+            {
+                "dx_mean": mean,
+                "dx_var": var,
+            }
+        )
         return dxGaussianFit_df
 
     @staticmethod
@@ -57,10 +68,12 @@ class DerivedFeatures:
         var = np.zeros(n)
         for i in range(0, n):
             mean[i], var[i] = scipy.stats.laplace.fit(dx[i, :])
-        dxLaplaceFit_df = pd.DataFrame({
-            "dx_laplace_mean": mean,
-            "dx_laplace_var": var,
-        })
+        dxLaplaceFit_df = pd.DataFrame(
+            {
+                "dx_laplace_mean": mean,
+                "dx_laplace_var": var,
+            }
+        )
         return dxLaplaceFit_df
 
     @staticmethod
@@ -89,10 +102,12 @@ class DerivedFeatures:
         scale = np.zeros(n)
         for i in range(0, n):
             loc[i], scale[i] = scipy.stats.cauchy.fit(dx2[i, :])
-        dx2CauchyFit_df = pd.DataFrame({
-            "dx2_cauchy_loc": loc,
-            "dx2_cauchy_scale": scale,
-        })
+        dx2CauchyFit_df = pd.DataFrame(
+            {
+                "dx2_cauchy_loc": loc,
+                "dx2_cauchy_scale": scale,
+            }
+        )
         return dx2CauchyFit_df
 
     @staticmethod
@@ -106,10 +121,12 @@ class DerivedFeatures:
         dx2 = np.gradient(dx, axis=1)
         mean = np.mean(dx2, axis=1)
         var = np.var(dx2, axis=1)
-        dx2GaussianFit_df = pd.DataFrame({
-            "dx2_mean": mean,
-            "dx2_var": var,
-        })
+        dx2GaussianFit_df = pd.DataFrame(
+            {
+                "dx2_mean": mean,
+                "dx2_var": var,
+            }
+        )
         return dx2GaussianFit_df
 
     @staticmethod
@@ -126,10 +143,12 @@ class DerivedFeatures:
         var = np.zeros(n)
         for i in range(0, n):
             mean[i], var[i] = scipy.stats.laplace.fit(dx2[i, :])
-        dx2LaplaceFit_df = pd.DataFrame({
-            "dx2_laplace_mean": mean,
-            "dx2_laplace_var": var,
-        })
+        dx2LaplaceFit_df = pd.DataFrame(
+            {
+                "dx2_laplace_mean": mean,
+                "dx2_laplace_var": var,
+            }
+        )
         return dx2LaplaceFit_df
 
     @staticmethod
@@ -270,7 +289,6 @@ class DerivedFeatures:
 
     @staticmethod
     def passthrough(x, *args):
-
         return pd.DataFrame(x)
 
     @staticmethod
@@ -286,6 +304,7 @@ class DerivedFeatures:
 
 
 def __diffL__(x, xref, order, column: str) -> pd.DataFrame:
+    """Common code for L1, L2, and Linf norms."""
 
     m = len(x)
     diff = np.add(x, -np.repeat(xref, m, axis=0))
@@ -295,14 +314,15 @@ def __diffL__(x, xref, order, column: str) -> pd.DataFrame:
 
 
 def __partialSum__(x, intervalSize: int) -> pd.DataFrame:
+    """Common code for partialSum2, partialSum7, partialSum10, partialSum15, and partialSum30."""
 
     n = x.shape[1]
     nIntervals = int(np.floor((n - 1) / intervalSize))
     partialSum = np.full((len(x), nIntervals + 1), np.nan)
     for i in range(0, nIntervals):
-        xSample = x[:, i * intervalSize:(i + 1) * intervalSize]
+        xSample = x[:, i * intervalSize : (i + 1) * intervalSize]
         partialSum[:, i] = xSample.sum(axis=1)
-    xSample = x[:, nIntervals * intervalSize:n]
+    xSample = x[:, nIntervals * intervalSize : n]
     partialSum[:, nIntervals] = xSample.sum(axis=1)
     partialSum_df = pd.DataFrame(partialSum)
     for i in partialSum_df:
@@ -313,6 +333,8 @@ def __partialSum__(x, intervalSize: int) -> pd.DataFrame:
 
 
 class Statistics:
+
+    """Functions for feature statistics."""
 
     @staticmethod
     def fano(f: pd.DataFrame) -> pd.DataFrame:
@@ -373,7 +395,7 @@ class Statistics:
         """
 
         # return pd.DataFrame(scipy.stats.skew(f), columns=["skew"], index=f.columns)
-        skew = f.skew(axis=0)   # use Pandas DataFrame implementation
+        skew = f.skew(axis=0)  # use Pandas DataFrame implementation
         skew_df = pd.DataFrame({"skew": skew})
         return skew_df
 
@@ -384,7 +406,7 @@ class Statistics:
         """
 
         # return __og_stats__(f, np.std, "std")
-        return __og_stats__(f, lambda f: np.std(f, ddof=1), "std")
+        return __og_stats__(f, lambda f: np.std(f, axis=0, ddof=1), "std")
 
     @staticmethod
     def var(f: pd.DataFrame) -> pd.DataFrame:
@@ -392,10 +414,11 @@ class Statistics:
         Returns variance of each column of the input dataframe.
         """
 
-        return __og_stats__(f, lambda f: np.var(f, ddof=1), "var")
+        return __og_stats__(f, lambda f: np.var(f, axis=0, ddof=1), "var")
 
 
 def __og_stats__(data, fn, column) -> pd.DataFrame:
+    """Common code for mean, std, and var."""
 
     stat = fn(data)
     df = pd.DataFrame({column: stat})
@@ -403,19 +426,18 @@ def __og_stats__(data, fn, column) -> pd.DataFrame:
     return df
 
 
-def getFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: set = None, active_statistics: set = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
-
+def getFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: Optional[set] = None, active_statistics: Optional[set] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-        Gets (derived) features and selected statistics for those features from the current simulation outputs.
+    Gets (derived) features and selected statistics for those features from the current simulation outputs.
 
-        Args:
-            simulationOutputs: values for (source) features as calculated by the simulator
-            observations: observed values for recorded (source) features
-            active_features: derivation functions to run on simulator outputs to derive feature values
-            active_statistics: statistics to calculate for each feature, e.g. "variance" or "mean"
+    Args:
+        simulationOutputs: values for (source) features as calculated by the simulator
+        observations: observed values for recorded (source) features
+        active_features: derivation functions to run on simulator outputs to derive feature values
+        active_statistics: statistics to calculate for each feature, e.g. "variance" or "mean"
 
-        Returns:
-            Tuple of derived feature values (DataFrame) and their corresponding statistics (DataFrame)
+    Returns:
+        Tuple of derived feature values (DataFrame) and their corresponding statistics (DataFrame)
     """
 
     derivedFeatures = getDerivedFeatures(simulationOutputs, observations, active_features)
@@ -424,14 +446,15 @@ def getFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, act
     return derivedFeatures, featureStatistics
 
 
-def getDerivedFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: set = None) -> pd.DataFrame:
+def getDerivedFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: Optional[set] = None) -> pd.DataFrame:
+    """Gets derived features from the current simulation outputs."""
 
     simulationOutputs_np = simulationOutputs.to_numpy(copy=True)
     observations_np = observations.to_numpy(copy=True)
 
     if active_features is None:
         # all features, _ for unused function value
-        active_features = set([name for name, _ in inspect.getmembers(DerivedFeatures, inspect.isfunction)])
+        active_features = {name for name, _ in inspect.getmembers(DerivedFeatures, inspect.isfunction)}
 
     # compute derived features
     derivedFeatures = pd.DataFrame()
@@ -442,11 +465,12 @@ def getDerivedFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFra
     return derivedFeatures
 
 
-def getFeatureStatistics(features: pd.DataFrame, active_statistics: set = None) -> pd.DataFrame:
+def getFeatureStatistics(features: pd.DataFrame, active_statistics: Optional[set] = None) -> pd.DataFrame:
+    """Gets statistics for derived features."""
 
     if active_statistics is None:
         # all statistics, _ for unused function value
-        active_statistics = set([name for name, _ in inspect.getmembers(Statistics, inspect.isfunction)])
+        active_statistics = {name for name, _ in inspect.getmembers(Statistics, inspect.isfunction)}
 
     # compute feature statistics
     featureStatistics = pd.DataFrame()
@@ -457,26 +481,30 @@ def getFeatureStatistics(features: pd.DataFrame, active_statistics: set = None) 
     return featureStatistics
 
 
-def select_features(simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFrame, featureStatistics: pd.DataFrame, metric: str, iteration: int, history: List = None) \
-        -> Tuple[str, Union[int, float, np.number], pd.DataFrame]:
+# TODO - move selected feature history into Situation(?)
+__history__ = []
 
+
+def select_features(
+    simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFrame, featureStatistics: pd.DataFrame, metric: str, iteration: int, history: Optional[List] = None
+) -> Tuple[str, Union[int, float, np.number], pd.DataFrame]:
     """
-      Select target feature for history matching.
+    Select target feature for history matching.
 
-      Args:
-        simulatedFeatures: DataFrame of features (columns) and their simulated values (rows)
-        observedFeatures: DataFrame of features (columns) and their observed values (one row)
-        featureStatistics: DataFrame of statistics (columns) and their values for each feature (rows)
-        metric: name of statistic to use for assessment, e.g. "var" or "fano"
-        iteration: current history matching iteration/wave
-        history: list of features recently used in previous iterations/waves, implicitly in order from earliest used to most recent
+    Args:
+      simulatedFeatures: DataFrame of features (columns) and their simulated values (rows)
+      observedFeatures: DataFrame of features (columns) and their observed values (one row)
+      featureStatistics: DataFrame of statistics (columns) and their values for each feature (rows)
+      metric: name of statistic to use for assessment, e.g. "var" or "fano"
+      iteration: current history matching iteration/wave
+      history: list of features recently used in previous iterations/waves, implicitly in order from earliest used to most recent
 
-      Returns:
-        Tuple of selected feature name, observed value for that feature, and simulated values for that feature
+    Returns:
+      Tuple of selected feature name, observed value for that feature, and simulated values for that feature
     """
 
-    if history is None:
-        history = []
+    # if history is None:
+    #     history = []
 
     FEATURE_SELECTION_QUARANTINE_PERIOD = 8
     FEATURE_SELECTION_CLOSE_CORRELATION_THRESHOLD = 0.90
@@ -488,13 +516,11 @@ def select_features(simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFr
 
     nFeatures = len(simulatedFeatures.columns)
     for rankIndex in range(nFeatures):
-
         candidateIndex = sortedFeatureIndices[rankIndex]
 
         # Check that feature stats are neither NaN nor Inf (which would be the last indices in sortedFeatureIndices)
         if not np.isfinite(unsortedFeatureSelectionMetric[candidateIndex]):
-
-            warnings.warn(f"Unable to find valid feature (stopping search at position {rankIndex} of {nFeatures} potential features)")
+            warnings.warn(f"Unable to find valid feature (stopping search at position {rankIndex} of {nFeatures} potential features)", stacklevel=1)
             candidateIndex = sortedFeatureIndices[0]
             break
 
@@ -502,12 +528,12 @@ def select_features(simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFr
         acceptCandidate = True
         candidateCorrelation = simulatedFeatures.corr(method="pearson").iloc[:, candidateIndex]
 
-        for recentFeature in history:
-
+        # for recentFeature in history:
+        for recentFeature in __history__:
             # only acceptble if candidate was not recently used
-            acceptCandidate &= (simulatedFeatures.columns[candidateIndex] != recentFeature)
+            acceptCandidate &= simulatedFeatures.columns[candidateIndex] != recentFeature
             # only acceptable if candidate does _not_ correlate highly with a recently used feature
-            acceptCandidate &= (np.abs(candidateCorrelation.loc[recentFeature]) <= FEATURE_SELECTION_CLOSE_CORRELATION_THRESHOLD)
+            acceptCandidate &= np.abs(candidateCorrelation.loc[recentFeature]) <= FEATURE_SELECTION_CLOSE_CORRELATION_THRESHOLD
 
         if acceptCandidate:
             break
@@ -515,18 +541,22 @@ def select_features(simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFr
     feature_name = simulatedFeatures.columns[candidateIndex]
 
     # Extract values for the selected feature
-    observedFeatureValue = observedFeatures[feature_name][0]
-    simulatedFeatureValues = simulatedFeatures[feature_name]
+    # We don't need these, they are available from the observations and simulator results
+    # observedFeatureValue = observedFeatures[observedFeatures.feature == feature_name].mean
+    # simulatedFeatureValues = simulatedFeatures[feature_name]
 
     # Add this feature to the list of recently used features
-    history.append(feature_name)
+    # history.append(feature_name)
+    __history__.append(feature_name)
 
     # Remove previously used features from history after quarantine period
-    while len(history) > FEATURE_SELECTION_QUARANTINE_PERIOD:
-        history.pop(0)
+    # while (len(history) > FEATURE_SELECTION_QUARANTINE_PERIOD) or (len(history) >= nFeatures):
+    #     history.pop(0)
+    while (len(__history__) > FEATURE_SELECTION_QUARANTINE_PERIOD) or (len(__history__) >= nFeatures):
+        __history__.pop(0)
 
     # Finalize and return
     # simulatedFeatures.to_csv(f"features_iter_{iteration}.csv")
     # featureStatistics.to_csv(f"featureStats_iter_{iteration}.csv")
 
-    return feature_name, observedFeatureValue, simulatedFeatureValues
+    return [feature_name]

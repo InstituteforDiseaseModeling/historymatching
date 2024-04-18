@@ -12,7 +12,6 @@ The |HM| package is designed for:
 
 Disease modelers
 ----------------
-
 Disease modelers can configure and use |HM| to help:
 
     * quantify uncertainty in a model for better understanding of parameter uncertainty, importance, relations among, and effects of changes in parameter values. This allows for:
