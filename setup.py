@@ -2,7 +2,6 @@
 import re
 from pathlib import Path
 
-from setuptools import find_packages
 from setuptools import setup
 
 
@@ -20,12 +19,11 @@ setup(
         re.compile("^.. start-badges.*^.. end-badges", re.M | re.S).sub("", read("README.rst")),
         re.sub(":[a-z]+:`~?(.*?)`", r"``\1``", read("CHANGELOG.rst")),
     ),
-    author="Christopher Lorton",
-    author_email="christopher.lorton@gatesfoundation.org",
-    url="https://github.com/clorton/history_matching",
-    packages=find_packages("src"),
-    package_dir={"": "src"},
+    author="Daniel J. Klein, Rafael C. Nunez, Richard Barnes, Christopher Lorton",
+    author_email="Daniel.Klein@gatesfoundation.org",
+    url="https://github.com/InstituteforDiseaseModeling/history_matching",
     py_modules=[path.stem for path in Path("src").glob("*.py")],
+    packages=["history_matching"],
     include_package_data=True,
     zip_safe=False,
     classifiers=[
@@ -55,10 +53,15 @@ setup(
     project_urls={
         "Documentation": "https://docs.idmod.org/projects/history-matching/",
         "Changelog": "https://docs.idmod.org/projects/history-matching/en/latest/changelog.html",
-        "Issue Tracker": "https://github.com/clorton/history_matching/issues",
+        "Issue Tracker": "https://github.com/InstituteforDiseaseModeling/history_matching/issues",
     },
     keywords=[
-        # eg: "keyword1", "keyword2", "keyword3",
+        "Bayesian History Matching",
+        "History Matching",
+        "Model Emulation",
+        "Model Emulators",
+        "Model Calibration",
+        "Uncertainty Quantification"
     ],
     python_requires=">=3.7",
     install_requires=[
@@ -68,6 +71,7 @@ setup(
         "matplotlib",
         "scikit-learn",
         "tensorflow",
+        "tf-keras",
         "gpflow",
         "numexpr!=2.8.5",  # until RE string issue gets fixed
     ],
@@ -75,7 +79,7 @@ setup(
         # eg:
         #   "rst": ["docutils>=0.11"],
         #   ":python_version=="2.6"": ["argparse"],
-        "notebooks": ["jupyterlab"]
+        "notebooks": ["jupyterlab", "chardet"]
     },
     entry_points={
         "console_scripts": [
