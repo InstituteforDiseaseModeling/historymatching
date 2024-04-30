@@ -82,12 +82,42 @@ class BaseEmulator:
         """
         raise NotImplementedError
 
-    def get_implausibility(self, x: pd.DataFrame, observations: pd.DataFrame, feature: str, config: Config, qlow=0.05, qhigh=0.95):
+    def get_implausibility(self, x: pd.DataFrame, target, target_var, model_var=0, qlow=0.05, qhigh=0.95):
+        """Get implausibility for a given set of parameters.
+
+        Args:
+            x : Input data. Pandas dataframe with columns representing parameter
+                values where the implausibility metric will be evaluated.
+            target : Scalar indicating the value to use as reference for the 
+                     implausiblity computation. This is typically extracted from
+                     observed data.
+            target_var : Variance of the target point.
+            model_var : Model discrepancy or variance. This parameter quantifies
+                        the discrepancy between the model output and real life
+                        data.
+            qlow: Lower quantile for the estimated uncertainty interval.
+            qhigh: Upper quantile for the estimated uncertainty interval.
+        Returns:
+            Numpy array with implausibility values for each of the data points 
+            in x.
+        """
+        if not self.training_complete:
+            self.train()
+        predictions = self.predict(x, qlow, qhigh)
+        predictions_var = predictions['high'] - predictions['low']
+        
+        implausibility = abs( predictions['value'] - target ) / np.sqrt( predictions_var + target_var + model_var )
+
+        return implausibility
+        
+    
+    def get_implausibility_old(self, x: pd.DataFrame, observations: pd.DataFrame, feature: str, config: Config, qlow=0.05, qhigh=0.95):
         """Get implausibility for a given set of parameters.
 
         Args:
             x : Input data. Pandas dataframe with columns representing parameter
                 values.
+            observations : 
             qlow  : Lower quantile for the estimated uncertainty interval.
             qhigh : Upper quantile for the estimated uncertainty interval.
 
