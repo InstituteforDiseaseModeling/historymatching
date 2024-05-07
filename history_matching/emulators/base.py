@@ -55,7 +55,11 @@ class BaseEmulator:
 
             # Split data into testing and training datasets
             self.X_train, self.X_test, self.y_train, self.y_test = model_selection.train_test_split(X, Y, test_size=test_fraction)
-
+            self.X_train_df = pd.DataFrame( self.X_train, columns=x.columns )
+            self.X_test_df  = pd.DataFrame( self.X_test , columns=x.columns )
+            self.Y_train_df = pd.DataFrame( self.y_train, columns=y.columns )
+            self.Y_test_df  = pd.DataFrame( self.y_test , columns=y.columns )
+            
             # Save some additional initialization data
             self.X_df = pd.DataFrame(x)
             self.y_df = pd.DataFrame(y)
@@ -106,7 +110,7 @@ class BaseEmulator:
         predictions = self.predict(x, qlow, qhigh)
         predictions_var = predictions['high'] - predictions['low']
         
-        implausibility = abs( predictions['value'] - target ) / np.sqrt( predictions_var + target_var + model_var )
+        implausibility = ( predictions['value'] - target )**2 / np.sqrt( predictions_var + target_var + model_var )
 
         return implausibility
         
@@ -195,44 +199,66 @@ class BaseEmulator:
         return
 
     def plot_residuals(self):
-        """Plot residuals of predicted vs. true testing values. Designed for
-        LinearModel with only one parameter.
+        """Plot residuals of predicted vs. true testing values. 
         """
         residuals = np.square(self.y_test.flatten() - self.y_pred_test)
-        residuals_df = pd.DataFrame({"theta": self.X_test.flatten(), "residual": residuals.flatten()})
-        residuals_df.plot(x="theta", y="residual", title="Residuals", legend=False, style=".", figsize=(8, 4))
 
+        params = self.X_df.columns
+        n_params = len( params )
+
+        residuals_df = pd.DataFrame( self.X_test_df )
+        residuals_df['residual'] = residuals
+        axs = residuals_df.plot.scatter( x = params,
+                                         y = 'residual',
+                                         title = 'Residuals',
+                                         legend = False,
+                                         subplots = True,
+                                         figsize  = (4*n_params, 4),
+                                         sharey   = True
+                                        )
+        fig = axs[0].get_figure()
+        fig.tight_layout()
+        
         return
 
     def plot_predictions(self):
-        """Plot the predicted and true testing values. Designed for LinearModel
-        with only one parameter.
+        """Plot the predicted and true testing values. 
         """
         # Get data
-        predictions_vs_true = self.y_test_pred_df.copy()
-        predictions_vs_true["theta"] = self.X_test
-        predictions_vs_true["true"] = self.y_test
-        predictions_vs_true["error"] = predictions_vs_true["high"] - predictions_vs_true["low"]
+        params = self.X_df.columns
+        n_params = len( params )
+        predictions_df = self.X_test_df
+        predictions_df['true'] = self.y_test
+        predictions_df['prediction'] = self.y_test_pred_df['value']
+        predictions_df['prediction (low)'] = self.y_test_pred_df['low']
+        predictions_df['prediction (high)'] = self.y_test_pred_df['high']
 
-        # Classify data into success and failures
-        test_success = predictions_vs_true[(predictions_vs_true["low"] <= predictions_vs_true["true"]) & (predictions_vs_true["high"] >= predictions_vs_true["true"])].copy()
-        test_success.rename(columns={"value": "predicted (correct)", "true": "true value"}, inplace=True)
+        # Classify as correct or incorrect; assume incorrect and then overwrite if needed
+        predictions_correct = predictions_df[ (predictions_df['true']<=predictions_df['prediction (high)'])     
+                                             &(predictions_df['true']>=predictions_df['prediction (low)' ])]    \
+                              .rename( columns={'prediction':'prediction (correct)'} )
+        predictions_failed  = predictions_df[ (predictions_df['true']  >predictions_df['prediction (high)'])     
+                                             |(predictions_df['true'] <predictions_df['prediction (low)' ])]    \
+                              .rename( columns={'prediction':'prediction (failed)'} )
+        
+        # Draw plot
+        fig, axs = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
+        axs = np.atleast_1d(axs)
+        for i, param in enumerate(params):
+            predictions_correct.plot( x=param, y='prediction (correct)', style='s', color='tab:green', ax=axs[i] )
+            predictions_failed .plot( x=param, y='prediction (failed)' , style='o', color='tab:red'  , ax=axs[i] )
+            predictions_df.plot( x=param, y='true', style='x', color='black', ax=axs[i], title='Prediction Accuracy' )
 
-        test_failure = predictions_vs_true[(predictions_vs_true["low"] > predictions_vs_true["true"]) | (predictions_vs_true["high"] < predictions_vs_true["true"])].copy()
-        test_failure.rename(columns={"value": "predicted (failed)", "true": "true value"}, inplace=True)
-
-        # Draw plots
-        fig_ts, ax_ts = plt.subplots(1, 1, figsize=(8, 4))
-        test_success.plot(x="theta", y="predicted (correct)", style="o", markersize=12, color="tab:green", alpha=0.7, ax=ax_ts)
-        ax_ts.errorbar(
-            test_success["theta"].to_numpy(), (test_success["low"] + test_success["high"]).to_numpy() / 2, fmt="none", yerr=test_success["error"].to_numpy() / 2, ecolor="tab:green", capsize=4
-        )
-
-        test_failure.plot(x="theta", y="predicted (failed)", style="o", markersize=12, color="tab:red", alpha=0.7, ax=ax_ts)
-        ax_ts.errorbar(
-            test_failure["theta"].to_numpy(), (test_failure["low"] + test_failure["high"]).to_numpy() / 2, fmt="none", yerr=test_failure["error"].to_numpy() / 2, ecolor="tab:red", capsize=4
-        )
-
-        predictions_vs_true.plot(x="theta", y="true", style="x", color="k", markersize=14, ax=ax_ts)
-
+            axs[i].vlines( predictions_correct[param].values,
+                           predictions_correct['prediction (low)' ].values,
+                           predictions_correct['prediction (high)'].values,
+                           color = 'tab:green'
+                          )
+            axs[i].vlines( predictions_failed[param].values,
+                           predictions_failed['prediction (low)' ].values,
+                           predictions_failed['prediction (high)'].values,
+                           color = 'tab:red'
+                          )
+        fig.tight_layout()
+                
         return
