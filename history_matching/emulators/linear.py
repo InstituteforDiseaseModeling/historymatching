@@ -59,6 +59,7 @@ class LinearModel(BaseEmulator):
         y_pred = self.regression_model.predict(X_pred)
 
         # Compute uncertainty bounds
+        # NOTE----- NEED TO FIX THIS: The variance should be reflective of the variance of the residuals
         variance = np.var(self.y_train)
         sigma = variance**0.5
         low = scipy.stats.norm.ppf(q=qlow, scale=sigma)

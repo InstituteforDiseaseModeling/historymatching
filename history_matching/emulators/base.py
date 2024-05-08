@@ -3,6 +3,8 @@ from abc import abstractmethod
 from typing import Optional
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
 import numpy as np
 import pandas as pd
 from sklearn import model_selection
@@ -112,8 +114,7 @@ class BaseEmulator:
         
         implausibility = ( predictions['value'] - target )**2 / np.sqrt( predictions_var + target_var + model_var )
 
-        return implausibility
-        
+        return implausibility    
     
     def get_implausibility_old(self, x: pd.DataFrame, observations: pd.DataFrame, feature: str, config: Config, qlow=0.05, qhigh=0.95):
         """Get implausibility for a given set of parameters.
@@ -201,22 +202,24 @@ class BaseEmulator:
     def plot_residuals(self):
         """Plot residuals of predicted vs. true testing values. 
         """
-        residuals = np.square(self.y_test.flatten() - self.y_pred_test)
-
+        # Get data
         params = self.X_df.columns
         n_params = len( params )
 
+        residuals = np.square(self.y_test.flatten() - self.y_pred_test)
         residuals_df = pd.DataFrame( self.X_test_df )
         residuals_df['residual'] = residuals
-        axs = residuals_df.plot.scatter( x = params,
-                                         y = 'residual',
-                                         title = 'Residuals',
-                                         legend = False,
-                                         subplots = True,
-                                         figsize  = (4*n_params, 4),
-                                         sharey   = True
-                                        )
-        fig = axs[0].get_figure()
+
+        # Draw plot
+        fig, axs = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
+        axs = np.atleast_1d(axs)
+        for i, param in enumerate(params):
+            residuals_df.plot.scatter( x = param,
+                                       y = 'residual',
+                                       title = 'Residuals',
+                                       legend = False,
+                                       ax = axs[i]
+                                     )
         fig.tight_layout()
         
         return
@@ -261,4 +264,89 @@ class BaseEmulator:
                           )
         fig.tight_layout()
                 
+        return
+
+    def plot_implausibility(self, x=None, target=0, target_var=0, model_var=0, threshold=3):
+        """Get implausibility for a given set of parameters.
+
+        Args:
+            x : Input data. Pandas dataframe with columns representing parameter
+                values where the implausibility metric will be evaluated.
+                If not provided, both testing and training data will be used for
+                generating the plots.
+            target : Scalar indicating the value to use as reference for the 
+                     implausiblity computation. This is typically extracted from
+                     observed data.
+            target_var : Variance of the target point.
+            model_var : Model discrepancy or variance. This parameter quantifies
+                        the discrepancy between the model output and real life
+                        data.
+            threshold: Implausibility threshold. Sets of parameters within this
+                       threshold are deemed as non-implausible.
+        """
+        # Get data
+        params = self.X_df.columns
+        n_params = len( params )
+
+        # Compute implausibility
+        implausibility = x.copy()
+        implausibility['implausibility'] = self.get_implausibility( x, target, target_var, model_var ).values
+        implausibility['predicted'] = self.predict(x)['value'].values
+        implausible = implausibility[ implausibility['implausibility'] > threshold ]
+        non_implausible = implausibility[ implausibility['implausibility'] <= threshold ]
+
+        # Plot implausibility (scatter)
+        fig, axs = plt.subplots( 2, n_params, figsize=(3*n_params, 5), sharex=True, sharey=True )
+        for i, param in enumerate(params):
+            ax_predict = axs[0,i] if len(params)>1 else axs[0]
+            ax_implausibility = axs[1,i] if len(params)>1 else axs[1]
+            
+            implausibility.plot( x=param, y='predicted', style='.', legend=False, ax=ax_predict )
+            ax_predict.axhline( y=target, linestyle='--', color='tab:green' )
+            
+            implausibility.plot( x=param, y='implausibility', style='.', color='m', legend=False, ax=ax_implausibility )
+            ax_implausibility.axhline( y=threshold, linestyle='--', color='k' )
+
+            if i==0:
+                legend_target = [Line2D([0], [0], color='tab:green', linestyle='--', label='target')]
+                ax_predict.legend(handles=legend_target)
+
+                legend_threshold = [Line2D([0], [0], color='k', linestyle='--', label='threshold')]
+                ax_implausibility.legend(handles=legend_threshold)
+        fig.tight_layout()
+
+        # Plot implausibility (pairplot)
+        implausibility['color'] = 'tab:purple'
+        implausibility.loc[ implausibility['implausibility']<=threshold ,'color'] = 'tab:green' 
+        axs_sm = pd.plotting.scatter_matrix( implausibility[params], 
+                                             alpha    = 0.9,
+                                             figsize  = (3*n_params, 3*n_params),
+                                             c        = implausibility['color'], 
+                                             marker   = 'o',
+                                             diagonal = 'kde',
+                                             density_kwds = {'color':'tab:gray'},
+                                            )
+        fig_sm = axs_sm[0][0].get_figure()
+        fig_sm.suptitle( 'Scatter Matrix\n(green: non-implausible;  purple: implausible)' )
+        fig_sm.tight_layout()
+
+        # Plot histogram 
+        fig_hist_nimp, axs_hist_nimp = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
+        fig_kde_nimp , axs_kde_nimp  = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
+        axs_hist_nimp = np.atleast_1d(axs_hist_nimp)
+        axs_kde_nimp  = np.atleast_1d(axs_kde_nimp )
+        n_bins = 12
+        for i, param in enumerate(params):
+            non_implausible[param].plot.hist( title='Non-implausible', 
+                                              bins=n_bins, 
+                                              color='tab:blue'  , alpha=0.5, ax=axs_hist_nimp[i] )
+            non_implausible[param].plot.kde ( title='Non-implausible', 
+                                              color='tab:blue'  , alpha=0.5, ax=axs_kde_nimp[i] )
+        fig_hist_nimp.tight_layout()
+        fig_kde_nimp .tight_layout()
+        
+            # Plot z-score
+
+        
+        
         return
