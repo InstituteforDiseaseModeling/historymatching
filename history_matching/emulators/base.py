@@ -355,11 +355,10 @@ class BaseEmulator:
         # Let's add histograms to the pairplot
         if len(params)>1:
             for i, param in enumerate(params):
-                non_implausible[param].plot.hist( title = 'Non-implausible', 
-                                                  bins  = n_bins, 
-                                                  color = 'tab:orange'  , alpha=0.5, 
-                                                  ax    = axs_sm[i,i]
-                                                 )
+                non_implausible[param].plot.kde( title = 'Non-implausible', 
+                                                 color = 'tab:orange'  , alpha=0.5, 
+                                                 ax    = axs_sm[i,i]
+                                                )
         
             # Plot z-score
 

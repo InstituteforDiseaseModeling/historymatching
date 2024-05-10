@@ -56,8 +56,8 @@ class TensorFlowGLM(BaseEmulator):
 
         # tensorflow-probability uses deprecated portions of setuptools which don't warn
         # until tensorflow-probability is lazily loaded here.
-        x_tf = np.hstack(  ( np.ones( (len(self.X_train), 1 ) ), 
-                             self.X_train.reshape(-1,1) )  )
+
+        x_tf = np.hstack(  ( np.ones( (len(self.X_train), 1 ) ),  self.X_train ) )
         y_tf = np.float64( self.y_train.reshape( (len(self.y_train),) ) )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -66,7 +66,7 @@ class TensorFlowGLM(BaseEmulator):
                 is_converged,     \
                 num_iter = tfp.glm.fit( model_matrix = x_tf,
                                         response     = y_tf,
-                                        model        = self.model    #tfp.glm.Normal()
+                                        model        = self.model
                                        )
 
         self.model_coefficients = model_coefficients
@@ -84,8 +84,7 @@ class TensorFlowGLM(BaseEmulator):
 
         logging.debug("... predicting outputs using the trained emulator")
         # Compute the prediction
-        x_tf = np.hstack(  ( np.ones( (len(x), 1 ) ), 
-                             x.to_numpy().reshape(-1,1) )  )
+        x_tf = np.hstack(  ( np.ones( (len(x), 1 ) ), x.to_numpy() ) )
 
         # model_matrix is incoming parameter values
         out = pd.DataFrame(index=x.index)
