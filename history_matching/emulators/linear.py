@@ -10,18 +10,31 @@ from .base import BaseEmulator
 
 
 class LinearModel(BaseEmulator):
-
     """
     Emulator based on an ordinary least squares linear regression.
     The emulator fits a linear regression model to minimize the residual sum of squares between observed targets in the training data and the targets predicted by the linear approximation.
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction: float = 0.25) -> None:
-        self.regression_model = None
+        """Initialize the emulator.
+
+        Args:
+            x : Input data. Pandas dataframe with columns representing parameter
+                values.
+            y : Output data. Pandas dataframe with columns representing
+                observations and rows representing samples. Each row in this
+                dataframe must match the corresponding row in `x`.
+            test_fraction : Fraction of `x` and `y` samples to be used for
+                testing. This is a scalar between 0 and 1.
+
+        Returns:
+            None
+        """
         super().__init__(x, y, test_fraction)
 
         return
 
+    
     def train(self):
         """
         Fits a linear regression model to minimize the residual sum of squares between observed targets in the training data and the targets predicted by the linear approximation.
@@ -36,6 +49,7 @@ class LinearModel(BaseEmulator):
         logging.debug("     training complete")
         return
 
+    
     def predict(self, x: pd.DataFrame(), qlow=0.05, qhi=0.95):
         """Predict an output using the trained emulator.
 
@@ -72,6 +86,7 @@ class LinearModel(BaseEmulator):
         out["high"] = out["value"] + hi
         return out
 
+    
     def print_emulator_description(self):
         """Display detailed specifications (for example, emulator coefficients)
         for the trained emulator.
