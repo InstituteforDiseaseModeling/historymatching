@@ -10,7 +10,7 @@ from history_matching.emulators import BaseEmulator
 
 from .config import Config
 from .constrict import next_point_generation
-from .emulators import GPFlowGPR
+from .emulators import GPR
 from .features import getFeatureStatistics
 from .features import select_features
 from .utils import features_from_observations

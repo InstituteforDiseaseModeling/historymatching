@@ -1,5 +1,3 @@
-"""Placeholder for a TensorFlow implementation of a Gaussian Process Regression emulator."""
-
 import logging
 import warnings
 from typing import Optional
@@ -9,24 +7,34 @@ import pandas as pd
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     import tensorflow_probability as tfp
-
-    print(f"Loaded tensorflow-probability version {tfp.__version__}.")
+    logging.debug(f"Loaded tensorflow-probability version {tfp.__version__}.")
 
 from .base import BaseEmulator
 
 
 class TensorFlowGPR(BaseEmulator):
-
     """Gaussian Process Regression emulator implemented in TensorFlow."""
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction=0.25):
-        """Initialise the Gaussian Process Regression emulator implemented in TensorFlow."""
+        """Initialise the Gaussian Process Regression (GPR) emulator implemented in TensorFlow.
 
+        Args:
+            x : Input data. Pandas dataframe with columns representing parameter
+                values.
+            y : Output data. Pandas dataframe with columns representing
+                observations and rows representing samples. Each row in this
+                dataframe must match the corresponding row in `x`.
+            test_fraction : Fraction of `x` and `y` samples to be used for
+                testing. This is a scalar between 0 and 1.
+
+        Returns:
+            None
+        """
         super().__init__(x, y, test_fraction)
-        self.regression_model = None
 
         return
 
+    
     def train(self):
         """Fits a Gaussian Process model."""
 

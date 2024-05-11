@@ -19,7 +19,7 @@ class TensorFlowGLM(BaseEmulator):
     """Generalised Linear Model emulator implemented in TensorFlow."""
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction=0.25, link='linear'):
-        """Initialise the Generalised Linear Model (GLM) emulator implemented in TensorFlow.
+        """Initialise the Generalized Linear Model (GLM) emulator implemented in TensorFlow.
 
         Args:
             x : Input data. Pandas dataframe with columns representing parameter
