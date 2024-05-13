@@ -69,6 +69,7 @@ setup(
         "numpy",
         "pandas",
         "matplotlib",
+        "statsmodels",
         "scikit-learn",
         "tensorflow",
         "tf-keras",

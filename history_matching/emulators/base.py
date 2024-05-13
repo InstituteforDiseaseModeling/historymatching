@@ -68,11 +68,13 @@ class BaseEmulator:
 
         return
 
+    
     @abstractmethod
     def train(self):
         """Trains the emulator."""
         raise NotImplementedError
 
+    
     @abstractmethod
     def predict(self, x: pd.DataFrame(), qlow=0.05, qhigh=0.95):
         """Predict an output using the trained emulator.
@@ -88,6 +90,7 @@ class BaseEmulator:
         """
         raise NotImplementedError
 
+    
     def get_implausibility(self, x: pd.DataFrame, target, target_var, model_var=0, qlow=0.05, qhigh=0.95):
         """Get implausibility for a given set of parameters.
 
@@ -116,32 +119,6 @@ class BaseEmulator:
 
         return implausibility    
     
-    def get_implausibility_old(self, x: pd.DataFrame, observations: pd.DataFrame, feature: str, config: Config, qlow=0.05, qhigh=0.95):
-        """Get implausibility for a given set of parameters.
-
-        Args:
-            x : Input data. Pandas dataframe with columns representing parameter
-                values.
-            observations : 
-            qlow  : Lower quantile for the estimated uncertainty interval.
-            qhigh : Upper quantile for the estimated uncertainty interval.
-
-        Returns:
-            Numpy array with implausibility values.
-        """
-        predictions = self.predict(x, qlow, qhigh)
-
-        emulator_mean = predictions["value"]
-        emulator_variance = predictions["variance"]
-
-        # implausibility = abs(mean - observation) / sqrt(variance + observation_variance + discrepancy_variance)
-        observation = observations.at[feature, "mean"]
-        observation_variance = observations.at[feature, "variance"]
-        model_variance = config.model_variance  # clorton: model_variance = discrepancy_variance from OG code
-        # implausibility = abs(mean - observation) / np.sqrt(variance + observation_variance + discrepancy_variance)
-        implausibility = abs(emulator_mean - observation) / np.sqrt(emulator_variance + observation_variance + model_variance)
-
-        return implausibility
 
     @abstractmethod
     def print_emulator_description(self):
@@ -150,6 +127,7 @@ class BaseEmulator:
         """
         raise NotImplementedError
 
+    
     def test(self):
         """Tests and runs diagnostics on the trained emulator."""
         logging.debug("... testing emulator")
@@ -167,6 +145,7 @@ class BaseEmulator:
         logging.debug("     emulator testing completed")
         return
 
+    
     def info(self):
         """Prints report about the emulator and its performance."""
         print("... General information:")
@@ -191,6 +170,7 @@ class BaseEmulator:
             print("      R2 = ", self.r2score)
         return
 
+    
     def plot_diagnostics(self):
         """Diagnostics plots for the trained emulator."""
 
@@ -199,6 +179,7 @@ class BaseEmulator:
 
         return
 
+    
     def plot_residuals(self):
         """Plot residuals of predicted vs. true testing values. 
         """
@@ -224,6 +205,7 @@ class BaseEmulator:
         
         return
 
+    
     def plot_predictions(self):
         """Plot the predicted and true testing values. 
         """
@@ -266,6 +248,7 @@ class BaseEmulator:
                 
         return
 
+    
     def plot_implausibility(self, x=None, target=0, target_var=0, model_var=0, threshold=3):
         """Get implausibility for a given set of parameters.
 
@@ -361,7 +344,5 @@ class BaseEmulator:
                                                 )
         
             # Plot z-score
-
-        
         
         return
