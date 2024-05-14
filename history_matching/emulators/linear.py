@@ -52,14 +52,12 @@ class LinearModel(BaseEmulator):
         return
 
     
-    def predict(self, x: pd.DataFrame(), qlow=0.05, qhi=0.95):
+    def predict(self, x: pd.DataFrame()):
         """Predict an output using the trained emulator.
 
         Args:
             x : Input data. Pandas dataframe with columns representing parameter
                 values.
-            qlow  : Lower quantile for the estimated uncertainty interval.
-            qhigh : Upper quantile for the estimated uncertainty interval.
 
         Returns:
             Pandas dataframe with predicted values and uncertainty intervals.
@@ -70,18 +68,22 @@ class LinearModel(BaseEmulator):
         x_pred = sm.add_constant( x )
         prediction_results = self.results.get_prediction( x_pred )
         predicted_mean = prediction_results.predicted_mean
-        predicted_var = prediction_results.var_pred_mean
+        
+        # Compute the confidence interval of the predicted mean
+        low_mean = prediction_results.conf_int()[:,0]
+        high_mean = prediction_results.conf_int()[:,1]
 
-        # Compute the uncertainty interval
-        z = 1.96  # 95% confidence interval
-        low  = predicted_mean - z * np.sqrt(predicted_var)
-        high = predicted_mean + z * np.sqrt(predicted_var)
-
+        # Compute the prediction intervals 
+        low = prediction_results.summary_frame()['obs_ci_lower']
+        high = prediction_results.summary_frame()['obs_ci_upper']
+        
         # Prepare output and return
         out = pd.DataFrame(index=x.index)
-        out["value"] = predicted_mean
-        out["low"] = low
-        out["high"] = high
+        out['value'] = predicted_mean
+        out['low'] = low
+        out['high'] = high
+        out['ci_value_low'] = low_mean
+        out['ci_value_high'] = high_mean
         return out
 
     
@@ -129,7 +131,6 @@ class LinearModelScipy(BaseEmulator):
         self.regression_model = sklm.LinearRegression()
         self.regression_model.fit(self.X_train, self.y_train)
 
-        # self.var = numpy.var(self.y_train)
         self.training_complete = True
         logging.debug("     training complete")
         return

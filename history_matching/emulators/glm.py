@@ -44,6 +44,7 @@ class GLM(BaseEmulator):
         """Fits a Generalised Linear Model."""
         logging.debug("... training emulator")
 
+        x = sm.add_constant( self.X_train )
         self.model = sm.GLM( self.y_train, x, family=self.family )
         self.results = self.model.fit()
         
@@ -52,14 +53,12 @@ class GLM(BaseEmulator):
         return
 
     
-    def predict(self, x: pd.DataFrame(), qlow=0.05, qhi=0.95):
+    def predict(self, x: pd.DataFrame()):
         """Predict an output using the trained emulator.
 
         Args:
             x : Input data. Pandas dataframe with columns representing parameter
                 values.
-            qlow  : Lower quantile for the estimated uncertainty interval.
-            qhigh : Upper quantile for the estimated uncertainty interval.
 
         Returns:
             Pandas dataframe with predicted values and uncertainty intervals.
@@ -67,20 +66,28 @@ class GLM(BaseEmulator):
         logging.debug("... predicting outputs using the trained emulator")
 
         # Compute the prediction
+        x_pred = sm.add_constant( x )
         prediction_results = self.results.get_prediction( x_pred )
         predicted_mean = prediction_results.predicted_mean
-        predicted_var = prediction_results.var_pred_mean
 
-        # Compute the uncertainty interval
-        z = 1.96  # 95% confidence interval
-        low  = predicted_mean - z * np.sqrt(predicted_var)
-        high = predicted_mean + z * np.sqrt(predicted_var)
+        # Compute the confidence interval of the predicted mean
+        low_mean = prediction_results.conf_int()[:,0]
+        high_mean = prediction_results.conf_int()[:,1]
 
+        # Compute the prediction intervals 
+        # obs_ci not returned by summary_frame()
+        #low = prediction_results.summary_frame()['obs_ci_lower']
+        #high = prediction_results.summary_frame()['obs_ci_upper']
+        low = prediction_results.summary_frame()['mean_ci_lower']
+        high = prediction_results.summary_frame()['mean_ci_upper']
+        
         # Prepare output and return
         out = pd.DataFrame(index=x.index)
-        out["value"] = predicted_mean
-        out["low"] = low
-        out["high"] = high
+        out['value'] = predicted_mean
+        out['low'] = low
+        out['high'] = high
+        out['ci_value_low'] = low_mean
+        out['ci_value_high'] = high_mean
         return out
 
     

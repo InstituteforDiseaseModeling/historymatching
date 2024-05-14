@@ -76,14 +76,12 @@ class BaseEmulator:
 
     
     @abstractmethod
-    def predict(self, x: pd.DataFrame(), qlow=0.05, qhigh=0.95):
+    def predict(self, x: pd.DataFrame()):
         """Predict an output using the trained emulator.
 
         Args:
             x : Input data. Pandas dataframe with columns representing parameter
                 values.
-            qlow  : Lower quantile for the estimated uncertainty interval.
-            qhigh : Upper quantile for the estimated uncertainty interval.
 
         Returns:
             Pandas dataframe with predicted values and uncertainty intervals.
@@ -91,7 +89,7 @@ class BaseEmulator:
         raise NotImplementedError
 
     
-    def get_implausibility(self, x: pd.DataFrame, target, target_var, model_var=0, qlow=0.05, qhigh=0.95):
+    def get_implausibility(self, x: pd.DataFrame, target, target_var, model_var=0):
         """Get implausibility for a given set of parameters.
 
         Args:
@@ -112,7 +110,7 @@ class BaseEmulator:
         """
         if not self.training_complete:
             self.train()
-        predictions = self.predict(x, qlow, qhigh)
+        predictions = self.predict(x)
         predictions_var = predictions['high'] - predictions['low']
         
         implausibility = ( predictions['value'] - target )**2 / np.sqrt( predictions_var + target_var + model_var )
@@ -330,13 +328,14 @@ class BaseEmulator:
             non_implausible[param].plot.hist( title='Non-implausible', 
                                               bins=n_bins, 
                                               color='tab:blue'  , alpha=0.5, ax=axs_hist_nimp[i] )
-            non_implausible[param].plot.kde ( title='Non-implausible', 
+            if len(non_implausible)>1:
+                non_implausible[param].plot.kde ( title='Non-implausible', 
                                               color='tab:blue'  , alpha=0.5, ax=axs_kde_nimp[i] )
         fig_hist_nimp.tight_layout()
         fig_kde_nimp .tight_layout()
 
         # Let's add histograms to the pairplot
-        if len(params)>1:
+        if ( len(params)>1 ) and ( len(non_implausible)>1 ):
             for i, param in enumerate(params):
                 non_implausible[param].plot.kde( title = 'Non-implausible', 
                                                  color = 'tab:orange'  , alpha=0.5, 
