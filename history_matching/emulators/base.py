@@ -111,7 +111,7 @@ class BaseEmulator:
         if not self.training_complete:
             self.train()
         predictions = self.predict(x)
-        predictions_var = predictions['high'] - predictions['low']
+        predictions_var = predictions['ci_obs_high'] - predictions['ci_obs_low']
         
         implausibility = ( predictions['value'] - target )**2 / np.sqrt( predictions_var + target_var + model_var )
 
@@ -128,19 +128,22 @@ class BaseEmulator:
     
     def test(self):
         """Tests and runs diagnostics on the trained emulator."""
-        logging.debug("... testing emulator")
+        logging.debug('... testing emulator')
 
         if not self.training_complete:
-            logging.warning("this emulator has not been trained yet")
+            logging.warning('this emulator has not been trained yet')
         else:
-            X_test_df = pd.DataFrame(self.X_test, columns=self.X_df.columns)
-            self.y_test_pred_df = self.predict(X_test_df)
-            self.y_pred_test = self.y_test_pred_df["value"].to_numpy()
+            
+            self.y_test_pred_df = self.predict( self.X_test_df )
+            self.y_test_pred = self.y_test_pred_df['value'].to_numpy()
 
-            self.mse = np.linalg.norm(self.y_test.flatten() - self.y_pred_test, ord=2)
+            self.y_train_pred_df = self.predict( self.X_train_df )
+            self.y_train_pred = self.y_test_pred_df['value'].to_numpy()
+
+            self.mse = np.linalg.norm(self.y_test.flatten() - self.y_test_pred, ord=2)
 
         self.testing_complete = True
-        logging.debug("     emulator testing completed")
+        logging.debug('     emulator testing completed')
         return
 
     
@@ -185,7 +188,7 @@ class BaseEmulator:
         params = self.X_df.columns
         n_params = len( params )
 
-        residuals = np.square(self.y_test.flatten() - self.y_pred_test)
+        residuals = np.square(self.y_test.flatten() - self.y_test_pred)
         residuals_df = pd.DataFrame( self.X_test_df )
         residuals_df['residual'] = residuals
 
@@ -202,7 +205,7 @@ class BaseEmulator:
         fig.tight_layout()
         
         return
-
+    
     
     def plot_predictions(self):
         """Plot the predicted and true testing values. 
@@ -210,11 +213,11 @@ class BaseEmulator:
         # Get data
         params = self.X_df.columns
         n_params = len( params )
-        predictions_df = self.X_test_df
+        predictions_df = self.X_test_df.copy()
         predictions_df['true'] = self.y_test
         predictions_df['prediction'] = self.y_test_pred_df['value']
-        predictions_df['prediction (low)'] = self.y_test_pred_df['low']
-        predictions_df['prediction (high)'] = self.y_test_pred_df['high']
+        predictions_df['prediction (low)'] = self.y_test_pred_df['ci_pred_low']
+        predictions_df['prediction (high)'] = self.y_test_pred_df['ci_pred_high']
 
         # Classify as correct or incorrect; assume incorrect and then overwrite if needed
         predictions_correct = predictions_df[ (predictions_df['true']<=predictions_df['prediction (high)'])     
@@ -243,6 +246,11 @@ class BaseEmulator:
                            color = 'tab:red'
                           )
         fig.tight_layout()
+
+
+        # plot predicted vs. observed
+
+        # plot predicted vs (normalized) error
                 
         return
 
@@ -270,12 +278,18 @@ class BaseEmulator:
         n_params = len( params )
 
         # Compute implausibility
+        y_pred = self.predict(x)
         implausibility = x.copy()
         implausibility['implausibility'] = self.get_implausibility( x, target, target_var, model_var ).values
-        implausibility['predicted'] = self.predict(x)['value'].values
+        implausibility['predicted'] = y_pred['value'].values
         implausible = implausibility[ implausibility['implausibility'] > threshold ]
         non_implausible = implausibility[ implausibility['implausibility'] <= threshold ]
 
+
+        # Pair plots with model outputs
+        # colorbar with model output; the color of the dot is the model output. The outer circle: red if implausible; black if non-implausible; optional: size of marker (circle) proportional to implausibliity
+
+        
         # Plot implausibility (scatter)
         fig, axs = plt.subplots( 3, n_params, figsize=(3*n_params, 7.5), sharex=True, sharey=False )
         for i, param in enumerate(params):
@@ -341,7 +355,79 @@ class BaseEmulator:
                                                  color = 'tab:orange'  , alpha=0.5, 
                                                  ax    = axs_sm[i,i]
                                                 )
+
+
+        # Plot histogram with normalized error in the x-axis
         
-            # Plot z-score
+        return
+
+
+    def plot_zscore( self, target=0, target_var=0, model_var=0, threshold=3 ):
+        """Plot a Z-score diagnoses for testing and training data.
+
+        Args:
+            target : Scalar indicating the value to use as reference for the 
+                     implausiblity computation. This is typically extracted from
+                     observed data.
+            target_var : Variance of the target point.
+            model_var : Model discrepancy or variance. This parameter quantifies
+                        the discrepancy between the model output and real life
+                        data.
+            threshold: Implausibility threshold. Sets of parameters within this
+                       threshold are deemed as non-implausible.
+        """
+       
+        # Compute Z-values
+        data_train = self.X_train_df.copy()
+        data_train['output (true)'] = self.y_train.flatten()
+        data_train['implausibility'] = self.get_implausibility( self.X_train_df, target, target_var, model_var ).values
+        data_train['predicted'] = self.y_train_pred_df['value'].values
+        data_train['predicted_obs_var' ] = ( ( self.y_train_pred_df['ci_obs_high' ] - self.y_train_pred_df['ci_obs_low' ] )/3 )**2
+        data_train['predicted_pred_var'] = ( ( self.y_train_pred_df['ci_pred_high'] - self.y_train_pred_df['ci_pred_low'] )/3 )**2
+        data_train['error'] = self.y_train.flatten() - self.y_train_pred_df['value'].values
+        data_train['Z_noisy'] = data_train['error'].div( np.sqrt( data_train['predicted_obs_var' ] ) )
+        data_train['Z_noiseless'] = data_train['error'].div( np.sqrt( data_train['predicted_pred_var' ] ) )
+        data_train_implausible    = data_train[ data_train['implausibility']> threshold ]
+        data_train_nonimplausible = data_train[ data_train['implausibility']<=threshold ]
+
+        data_test = self.X_test_df.copy()
+        data_test['output (true)'] = self.y_test.flatten()
+        data_test['implausibility'] = self.get_implausibility( self.X_test_df, target, target_var, model_var ).values
+        data_test['predicted'] = self.y_test_pred_df['value'].values
+        data_test['predicted_obs_var' ] = ( ( self.y_test_pred_df['ci_obs_high' ] - self.y_test_pred_df['ci_obs_low' ] )/3 )**2
+        data_test['predicted_pred_var'] = ( ( self.y_test_pred_df['ci_pred_high'] - self.y_test_pred_df['ci_pred_low'] )/3 )**2
+        data_test['error'] = self.y_test.flatten() - self.y_test_pred_df['value'].values
+        data_test['Z_noisy'] = data_test['error'].div( np.sqrt( data_test['predicted_obs_var' ] ) )
+        data_test['Z_noiseless'] = data_test['error'].div( np.sqrt( data_test['predicted_pred_var' ] ) )
+        data_test_implausible    = data_test[ data_test['implausibility']> threshold ]
+        data_test_nonimplausible = data_test[ data_test['implausibility']<=threshold ]
+
+        # Draw plots
+        fig_z, axs_z = plt.subplots( 2, 1, figsize=(10,8), sharex=True )
         
+        data_train_implausible   .plot.scatter( x='output (true)', y='Z_noisy', marker='x', c='tab:gray', label='implausible (noisy)'    , ax=axs_z[0] )
+        data_train_nonimplausible.plot.scatter( x='output (true)', y='Z_noisy', marker='o', c='tab:blue', label='non-implausible (noisy)', ax=axs_z[0] )
+        data_train_implausible   .plot.scatter( x='output (true)', y='Z_noiseless', marker='x', c='black' , label='implausible'    , ax=axs_z[0] )
+        data_train_nonimplausible.plot.scatter( x='output (true)', y='Z_noiseless', marker='o', c='tab:green', label='non-implausible', ax=axs_z[0] )
+        axs_z[0].set_title('Training data\n(red/dashed line: target observation)')
+        
+        data_test_implausible   .plot.scatter( x='output (true)', y='Z_noisy', marker='x', c='tab:gray', label='implausible (noisy)'    , ax=axs_z[1] )
+        data_test_nonimplausible.plot.scatter( x='output (true)', y='Z_noisy', marker='o', c='tab:blue', label='non-implausible (noisy)', ax=axs_z[1] )
+        data_test_implausible   .plot.scatter( x='output (true)', y='Z_noiseless', marker='x', c='black' , label='implausible'    , ax=axs_z[1] )
+        data_test_nonimplausible.plot.scatter( x='output (true)', y='Z_noiseless', marker='o', c='tab:green', label='non-implausible', ax=axs_z[1] )
+        axs_z[1].set_title('Testing data')
+
+        xlim = axs_z[0].get_xlim()
+        for i in [0, 1]:
+            axs_z[i].set_ylabel('Z')
+            axs_z[i].set_xlabel('y (observed data)')
+            axs_z[i].axvline( target, color='tab:red', linestyle='--' )
+            axs_z[i].fill_between( xlim, -2  ,  2  , color='tab:green' , alpha=0.2 )
+            axs_z[i].fill_between( xlim, -2.7, -2  , color='yellow', alpha=0.2 )
+            axs_z[i].fill_between( xlim,  2  ,  2.7, color='yellow', alpha=0.2 )
+            axs_z[i].fill_between( xlim, -3  , -2.7, color='tab:red'   , alpha=0.2 )
+            axs_z[i].fill_between( xlim,  2.7,  3  , color='tab:red'   , alpha=0.2 )
+        
+        fig_z.tight_layout()
+
         return

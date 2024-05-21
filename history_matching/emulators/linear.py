@@ -80,10 +80,10 @@ class LinearModel(BaseEmulator):
         # Prepare output and return
         out = pd.DataFrame(index=x.index)
         out['value'] = predicted_mean
-        out['low'] = low
-        out['high'] = high
-        out['ci_value_low'] = low_mean
-        out['ci_value_high'] = high_mean
+        out['ci_obs_low'] = low    # CI of prediction
+        out['ci_obs_high'] = high
+        out['ci_pred_low'] = low_mean    # CI of predicted mean
+        out['ci_pred_high'] = high_mean
         return out
 
     

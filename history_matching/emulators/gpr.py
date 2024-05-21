@@ -70,9 +70,10 @@ class GPR(BaseEmulator):
         # Save outputs
         out = pd.DataFrame(index=x.index)
         out['value'] = ymean
-        out['low'  ] = low
-        out['high' ] = high
-        
+        out['ci_obs_low' ] = low
+        out['ci_obs_high'] = high
+        out['ci_pred_low' ] = 0  # need to verify this
+        out['ci_pred_high'] = 0
         return out
 
 
