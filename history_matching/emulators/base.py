@@ -227,7 +227,7 @@ class BaseEmulator:
                                              |(predictions_df['true'] <predictions_df['prediction (low)' ])]    \
                               .rename( columns={'prediction':'prediction (failed)'} )
         
-        # Draw plot
+        # Plot predictions
         fig, axs = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
         axs = np.atleast_1d(axs)
         for i, param in enumerate(params):
@@ -248,10 +248,26 @@ class BaseEmulator:
         fig.tight_layout()
 
 
-        # plot predicted vs. observed
-
+        # Plot predicted vs. observed
+        fig_predobs, ax_predobs = plt.subplots( 1, 1, figsize=(4,4) )
+        predictions_correct.plot( x='true', y='prediction (correct)', style='o', label='correct', color='tab:green', ax=ax_predobs )
+        predictions_failed .plot( x='true', y='prediction (failed)' , style='o', label='failed' , color='tab:red'  , ax=ax_predobs )
+        maxy = int( predictions_df[ ['true', 'prediction'] ].max().max() )
+        ax_predobs.plot( range(maxy), range(maxy), linestyle='--', color='gray', alpha=0.5 )
+        ax_predobs.set_title( 'Prediction vs True Value' )
+        ax_predobs.set_xlabel( 'True value' )
+        ax_predobs.set_ylabel( 'Predicted' )
+        
+        fig_predobs.tight_layout()
+        
+        
         # plot predicted vs (normalized) error
-                
+
+        # Plot histogram with normalized error in the x-axis
+
+        
+
+        
         return
 
     
@@ -356,9 +372,6 @@ class BaseEmulator:
                                                  ax    = axs_sm[i,i]
                                                 )
 
-
-        # Plot histogram with normalized error in the x-axis
-        
         return
 
 
