@@ -259,7 +259,6 @@ class BaseEmulator:
         ax_predobs.set_title( 'Prediction vs True Value' )
         ax_predobs.set_xlabel( 'True value' )
         ax_predobs.set_ylabel( 'Predicted' )
-        
         fig_predobs.tight_layout()
         
         
@@ -271,9 +270,13 @@ class BaseEmulator:
 
         
         # Plot histogram with normalized error in the x-axis
-
-        
-
+        n_bins = 12
+        fig_errhist, ax_errhist = plt.subplots( 1, 1, figsize=(4,4) )
+        predictions_df['error (normalized)'].replace([np.inf, -np.inf], np.nan).dropna().plot.hist( bins=n_bins, ax=ax_errhist )
+        ax_errhist.set_title( 'Normalized Error Histogram' )
+        ax_errhist.set_xlabel( 'error (normalized)' )
+        ax_errhist.set_ylabel( 'Count' )
+        fig_errhist.tight_layout()
         
         return
 
@@ -358,7 +361,7 @@ class BaseEmulator:
             # Let's add histograms to the pairplot
             if ( len(params)>1 ) and ( len(non_implausible)>1 ):
                 for i, param in enumerate(params):
-                    non_implausible[param].plot.kde( title = 'Non-implausible', 
+                    non_implausible[param].plot.kde( #title = 'Non-implausible', 
                                                      color = 'tab:orange'  , alpha=0.5, 
                                                      ax    = axs_sm[i,i], 
                                                      secondary_y = True
@@ -377,12 +380,15 @@ class BaseEmulator:
         axs_kde_nimp  = np.atleast_1d( axs_kde_nimp  )
         n_bins = 12
         for i, param in enumerate(params):
-            non_implausible[param].plot.hist( title='Non-implausible', 
-                                              bins=n_bins, 
-                                              color='tab:blue'  , alpha=0.5, ax=axs_hist_nimp[i] )
+            non_implausible[param].plot.hist( title = 'Non-implausible Points (histogram)', 
+                                              bins  = n_bins, 
+                                              color = 'tab:blue', alpha=0.5, ax=axs_hist_nimp[i] )
+            axs_hist_nimp[i].set_xlabel( param )
             if len(non_implausible)>1:
-                non_implausible[param].plot.kde ( title='Non-implausible', 
-                                              color='tab:blue'  , alpha=0.5, ax=axs_kde_nimp[i] )
+                non_implausible[param].plot.kde( title = 'Non-implausible Points (KDE)', 
+                                                 color = 'tab:blue', 
+                                                 ax    = axs_kde_nimp[i] )
+                axs_kde_nimp[i].set_xlabel( param )
         fig_hist_nimp.tight_layout()
         fig_kde_nimp .tight_layout()
 
