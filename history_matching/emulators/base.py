@@ -218,6 +218,8 @@ class BaseEmulator:
         predictions_df['prediction'] = self.y_test_pred_df['value']
         predictions_df['prediction (low)'] = self.y_test_pred_df['ci_pred_low']
         predictions_df['prediction (high)'] = self.y_test_pred_df['ci_pred_high']
+        predictions_df['error (normalized)'] = ( predictions_df['true'] - predictions_df['prediction'] )    \
+                                               .div( predictions_df['true'] )
 
         # Classify as correct or incorrect; assume incorrect and then overwrite if needed
         predictions_correct = predictions_df[ (predictions_df['true']<=predictions_df['prediction (high)'])     
@@ -262,7 +264,12 @@ class BaseEmulator:
         
         
         # plot predicted vs (normalized) error
+        fig_prederr, ax_prederr = plt.subplots( 1, 1, figsize=(4,4) )
+        predictions_df.plot.scatter( x='error (normalized)', y='prediction', ax=ax_prederr )
+        ax_prederr.set_title( 'Predictions vs Normalized Error' )
+        fig_prederr.tight_layout()
 
+        
         # Plot histogram with normalized error in the x-axis
 
         
@@ -307,20 +314,23 @@ class BaseEmulator:
 
         
         # Plot implausibility (scatter)
-        fig, axs = plt.subplots( 3, n_params, figsize=(3*n_params, 7.5), sharex=True, sharey=False )
+        fig_imp, axs_imp = plt.subplots( 3, n_params, figsize=(4*n_params, 12), sharex=True, sharey=False )
         for i, param in enumerate(params):
-            ax_predict = axs[0,i] if len(params)>1 else axs[0]
-            ax_implausibility = axs[1,i] if len(params)>1 else axs[1]
-            ax_logimplausibility = axs[2,i] if len(params)>1 else axs[2]
+            ax_predict = axs_imp[0,i] if len(params)>1 else axs_imp[0]
+            ax_implausibility = axs_imp[1,i] if len(params)>1 else axs_imp[1]
+            ax_logimplausibility = axs_imp[2,i] if len(params)>1 else axs_imp[2]
             
             implausibility.plot( x=param, y='predicted', style='.', legend=False, ax=ax_predict, logy=False )
             ax_predict.axhline( y=target, linestyle='--', color='tab:green' )
+            ax_predict.set_ylabel( 'Predicted' )
             
             implausibility.plot( x=param, y='implausibility', style='.', color='m', legend=False, ax=ax_implausibility, logy=False )
             ax_implausibility.axhline( y=threshold, linestyle='--', color='k' )
-
+            ax_implausibility.set_ylabel( 'Implausibility' )
+            
             implausibility.plot( x=param, y='implausibility', style='.', color='m', legend=False, ax=ax_logimplausibility, logy=True )
             ax_logimplausibility.axhline( y=threshold, linestyle='--', color='k' )
+            ax_logimplausibility.set_ylabel( 'Implausibility' )
             
             if i==0:
                 legend_target = [Line2D([0], [0], color='tab:green', linestyle='--', label='target')]
@@ -329,9 +339,9 @@ class BaseEmulator:
                 legend_threshold = [Line2D([0], [0], color='k', linestyle='--', label='threshold')]
                 ax_implausibility.legend(handles=legend_threshold)
                 ax_logimplausibility.legend(handles=legend_threshold)
+        fig_imp.tight_layout()
 
-        fig.tight_layout()
-
+        
         # Plot implausibility (pairplot)
         if len(params)>1:
             implausibility['color'] = 'tab:cyan'
@@ -344,15 +354,27 @@ class BaseEmulator:
                                                  diagonal = 'kde',
                                                  density_kwds = {'color':'tab:blue'},
                                                 )
+
+            # Let's add histograms to the pairplot
+            if ( len(params)>1 ) and ( len(non_implausible)>1 ):
+                for i, param in enumerate(params):
+                    non_implausible[param].plot.kde( title = 'Non-implausible', 
+                                                     color = 'tab:orange'  , alpha=0.5, 
+                                                     ax    = axs_sm[i,i], 
+                                                     secondary_y = True
+                                                    )
+
+            # Tidy-up figure   
             fig_sm = axs_sm[0][0].get_figure()
             fig_sm.suptitle( 'Scatter Matrix\n(orange: non-implausible;  cyan: implausible)' )
             fig_sm.tight_layout()
 
+        
         # Plot histogram 
         fig_hist_nimp, axs_hist_nimp = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
         fig_kde_nimp , axs_kde_nimp  = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
-        axs_hist_nimp = np.atleast_1d(axs_hist_nimp)
-        axs_kde_nimp  = np.atleast_1d(axs_kde_nimp )
+        axs_hist_nimp = np.atleast_1d( axs_hist_nimp )
+        axs_kde_nimp  = np.atleast_1d( axs_kde_nimp  )
         n_bins = 12
         for i, param in enumerate(params):
             non_implausible[param].plot.hist( title='Non-implausible', 
@@ -364,13 +386,6 @@ class BaseEmulator:
         fig_hist_nimp.tight_layout()
         fig_kde_nimp .tight_layout()
 
-        # Let's add histograms to the pairplot
-        if ( len(params)>1 ) and ( len(non_implausible)>1 ):
-            for i, param in enumerate(params):
-                non_implausible[param].plot.kde( title = 'Non-implausible', 
-                                                 color = 'tab:orange'  , alpha=0.5, 
-                                                 ax    = axs_sm[i,i]
-                                                )
 
         return
 
