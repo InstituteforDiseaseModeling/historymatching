@@ -1,6 +1,7 @@
 import logging
 from abc import abstractmethod
 from typing import Optional
+import itertools
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -312,9 +313,33 @@ class BaseEmulator:
         non_implausible = implausibility[ implausibility['implausibility'] <= threshold ]
 
 
-        # Pair plots with model outputs
-        # colorbar with model output; the color of the dot is the model output. The outer circle: red if implausible; black if non-implausible; optional: size of marker (circle) proportional to implausibliity
-
+        # Pair plots with model outputs (could be done easily with Seaborn, but trying to avoid adding more dependencies)
+        # The colorbar (and marker color) is the model output; marker outline: red if implausible; black if non-implausible
+        if n_params>1:  
+            fig_pp, axs_pp = plt.subplots( n_params, n_params, figsize=(4*n_params,4*n_params), sharex=False, sharey=True )
+            combinations = list( itertools.product(params, repeat=2) )
+            for index, (param1, param2) in enumerate(combinations):
+                i = index % n_params
+                j = index // n_params
+                edge_colors = implausibility.apply(lambda row: 'none' if row['implausibility'] > threshold else 'tab:red', axis=1)
+                
+                if i != j:
+                    x.plot.scatter( x = param1, 
+                                    y = param2, 
+                                    c = y_pred['value'].values,
+                                    cmap = 'viridis',
+                                    colorbar = True, 
+                                    edgecolors = edge_colors,
+                                    ax = axs_pp[i,j] 
+                                   )
+                else:
+                    axs_pp[i,j].spines['top'   ].set_visible(False)
+                    axs_pp[i,j].spines['bottom'].set_visible(False)
+                    axs_pp[i,j].spines['left'  ].set_visible(False)
+                    axs_pp[i,j].spines['right' ].set_visible(False)
+            fig_pp.suptitle( 'Predicted Output Pair Plots\n(red marker: non-implausible)' )
+            fig_pp.tight_layout()
+            
         
         # Plot implausibility (scatter)
         fig_imp, axs_imp = plt.subplots( 3, n_params, figsize=(4*n_params, 12), sharex=True, sharey=False )
@@ -391,7 +416,6 @@ class BaseEmulator:
                 axs_kde_nimp[i].set_xlabel( param )
         fig_hist_nimp.tight_layout()
         fig_kde_nimp .tight_layout()
-
 
         return
 
