@@ -77,3 +77,4 @@ docs/_build
 
 # Jupyter[-Lab]
 *checkpoint.ipynb
+.ipynb_checkpoints/
