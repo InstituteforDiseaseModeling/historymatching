@@ -9,6 +9,7 @@ from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 from sklearn import model_selection
+from sklearn import metrics
 
 from history_matching.config import Config
 
@@ -66,6 +67,7 @@ class BaseEmulator:
             # Save some additional initialization data
             self.X_df = pd.DataFrame(x)
             self.y_df = pd.DataFrame(y)
+            self.emulator_metrics = {}
 
         return
 
@@ -141,8 +143,16 @@ class BaseEmulator:
             self.y_train_pred_df = self.predict( self.X_train_df )
             self.y_train_pred = self.y_test_pred_df['value'].to_numpy()
 
-            self.mse = np.linalg.norm(self.y_test.flatten() - self.y_test_pred, ord=2)
-
+            y_test = self.y_test.flatten()
+            y_pred = self.y_test_pred.flatten()
+            n_test = len( self.y_test_pred )
+            self.emulator_metrics['MSE'  ] = metrics.mean_squared_error ( y_test, y_pred )
+            self.emulator_metrics['L-inf'] = metrics.max_error          ( y_test, y_pred )
+            self.emulator_metrics['L-1'  ] = metrics.mean_absolute_error( y_test, y_pred )
+            self.emulator_metrics['R2'   ] = metrics.r2_score           ( y_test, y_pred )
+            self.emulator_metrics['AIC'  ] = n_test * np.log( self.emulator_metrics['MSE'] ) + 2*self.X_test.shape[1]
+            self.emulator_metrics['BIC'  ] = n_test * np.log( self.emulator_metrics['MSE'] ) + 2*self.X_test.shape[1]*np.log(n_test)
+        
         self.testing_complete = True
         logging.debug('     emulator testing completed')
         return
@@ -168,8 +178,8 @@ class BaseEmulator:
             print("      This emulator has not been tested yet")
         else:
             print("... Performance results:")
-            print("      MSE = ", self.mse)
-            print("      R2 = ", self.r2score)
+            for key, value in self.emulator_metrics.items():
+                print( f'      {key:<6} = {value}' )
         return
 
     
