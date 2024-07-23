@@ -92,7 +92,7 @@ class BaseEmulator:
         raise NotImplementedError
 
     
-    def get_implausibility(self, x: pd.DataFrame, target, target_var, model_var=0):
+    def get_implausibility(self, x: pd.DataFrame, target, target_var, model_discrepancy=0):
         """Get implausibility for a given set of parameters.
 
         Args:
@@ -115,8 +115,8 @@ class BaseEmulator:
             self.train()
         predictions = self.predict(x)
         predictions_var = predictions['ci_obs_high'] - predictions['ci_obs_low']
-        
-        implausibility = ( predictions['value'] - target )**2 / np.sqrt( predictions_var + target_var + model_var )
+
+        implausibility = 0*( predictions['value'] - target )**2 / np.sqrt( predictions_var + target_var + model_discrepancy )
 
         return implausibility    
     

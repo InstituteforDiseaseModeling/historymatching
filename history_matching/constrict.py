@@ -93,7 +93,12 @@ def test_plausibility(candidates: pd.DataFrame, emulator_bank: Dict[int, Dict[st
             emulator = emulator_bank[iteration][feature]
             tic()
             # candidates[f"{feature}_estimate"] = emulator.predict(candidates)
-            implausibility = emulator.get_implausibility(candidates[plausible], observations, feature, config)
+            target      = observations.loc[feature,:]
+            target_mean = target['mean']
+            target_var  = target['variance']
+            model_discrepancy = config.model_discrepancy
+
+            implausibility = emulator.get_implausibility( candidates[plausible], target_mean, target_var, model_discrepancy )
             toc(f"{feature}_estimate: ")
 
             implausible = implausibility > config.implausibility_threshold

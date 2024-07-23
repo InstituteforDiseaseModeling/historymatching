@@ -83,7 +83,7 @@ def merge_results(iteration: int, test_results: pd.DataFrame, situation: Situati
     """Add simulator results from this iteration into the full set of simulator results."""
     logger.info(f"Merging {len(test_results)} new simulator results with {len(situation.simulator_results)} existing results...")
     assert all(test_results.iteration == iteration), "Test results include results from a different iteration."
-    print(f"Concating {len(situation.simulator_results)} existing results with {len(test_results)} new results.")
+    print(f"Concatenating {len(situation.simulator_results)} existing results with {len(test_results)} new results.")
     situation.simulator_results = pd.concat([df for df in [situation.simulator_results, test_results] if len(df)])
     situation.simulator_results.reset_index(drop=True)
 

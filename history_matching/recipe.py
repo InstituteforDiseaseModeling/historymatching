@@ -82,6 +82,46 @@ class Recipe:
 
         return pd.DataFrame(columns=columns)
 
+
+    def select_features( 
+        iteration: int,
+        observations: pd.DataFrame,
+        simulator_results: pd.DataFrame,
+        config: Config,
+    ) -> List[str]:
+        """Returns features found in the observations and simulator results. The selection of 
+        features is based on the feature selection method defined in the history matching 
+        configuration. 
+
+            observations-
+
+            ========= ========== ========== === ==========
+            statistic <feature1> <feature2> ... <featureM>
+            ========= ========== ========== === ==========
+            mean       float      float     ...  float
+            variance   float      float     ...  float
+            ========= ========== ========== === ==========
+
+            simulation results-
+
+            ========= ======== ======== === ======== ========== ========== ========== === ==========
+            iteration <param0> <param1> ... <paramN> replicate# <feature1> <feature2> ... <featureM>
+            ========= ======== ======== === ======== ========== ========== ========== === ==========
+            int       float    float    ... float    int        float      float      ... float
+            ========= ======== ======== === ======== ========== ========== ========== === ==========
+
+        Args:
+            iteration: current iteration index (0 based)
+            observations: dataframe with feature names in columns, and one row of target values
+            simulator_results: dataframe with simulator results for various test points in parameter space
+            config: history matching configuration
+
+        Returns:
+            List[str]: list of feature names
+
+        """
+
+    
     @staticmethod
     def all_features(
         iteration: int,
@@ -158,8 +198,8 @@ class Recipe:
         feature_names = features_from_observations(observations)
         parameter_names = [column for column in simulator_results if column not in set(feature_names) | {"iteration", "replicate"}]
         X_train = simulator_results[parameter_names]
-        y_train = simulator_results[feature]
-        emulator = GPFlowGPR(X_train, y_train)
+        y_train = simulator_results[feature].to_frame()
+        emulator = GPR(X_train, y_train)
         emulator.train()
 
         return emulator
