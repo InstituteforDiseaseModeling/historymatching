@@ -13,6 +13,10 @@ import scipy.stats
 
 
 
+class Diagnsotics:
+    
+
+
 
 def select_features( simulatedFeatures: pd.DataFrame, 
                      observedFeatures: pd.DataFrame, 

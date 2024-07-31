@@ -120,7 +120,22 @@ class Recipe:
             List[str]: list of feature names
 
         """
+        mode = config.feature_selection_mode
+        logger.info(f'Selecting features for iteration {iteration}...')
+        print('hello')
+        if mode == 'manual':
+            print('MANUAL mode')
+            features = []
+        elif mode=='list':
+            logger.info('LIST mode')
+            features = []
+        else:
+            logger.info('AUTO mode')
+            features = all_features( iteration, observations, simulator_results, config )
+        
+        return features
 
+    
     
     @staticmethod
     def all_features(
@@ -245,7 +260,8 @@ class Recipe:
 
         return done
 
-    default_feature_selection = all_features
+    #default_feature_selection = all_features
+    default_feature_selection = select_features
     default_emulator_generator = _generate_emulator_for_feature  # TODO - TBD
     default_next_point_generator = next_point_generation
     default_exit_predicate = standard_exit_predicate
