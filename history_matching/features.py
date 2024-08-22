@@ -13,8 +13,212 @@ import scipy.stats
 
 
 
-class Diagnsotics:
+
+class Diagnostics:
+
+    def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None):
+        """Initialize the data diagnostics class.
+
+        Args:
+            x : Predictor data. Pandas dataframe with columns representing independent
+                data or inputs to a model whose output is y.
+            y : Response data. Pandas dataframe with columns representing features or 
+                output data that is dependent on the entries in x. 
+
+        Returns:
+            None
+        """
+        self.x = x
+        self.y = y
+
+        return
+
     
+    def interactive(self):
+
+        # Check if bokeh library is installed, and if we are running code on a Jupyter notebook.
+        import bokeh
+        from bokeh import io
+        from bokeh import plotting
+        from bokeh import models
+        from bokeh import layouts
+        
+        bokeh.io.output_notebook()    # Output to notebook ---we could also just open a new browser, hence relaxing 
+                                      # the notebook condition.
+
+        # Convert data to dictionaries for use in CustomJS
+        x_dict = self.x.to_dict('list')
+        y_dict = self.y.to_dict('list')
+
+        # Generate summary statistics for all columns in self.y
+        summary_stats_raw = self.y.describe()
+        summary_stats = pd.concat( [ pd.DataFrame( [summary_stats_raw.columns], columns=summary_stats_raw.columns, index=['name'] ),
+                                     summary_stats_raw,
+                                     pd.DataFrame( [self.y.var()], columns=self.y.columns, index=['variance'] )
+                                    ] 
+                                  )
+        summary_stats['index'] = summary_stats.index
+
+        # Select data to plot
+        x1_select = bokeh.models.Select( title='Predictor A', value=self.x.columns[0], options=list(self.x.columns) )
+        y1_select = bokeh.models.Select( title='Response A' , value=self.y.columns[0], options=list(self.y.columns) )
+        controls_1 = bokeh.layouts.row( x1_select, y1_select )
+
+        x2_select = bokeh.models.Select( title='Predictor B', value=self.x.columns[0], options=list(self.x.columns) )
+        y2_select = bokeh.models.Select( title='Response B' , value=self.y.columns[0], options=list(self.y.columns) )
+        controls_2 = bokeh.layouts.row( x2_select, y2_select )
+
+        # Plot first pair of predictor and response
+        source_1 = bokeh.models.ColumnDataSource( data = dict( x=x_dict[ self.x.columns[0] ],
+                                                               y=y_dict[ self.y.columns[0] ]  )
+                                                 )
+        plot_title_1 = f'{y1_select.value} vs {x1_select.value}' 
+        plot_1 = bokeh.plotting.figure( title=plot_title_1, height=300, width=500 )
+        plot_1.xaxis.axis_label = 'Predictor A'
+        plot_1.yaxis.axis_label = 'Response A'
+        plot_1.scatter( 'x', 'y', source=source_1 )
+
+        # Display summary statistics of first response selection
+        table_formatter = bokeh.models.HTMLTemplateFormatter( template='<div style="color: black;"><%= value %></div>' )
+        summary_source_1 = models.ColumnDataSource( data=dict( index = summary_stats['index'].to_list(),    
+                                                               Value = summary_stats[y1_select.value].to_list() )
+                                                  )
+        columns_1 = [ models.TableColumn(field='index', title='Statistic', formatter=table_formatter),
+                      models.TableColumn(field='Value', title='Value', formatter=table_formatter)
+                    ]
+        data_table_1 = models.DataTable(source=summary_source_1, columns=columns_1, width=400, height=280)
+
+        # Plot second pair of predictor and response
+        source_2 = bokeh.models.ColumnDataSource( data = dict( x=x_dict[ self.x.columns[0] ],
+                                                               y=y_dict[ self.y.columns[0] ]  )
+                                                 )
+        plot_title_2 = f'{y2_select.value} vs {x2_select.value}' 
+        plot_2 = bokeh.plotting.figure( title=plot_title_2, height=300, width=500 )
+        plot_2.xaxis.axis_label = 'Predictor B'
+        plot_2.yaxis.axis_label = 'Response B'
+        plot_2.scatter( 'x', 'y', source=source_2 )
+
+        # Display summary statistics of second response selection
+        summary_source_2 = models.ColumnDataSource( data=dict( index = summary_stats['index'].to_list(),    
+                                                               Value = summary_stats[y2_select.value].to_list() )
+                                                  )
+        columns_2 = [ models.TableColumn(field='index', title='Statistic', formatter=table_formatter),
+                      models.TableColumn(field='Value', title='Value', formatter=table_formatter)
+                    ]
+        data_table_2 = models.DataTable(source=summary_source_2, columns=columns_2, width=400, height=280)
+
+        # Scatter plot of selected response variables
+        source_3 = bokeh.models.ColumnDataSource( data = dict( x=y_dict[ self.y.columns[0] ],
+                                                               y=y_dict[ self.y.columns[0] ]  )
+                                                 )
+        plot_title_3 = f'{y2_select.value} vs {y1_select.value}'
+        plot_3 = bokeh.plotting.figure( title=plot_title_3, height=400, width=400 )
+        plot_3.xaxis.axis_label = 'Response A'
+        plot_3.yaxis.axis_label = 'Response B'
+        plot_3.scatter( 'x', 'y', source=source_3 )
+        
+        # Combined callback for all plots
+        callback = bokeh.models.CustomJS( args = dict( x_dict    = x_dict, 
+                                                       y_dict    = y_dict, 
+                                                       source_1  = source_1, 
+                                                       x1_select = x1_select, 
+                                                       y1_select = y1_select,
+                                                       plot_1    = plot_1,
+                                                       source_2  = source_2, 
+                                                       x2_select = x2_select, 
+                                                       y2_select = y2_select,
+                                                       plot_2    = plot_2,
+                                                       source_3  = source_3,
+                                                       plot_3    = plot_3,
+                                                       summary_source_1 = summary_source_1,
+                                                       summary_source_2 = summary_source_2,
+                                                       summary_stats    = summary_stats.to_dict(orient='list')
+                                                     ),
+                                          code = '''
+                                                   // Read data
+                                                   const data_1 = source_1.data;
+                                                   const xname_1 = x1_select.value;
+                                                   const yname_1 = y1_select.value;
+                                                   
+                                                   const data_2 = source_2.data;
+                                                   const xname_2 = x2_select.value;
+                                                   const yname_2 = y2_select.value;
+
+                                                   const data_3 = source_3.data;
+
+                                                   const summary_data_1 = summary_source_1.data;
+                                                   const summary_data_2 = summary_source_2.data;
+                                                   
+                                                   // Update data sources with selected data
+                                                   data_1['x'] = x_dict[xname_1];
+                                                   data_1['y'] = y_dict[yname_1];
+
+                                                   data_2['x'] = x_dict[xname_2];
+                                                   data_2['y'] = y_dict[yname_2];
+
+                                                   data_3['x'] = y_dict[yname_1];
+                                                   data_3['y'] = y_dict[yname_2];
+
+                                                   // Update title and labels
+                                                   plot_1.title.text = `${yname_1} vs ${xname_1}`;
+                                                   plot_2.title.text = `${yname_2} vs ${xname_2}`;
+                                                   plot_3.title.text = `${yname_2} vs ${yname_1}`;
+
+                                                   // Update summary stats tables
+                                                   summary_data_1['Value'] = summary_stats[yname_1];
+                                                   summary_data_2['Value'] = summary_stats[yname_2];
+
+                                                   // Apply changes
+                                                   source_1.change.emit();
+                                                   source_2.change.emit();
+                                                   source_3.change.emit();
+                                                   summary_source_1.change.emit();
+                                                   summary_source_2.change.emit();
+                                                 '''
+                                        )
+
+        # Attach callback to all relevant select widgets
+        x1_select.js_on_change( 'value', callback )
+        y1_select.js_on_change( 'value', callback )
+        x2_select.js_on_change( 'value', callback )
+        y2_select.js_on_change( 'value', callback )
+
+        # Render the figure
+        hline_1 = bokeh.models.Div( text='<div style="width: 750px; height: 2px; background-color: CornflowerBlue;"></div>' )
+        hline_2 = bokeh.models.Div( text='<div style="width: 750px; height: 2px; background-color: CornflowerBlue;"></div>' )
+        hline_3 = bokeh.models.Div( text='<div style="width: 750px; height: 2px; background-color: CornflowerBlue;"></div>' )
+
+        title = bokeh.models.Div( text='<h1>Data Diagnostics</h1>', width=400 )
+        intro = bokeh.models.Div( text = '''<p>These are some basic diagnostic plots and tables that can help
+                                            analyze data resulting from a model. The dropdown menus allow you
+                                            to select two predictor-response (or x-y) pairs. The selected response
+                                            variables will be plotted against the selected predictors, and a 
+                                            simple data description table will be created for each of them. </p>''',
+                                  width = 600
+                                )
+
+        controls_1 = bokeh.layouts.row( x1_select, y1_select )
+        lineplots_1 = bokeh.layouts.row( plot_1, data_table_1 )
+
+        controls_2 = bokeh.layouts.row( x2_select, y2_select )
+        lineplots_2 = bokeh.layouts.row( plot_2, data_table_2 )
+
+        layout = bokeh.layouts.column( title,
+                                       intro,
+                                       hline_1,
+                                       controls_1,
+                                       lineplots_1,
+                                       hline_2,
+                                       controls_2,
+                                       lineplots_2,
+                                       hline_3,
+                                       plot_3 
+                                      )
+
+        bokeh.io.show( layout )
+
+        return
+
 
 
 
