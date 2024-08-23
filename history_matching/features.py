@@ -1,5 +1,4 @@
-"""Library of functions to compute derived features from time series."""
-
+"""Library of functions to analyze and select features (i.e., summary statistics) to be used in history matching iterations. This library includes a subset of functions that compute summary statistics from time series."""
 import inspect
 import warnings
 from typing import List
@@ -15,7 +14,18 @@ import scipy.stats
 
 
 class Diagnostics:
+    """
+    Data analysis utilities. Methods in this class follow a model y=f(x), where x
+    are the inputs to a (black-box) model and y are the outputs of said model.
 
+    Attributes:
+        x : Predictor data. Pandas dataframe with columns representing independent
+            data or inputs to a model whose output is y.
+        y : Response data. Pandas dataframe with columns representing features or 
+            output data that is dependent on the entries in x. 
+    """
+
+    
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None):
         """Initialize the data diagnostics class.
 
@@ -35,14 +45,20 @@ class Diagnostics:
 
     
     def interactive(self):
+        """Generate interactive plots in a Jupyter Notebook.
+        """
 
-        # Check if bokeh library is installed, and if we are running code on a Jupyter notebook.
+        # Don't do anything if _not_ running in an interactive environment
+        if not self._is_jupyter_notebook():
+            warnings.warn( 'Diagnostics.interactive() only runs when called within a notebook.' )
+            return
+        
+        # Library imports and initialization
         import bokeh
         from bokeh import io
         from bokeh import plotting
         from bokeh import models
         from bokeh import layouts
-        
         bokeh.io.output_notebook()    # Output to notebook ---we could also just open a new browser, hence relaxing 
                                       # the notebook condition.
 
@@ -52,7 +68,9 @@ class Diagnostics:
 
         # Generate summary statistics for all columns in self.y
         summary_stats_raw = self.y.describe()
-        summary_stats = pd.concat( [ pd.DataFrame( [summary_stats_raw.columns], columns=summary_stats_raw.columns, index=['name'] ),
+        summary_stats = pd.concat( [ pd.DataFrame( [ summary_stats_raw.columns], 
+                                                     columns=summary_stats_raw.columns, 
+                                                     index=['name'] ),
                                      summary_stats_raw,
                                      pd.DataFrame( [self.y.var()], columns=self.y.columns, index=['variance'] )
                                     ] 
@@ -218,6 +236,20 @@ class Diagnostics:
         bokeh.io.show( layout )
 
         return
+
+
+    def _is_jupyter_notebook(self):
+        """Check if the code is called from a notebook."""
+        try:
+            shell = get_ipython().__class__.__name__
+            if shell == 'ZMQInteractiveShell':
+                return True  # Jupyter notebook or JupyterLab
+            elif shell == 'TerminalInteractiveShell':
+                return False  # Terminal running IPython
+            else:
+                return False  # Other type (unknown)
+        except NameError:
+            return False  # Probably standard Python interpreter
 
 
 
