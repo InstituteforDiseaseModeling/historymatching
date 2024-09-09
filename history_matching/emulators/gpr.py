@@ -72,8 +72,8 @@ class GPR(BaseEmulator):
         out['value'] = ymean
         out['ci_obs_low' ] = low
         out['ci_obs_high'] = high
-        out['ci_pred_low' ] = 0  # need to verify this
-        out['ci_pred_high'] = 0
+        out['ci_pred_low' ] = low - 0  # need to verify this
+        out['ci_pred_high'] = high + 0
         return out
 
 

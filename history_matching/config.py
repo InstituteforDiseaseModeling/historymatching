@@ -22,15 +22,15 @@ class Config:
                   # Model
                   model        = None,
                   model_output = None,
-                  model_discrepancy = 0,  # in stdv 
+                  model_discrepancy = 2, 
 
                   # Features or emulator targets
                   feature_selection_mode   = 'manual',
                   feature = None,  # Emulator target
-                  implausibility_threshold = 3,  # in stdv 
+                  implausibility_threshold = 3,
 
                   # Sampling
-                  candidates_per_iteration = 100, 
+                  candidates_per_iteration = 250, 
 
                   # Others
                   non_implausible_target   = None, 
@@ -84,6 +84,7 @@ class Config:
         self.feature_selection_mode = feature_selection_mode.strip().lower()
         self.feature = feature
         self.implausibility_threshold = implausibility_threshold
+        self.emulator_bank = dict()
 
         # Sampling parameters
         self.candidates_per_iteration = candidates_per_iteration

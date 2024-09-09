@@ -113,11 +113,11 @@ class BaseEmulator:
         """
         if not self.training_complete:
             self.train()
+
         predictions = self.predict(x)
         predictions_var = predictions['ci_obs_high'] - predictions['ci_obs_low']
-
-        implausibility = 0*( predictions['value'] - target )**2 / np.sqrt( predictions_var + target_var + model_discrepancy )
-
+        implausibility = abs( predictions['value'] - target ) / np.sqrt( predictions_var + target_var + model_discrepancy )
+        
         return implausibility    
     
 
@@ -292,7 +292,7 @@ class BaseEmulator:
         return
 
     
-    def plot_implausibility(self, x=None, target=0, target_var=0, model_var=0, threshold=3):
+    def plot_implausibility(self, x=None, target=0, target_var=0, model_discrepancy=0, threshold=3):
         """Get implausibility for a given set of parameters.
 
         Args:
@@ -304,7 +304,7 @@ class BaseEmulator:
                      implausiblity computation. This is typically extracted from
                      observed data.
             target_var : Variance of the target point.
-            model_var : Model discrepancy or variance. This parameter quantifies
+            model_discrepancy : Model discrepancy or variance. This parameter quantifies
                         the discrepancy between the model output and real life
                         data.
             threshold: Implausibility threshold. Sets of parameters within this
@@ -317,7 +317,7 @@ class BaseEmulator:
         # Compute implausibility
         y_pred = self.predict(x)
         implausibility = x.copy()
-        implausibility['implausibility'] = self.get_implausibility( x, target, target_var, model_var ).values
+        implausibility['implausibility'] = self.get_implausibility( x, target, target_var, model_discrepancy ).values
         implausibility['predicted'] = y_pred['value'].values
         implausible = implausibility[ implausibility['implausibility'] > threshold ]
         non_implausible = implausibility[ implausibility['implausibility'] <= threshold ]

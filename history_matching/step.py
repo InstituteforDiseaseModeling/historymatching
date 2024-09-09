@@ -26,6 +26,7 @@ from .situation import Situation
 
 from .features import Diagnostics
 from .emulators import GPR
+from .constrict import next_point_generation
 
 
 logger = logging.getLogger()
@@ -36,17 +37,17 @@ def do_step( config: Recipe, trace=None ):
     Perform one step of history matching.
 
     Args:
-        status
+        config
+        trace
 
     Returns:
-        status
+        trace
     """
-
-    logger.info( f'Starting new History Matching iteration' )
+    print( f'Starting new History Matching iteration' )
 
     # Get general information and initialize step
     step_info = initialize_step( config, trace )
-    logger.info( f'... step_number = {step_info["step_number"]}' )
+    print( f'... step_number = {step_info["step_number"]}' )
     # config.start_step_callback(situation)
     observations = config.observations.copy()
     test_points = config.sample_points.copy()
@@ -55,7 +56,7 @@ def do_step( config: Recipe, trace=None ):
     if config.model is None:
         test_results = config.model_output
     else:
-        logger.info( '... running simulator' )
+        print( '... running simulator' )
         test_results = config.model( test_points )
     
     # Train emulators  (need to extend to multiple emulators)
@@ -72,18 +73,16 @@ def do_step( config: Recipe, trace=None ):
     emulators = {}
     for feature in selected_features:
         logger.info( f'... training emulator for feature {feature}' )
-        emulators[feature] = generate_emulator_for_feature( feature, observations, test_results )
-        logger.info( emulators[feature].print_emulator_description() )
+        emulators[feature] = generate_emulator_for_feature( feature, observations, test_points, test_results )
+    config.emulator_bank[ step_info['step_number'] ] = emulators
 
     # Generate new sample points
     (next_sample_points, non_implausible_fraction) = next_point_generation( config.parameter_space, 
                                                                             observations, 
-                                                                            emulator_bank, 
+                                                                            config.emulator_bank, 
                                                                             config
                                                                            )
-    logger.info( f'Remaining non-implausible space: {non_implausible_fraction*100:0.04}%' )
-
-
+    print( f'Remaining non-implausible space: {non_implausible_fraction*100:0.04}%' )
 
     # Finalize and return
     step_info['test_points' ] = test_points
@@ -98,6 +97,8 @@ def do_step( config: Recipe, trace=None ):
     return trace
 
 
+
+
 def initialize_step(config, trace):
 
     if trace is None:
@@ -105,34 +106,27 @@ def initialize_step(config, trace):
     else:
         step_number = trace[-1]['step_number'] + 1
 
-    step_info = { 'step_number' : step_number,
-                  'config'      : config,
-                  'status'      : 'initialized',
-                  'emulators'   : emulators
+    step_info = { 'step_number'   : step_number,
+                  'config'        : config,
+                  'status'        : 'initialized'
                 }
     return step_info
 
 
 
     
-def generate_emulator_for_feature( feature: str,
-                                   observations: pd.DataFrame,
+def generate_emulator_for_feature( feature          : str,
+                                   observations     : pd.DataFrame,
+                                   test_points      : pd.DataFrame,
                                    simulator_results: pd.DataFrame,
                                   ) -> BaseEmulator:
     """Generate an emulator for a single feature."""
-    logger.info( f'Generating emulator for feature "{feature}"...' )
-
-    feature_names = list(observations.feature)   #features_from_observations(observations)
-    print(feature_names)
-    parameter_names = [column for column in simulator_results if column not in set(feature_names) | {"iteration", "replicate"}]
-    X = simulator_results[parameter_names]
-    y = simulator_results[feature].to_frame()
+    X = test_points
+    y = simulator_results[feature].to_frame()    
     emulator = GPR(X, y)
     emulator.train()
     emulator.test()
-    
     return emulator
-
 
 
 
