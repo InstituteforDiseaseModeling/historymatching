@@ -1,4 +1,8 @@
-"""Library of functions to analyze and select features (i.e., summary statistics) to be used in history matching iterations. This library includes a subset of functions that compute summary statistics from time series."""
+"""Library of functions to analyze and select features (i.e., summary 
+statistics) to be used in history matching iterations. This library 
+includes a subset of functions that compute summary statistics from 
+time series.
+"""
 import inspect
 import warnings
 from typing import List

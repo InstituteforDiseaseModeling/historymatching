@@ -7,7 +7,6 @@ logger = logging.getLogger()
 
 
 class Config:
-
     """
     Configuration for a history matching iteration.
     """
@@ -22,7 +21,7 @@ class Config:
                   # Model
                   model        = None,
                   model_output = None,
-                  model_discrepancy = 2, 
+                  model_discrepancy = 1, 
 
                   # Features or emulator targets
                   feature_selection_mode   = 'manual',
@@ -30,7 +29,7 @@ class Config:
                   implausibility_threshold = 3,
 
                   # Sampling
-                  candidates_per_iteration = 250, 
+                  candidates_per_iteration = 500, 
 
                   # Others
                   non_implausible_target   = None, 
