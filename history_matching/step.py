@@ -4,22 +4,18 @@ Collection of functions for the execution of one (or more) iterations
 of the history matching algorithm.
 """
 import logging
+import pandas as pd
 from typing import Dict
 
-import pandas as pd
-
 from history_matching.emulators import BaseEmulator
-
 from .config import Config
-#from .recipe import Recipe
-#from .situation import Situation
-
 from .features import Diagnostics
 from .emulators import GPR
 from .constrict import next_point_generation
 
-
 logger = logging.getLogger()
+
+
 
 
 def do_step( config: Config, trace=None ):
@@ -98,7 +94,8 @@ def do_step( config: Config, trace=None ):
 
 
 def initialize_step(config, trace):
-
+    """ Initialize a history matching step """
+    
     if trace is None:
         step_number = 1
     else:
