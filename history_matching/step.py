@@ -60,12 +60,13 @@ def do_step( config: Config, trace=None ):
     else:
         pass  # Need to check that this auto mode works correctly
         #selected_features = recipe.select_features(situation.iteration, situation.observations, situation.simulator_results, config)
+    
     emulators = {}
     for feature in selected_features:
         logger.info( f'... training emulator for feature {feature}' )
         emulators[feature] = generate_emulator_for_feature( feature, observations, test_points, test_results )
     config.emulator_bank[ step_info['step_number'] ] = emulators
-
+    
     # Generate new sample points
     (next_sample_points, non_implausible_fraction) = next_point_generation( config.parameter_space, 
                                                                             observations, 

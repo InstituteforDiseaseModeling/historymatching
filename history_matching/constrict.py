@@ -1,5 +1,4 @@
 # constrict.py
-
 import time
 from typing import Dict
 from typing import Tuple
@@ -42,7 +41,7 @@ def next_point_generation( parameter_space: pd.DataFrame,
     """Next Point Generation based on existing emulators and observations."""
 
     max_n_samples = 1_000  # TODO - add to configuration?
-    max_candidates = 50_000  # ditto
+    max_candidates = 500_000  # ditto
 
     num_desired_candidates = config.candidates_per_iteration
     non_implausible_candidates = pd.DataFrame()
@@ -87,13 +86,7 @@ def next_point_generation( parameter_space: pd.DataFrame,
         if num_candidates_considered >= max_candidates:
             print( f'\n... unable to find new candidates after {num_candidates_considered} trials. Aborting the generation of new points.' )
             break
-
             
-    #if num_candidates_considered < max_candidates:    # Need to update the progress bar.... why?
-    #    print_progress_bar( num_non_implausible_candidates, num_desired_candidates, num_candidates_considered )
-    #    print('num_non_implausible_candidates = ', num_non_implausible_candidates)
-    #    print('num_desired_candidates = ', num_desired_candidates)
-
     # Finalize and return
     plausible_fraction = len(non_implausible_candidates) / num_candidates_considered
     print('')
@@ -139,8 +132,8 @@ def test_plausibility( candidates: pd.DataFrame,
             implausible = implausibility > implausibility_threshold
 
             # plausible candidates are _still_ plausible only if _not_ determined to be implausible
-            plausible[plausible] &= np.logical_not(implausible)
-
+            plausible &= np.logical_not( implausible )
+    
     return plausible
 
 
