@@ -50,7 +50,7 @@ def do_step( config: Config, trace=None ):
     print( f'Starting new History Matching iteration' )
 
     # Get general information and initialize step
-    step_info, status, test_results, features, emulators = initialize_step( config, trace )
+    step_info, status, test_points, test_results, features, emulators = initialize_step( config, trace )
     print( f'... step_number = {step_info["step_number"]}' )
     observations = config.observations.copy()
     test_points = config.sample_points.copy()
@@ -106,6 +106,7 @@ def initialize_step(config, trace):
 
     # Let's assume nothing has happened in this step; these variables will be 
     # updated if this is a continuation of an unfinished step.
+    test_points = config.sample_points
     test_results = None
     features = None
     emulators = None
@@ -134,6 +135,7 @@ def initialize_step(config, trace):
             step_number = last_step['step_number']
             status = last_step['status']
             config.sample_points = last_step.get( 'test_points', config.sample_points )
+            test_points = last_step.get( 'test_points', config.sample_points )
             test_results = last_step.get( 'sim_results' )
             features = last_step.get( 'features' )
             emulators = last_step.get( 'emulators' )
@@ -143,7 +145,7 @@ def initialize_step(config, trace):
                   'config'        : config,
                   'status'        : status
                  }
-    return step_info, step_info['status'], test_results, features, emulators
+    return step_info, step_info['status'], test_points, test_results, features, emulators
 
 
 
@@ -168,7 +170,7 @@ def run_model( test_points, config, step_info ):
         print( '... Please run simulations using the following samples.' )
         default_filename = f'./sample_points_step_{step_info["step_number"]}.csv'
         user_filename = input( f'    Please enter the file name to save the samples (press ENTER to use "{default_filename}")' )
-        filename = temp_filename   if not user_filename   else user_filename
+        filename = default_filename   if not user_filename   else user_filename
         test_points.to_csv( filename )
         status = StepStatus.WAITING_SIM_RESULTS.value
         
