@@ -1,8 +1,10 @@
-import logging
 import numpy as np
 import pandas as pd
+import logging
+from typing import Callable, Optional
 
 logger = logging.getLogger()
+
 
 
 
@@ -10,7 +12,18 @@ class Config:
     """
     Configuration for a history matching iteration.
     """
+    # Attributes
+    parameter_space : pd.DataFrame = None
+    observations    : pd.DataFrame = None
+    sample_points   : pd.DataFrame = None
 
+    model             : Optional[Callable[[], any]] = None
+    model_output      : pd.DataFrame = None
+    model_discrepancy : float = 1.0
+
+
+
+    
     def __init__( self, 
 
                   # Data
@@ -19,9 +32,9 @@ class Config:
                   sample_points   : pd.DataFrame = None,
 
                   # Model
-                  model        = None,
-                  model_output = None,
-                  model_discrepancy = 1, 
+                  model             : Optional[Callable[[], any]] = None,
+                  model_output      : pd.DataFrame = None,
+                  model_discrepancy : float = 1.0, 
 
                   # Features or emulator targets
                   feature_selection_mode   = 'manual',
@@ -29,7 +42,7 @@ class Config:
                   implausibility_threshold = 3,
 
                   # Sampling
-                  candidates_per_iteration = 500, 
+                  n_candidates = 500, 
 
                   # Others
                   non_implausible_target   = None, 
@@ -37,14 +50,29 @@ class Config:
                  ):
         """
         Args:
-            max_iterations: maximum number of iterations to run.
-            feature_selection_mode: method for the selection of 
-                features at each iteration.
-            candidates_per_iteration: number of candidate points to 
-                generate per iteration.
-            implausibility_threshold: threshold for implausibility.
-            non_implausible_target: target fraction of non-implausible 
-                points.
+            parameter_space   : a DataFrame containing the parameter space.
+            observations      : a DataFrame containing the observations.
+            sample_points     : (optional) a DataFrame containing the sample 
+                                points.
+            model             : function to run the model or simulator.
+            model_output      : a DataFrame containing the model or simulator 
+                                output.
+            model_discrepancy : a measure of uncertainty of the model outputs.
+            feature_selection_mode : method for the selection of features in an
+                                iteration. It can be 'manual', in which the user
+                                explicitly indicates the feature, or 'auto', in 
+                                which a feature is automatically selected.
+            feature           : feature to use as target for the emulator. This
+                                argument is only considered if 
+                                `feature_selection_mode` is 'manual'. If not 
+                                provided, and `feature_selection_mode` is set
+                                as 'manual', the user will be prompted to select
+                                the desired feature.
+            implausibility_threshold : threshold for implausibility.
+            n_candidates      : number of candidate points to generate in an 
+                                iteration.
+            non_implausible_target : target fraction of non-implausible 
+                                points.
 
         Keyword Args:
             user: dictionary of user-defined configuration parameters
@@ -52,12 +80,13 @@ class Config:
         Returns:
             None
         """
-
         logger.info('Creating Config object')
 
         # Data parameters
         self.parameter_space = parameter_space
         self.observations = observations
+        self.sample_points = sample_points
+        """
         if sample_points is None:    # Could use Latin-hypercube sampling here
             logger.info('... generating sample_points using a uniform distribution')
             self.sample_points    \
@@ -69,16 +98,23 @@ class Config:
                                )
         else:
             self.sample_points = sample_points
-
+        """
+        
         # Model parameters
-        if model is None:
-            logger.info('... model not defined, using model outputs provided by the user')
-            self.model_outputs = model_outputs
-        else:
+        if model is not None:    # The user provides a function to call the model
             self.model = model
             self.model_output = None
+        else:    # The user runs the model externally
+            logger.info('... model not defined, using model outputs provided by the user')
+            self.model_output = model_output
         self.model_discrepancy = model_discrepancy
 
+
+
+
+
+
+        
         # Emulator configuration parameters
         self.feature_selection_mode = feature_selection_mode.strip().lower()
         self.feature = feature
@@ -86,7 +122,7 @@ class Config:
         self.emulator_bank = dict()
 
         # Sampling parameters
-        self.candidates_per_iteration = candidates_per_iteration
+        self.n_candidates = n_candidates
 
         # Other parameters
         self.non_implausible_target = non_implausible_target

@@ -43,7 +43,7 @@ def next_point_generation( parameter_space: pd.DataFrame,
     max_n_samples = 1_000  # TODO - add to configuration?
     max_candidates = 500_000  # ditto
 
-    num_desired_candidates = config.candidates_per_iteration
+    num_desired_candidates = config.n_candidates
     non_implausible_candidates = pd.DataFrame()
     num_candidates_considered = 0
     num_non_implausible_candidates = 0
