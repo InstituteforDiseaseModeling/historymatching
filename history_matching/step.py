@@ -278,10 +278,11 @@ def update_trace( step_info, status, trace=None ):
     """ Update trace dict. """
     # Create a new trace if it doesn't exist
     if trace is None:
-        trace = []
+        new_trace = []
         last_step = 0
     else:
         last_step = trace[-1]['step_number']
+        new_trace = trace.copy()
 
     # Add additional data to step_info
     step_info['status'] = status
@@ -289,12 +290,12 @@ def update_trace( step_info, status, trace=None ):
     # Add a new item to the trace, if the step just started or already finished;
     # otherwise overwrite the last item of the trace
     if  last_step != step_info['step_number']:
-        trace.append( step_info )
+        new_trace.append( step_info )
     else:
         for key, item in step_info.items():
-            trace[-1][key] = item
+            new_trace[-1][key] = item
     
-    return trace
+    return new_trace
 
     
 
