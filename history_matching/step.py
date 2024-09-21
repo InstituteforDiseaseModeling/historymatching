@@ -5,6 +5,7 @@ of the history matching algorithm.
 """
 import logging
 import pandas as pd
+import copy
 from enum import Enum
 from typing import Dict
 
@@ -144,6 +145,13 @@ def initialize_step(config, trace):
             features = last_step.get( 'features' )
             emulators = last_step.get( 'emulators' )
 
+    # Load all the emulators that have been previously trained
+    if trace is not None:
+        for i in range( len(trace) ):
+            if 'emulators' in trace[i]:
+                config.emulator_bank[ trace[i]['step_number'] ] = trace[i]['emulators']
+              
+    
     # Save relevant information and return
     step_info = { 'step_number'   : step_number,
                   'config'        : config,
@@ -248,7 +256,7 @@ def train_emulators( test_points, test_results, observations, features ):
                                              # updated if something happens here.
     
     for feature in features:
-        print( f'... training emulator for feature {feature}' )
+        print( f'... Training emulator for feature {feature}' )
         emulators[feature] = generate_emulator_for_feature( feature, observations, test_points, test_results )
     status = StepStatus.EMULATORS_TRAINED
 

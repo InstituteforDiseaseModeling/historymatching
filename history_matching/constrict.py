@@ -47,6 +47,8 @@ def next_point_generation( parameter_space: pd.DataFrame,
     non_implausible_candidates = pd.DataFrame()
     num_candidates_considered = 0
     num_non_implausible_candidates = 0
+    print_emulator_name = True
+    
     #while (num_non_implausible_candidates := len(non_implausible_candidates)) < num_desired_candidates:
     while num_non_implausible_candidates < num_desired_candidates:
 
@@ -72,11 +74,12 @@ def next_point_generation( parameter_space: pd.DataFrame,
         # new_samples = new_samples[constraint(new_samples)]
 
         # Get non-implausible candidates
-        plausibility = test_plausibility( new_candidates, emulator_bank, observations, config )
+        plausibility = test_plausibility( new_candidates, emulator_bank, observations, config, print_emulator_name )
         plausible_candidates = new_candidates[plausibility]
         non_implausible_candidates = pd.concat( [non_implausible_candidates, plausible_candidates] )
         num_non_implausible_candidates = len( non_implausible_candidates )
-
+        print_emulator_name = False    # We just need to show it the first time
+        
         # Pring progress messages
         print_progress_bar( num_non_implausible_candidates, num_desired_candidates, num_candidates_considered )
         logging.debug( f'... found {len(plausible_candidates)} non-implausible candidates' )
@@ -98,7 +101,8 @@ def next_point_generation( parameter_space: pd.DataFrame,
 def test_plausibility( candidates: pd.DataFrame, 
                        emulator_bank: Dict[int, Dict[str, BaseEmulator]], 
                        observations: pd.DataFrame, 
-                       config: Config
+                       config: Config, 
+                       print_emulator_name = False
                       ) -> pd.Series:
     """Run non-implausible candidates through each emulator and compare to observations."""
 
@@ -113,13 +117,14 @@ def test_plausibility( candidates: pd.DataFrame,
     implausibility_threshold = config.implausibility_threshold
     for iteration in sorted(emulator_bank.keys()):
 
-        logger.debug( f'    ... processing emulators from step {iteration}' )
+        logger.debug( f'    ... Processing emulators from step {iteration}' )
         for feature in emulator_bank[iteration]:
-            logger.debug( f'        loading emulator for feature {feature}' )
+            logger.debug( f'        Loading emulator for feature {feature}' )
             emulator = emulator_bank[iteration][feature]
-
+            if print_emulator_name:
+                print( f'... Using emulator for feature {feature}, which was trained at iteration number {iteration}' )
             #tic()
-            logger.debug( f'        computing implausibility' )
+            logger.debug( f'        Computing implausibility' )
             target      = observations[ observations['feature']==feature ]
             target_mean = target['mean'].values[0]
             target_var  = target['variance'].values[0]
@@ -133,7 +138,7 @@ def test_plausibility( candidates: pd.DataFrame,
 
             # plausible candidates are _still_ plausible only if _not_ determined to be implausible
             plausible &= np.logical_not( implausible )
-    
+            
     return plausible
 
 
