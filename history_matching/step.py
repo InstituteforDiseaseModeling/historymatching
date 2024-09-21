@@ -47,8 +47,6 @@ def do_step( config: Config, trace=None ):
         An updated `trace` list that includes results and information
         for the current step.
     """
-    print( f'Starting new History Matching iteration' )
-
     # Get general information and initialize step
     step_info, status, test_points, test_results, features, emulators = initialize_step( config, trace )
     print( f'... step_number = {step_info["step_number"]}' )
@@ -56,28 +54,29 @@ def do_step( config: Config, trace=None ):
     test_points = config.sample_points.copy()
 
     # We are just starting, let's run some simulations
-    if status == StepStatus.INITIALIZED.value:
+    if status == StepStatus.INITIALIZED:
         test_results, status = run_model( test_points, config, step_info )
+        step_info['test_points'] = test_points
         step_info['sim_results'] = test_results
 
     # Read simulation results from file (only if the user runs the model externally)
-    if status == StepStatus.WAITING_SIM_RESULTS.value:
+    if status == StepStatus.WAITING_SIM_RESULTS:
         test_results, status = read_model_results( config )
         step_info['sim_results'] = test_results
 
     # Select features or summary statistics to use as emulator target
-    if status == StepStatus.SIMS_COMPLETED.value:
+    if status == StepStatus.SIMS_COMPLETED:
         features, status = get_features( test_points, test_results, config )
         step_info['features'] = features
     
     # Train the emulators
-    if status == StepStatus.FEATURES_SELECTED.value:
+    if status == StepStatus.FEATURES_SELECTED:
         emulators, status = train_emulators( test_points, test_results, observations, features )
         step_info['emulators'] = emulators
         config.emulator_bank[ step_info['step_number'] ] = emulators
 
     # Sample the parameter space
-    if status == StepStatus.EMULATORS_TRAINED.value:
+    if status == StepStatus.EMULATORS_TRAINED:
         ( next_sample_points, \
           non_implausible_fraction ) = next_point_generation( config.parameter_space, 
                                                               observations, 
@@ -87,12 +86,12 @@ def do_step( config: Config, trace=None ):
         print( f'Remaining non-implausible space: {non_implausible_fraction*100:0.04}%' )
         step_info['new_samples'] = next_sample_points
         step_info['non_implausible_fraction'] = non_implausible_fraction
-        status = StepStatus.NEW_SAMPLES_GENERATED.value
+        status = StepStatus.NEW_SAMPLES_GENERATED
 
     # We are done with the step; let's do everything that we have to do at the end.    
-    if status == StepStatus.NEW_SAMPLES_GENERATED.value:
+    if status == StepStatus.NEW_SAMPLES_GENERATED:
         print( f'Finished step {step_info["step_number"]}.' )
-        status = StepStatus.DONE.value
+        status = StepStatus.DONE
     
     # Finalize and return
     trace = update_trace( step_info, status, trace )
@@ -113,26 +112,31 @@ def initialize_step(config, trace):
 
     # This is the first step, let's initialize some values
     if trace is None:
+        print( f'Starting first History Matching iteration' )
         step_number = 1
-        status = StepStatus.INITIALIZED.value
+        status = StepStatus.INITIALIZED
         if config.sample_points is None:
             logger.info( '... Sampling the parameter space to generate "sample_points"' )
             config.sample_points = lhs( config.parameter_space, config.n_candidates )
-
+    
     # This is not the first step
     else:
         last_step = trace[-1]
 
         # The last step finished already; we are starting something new.
-        if last_step['status'] == StepStatus.DONE.value:
+        if last_step['status'] == StepStatus.DONE:
             step_number = last_step['step_number'] + 1
-            status = StepStatus.INITIALIZED.value
+            print( f'Starting new History Matching iteration (iter={step_number})' )
+
+            status = StepStatus.INITIALIZED
             if config.sample_points is None:
                 config.sample_points = last_step['new_samples']
 
         # The last step has not finished; let's continue with its execution
         else:    
             step_number = last_step['step_number']
+            print( f'Resuming a History Matching iteration (iter={step_number})' )
+            
             status = last_step['status']
             config.sample_points = last_step.get( 'test_points', config.sample_points )
             test_points = last_step.get( 'test_points', config.sample_points )
@@ -155,15 +159,15 @@ def run_model( test_points, config, step_info ):
 
     # Initialization
     test_results = None  # Nothing has been done yet
-    status = StepStatus.INITIALIZED.value    # The only way to be here is if this
-                                             # was the status; this value gets 
-                                             # updated if something happens here.
+    status = StepStatus.INITIALIZED    # The only way to be here is if this
+                                       # was the status; this value gets 
+                                       # updated if something happens here.
 
     # Run the model if the user provides a function to call the model
     if config.model is not None:
         print( '... Running simulator' )
         test_results = config.model( test_points )
-        status = StepStatus.SIMS_COMPLETED.value
+        status = StepStatus.SIMS_COMPLETED
 
     # Or output the samples for the user to run the model externaly
     else:
@@ -172,7 +176,7 @@ def run_model( test_points, config, step_info ):
         user_filename = input( f'    Please enter the file name to save the samples (press ENTER to use "{default_filename}")' )
         filename = default_filename   if not user_filename   else user_filename
         test_points.to_csv( filename )
-        status = StepStatus.WAITING_SIM_RESULTS.value
+        status = StepStatus.WAITING_SIM_RESULTS
         
     # Return updated results and status
     return test_results, status
@@ -183,15 +187,15 @@ def run_model( test_points, config, step_info ):
 def read_model_results( config ):
     """ Read model results from file. """
     test_results = None  # Nothing has been done yet
-    status = StepStatus.WAITING_SIM_RESULTS.value    # The only way to be here is if this
-                                                     # was the status; this value gets 
-                                                     # updated if something happens here.
+    status = StepStatus.WAITING_SIM_RESULTS    # The only way to be here is if this
+                                               # was the status; this value gets 
+                                               # updated if something happens here.
 
     # The user provided a filename to access the results, let's read it
     if config.model_output:
         print( f'... Reading simulation results from {config.model_output}.' )
         test_results = pd.read_csv( config.model_output )
-        status = StepStatus.SIMS_COMPLETED.value
+        status = StepStatus.SIMS_COMPLETED
                 
     # There is no filename! Let's tell the user how to provide the simulation/model results
     else:
@@ -208,9 +212,9 @@ def get_features( samples, sim_results, config ):
     """ Select features to use as targets for the emulators. Currently supporting
     only one feature, but could be extended to support multiple features. """
     features = None  # Nothing has been done yet
-    status = StepStatus.SIMS_COMPLETED.value    # The only way to be here is if this
-                                                # was the status; this value gets 
-                                                # updated if something happens here.
+    status = StepStatus.SIMS_COMPLETED    # The only way to be here is if this
+                                          # was the status; this value gets 
+                                          # updated if something happens here.
 
     # Manual mode: read the feature indicated by the user, or ask the user to select a feature
     if config.feature_selection_mode == 'manual':
@@ -220,7 +224,7 @@ def get_features( samples, sim_results, config ):
             test_results_diagnostics = Diagnostics( samples, sim_results )
             test_results_diagnostics.interactive()
             features = [ input( 'Please enter the feature or summary statistic to use as target for the emulator: ' ) ]
-        status = StepStatus.FEATURES_SELECTED.value
+        status = StepStatus.FEATURES_SELECTED
 
     # Auto mode: an algorithm automatically selects the feature
     else:
@@ -239,14 +243,14 @@ def train_emulators( test_points, test_results, observations, features ):
     should be extended to support a configuration of the desired emulator
     (via a config attribute). """
     emulators = {}  # Nothing has been done yet
-    status = StepStatus.FEATURES_SELECTED.value # The only way to be here is if this
-                                                # was the status; this value gets 
-                                                # updated if something happens here.
+    status = StepStatus.FEATURES_SELECTED    # The only way to be here is if this
+                                             # was the status; this value gets 
+                                             # updated if something happens here.
     
     for feature in features:
         print( f'... training emulator for feature {feature}' )
         emulators[feature] = generate_emulator_for_feature( feature, observations, test_points, test_results )
-    status = StepStatus.EMULATORS_TRAINED.value
+    status = StepStatus.EMULATORS_TRAINED
 
     # Return trained emulators and status
     return emulators, status
@@ -275,16 +279,20 @@ def update_trace( step_info, status, trace=None ):
     # Create a new trace if it doesn't exist
     if trace is None:
         trace = []
+        last_step = 0
+    else:
+        last_step = trace[-1]['step_number']
 
     # Add additional data to step_info
     step_info['status'] = status
 
     # Add a new item to the trace, if the step just started or already finished;
     # otherwise overwrite the last item of the trace
-    if (status==StepStatus.WAITING_SIM_RESULTS.value) or (status==StepStatus.DONE.value):
+    if  last_step != step_info['step_number']:
         trace.append( step_info )
     else:
-        trace[-1] = step_info
+        for key, item in step_info.items():
+            trace[-1][key] = item
     
     return trace
 
