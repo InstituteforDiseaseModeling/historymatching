@@ -33,6 +33,8 @@ def toc(msg: str = "", dopop: bool = True) -> int:
     return elapsed
 
 
+
+
 def next_point_generation( parameter_space: pd.DataFrame,
                            observations   : pd.DataFrame,
                            emulator_bank  : Dict[int, Dict[str, BaseEmulator]],
