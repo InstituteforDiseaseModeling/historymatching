@@ -72,16 +72,17 @@ Option 1: Standard Installation
 
    This will install the package and its dependencies, allowing you to use it as a regular installed Python package.
 
+
 Option 2: Editable mode (for development)
 
-1. Clone the repository:
-   `
-   git clone https://github.com/InstituteforDiseaseModeling/history_matching
-   `
-2. Install the package in editable mode:
-   `
-   python3 -m pip install -e .
-   `
+1. Clone the repository ::
+
+    git clone https://github.com/InstituteforDiseaseModeling/history_matching
+
+2. Install the package in editable mode ::
+
+    python3 -m pip install -e .
+
    In this mode, any changes you make to the source code will be reflected immediately without needing to reinstall the package.
 
 
