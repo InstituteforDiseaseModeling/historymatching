@@ -66,7 +66,7 @@ Installation
 
 You can also install the in-development version with::
 
-    pip install https://github.com/clorton/history_matching/archive/main.zip
+    pip install https://github.com/InstituteforDiseaseModeling/history_matching/archive/main.zip
 
 
 Documentation
