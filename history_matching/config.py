@@ -25,6 +25,7 @@ class Config:
     feature : str = None
     implausibility_threshold : float = 3.0
 
+    draw_samples : str = 'lhs'
     n_candidates : int = 500
     
     
@@ -46,6 +47,7 @@ class Config:
                   implausibility_threshold : float = 3.0,
 
                   # Sampling
+                  draw_samples = 'lhs',
                   n_candidates = 500, 
 
                   # Others
@@ -72,6 +74,10 @@ class Config:
                                 as 'manual', the user will be prompted to select
                                 the desired feature.
             implausibility_threshold : threshold for implausibility.
+            draw_samples      : method for proposing new samples. It can be:
+                                'lhs'    : Latin Hypercube Sampling;
+                                'grid'   : grid sampling;
+                                'random' : random sampling.
             n_candidates      : number of candidate points to generate in an 
                                 iteration.
 
@@ -104,6 +110,7 @@ class Config:
         self.emulator_bank = dict()
 
         # Sampling parameters
+        self.draw_samples = draw_samples
         self.n_candidates = n_candidates
 
         # Other parameters

@@ -8,7 +8,7 @@ import pandas as pd
 
 from .config import Config
 from .emulators import BaseEmulator
-from .samplers import lhs
+from .samplers import get_samples
 
 import logging
 logger = logging.getLogger()
@@ -50,8 +50,7 @@ def next_point_generation( parameter_space: pd.DataFrame,
     num_candidates_considered = 0
     num_non_implausible_candidates = 0
     print_emulator_name = True
-    
-    #while (num_non_implausible_candidates := len(non_implausible_candidates)) < num_desired_candidates:
+
     while num_non_implausible_candidates < num_desired_candidates:
 
         # Get the number of samples to generate
@@ -68,10 +67,9 @@ def next_point_generation( parameter_space: pd.DataFrame,
         logging.debug( f'... generating {n_samples} new samples' )
 
         # Generate the samples
-        #tic()
-        new_candidates = lhs( parameter_space, n_samples )
+        # new_candidates = lhs( parameter_space, n_samples )
+        new_candidates = get_samples( parameter_space, n_samples, config.draw_samples )
         num_candidates_considered += n_samples
-        #toc( f'    lhs({n_samples}): ' )
         # TODO - filter with "business rules" constraint, e.g. initial cases <= 10% of population
         # new_samples = new_samples[constraint(new_samples)]
 

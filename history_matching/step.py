@@ -11,7 +11,7 @@ from typing import Dict
 
 from history_matching.emulators import BaseEmulator
 from .config import Config
-from .samplers import lhs
+from .samplers import get_samples
 from .features import Diagnostics
 from .emulators import GPR
 from .constrict import next_point_generation
@@ -118,7 +118,10 @@ def initialize_step(config, trace):
         status = StepStatus.INITIALIZED
         if config.sample_points is None:
             logger.info( '... Sampling the parameter space to generate "sample_points"' )
-            config.sample_points = lhs( config.parameter_space, config.n_candidates )
+            config.sample_points = get_samples( config.parameter_space, 
+                                                config.n_candidates, 
+                                                config.draw_samples 
+                                               )
     
     # This is not the first step
     else:

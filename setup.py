@@ -71,6 +71,7 @@ setup(
         "matplotlib",
         "statsmodels",
         "scikit-learn",
+        'pydoe',
         "tensorflow",
         "tf-keras",
         "gpflow",
