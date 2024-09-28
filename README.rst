@@ -62,10 +62,10 @@ Installation
 
 Option 1: Standard Installation
 
-1. Clone the repository:
-   ```
+1. Clone the repository::
+
    git clone https://github.com/InstituteforDiseaseModeling/history_matching
-   ```
+
 2. Install the package: ```python3 -m pip install .```
 
    This will install the package and its dependencies, allowing you to use it as a regular installed Python package.
