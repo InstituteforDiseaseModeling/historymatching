@@ -16,6 +16,7 @@ from .features import Diagnostics
 from .emulators import GPR
 from .constrict import next_point_generation
 
+
 logger = logging.getLogger()
 
 
@@ -154,6 +155,9 @@ def initialize_step(config, trace):
             if 'emulators' in trace[i]:
                 config.emulator_bank[ trace[i]['step_number'] ] = trace[i]['emulators']
               
+
+    # Data validation
+    validate_sample_points( config.sample_points, config.parameter_space )
     
     # Save relevant information and return
     step_info = { 'step_number'   : step_number,
@@ -275,11 +279,15 @@ def generate_emulator_for_feature( feature          : str,
                                    simulator_results: pd.DataFrame,
                                   ) -> BaseEmulator:
     """Generate an emulator for a single feature."""
+    validate_simulator_results( simulator_results, observations, feature )
+
     X = test_points
-    y = simulator_results[feature].to_frame()    
-    emulator = GPR(X, y)
+    y = simulator_results[feature].to_frame()
+
+    emulator = GPR( X, y )
     emulator.train()
     emulator.test()
+    
     return emulator
 
 
@@ -307,6 +315,83 @@ def update_trace( step_info, status, trace=None ):
             new_trace[-1][key] = item
     
     return new_trace
+
+
+
+    
+def validate_sample_points(sample_points: pd.DataFrame, parameter_space: pd.DataFrame) -> None:
+    """
+    Validate the sample points.
+
+    Args:
+        sample_points: the sample points
+        parameter_space: the parameter space
+
+    Raises:
+        TypeError: if the sample points is not a DataFrame
+        ValueError: if the sample points is empty
+        ValueError: if the sample points has duplicate parameter names
+        ValueError: if the sample points has a parameter with a single value
+        ValueError: if the sample points has a parameter with a negative value
+        ValueError: if the sample points has a parameter with a zero value
+        ValueError: if the sample points has a parameter with a non-numeric value
+        ValueError: if the sample points has a parameter with a value outside the parameter space
+    """
+    if not isinstance(sample_points, pd.DataFrame):
+        raise TypeError(f"Sample points should be Pandas DataFrame, not '{type(sample_points)}'")
+    required_columns = []
+    required_columns.extend(parameter_space.parameter)
+    if not all(column in sample_points.columns for column in required_columns):
+        raise RuntimeError(f"Sample points must contain the columns {required_columns}. Found {sample_points.columns}.")
+    if len(sample_points) == 0:
+        raise RuntimeError("Sample points must specify at least one point in parameter space. Found none.")
+    valid = True
+    msg = ""
+    for irow in range(len(sample_points)):
+        row = sample_points.iloc[irow]
+        for parameter_spec in parameter_space.itertuples():
+            if (row[parameter_spec.parameter] < parameter_spec.minimum) or (row[parameter_spec.parameter] > parameter_spec.maximum):
+                valid = False
+                msg += f"Sample parameter, {row}, is outside parameter space."
+    if not valid:
+        raise ValueError(msg)
+
+    return
+
+
+
+
+def validate_simulator_results( simulator_results: pd.DataFrame,
+                                observations: pd.DataFrame,
+                                feature : str
+                               ) -> None:
+    """
+    Validate the simulator results.
+
+    Args:
+        simulator_results: the simulator results
+        observations: the observations
+        feature: name of the feature to process
+
+    Raises:
+        TypeError: if the simulator results is not a DataFrame
+        ValueError: if the simulator results is empty
+        ValueError: if the simulator results has duplicate parameter names
+        ValueError: if the simulator results has a parameter with a single value
+        ValueError: if the simulator results has a parameter with a negative value
+        ValueError: if the simulator results has a parameter with a zero value
+        ValueError: if the simulator results has a parameter with a non-numeric value
+        ValueError: if the simulator results has a parameter with a value outside the parameter space
+    """
+    if not isinstance(simulator_results, pd.DataFrame):
+        raise TypeError( f'Simulator results should be Pandas DataFrame, not "{type(simulator_results)}"' )
+    required_columns = [feature]
+    if not all( column in simulator_results.columns for column in required_columns ):
+        raise RuntimeError( f'Simulator results must contain the columns {required_columns}. Found {simulator_results.columns}' )
+    if simulator_results[required_columns].isna().any().any():
+        raise ValueError( f'Simulator results must contain numeric values. Missing data or NaNs are not supported' )
+
+    return
 
     
 

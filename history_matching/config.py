@@ -90,6 +90,8 @@ class Config:
         logger.info('Creating Config object')
 
         # Data parameters
+        validate_parameter_space( parameter_space )
+        validate_observations( observations )
         self.parameter_space = parameter_space
         self.observations = observations
         self.sample_points = sample_points
@@ -120,4 +122,72 @@ class Config:
         self.user.__dict__.update(kwargs)
 
         return
+
+
+
+def validate_parameter_space(parameter_space: pd.DataFrame) -> None:
+    """
+    Validate the parameter space.
+
+    Args:
+        parameter_space: the parameter space
+
+    Raises:
+        TypeError: if the parameter space is not a DataFrame
+        ValueError: if the parameter space is empty
+        ValueError: if the parameter space has duplicate parameter names
+        ValueError: if the parameter space has a parameter with a single value
+        ValueError: if the parameter space has a parameter with a negative value
+        ValueError: if the parameter space has a parameter with a zero value
+        ValueError: if the parameter space has a parameter with a non-numeric value
+    """
+    if not isinstance(parameter_space, pd.DataFrame):
+        raise TypeError(f"Situation parameter space should be Pandas DataFrame, not '{type(parameter_space)}'")
+    parameter_space_all_columns = ['parameter', 'minimum', 'maximum']
+    if not all(column in parameter_space.columns for column in parameter_space_all_columns):
+        raise RuntimeError(f"Situation parameter space must contain the columns {parameter_space_all_columns}. Found {parameter_space.columns}.")
+    if len(parameter_space) == 0:
+        raise RuntimeError("Situation parameter space must specify at least one parameter. Found none.")
+    ordered = True
+    msg = ""
+    for row in parameter_space.itertuples():
+        if row.minimum > row.maximum:
+            msg += f"Parameter '{row.parameter}' minimum ({row.minimum}) > maximum ({row.maximum}).\n"
+            ordered = False
+    if not ordered:
+        raise ValueError(msg)
+
+    return
+
+
+
+def validate_observations(observations: pd.DataFrame) -> None:
+    """
+    Validate the observations.
+
+    Args:
+        observations: the observations
+
+    Raises:
+        TypeError: if the observations is not a DataFrame
+        ValueError: if the observations is empty
+        ValueError: if the observations has duplicate feature names
+        ValueError: if the observations has a feature with a single value
+        ValueError: if the observations has a feature with a negative value
+        ValueError: if the observations has a feature with a zero value
+        ValueError: if the observations has a feature with a non-numeric value
+    """
+    if not isinstance(observations, pd.DataFrame):
+        raise TypeError(f"Situation observations should be Pandas DataFrame, not '{type(observations)}'")
+
+    observations_all_columns = ['feature', 'mean', 'variance']
+    if set(observations.columns) != set(observations_all_columns):
+        raise RuntimeError(f"Situation observations should have columns 'feature', 'mean', and 'variance'. Found {set(observations.columns)}")
+
+    if len(observations) < 1:
+        raise RuntimeError("Situation observations must have at least one feature.")
+
+    return
+
+
         
