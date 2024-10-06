@@ -67,7 +67,6 @@ def next_point_generation( parameter_space: pd.DataFrame,
         logging.debug( f'... generating {n_samples} new samples' )
 
         # Generate the samples
-        # new_candidates = lhs( parameter_space, n_samples )
         new_candidates = get_samples( parameter_space, n_samples, config.draw_samples )
         num_candidates_considered += n_samples
         # TODO - filter with "business rules" constraint, e.g. initial cases <= 10% of population

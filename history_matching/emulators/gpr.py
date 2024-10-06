@@ -60,20 +60,23 @@ class GPR(BaseEmulator):
 
         # Make the prediction
         x_gpf = np.hstack( (np.ones( (len(x), 1 ) ),  x) )
-        ymean, yvar = self.model.predict_y( x_gpf )
+        f_mean, f_var = self.model.predict_f( x_gpf, full_cov=False )
+        y_mean, y_var = self.model.predict_y( x_gpf )
 
         # Compute the uncertainty interval
         z = 1.96  # 95% confidence interval
-        low  = ymean - z * np.sqrt(yvar)
-        high = ymean + z * np.sqrt(yvar)
-
+        f_lower = f_mean - z * np.sqrt(f_var)
+        f_upper = f_mean + z * np.sqrt(f_var)
+        y_lower = y_mean - z * np.sqrt(y_var)
+        y_upper = y_mean + z * np.sqrt(y_var)
+        
         # Save outputs
         out = pd.DataFrame(index=x.index)
-        out['value'] = ymean
-        out['ci_obs_low' ] = low
-        out['ci_obs_high'] = high
-        out['ci_pred_low' ] = low - 0  # need to verify this
-        out['ci_pred_high'] = high + 0
+        out['value'] = y_mean
+        out['ci_obs_low' ] = y_lower
+        out['ci_obs_high'] = y_upper
+        out['ci_pred_low' ] = f_lower
+        out['ci_pred_high'] = f_upper
         return out
 
 

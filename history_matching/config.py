@@ -90,9 +90,9 @@ class Config:
         logger.info('Creating Config object')
 
         # Data parameters
-        validate_parameter_space( parameter_space )
+        validate_parameter_space( parameter_space.reset_index() )
         validate_observations( observations )
-        self.parameter_space = parameter_space
+        self.parameter_space = parameter_space.reset_index()
         self.observations = observations
         self.sample_points = sample_points
         
