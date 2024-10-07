@@ -60,13 +60,30 @@ Installation
 
 ::
 
-    On macOS need homebrew, brew install hdf5 c-blosc lzo bzip2, HDF5_DIR=/opt/homebrew/opt/hdf5, export HDF5_DIR
+Option 1: Standard Installation
 
-    pip install history-matching
+1. Clone the repository ::
 
-You can also install the in-development version with::
+    git clone https://github.com/InstituteforDiseaseModeling/history_matching
 
-    pip install https://github.com/clorton/history_matching/archive/main.zip
+2. Install the package ::
+
+    python3 -m pip install .
+
+   This will install the package and its dependencies, allowing you to use it as a regular installed Python package.
+
+
+Option 2: Editable mode (for development)
+
+1. Clone the repository ::
+
+    git clone https://github.com/InstituteforDiseaseModeling/history_matching
+
+2. Install the package in editable mode ::
+
+    python3 -m pip install -e .
+
+   In this mode, any changes you make to the source code will be reflected immediately without needing to reinstall the package.
 
 
 Documentation
