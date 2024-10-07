@@ -397,21 +397,37 @@ def validate_simulator_results( simulator_results: pd.DataFrame,
     
 
 
-def do_staircase(config: Config) -> None:
+def reduce_space( config             : Config, 
+                  min_space_fraction : float = 0.05,
+                  max_iter           : int   = 5,
+                  trace              : list  = None
+                 ) -> list :
     """
-    Run multiple steps of the history matching process until do_step() returns false.
+    Run multiple steps of the history matching process, iteratively reducing 
+    the parameter space, until the parameter space reduction reaches the 
+    specified threshold or the maximum number of iterations is reached.
 
     Args:
-        config: the configuration for this history matching process
+        config: The configuration object for the history matching process.
+        min_space_fraction (float, optional): The threshold for stopping 
+                based on the fraction of the remaining parameter space. 
+                Iterations stop once this fraction is reached. Defaults to 0.05.
+        max_iter (int, optional): The maximum number of iterations to perform, 
+                regardless of the space reduction. Defaults to 5.
+        trace (list, optional): A list to store the trace of the history 
+                matching process. If None, a new trace will be created. 
+                Defaults to None.
 
     Returns:
-        None
+        list: The trace of the history matching process after completing 
+              the iterations or stopping early.    
     """
 
-    # do_step() returns results of exit_predicate()
-    # exit_predicate return True when it's time to quit
-    #while not do_step(situation, recipe, config):
-    #    pass  # all the work is in `do_step()`
-    pass
+    for i in range( max_iter ):
+        trace = do_step( config, trace )
+        print( '' )
+        if trace[-1]['non_implausible_fraction'] <= min_space_fraction:
+            print( f'... Stopping early at iteration {i} due to space fraction reduction' )
+            break
     
-    return
+    return trace
