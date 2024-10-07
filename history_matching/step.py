@@ -12,7 +12,7 @@ from typing import Dict
 from history_matching.emulators import BaseEmulator
 from .config import Config
 from .samplers import get_samples
-from .features import Diagnostics
+from .features import Diagnostics, getFeatureStatistics, select_features
 from .emulators import GPR
 from .constrict import next_point_generation
 
@@ -243,9 +243,10 @@ def get_features( samples, sim_results, config ):
 
     # Auto mode: an algorithm automatically selects the feature
     else:
-        print( '... "auto" mode for feature selection is not supported yet' )
-        # Need to check that this auto mode works correctly
-        #selected_features = recipe.select_features(situation.iteration, situation.observations, situation.simulator_results, config)
+        print( '... Selecting feature (running in "auto" mode)' )
+        feature_statistics = getFeatureStatistics( sim_results )
+        features = select_features( sim_results, config.observations, feature_statistics, 'fano', [] )
+        status = StepStatus.FEATURES_SELECTED
     
     # Return selected features and status
     return features, status

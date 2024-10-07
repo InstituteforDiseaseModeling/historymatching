@@ -258,33 +258,6 @@ class Diagnostics:
 
 
 
-def select_features( simulatedFeatures: pd.DataFrame, 
-                     observedFeatures: pd.DataFrame, 
-                     featureStatistics: pd.DataFrame, 
-                     metric: str, 
-                     iteration: int, 
-                     history: Optional[List] = None
-                    ) -> Tuple[str, Union[int, float, np.number], pd.DataFrame]:
-    """
-    Select target feature for history matching.
-
-    Args:
-      simulatedFeatures: DataFrame of features (columns) and their simulated values (rows)
-      observedFeatures: DataFrame of features (columns) and their observed values (one row)
-      featureStatistics: DataFrame of statistics (columns) and their values for each feature (rows)
-      metric: name of statistic to use for assessment, e.g. "var" or "fano"
-      iteration: current history matching iteration/wave
-      history: list of features recently used in previous iterations/waves, implicitly in order from earliest used to most recent
-
-    Returns:
-      Tuple of selected feature name, observed value for that feature, and simulated values for that feature
-    """
-
-
-
-
-
-
 class DerivedFeatures:
 
     """Library of functions to compute derived features from time series."""
@@ -758,7 +731,7 @@ def getFeatureStatistics(features: pd.DataFrame, active_statistics: Optional[set
 __history__ = []
 
 
-def select_features_old(
+def select_features(
     simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFrame, featureStatistics: pd.DataFrame, metric: str, iteration: int, history: Optional[List] = None
 ) -> Tuple[str, Union[int, float, np.number], pd.DataFrame]:
     """
