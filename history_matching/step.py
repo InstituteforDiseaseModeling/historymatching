@@ -427,7 +427,7 @@ def reduce_space( config             : Config,
         trace = do_step( config, trace )
         print( '' )
         if trace[-1]['non_implausible_fraction'] <= min_space_fraction:
-            print( f'... Stopping early at iteration {i} due to space fraction reduction' )
+            print( f'... Stopping early at iteration {i+1} due to space fraction reduction' )
             break
     
     return trace
