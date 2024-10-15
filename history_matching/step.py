@@ -54,6 +54,7 @@ def do_step( config: Config, trace=None ):
     print( f'... step_number = {step_info["step_number"]}' )
     observations = config.observations.copy()
     test_points = config.sample_points.copy()
+    emulator_class = config.emulator_class
 
     # We are just starting, let's run some simulations
     if status == StepStatus.INITIALIZED:
@@ -73,7 +74,7 @@ def do_step( config: Config, trace=None ):
     
     # Train the emulators
     if status == StepStatus.FEATURES_SELECTED:
-        emulators, status = train_emulators( test_points, test_results, observations, features )
+        emulators, status = train_emulators( test_points, test_results, observations, features, emulator_class )
         step_info['emulators'] = emulators
         config.emulator_bank[ step_info['step_number'] ] = emulators
 
@@ -253,7 +254,7 @@ def get_features( samples, sim_results, config ):
 
 
         
-def train_emulators( test_points, test_results, observations, features ):
+def train_emulators( test_points, test_results, observations, features, emulator_class ):
     """ Train emulators. Currently only one emulator is supported, but this 
     should be extended to support a configuration of the desired emulator
     (via a config attribute). """
@@ -263,8 +264,13 @@ def train_emulators( test_points, test_results, observations, features ):
                                              # updated if something happens here.
     
     for feature in features:
-        print( f'... Training emulator for feature {feature}' )
-        emulators[feature] = generate_emulator_for_feature( feature, observations, test_points, test_results )
+        print( f'... Training emulator for feature {feature} (emulator class: {emulator_class})' )
+        emulators[feature] = generate_emulator_for_feature( feature, 
+                                                            observations, 
+                                                            test_points, 
+                                                            test_results, 
+                                                            emulator_class 
+                                                           )
     status = StepStatus.EMULATORS_TRAINED
 
     # Return trained emulators and status
@@ -277,6 +283,7 @@ def generate_emulator_for_feature( feature          : str,
                                    observations     : pd.DataFrame,
                                    test_points      : pd.DataFrame,
                                    simulator_results: pd.DataFrame,
+                                   emulator_class   : BaseEmulator,
                                   ) -> BaseEmulator:
     """Generate an emulator for a single feature."""
     validate_simulator_results( simulator_results, observations, feature )
@@ -284,7 +291,7 @@ def generate_emulator_for_feature( feature          : str,
     X = test_points
     y = simulator_results[feature].to_frame()
 
-    emulator = GPR( X, y )
+    emulator = emulator_class( X, y )
     emulator.train()
     emulator.test()
     

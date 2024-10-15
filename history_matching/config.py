@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 import logging
-from typing import Callable, Optional
+from typing import Union, Type, Callable, Optional
 
-import history_matching.emulators
+import history_matching.emulators as emulators
 
 logger = logging.getLogger()
 
@@ -19,8 +19,8 @@ class Config:
     observations    : pd.DataFrame = None
     sample_points   : pd.DataFrame = None
 
-    emulator : Union[str, Type[BaseEmulator]] = 'GPR'
-    emulator_class : Type[BaseEmulator] = emulators.GPR
+    emulator : Union[str, Type[emulators.BaseEmulator]] = 'GPR'
+    emulator_class : Type[emulators.BaseEmulator] = emulators.GPR
     
     model             : Optional[Callable[[], any]] = None
     model_output      : str = None
@@ -47,7 +47,7 @@ class Config:
                   model_discrepancy : float = 1.0, 
 
                   # Emulator
-                  emulator : Union[str, Type[BaseEmulator]] = 'GPR',
+                  emulator : Union[str, Type[emulators.BaseEmulator]] = 'GPR',
                  
                   # Features or emulator targets
                   feature_selection_mode : str  = 'manual',
@@ -125,7 +125,7 @@ class Config:
                                  'GLM'    : emulators.GLM, 
                                  'GPR'    : emulators.GPR
                                 }
-            if emulator in emulator_inventory:
+            if emulator in emulator_classes:
                 emulator_class = emulator_classes[emulator]
             else:
                 raise ValueError( f'Unknown emulator "{emulator}". Valid options are: {list(emulator_classes.keys())}' )
