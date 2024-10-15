@@ -3,6 +3,8 @@ import pandas as pd
 import logging
 from typing import Callable, Optional
 
+import .emulators
+
 logger = logging.getLogger()
 
 
@@ -17,6 +19,9 @@ class Config:
     observations    : pd.DataFrame = None
     sample_points   : pd.DataFrame = None
 
+    emulator : Union[str, Type[BaseEmulator]] = 'GPR'
+    emulator_class : Type[BaseEmulator] = emulators.GPR
+    
     model             : Optional[Callable[[], any]] = None
     model_output      : str = None
     model_discrepancy : float = 1.0
@@ -41,6 +46,9 @@ class Config:
                   model_output      : str = None,
                   model_discrepancy : float = 1.0, 
 
+                  # Emulator
+                  emulator : Union[str, Type[BaseEmulator]] = 'GPR'
+                 
                   # Features or emulator targets
                   feature_selection_mode : str  = 'manual',
                   feature : str = None,  # Emulator target
@@ -63,6 +71,12 @@ class Config:
             model_output      : a DataFrame containing the model or simulator 
                                 output.
             model_discrepancy : a measure of uncertainty of the model outputs.
+            emulator          : the emulator (string or class). It can be:
+                                'linear' : linear model emulator;
+                                'GLM'    : Generalized Linear Model;
+                                'GPR'    : Gaussian Process Regression; or
+                                other    : any other emulator derived from the 
+                                           `BaseEmulator` class.
             feature_selection_mode : method for the selection of features in an
                                 iteration. It can be 'manual', in which the user
                                 explicitly indicates the feature, or 'auto', in 
@@ -106,10 +120,27 @@ class Config:
         self.model_discrepancy = model_discrepancy
         
         # Emulator configuration parameters
+        if isinstance( emulator, str ):    # Map string to actual class
+            emulator_classes = { 'linear' : emulators.LinearModel,
+                                 'GLM'    : emulators.GLM, 
+                                 'GPR'    : emulators.GPR
+                                }
+            if emulator in emulator_inventory:
+                emulator_class = emulator_classes[emulator]
+            else:
+                raise ValueError( f'Unknown emulator "{emulator}". Valid options are: {list(emulator_classes.keys())}' )
+        elif issubclass( emulator, emulators.BaseEmulator ): # Emulator is already a subclass of BaseEmulator
+            emulator_class = emulator
+        else:
+            raise TypeError( 'Method must be a string referring to a known emulator or a subclass of BaseEmulator.' )
+        self.emulator = emulator
+        self.emulator_class = emulator_class
+        self.emulator_bank = dict()
+
+        # Features and implausibility settings
         self.feature_selection_mode = feature_selection_mode.strip().lower()
         self.feature = feature
         self.implausibility_threshold = implausibility_threshold
-        self.emulator_bank = dict()
 
         # Sampling parameters
         self.draw_samples = draw_samples
