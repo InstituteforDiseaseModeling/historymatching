@@ -3,7 +3,7 @@ import pandas as pd
 import logging
 from typing import Callable, Optional
 
-import .emulators
+import history_matching.emulators
 
 logger = logging.getLogger()
 
@@ -47,7 +47,7 @@ class Config:
                   model_discrepancy : float = 1.0, 
 
                   # Emulator
-                  emulator : Union[str, Type[BaseEmulator]] = 'GPR'
+                  emulator : Union[str, Type[BaseEmulator]] = 'GPR',
                  
                   # Features or emulator targets
                   feature_selection_mode : str  = 'manual',
