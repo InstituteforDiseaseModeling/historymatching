@@ -49,6 +49,9 @@ napoleon_use_param = False
 
 ############################## IDM specific code ##############################
 
+DOCS = os.path.abspath(os.path.dirname(__file__))
+
+
 exclude_patterns = ["Thumbs.db", ".DS_Store", "setup.rst", "og_cut.rst", "reference/index.rst"]
 
 # Remove "modules.rst" from the "api" directory
@@ -63,7 +66,7 @@ for file in (DOCS_DIR / "api").glob("history_matching*.rst"):
 
 # Invoke `sphinx-apidoc` to generate the API api
 
-subprocess.check_output(["sphinx-apidoc", "-f", "-e", "-M", "-o", "./api", "../src"], cwd=DOCS_DIR)
+subprocess.check_output(["sphinx-apidoc", "-f", "-e", "-M", "-o", "./api", "../history_matching"], cwd=DOCS_DIR)
 
 # Replace first two lines of "api/modules.rst" with the following:
 # =============
