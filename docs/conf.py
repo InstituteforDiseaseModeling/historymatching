@@ -33,7 +33,7 @@ extlinks = {
 on_rtd = os.environ.get("READTHEDOCS", None) == "True"
 
 if not on_rtd:  # only set the theme if we are building docs locally
-    html_theme = "sphinx_rtd_theme"
+    html_theme = "pydata_sphinx_theme"
 
 html_use_smartypants = True
 html_last_updated_fmt = "%b %d, %Y"
@@ -146,17 +146,51 @@ suppress_warnings = ["myst.header", "myst.iref_missing"]
 # -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the docs for a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
+
+html_theme_options = {
+    "collapse_navigation": False,
+    "navigation_depth": 3,
+    "show_prev_next": True,
+    "icon_links": [
+        {"name": "IDM docs", "url": "https://docs.idmod.org", "icon": "fas fa-home"},
+        {
+            "name": "GitHub",
+            "url": "https://github.com/institutefordiseasemodeling/history_matching",
+            "icon": "fab fa-github-square",
+        },
+    ],
+    "navbar_end": ["theme-switcher", "navbar-icon-links"],
+    "secondary_sidebar_items": ["navbar-side"],
+    "header_links_before_dropdown": 5,
+    "footer_start": ["copyright", "footer_start"],
+    "footer_end": ["theme-version", "footer_end"],
+}
+html_sidebars = {
+    "**": ["sidebar-nav-bs", "page-toc"],
+}
+html_logo = "images/idm-logo-transparent.png"
+html_favicon = "images/favicon.ico"
+html_static_path = ['_static']
+html_baseurl = "https://docs.idmod.org/projects/history_matching/en/latest"
+html_context = {
+    'rtd_url': 'https://docs.idmod.org/projects/history_matching/en/latest',
+    "versions_dropdown": {
+        "latest": "devel (latest)",
+        "stable": "current (stable)",
+    },
+    "default_mode": "light",
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+#html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name of an image file (relative to this directory) to place at the top of the sidebar.
-html_logo = "images/IDM_white.png"
+#html_logo = "images/IDM_white.png"
 
 # The name of an image file (relative to this directory) to use as a favicon of the docs.
 # This file should be a Windows icon file (.ico) being 16x16 or 32x32 pixels large.
-html_favicon = "images/favicon.ico"
+#html_favicon = "images/favicon.ico"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

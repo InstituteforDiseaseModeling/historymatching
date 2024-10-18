@@ -1,31 +1,32 @@
-.wy-table-responsive table td, .wy-table-responsive table th {
-    white-space: normal;
-}
-
-.wy-table-responsive table td p {
-    font-size: 100%;
-}
-
 footer p {
     font-size: 14px;
     margin-top: 0px;
     margin-bottom: 0px;
 }
 
-.wy-nav-content {
-    max-width: none;
+h1 {
+    margin-top: 0.0em;
+    margin-bottom: 0.5em;
 }
 
-.wy-side-nav-search {
-    background-color: #0073a3;
+h2 {
+    font-size: 140%;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
 }
 
-h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend {
-    font-family: "Montserrat", "Lato", "Open Sans", sans-serif;
+
+h3 {
+    font-size: 120%;
+    margin-top: 1.0em;
+    margin-bottom: 0.5em;
 }
 
-.wy-menu p.caption {
-    color: #e3e3e3;
+h4 {
+    font-style: italic;
+    font-size: 100%;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
 }
 
 .section li p.first {
@@ -33,16 +34,8 @@ h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend {
     margin-bottom: 3px;
 }
 
-div.document span.search-highlight {
-    background-color: yellow;
-}
-
 img.math {
     width: auto;
-}
-
-.btn {
-    margin-bottom: 10px;
 }
 
 .highlight-json::before {
@@ -78,39 +71,19 @@ img.math {
     padding-top: 5px !important;
 }
 
-/* define a block that display different instruction per os */
-.os-code-block {
-    border: 1px solid black;
-    padding: 2px;
+/* Layout changes */
+.bd-main .bd-content .bd-article-container {
+  max-width: 100em;  /* default is 60em */
 }
 
-/* give code block distinct link */
-div.os-code-block div.choices ul {
-    display: inline-block;
-    border: 1px solid black;
-    width: 100%;
-    background-color: #0073a3;
+.bd-page-width {
+  max-width: 100rem;  /* default is 88rem */
 }
 
-/* Make List elements into links */
-div.os-code-block div.choices li {
-    float: left;
-    list-style: none !important;
-    text-align: center;
-    border-right: 1px solid black;
-    padding: 5px;
-    margin: 0;
-    color: white;
+.bd-sidebar-primary {
+  width: 20em;
 }
 
-div.os-code-block div.choices li.active {
-    font-weight: bold;
-    background-color: #60add5;
-    text-decoration: underline;
-}
-
-
-/* Make block appear as link */
-div.os-code-block div.choices li:hover {
-    cursor: pointer;
+.bd-sidebar-secondary {
+  width: 15em !important;
 }
