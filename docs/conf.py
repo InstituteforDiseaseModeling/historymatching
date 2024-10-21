@@ -2,8 +2,6 @@ import os
 import subprocess
 from pathlib import Path
 
-import sphinx_rtd_theme
-
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
