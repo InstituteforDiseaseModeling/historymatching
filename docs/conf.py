@@ -98,8 +98,7 @@ extensions.extend(
         "sphinxcontrib.programoutput",
         "sphinx.ext.intersphinx",
         "sphinxext.remoteliteralinclude",
-        "sphinx_copybutton",
-        "myst_parser",
+        "myst_parser"
     ]
 )
 

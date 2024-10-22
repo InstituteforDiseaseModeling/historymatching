@@ -9,7 +9,4 @@ sphinxcontrib-programoutput
 nbsphinx
 jupyterlab
 myst-parser
-readthedocs-sphinx-search
-sphinx-copybutton
 pygithub
-sphinxcontrib-jquery

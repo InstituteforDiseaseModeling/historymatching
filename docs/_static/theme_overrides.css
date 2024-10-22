@@ -38,39 +38,6 @@ img.math {
     width: auto;
 }
 
-.highlight-json::before {
-    content: "↕ Click to expand JSON example";
-    padding: 8px 0 8px 10px;
-}
-
-.highlight-json .highlight {
-    display: none;
-}
-
-.highlight-json.expanded::before {
-    content: "↕ Click to collapse JSON example";
-    padding: 8px 0 8px 10px;
-}
-
-.highlight-json.expanded {
-    height: auto;
-    border-bottom: 1px solid !important;
-}
-
-.highlight-json.expanded > .highlight {
-    display: block;
-}
-
-.highlight-json {
-    height: 35px; /* Collapsed by default */
-    overflow: hidden;
-    background-color: #f3f6f6 !important;
-    position: relative;
-    border-bottom: 3px solid !important;
-    border-bottom-color: #ced3d3 !important;
-    padding-top: 5px !important;
-}
-
 /* Layout changes */
 .bd-main .bd-content .bd-article-container {
   max-width: 100em;  /* default is 60em */
