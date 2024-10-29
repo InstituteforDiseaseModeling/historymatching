@@ -534,12 +534,10 @@ class Statistics:
         Returns the Fano factor of each column of the input dataframe. The Fano
         factor is defined as (var/mean).
         """
-
-        np.seterr(divide="ignore", invalid="ignore")
+        np.seterr(divide='ignore', invalid='ignore')
         fano = f.var(axis=0) / f.mean(axis=0)
-        np.seterr(divide="warn", invalid="warn")
-
-        fano_df = pd.DataFrame({"fano": fano})
+        np.seterr(divide='warn', invalid='warn')
+        fano_df = pd.DataFrame({'fano': fano})
         return fano_df
 
     @staticmethod
@@ -547,8 +545,7 @@ class Statistics:
         """
         Returns mean of each column of the input dataframe.
         """
-
-        return __og_stats__(f, lambda f: np.mean(f, axis=0), "mean")
+        return self.__og_stats__(f, lambda f: np.mean(f, axis=0), 'mean')
 
     @staticmethod
     def qcd(f: pd.DataFrame) -> pd.DataFrame:
@@ -556,14 +553,11 @@ class Statistics:
         Returns the Quartile Coefficient of Dispersion (QCD) of each column of the
         input dataframe.
         """
-
         q3 = f.quantile(q=0.75, axis=0)
         q1 = f.quantile(q=0.25, axis=0)
-
-        np.seterr(divide="ignore", invalid="ignore")
-        qcd_df = pd.DataFrame({"qcd": (q3 - q1) / (q3 + q1)})
-        np.seterr(divide="warn", invalid="warn")
-
+        np.seterr(divide='ignore', invalid='ignore')
+        qcd_df = pd.DataFrame({'qcd': (q3 - q1) / (q3 + q1)})
+        np.seterr(divide='warn', invalid='warn')
         return qcd_df
 
     @staticmethod
@@ -572,12 +566,10 @@ class Statistics:
         Returns Relative Standard Deviation (RSD) of each column of the input
         dataframe. The RSD is defined as sqrt(var/mean).
         """
-
-        np.seterr(divide="ignore", invalid="ignore")
+        np.seterr(divide='ignore', invalid='ignore')
         rsd = np.sqrt(f.var(axis=0) / f.mean(axis=0))
-        np.seterr(divide="warn", invalid="warn")
-
-        rsd_df = pd.DataFrame({"rsd": rsd})
+        np.seterr(divide='warn', invalid='warn')
+        rsd_df = pd.DataFrame({'rsd': rsd})
         return rsd_df
 
     @staticmethod
@@ -585,10 +577,8 @@ class Statistics:
         """
         Returns the unbiased skewness of each column of the input dataframe.
         """
-
-        # return pd.DataFrame(scipy.stats.skew(f), columns=["skew"], index=f.columns)
         skew = f.skew(axis=0)  # use Pandas DataFrame implementation
-        skew_df = pd.DataFrame({"skew": skew})
+        skew_df = pd.DataFrame({'skew': skew})
         return skew_df
 
     @staticmethod
@@ -596,26 +586,22 @@ class Statistics:
         """
         Returns standard deviation of each column of the input dataframe.
         """
-
-        # return __og_stats__(f, np.std, "std")
-        return __og_stats__(f, lambda f: np.std(f, axis=0, ddof=1), "std")
+        return self.__og_stats__(f, lambda f: np.std(f, axis=0, ddof=1), 'std')
 
     @staticmethod
     def var(f: pd.DataFrame) -> pd.DataFrame:
         """
         Returns variance of each column of the input dataframe.
         """
+        return self.__og_stats__(f, lambda f: np.var(f, axis=0, ddof=1), 'var')
 
-        return __og_stats__(f, lambda f: np.var(f, axis=0, ddof=1), "var")
+    def __og_stats__(data, fn, column) -> pd.DataFrame:
+        """Common code for mean, std, and var."""
+        stat = fn(data)
+        df = pd.DataFrame({column: stat})
+        return df
 
 
-def __og_stats__(data, fn, column) -> pd.DataFrame:
-    """Common code for mean, std, and var."""
-
-    stat = fn(data)
-    df = pd.DataFrame({column: stat})
-
-    return df
 
 
 def getFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: Optional[set] = None, active_statistics: Optional[set] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
