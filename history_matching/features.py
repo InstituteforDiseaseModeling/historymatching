@@ -5,10 +5,7 @@ time series.
 """
 import inspect
 import warnings
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -259,75 +256,58 @@ class Diagnostics:
 
 
 class DerivedFeatures:
-
     """Library of functions to compute derived features from time series."""
 
     @staticmethod
-    def derivative_cauchyFit(x, *args):
+    def derivative_cauchy_fit(x, *args):
         """
         Returns the parameters of a Cauchy distribution that fits the
         derivative of the input time series. The output is a pandas dataframe.
         """
-
         dx = np.gradient(x, axis=1)
         n = len(dx)
         loc = np.zeros(n)
         scale = np.zeros(n)
         for i in range(0, n):
             loc[i], scale[i] = scipy.stats.cauchy.fit(dx[i, :])
-        dxCauchyFit_df = pd.DataFrame(
-            {
-                "dx_cauchy_loc": loc,
-                "dx_cauchy_scale": scale,
-            }
-        )
-        return dxCauchyFit_df
+        dx_cauchy_fit_df = pd.DataFrame( { 'dx_cauchy_loc'  : loc,
+                                         'dx_cauchy_scale': scale } )
+        return dx_cauchy_fit_df
 
     @staticmethod
-    def derivative_gaussianFit(x, *args):
+    def derivative_gaussian_fit(x, *args):
         """
         Returns the parameters of a Gaussian distribution that fits the
         derivative of the input time series. The output is a pandas dataframe.
         """
-
         dx = np.gradient(x, axis=1)
         mean = np.mean(dx, axis=1)
         var = np.var(dx, axis=1)
-        dxGaussianFit_df = pd.DataFrame(
-            {
-                "dx_mean": mean,
-                "dx_var": var,
-            }
-        )
-        return dxGaussianFit_df
+        dx_gaussian_fit_df = pd.DataFrame( { 'dx_mean': mean,
+                                             'dx_var' : var  } )
+        return dx_gaussian_fit_df
 
     @staticmethod
-    def derivative_laplaceFit(x, *args):
+    def derivative_laplace_fit(x, *args):
         """
         Returns the parameters of a Laplace distribution that fits the
         derivative of the input time series. The output is a pandas dataframe.
         """
-
         dx = np.gradient(x, axis=1)
         n = len(dx)
         mean = np.zeros(n)
         var = np.zeros(n)
         for i in range(0, n):
             mean[i], var[i] = scipy.stats.laplace.fit(dx[i, :])
-        dxLaplaceFit_df = pd.DataFrame(
-            {
-                "dx_laplace_mean": mean,
-                "dx_laplace_var": var,
-            }
-        )
-        return dxLaplaceFit_df
+        dx_laplace_fit_df = pd.DataFrame( { 'dx_laplace_mean' : mean,
+                                            'dx_laplace_var'  : var   } )
+        return dx_laplace_fit_df
 
     @staticmethod
     def derivative(x, *args):
         """
         Returns the derivative of time series as a pandas dataframe.
         """
-
         dx = np.gradient(x, axis=1)
         dx_df = pd.DataFrame(dx)
         for i in dx_df:
@@ -335,12 +315,11 @@ class DerivedFeatures:
         return dx_df
 
     @staticmethod
-    def derivative2_cauchyFit(x, *args):
+    def derivative2_cauchy_fit(x, *args):
         """
         Returns the parameters of a Cauchy distribution that fits the second
         derivative of the input time series. The output is a pandas dataframe.
         """
-
         dx = np.gradient(x, axis=1)
         dx2 = np.gradient(dx, axis=1)
         n = len(dx2)
@@ -348,40 +327,30 @@ class DerivedFeatures:
         scale = np.zeros(n)
         for i in range(0, n):
             loc[i], scale[i] = scipy.stats.cauchy.fit(dx2[i, :])
-        dx2CauchyFit_df = pd.DataFrame(
-            {
-                "dx2_cauchy_loc": loc,
-                "dx2_cauchy_scale": scale,
-            }
-        )
-        return dx2CauchyFit_df
+        dx2_cauchy_fit_df = pd.DataFrame( { 'dx2_cauchy_loc'  : loc,
+                                            'dx2_cauchy_scale': scale } )
+        return dx2_cauchy_fit_df
 
     @staticmethod
-    def derivative2_gaussianFit(x, *args):
+    def derivative2_gaussian_fit(x, *args):
         """
         Returns the parameters of a Gaussian distribution that fits the second
         derivative of the input time series. The output is a pandas dataframe.
         """
-
         dx = np.gradient(x, axis=1)
         dx2 = np.gradient(dx, axis=1)
         mean = np.mean(dx2, axis=1)
         var = np.var(dx2, axis=1)
-        dx2GaussianFit_df = pd.DataFrame(
-            {
-                "dx2_mean": mean,
-                "dx2_var": var,
-            }
-        )
-        return dx2GaussianFit_df
+        dx2_gaussian_fit_df = pd.DataFrame( { 'dx2_mean': mean,
+                                              'dx2_var' : var  } )
+        return dx2_gaussian_fit_df
 
     @staticmethod
-    def derivative2_laplaceFit(x, *args):
+    def derivative2_laplace_fit(x, *args):
         """
         Returns the parameters of a Laplace distribution that fits the second
         derivative of the input time series. The output is a pandas dataframe.
         """
-
         dx = np.gradient(x, axis=1)
         dx2 = np.gradient(dx, axis=1)
         n = len(dx2)
@@ -389,20 +358,15 @@ class DerivedFeatures:
         var = np.zeros(n)
         for i in range(0, n):
             mean[i], var[i] = scipy.stats.laplace.fit(dx2[i, :])
-        dx2LaplaceFit_df = pd.DataFrame(
-            {
-                "dx2_laplace_mean": mean,
-                "dx2_laplace_var": var,
-            }
-        )
-        return dx2LaplaceFit_df
+        dx2_laplace_fit_df = pd.DataFrame( { 'dx2_laplace_mean': mean,
+                                             'dx2_laplace_var' : var  } )
+        return dx2_laplace_fit_df
 
     @staticmethod
     def derivative2(x, *args):
         """
         Returns the second derivative of time series as a pandas dataframe.
         """
-
         dx = np.gradient(x, axis=1)
         dx2 = np.gradient(dx, axis=1)
         dx2_df = pd.DataFrame(dx2)
@@ -416,8 +380,7 @@ class DerivedFeatures:
         Returns the L1 norm of the difference between each time series in x and
         xref. The output is a pandas dataframe.
         """
-
-        return __diffL__(x, xref, order=1, column="diff_L1")
+        return self.__diffL__(x, xref, order=1, column='diff_L1')
 
     @staticmethod
     def diff_L2(x, xref):
@@ -425,8 +388,7 @@ class DerivedFeatures:
         Returns the L2 norm of the difference between each time series in x and
         xref. The output is a pandas dataframe.
         """
-
-        return __diffL__(x, xref, order=2, column="diff_L2")
+        return self.__diffL__(x, xref, order=2, column='diff_L2')
 
     @staticmethod
     def diff_Linf(x, xref):
@@ -434,8 +396,7 @@ class DerivedFeatures:
         Returns the L_{\\inf} norm of the difference between each time series in x
         and xref. The output is a pandas dataframe.
         """
-
-        return __diffL__(x, xref, order=np.inf, column="diff_Linf")
+        return self.__diffL__(x, xref, order=np.inf, column='diff_Linf')
 
     @staticmethod
     def diff(x, xref):
@@ -443,13 +404,11 @@ class DerivedFeatures:
         Returns the difference between each time series in x and xref. The output
         is a pandas dataframe.
         """
-
         m = len(x)
         diff = np.add(x, -np.repeat(xref, m, axis=0))
         diff_df = pd.DataFrame(diff)
         for i in diff_df:
-            diff_df.rename(columns={diff_df.columns[i]: f"diff_{i}"}, inplace=True)
-
+            diff_df.rename(columns={diff_df.columns[i]: f'diff_{i}'}, inplace=True)
         return diff_df
 
     @staticmethod
@@ -458,59 +417,53 @@ class DerivedFeatures:
         Returns the logarithm in base 10 of the input time series as a pandas
         dataframe.
         """
-
         np.seterr(divide="ignore")
         xLog10 = np.log10(x)
         np.seterr(divide="warn")
         xLog10_df = pd.DataFrame(xLog10)
         for i in xLog10_df:
-            xLog10_df.rename(columns={xLog10_df.columns[i]: f"xLog10_{i}"}, inplace=True)
-        return xLog10_df
+            x_log10_df.rename(columns={xLog10_df.columns[i]: f'x_log10_{i}'}, inplace=True)
+        return x_log10_df
 
     @staticmethod
-    def partialSum2(x, *args):
+    def partial_sum_2(x, *args):
         """
         Returns the time series obtained from adding up groups of 2 values from the
         input time series. The output is a pandas dataframe.
         """
-
-        return __partialSum__(x, intervalSize=2)
+        return self.__partial_sum__(x, interval_size=2)
 
     @staticmethod
-    def partialSum7(x, *args):
+    def partial_sum_7(x, *args):
         """
         Returns the time series obtained from adding up groups of 7 values from the
         input time series. The output is a pandas dataframe.
         """
-
-        return __partialSum__(x, intervalSize=7)
+        return self.__partial_sum__(x, interval_size=7)
 
     @staticmethod
-    def partialSum10(x, *args):
+    def partial_sum_10(x, *args):
         """
         Returns the time series obtained from adding up groups of 10 values from the
         input time series. The output is a pandas dataframe.
         """
-
-        return __partialSum__(x, 10)
+        return self.__partial_sum__(x, interval_size=10)
 
     @staticmethod
-    def partialSum15(x, *args):
+    def partial_sum_15(x, *args):
         """
         Returns the time series obtained from adding up groups of 15 values from the
         input time series. The output is a pandas dataframe.
         """
-
-        return __partialSum__(x, 15)
+        return self.__partial_sum__(x, interval_size=15)
 
     @staticmethod
-    def partialSum30(x, *args):
+    def partial_sum_30(x, *args):
         """
         Returns the time series obtained from adding up groups of 30 values from the
         input time series. The output is a pandas dataframe.
         """
-
-        return __partialSum__(x, 30)
+        return self.__partial_sum__(x, interval_size=30)
 
     @staticmethod
     def sum_log10(x, *args):
@@ -518,9 +471,8 @@ class DerivedFeatures:
         Returns Log10 of the sum of elements of each the time series as a pandas
         dataframe.
         """
-
         sum = x.sum(axis=1)
-        sum_df = pd.DataFrame({"sumLog10_x": np.log10(sum)})
+        sum_df = pd.DataFrame({'sum_Log10_x': np.log10(sum)})
         return sum_df
 
     @staticmethod
@@ -528,9 +480,8 @@ class DerivedFeatures:
         """
         Returns the sum of elements of each the time series as a pandas dataframe.
         """
-
         sum = x.sum(axis=1)
-        sum_df = pd.DataFrame({"sum_x": sum})
+        sum_df = pd.DataFrame({'sum_x': sum})
         return sum_df
 
     @staticmethod
@@ -542,44 +493,39 @@ class DerivedFeatures:
         """
         Returns the array of time series as a pandas dataframe.
         """
-
         x_df = pd.DataFrame(x)
         for i in x_df:
-            x_df.rename(columns={x_df.columns[i]: f"x_{i}"}, inplace=True)
+            x_df.rename(columns={x_df.columns[i]: f'x_{i}'}, inplace=True)
         return x_df
 
+    def __diffL__(x, xref, order, column: str) -> pd.DataFrame:
+        """Common code for L1, L2, and Linf norms."""
+        m = len(x)
+        diff = np.add(x, -np.repeat(xref, m, axis=0))
+        diff_L = np.linalg.norm(diff, ord=order, axis=1)
+        diff_L_df = pd.DataFrame({column: diff_L})
+        return diff_L_df
 
-def __diffL__(x, xref, order, column: str) -> pd.DataFrame:
-    """Common code for L1, L2, and Linf norms."""
+    def __partial_sum__(x, interval_size: int) -> pd.DataFrame:
+        """Common code for partialSum2, partialSum7, partialSum10, partialSum15, and partialSum30."""
+        n = x.shape[1]
+        n_intervals = int(  np.floor( (n-1)/interval_size )  )
+        partial_sum = np.full( (len(x), n_intervals+1), np.nan )
+        for i in range(0, n_intervals):
+            x_sample = x[:, i * interval_size : (i + 1) * interval_size]
+            partial_sum[:, i] = x_sample.sum(axis=1)
+        x_sample = x[:, n_intervals*interval_size : n]
+        partial_sum[:, n_intervals] = x_sample.sum(axis=1)
+        partial_sum_df = pd.DataFrame(partial_sum)
+        for i in partial_sum_df:
+            columns = {partial_sum_df.columns[i]: f'partial_sum{intervalSize}_{i}'}
+            partial_sum_df.rename(columns=columns, inplace=True)
+        return partial_sum_df
 
-    m = len(x)
-    diff = np.add(x, -np.repeat(xref, m, axis=0))
-    diff_L = np.linalg.norm(diff, ord=order, axis=1)
-    diff_L_df = pd.DataFrame({column: diff_L})
-    return diff_L_df
 
-
-def __partialSum__(x, intervalSize: int) -> pd.DataFrame:
-    """Common code for partialSum2, partialSum7, partialSum10, partialSum15, and partialSum30."""
-
-    n = x.shape[1]
-    nIntervals = int(np.floor((n - 1) / intervalSize))
-    partialSum = np.full((len(x), nIntervals + 1), np.nan)
-    for i in range(0, nIntervals):
-        xSample = x[:, i * intervalSize : (i + 1) * intervalSize]
-        partialSum[:, i] = xSample.sum(axis=1)
-    xSample = x[:, nIntervals * intervalSize : n]
-    partialSum[:, nIntervals] = xSample.sum(axis=1)
-    partialSum_df = pd.DataFrame(partialSum)
-    for i in partialSum_df:
-        columns = {partialSum_df.columns[i]: f"partialSum{intervalSize}_{i}"}
-        partialSum_df.rename(columns=columns, inplace=True)
-
-    return partialSum_df
 
 
 class Statistics:
-
     """Functions for feature statistics."""
 
     @staticmethod
