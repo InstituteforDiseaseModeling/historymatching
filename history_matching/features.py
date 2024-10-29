@@ -604,6 +604,116 @@ class Statistics:
 
 
 
+def compute_stats(features: pd.DataFrame, active_statistics: Optional[set] = None) -> pd.DataFrame:
+    """Gets a set of basic statistics for all features or columns in the features dataframe."""
+
+    if active_statistics is None:
+        active_statistics = {name for name, _ in inspect.getmembers(Statistics, inspect.isfunction) if not name.startswith('__')}
+
+    # compute feature statistics
+    features_stats = pd.DataFrame()
+    for function in [function for name, function in inspect.getmembers(Statistics, inspect.isfunction) if name in active_statistics]:
+        statistic_df = function(features)
+        features_stats = pd.concat([features_stats, statistic_df], axis=1)
+
+    return features_stats
+
+
+
+
+def feature_selection( features: pd.DataFrame, 
+                       features_stats: pd.DataFrame, 
+                       feature_selection_metric: str,
+                       cooldown_period: int = 5,
+                       correlation_threshold: float = 0.8
+                      ) -> str:
+    """
+    Selects target features for history matching.
+
+    Args:
+      features                : DataFrame of features (columns) for a set 
+                                of simulations (rows).
+      features_stats          : DataFrame of statistics (columns) for each
+                                of the columns in `features`.
+      feature_selection_metric: name of the statistic to be used for the 
+                                target selection. It must be the name of a 
+                                column in `features_stats`.
+      cooldown_period         : the number of recent selections to track, 
+                                preventing re-selection of the same or similar
+                                features within this limit. Higher values
+                                increase the minimum time before a previously
+                                selected feature can be chosen again.
+      correlation_threshold   : The maximum allowed correlation between a 
+                                candidate feature and any recently selected 
+                                features. If the correlation between a candidate
+                                and a recent selection exceeds this threshold,
+                                the candidate will be excluded from selection
+                                to reduce redundancy.
+      
+    Returns:
+      Name of the selected feature.
+    """
+
+    # Create a history attribute to keep track of what features have been already used
+    if not hasattr( feature_selection, '_history' ):
+        feature_selection._history = []
+
+    
+    # Get indices of features sorted from largest absolute value of statistics to smallest.
+    # E.g., features with large variance are more interesting than features with little variance.
+    unsorted_feature_metric = -np.abs(features[metric].values)  # negative so that the 
+                                                                # sorting below starts with the
+                                                                # largest number
+    sorted_feature_metric_index = np.argsort(unsorted_feature_metric)
+
+    
+    # Find the best feature (i.e., the one with the largest metric and that is valid)
+    for candidate_index in sorted_feature_metric_index:
+
+        accept_candidate = True    # Assume that the candidate will be accepted; this value
+                                   # changes if a candidate should be rejected
+
+        # Reject candidates with non-numeric values (NaN or Inf)
+        if not np.isfinite( unsorted_feature_metric[candidate_index] ):
+            accept_candidate = False
+            continue
+        
+        # Reject candidates that were recently used
+        if features.columns[candidate_index] in feature_selection._history:
+            accept_candidate = False
+            continue
+
+        # Reject candidates that are highly correlated with recent candidates
+        for recent_feature in feature_selection._history:
+            candidate_correlation = features[recent_feature].corr(method='pearson').iloc[:, candidate_index]
+            if abs(candidate_correlation) >= correlation_threshold:
+                accept_candidate = False
+                break
+
+        if accept_candidate:    # The candidate passed all test; we can exit this loop now
+            break
+            
+    if accept_candidate:    # A valid candidate was found, let's save it
+        feature_name = features.columns[candidate_index]
+    else:
+        feature_name = features.columns[sorted_feature_metric_index[0]]
+        warnings.warn( f'Unable to find a valid feature; using {feature_name}' )
+
+    
+    # Update history and return
+    feature_selection._history.append( feature_name )
+    while(    ( len(feature_selection._history) > cooldown_period )     \
+           or ( len(feature_selection._history) >= len(features)  ) ):
+        feature_selection._history.pop(0)
+
+    return [feature_name]
+
+
+
+
+
+#-----------------------------------------
+
 def getFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: Optional[set] = None, active_statistics: Optional[set] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Gets (derived) features and selected statistics for those features from the current simulation outputs.
@@ -642,99 +752,3 @@ def getDerivedFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFra
 
     return derivedFeatures
 
-
-def getFeatureStatistics(features: pd.DataFrame, active_statistics: Optional[set] = None) -> pd.DataFrame:
-    """Gets statistics for derived features."""
-
-    if active_statistics is None:
-        # all statistics, _ for unused function value
-        active_statistics = {name for name, _ in inspect.getmembers(Statistics, inspect.isfunction)}
-
-    # compute feature statistics
-    featureStatistics = pd.DataFrame()
-    for function in [function for name, function in inspect.getmembers(Statistics, inspect.isfunction) if name in active_statistics]:
-        statistic_df = function(features)
-        featureStatistics = pd.concat([featureStatistics, statistic_df], axis=1)
-
-    return featureStatistics
-
-
-# TODO - move selected feature history into Situation(?)
-__history__ = []
-
-
-def select_features(
-    simulatedFeatures: pd.DataFrame, observedFeatures: pd.DataFrame, featureStatistics: pd.DataFrame, metric: str, iteration: int, history: Optional[List] = None
-) -> Tuple[str, Union[int, float, np.number], pd.DataFrame]:
-    """
-    Select target feature for history matching.
-
-    Args:
-      simulatedFeatures: DataFrame of features (columns) and their simulated values (rows)
-      observedFeatures: DataFrame of features (columns) and their observed values (one row)
-      featureStatistics: DataFrame of statistics (columns) and their values for each feature (rows)
-      metric: name of statistic to use for assessment, e.g. "var" or "fano"
-      iteration: current history matching iteration/wave
-      history: list of features recently used in previous iterations/waves, implicitly in order from earliest used to most recent
-
-    Returns:
-      Tuple of selected feature name, observed value for that feature, and simulated values for that feature
-    """
-
-    # if history is None:
-    #     history = []
-
-    FEATURE_SELECTION_QUARANTINE_PERIOD = 8
-    FEATURE_SELECTION_CLOSE_CORRELATION_THRESHOLD = 0.90
-
-    # Get indices of features in order from largest absolute value of statistics to smallest.
-    # E.g., features with large variance are more interesting than features with little variance.
-    unsortedFeatureSelectionMetric = -np.abs(featureStatistics[metric].values)
-    sortedFeatureIndices = np.argsort(unsortedFeatureSelectionMetric)
-
-    nFeatures = len(simulatedFeatures.columns)
-    for rankIndex in range(nFeatures):
-        candidateIndex = sortedFeatureIndices[rankIndex]
-
-        # Check that feature stats are neither NaN nor Inf (which would be the last indices in sortedFeatureIndices)
-        if not np.isfinite(unsortedFeatureSelectionMetric[candidateIndex]):
-            warnings.warn(f"Unable to find valid feature (stopping search at position {rankIndex} of {nFeatures} potential features)", stacklevel=1)
-            candidateIndex = sortedFeatureIndices[0]
-            break
-
-        # Check that feature is not highly correlated with another already in the quarantine list (i.e., with a recently-selected feature)
-        acceptCandidate = True
-        candidateCorrelation = simulatedFeatures.corr(method="pearson").iloc[:, candidateIndex]
-
-        # for recentFeature in history:
-        for recentFeature in __history__:
-            # only acceptble if candidate was not recently used
-            acceptCandidate &= simulatedFeatures.columns[candidateIndex] != recentFeature
-            # only acceptable if candidate does _not_ correlate highly with a recently used feature
-            acceptCandidate &= np.abs(candidateCorrelation.loc[recentFeature]) <= FEATURE_SELECTION_CLOSE_CORRELATION_THRESHOLD
-
-        if acceptCandidate:
-            break
-
-    feature_name = simulatedFeatures.columns[candidateIndex]
-
-    # Extract values for the selected feature
-    # We don't need these, they are available from the observations and simulator results
-    # observedFeatureValue = observedFeatures[observedFeatures.feature == feature_name].mean
-    # simulatedFeatureValues = simulatedFeatures[feature_name]
-
-    # Add this feature to the list of recently used features
-    # history.append(feature_name)
-    __history__.append(feature_name)
-
-    # Remove previously used features from history after quarantine period
-    # while (len(history) > FEATURE_SELECTION_QUARANTINE_PERIOD) or (len(history) >= nFeatures):
-    #     history.pop(0)
-    while (len(__history__) > FEATURE_SELECTION_QUARANTINE_PERIOD) or (len(__history__) >= nFeatures):
-        __history__.pop(0)
-
-    # Finalize and return
-    # simulatedFeatures.to_csv(f"features_iter_{iteration}.csv")
-    # featureStatistics.to_csv(f"featureStats_iter_{iteration}.csv")
-
-    return [feature_name]

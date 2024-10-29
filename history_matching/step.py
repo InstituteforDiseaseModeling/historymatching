@@ -12,7 +12,7 @@ from typing import Dict
 from history_matching.emulators import BaseEmulator
 from .config import Config
 from .samplers import get_samples
-from .features import Diagnostics, getFeatureStatistics, select_features
+from .features import Diagnostics, compute_stats, feature_selection
 from .emulators import GPR
 from .constrict import next_point_generation
 
@@ -244,8 +244,9 @@ def get_features( samples, sim_results, config ):
     # Auto mode: an algorithm automatically selects the feature
     else:
         print( '... Selecting feature (running in "auto" mode)' )
-        feature_statistics = getFeatureStatistics( sim_results )
-        features = select_features( sim_results, config.observations, feature_statistics, 'fano', [] )
+        features_stats = compute_stats( sim_results, 'fano' ) # We only need tco compute the Fano factor 
+                                                              # for every summary statistic
+        features = feature_selection( sim_results, features_stats, 'fano' )
         status = StepStatus.FEATURES_SELECTED
     
     # Return selected features and status
