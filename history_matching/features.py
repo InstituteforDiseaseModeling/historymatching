@@ -5,7 +5,7 @@ time series.
 """
 import inspect
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Callable
 
 import numpy as np
 import pandas as pd
@@ -271,7 +271,7 @@ class DerivedFeatures:
         for i in range(0, n):
             loc[i], scale[i] = scipy.stats.cauchy.fit(dx[i, :])
         dx_cauchy_fit_df = pd.DataFrame( { 'dx_cauchy_loc'  : loc,
-                                         'dx_cauchy_scale': scale } )
+                                           'dx_cauchy_scale': scale } )
         return dx_cauchy_fit_df
 
     @staticmethod
@@ -498,6 +498,7 @@ class DerivedFeatures:
             x_df.rename(columns={x_df.columns[i]: f'x_{i}'}, inplace=True)
         return x_df
 
+    @staticmethod
     def __diffL__(x, xref, order, column: str) -> pd.DataFrame:
         """Common code for L1, L2, and Linf norms."""
         m = len(x)
@@ -506,6 +507,7 @@ class DerivedFeatures:
         diff_L_df = pd.DataFrame({column: diff_L})
         return diff_L_df
 
+    @staticmethod
     def __partial_sum__(x, interval_size: int) -> pd.DataFrame:
         """Common code for partialSum2, partialSum7, partialSum10, partialSum15, and partialSum30."""
         n = x.shape[1]
@@ -545,7 +547,7 @@ class Statistics:
         """
         Returns mean of each column of the input dataframe.
         """
-        return self.__og_stats__(f, lambda f: np.mean(f, axis=0), 'mean')
+        return Statistics.__og_stats__(f, lambda f: np.mean(f, axis=0), 'mean')
 
     @staticmethod
     def qcd(f: pd.DataFrame) -> pd.DataFrame:
@@ -586,15 +588,16 @@ class Statistics:
         """
         Returns standard deviation of each column of the input dataframe.
         """
-        return self.__og_stats__(f, lambda f: np.std(f, axis=0, ddof=1), 'std')
+        return Statistics.__og_stats__(f, lambda f: np.std(f, axis=0, ddof=1), 'std')
 
     @staticmethod
     def var(f: pd.DataFrame) -> pd.DataFrame:
         """
         Returns variance of each column of the input dataframe.
         """
-        return self.__og_stats__(f, lambda f: np.var(f, axis=0, ddof=1), 'var')
+        return Statistics.__og_stats__(f, lambda f: np.var(f, axis=0, ddof=1), 'var')
 
+    @staticmethod
     def __og_stats__(data, fn, column) -> pd.DataFrame:
         """Common code for mean, std, and var."""
         stat = fn(data)
@@ -621,11 +624,11 @@ def compute_stats(features: pd.DataFrame, active_statistics: Optional[set] = Non
 
 
 
-def feature_selection( features: pd.DataFrame, 
-                       features_stats: pd.DataFrame, 
-                       feature_selection_metric: str,
-                       cooldown_period: int = 5,
-                       correlation_threshold: float = 0.8
+def feature_selection( features                 : pd.DataFrame, 
+                       features_stats           : pd.DataFrame, 
+                       feature_selection_metric : str   = 'fano',
+                       cooldown_period          : int   = 5,
+                       correlation_threshold    : float = 0.8
                       ) -> str:
     """
     Selects target features for history matching.
@@ -657,13 +660,12 @@ def feature_selection( features: pd.DataFrame,
     # Create a history attribute to keep track of what features have been already used
     if not hasattr( feature_selection, '_history' ):
         feature_selection._history = []
-
     
-    # Get indices of features sorted from largest absolute value of statistics to smallest.
+    # Get indices of features_stats sorted from largest absolute value of statistics to smallest.
     # E.g., features with large variance are more interesting than features with little variance.
-    unsorted_feature_metric = -np.abs(features[metric].values)  # negative so that the 
-                                                                # sorting below starts with the
-                                                                # largest number
+    unsorted_feature_metric = -np.abs(features_stats[feature_selection_metric].values)  # negative so
+                                                                # that the sorting below starts
+                                                                # with the largest number
     sorted_feature_metric_index = np.argsort(unsorted_feature_metric)
 
     
@@ -685,12 +687,13 @@ def feature_selection( features: pd.DataFrame,
 
         # Reject candidates that are highly correlated with recent candidates
         for recent_feature in feature_selection._history:
-            candidate_correlation = features[recent_feature].corr(method='pearson').iloc[:, candidate_index]
+            candidate_series = features.iloc[:, candidate_index]
+            candidate_correlation = features[recent_feature].corr(candidate_series, method='pearson')
             if abs(candidate_correlation) >= correlation_threshold:
                 accept_candidate = False
                 break
 
-        if accept_candidate:    # The candidate passed all test; we can exit this loop now
+        if accept_candidate:    # The candidate passed all tests; we can exit this loop now
             break
             
     if accept_candidate:    # A valid candidate was found, let's save it
@@ -711,44 +714,45 @@ def feature_selection( features: pd.DataFrame,
 
 
 
-
-#-----------------------------------------
-
-def getFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: Optional[set] = None, active_statistics: Optional[set] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def extend_feature_set( features  : pd.DataFrame, 
+                        reference : pd.DataFrame = None, 
+                        feature_generators : list[Union[str, Callable[[np.array, Optional[np.array]], pd.DataFrame]]] = []
+                       ) -> pd.DataFrame:
     """
-    Gets (derived) features and selected statistics for those features from the current simulation outputs.
-
     Args:
-        simulationOutputs: values for (source) features as calculated by the simulator
-        observations: observed values for recorded (source) features
-        active_features: derivation functions to run on simulator outputs to derive feature values
-        active_statistics: statistics to calculate for each feature, e.g. "variance" or "mean"
-
-    Returns:
-        Tuple of derived feature values (DataFrame) and their corresponding statistics (DataFrame)
+        features : DataFrame of features (columns) for a set of simulations (rows).
+        reference : DataFrame of features (columns) for a _single_ observation or
+            simulation (row), which can be used as reference for the extended 
+            features that require it (for example, those that compute a difference 
+            with a reference).
+        feature_generators : A list of feature-generating functions or their names.
+            Each entry can either be a string referring to the name of a method in 
+            the `DerivedFeatures` class or a callable that accepts one or two 
+            numpy arrays (the original features array and optionally the reference 
+            array) and returns a new dataframe with the generated features.
     """
 
-    derivedFeatures = getDerivedFeatures(simulationOutputs, observations, active_features)
-    featureStatistics = getFeatureStatistics(derivedFeatures, active_statistics)
+    new_features = []
+    
+    for generator in feature_generators:
 
-    return derivedFeatures, featureStatistics
+        if isinstance(generator, str):
+            if hasattr(DerivedFeatures, generator):
+                method = getattr(DerivedFeatures, generator)
+                this_feature = method(features, reference)
+                new_features.append(this_feature)
+            else:
+                raise AttributeError(f'Method {generator} not found in DerivedFeatures class')
 
+        elif callable(generator):
+            try:
+                this_feature = generator(features, reference)
+            except TypeError:
+                this_feature = generator(features)
+            new_features.append(this_feature)
 
-def getDerivedFeatures(simulationOutputs: pd.DataFrame, observations: pd.DataFrame, active_features: Optional[set] = None) -> pd.DataFrame:
-    """Gets derived features from the current simulation outputs."""
+        else:
+            raise TypeError('Each entry in feature_generators must be a string or a callable function')
 
-    simulationOutputs_np = simulationOutputs.to_numpy(copy=True)
-    observations_np = observations.to_numpy(copy=True)
-
-    if active_features is None:
-        # all features, _ for unused function value
-        active_features = {name for name, _ in inspect.getmembers(DerivedFeatures, inspect.isfunction)}
-
-    # compute derived features
-    derivedFeatures = pd.DataFrame()
-    for function in [function for name, function in inspect.getmembers(DerivedFeatures, inspect.isfunction) if name in active_features]:
-        feature_df = function(simulationOutputs_np, observations_np)
-        derivedFeatures = pd.concat([derivedFeatures, feature_df], axis=1)
-
-    return derivedFeatures
-
+    new_features_df = pd.concat(new_features, axis=1)
+    return new_features_df

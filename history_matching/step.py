@@ -244,7 +244,7 @@ def get_features( samples, sim_results, config ):
     # Auto mode: an algorithm automatically selects the feature
     else:
         print( '... Selecting feature (running in "auto" mode)' )
-        features_stats = compute_stats( sim_results, 'fano' ) # We only need tco compute the Fano factor 
+        features_stats = compute_stats( sim_results, 'fano' ) # We only need to compute the Fano factor 
                                                               # for every summary statistic
         features = feature_selection( sim_results, features_stats, 'fano' )
         status = StepStatus.FEATURES_SELECTED
