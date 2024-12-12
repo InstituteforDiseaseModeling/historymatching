@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn import model_selection
 from sklearn import metrics
 
-from history_matching.config import Config
+
 
 
 class BaseEmulator:
