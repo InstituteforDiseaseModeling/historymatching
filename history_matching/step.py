@@ -12,7 +12,7 @@ from typing import Dict
 from history_matching.emulators import BaseEmulator
 from .config import Config
 from .samplers import get_samples
-from .features import Diagnostics
+from .features import Diagnostics, compute_stats, feature_selection
 from .emulators import GPR
 from .constrict import next_point_generation
 
@@ -244,9 +244,11 @@ def get_features( samples, sim_results, config ):
 
     # Auto mode: an algorithm automatically selects the feature
     else:
-        print( '... "auto" mode for feature selection is not supported yet' )
-        # Need to check that this auto mode works correctly
-        #selected_features = recipe.select_features(situation.iteration, situation.observations, situation.simulator_results, config)
+        print( '... Selecting feature (running in "auto" mode)' )
+        features_stats = compute_stats( sim_results, 'fano' ) # We only need to compute the Fano factor 
+                                                              # for every summary statistic
+        features = feature_selection( sim_results, features_stats, 'fano' )
+        status = StepStatus.FEATURES_SELECTED
     
     # Return selected features and status
     return features, status
@@ -403,21 +405,37 @@ def validate_simulator_results( simulator_results: pd.DataFrame,
     
 
 
-def do_staircase(config: Config) -> None:
+def reduce_space( config             : Config, 
+                  min_space_fraction : float = 0.05,
+                  max_iter           : int   = 5,
+                  trace              : list  = None
+                 ) -> list :
     """
-    Run multiple steps of the history matching process until do_step() returns false.
+    Run multiple steps of the history matching process, iteratively reducing 
+    the parameter space, until the parameter space reduction reaches the 
+    specified threshold or the maximum number of iterations is reached.
 
     Args:
-        config: the configuration for this history matching process
+        config: The configuration object for the history matching process.
+        min_space_fraction (float, optional): The threshold for stopping 
+                based on the fraction of the remaining parameter space. 
+                Iterations stop once this fraction is reached. Defaults to 0.05.
+        max_iter (int, optional): The maximum number of iterations to perform, 
+                regardless of the space reduction. Defaults to 5.
+        trace (list, optional): A list to store the trace of the history 
+                matching process. If None, a new trace will be created. 
+                Defaults to None.
 
     Returns:
-        None
+        list: The trace of the history matching process after completing 
+              the iterations or stopping early.    
     """
 
-    # do_step() returns results of exit_predicate()
-    # exit_predicate return True when it's time to quit
-    #while not do_step(situation, recipe, config):
-    #    pass  # all the work is in `do_step()`
-    pass
+    for i in range( max_iter ):
+        trace = do_step( config, trace )
+        print( '' )
+        if trace[-1]['non_implausible_fraction'] <= min_space_fraction:
+            print( f'... Stopping early at iteration {i+1} due to space fraction reduction' )
+            break
     
-    return
+    return trace
