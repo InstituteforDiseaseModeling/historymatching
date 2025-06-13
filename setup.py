@@ -70,6 +70,7 @@ setup(
         "pandas",
         "matplotlib",
         "statsmodels",
+        "scipy",
         "scikit-learn",
         'pydoe',
         "tensorflow",

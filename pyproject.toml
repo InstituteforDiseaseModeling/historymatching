@@ -3,6 +3,87 @@ requires = [
     "setuptools>=30.3.0",
 ]
 
+[project]
+name = "history-matching"
+version = "0.9.0"
+description = "A Python implementation of the Bayesian History Matching algorithm."
+readme = "README.rst"
+license = {text = "MIT"}
+authors = [
+    {name = "Daniel J. Klein", email = "Daniel.Klein@gatesfoundation.org"},
+    {name = "Rafael C. Nunez"},
+    {name = "Richard Barnes"},
+    {name = "Christopher Lorton"},
+]
+keywords = [
+    "Bayesian History Matching",
+    "History Matching", 
+    "Model Emulation",
+    "Model Emulators",
+    "Model Calibration",
+    "Uncertainty Quantification"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Unix",
+    "Operating System :: POSIX", 
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8", 
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "numpy",
+    "pandas", 
+    "matplotlib",
+    "statsmodels",
+    "scipy",
+    "scikit-learn",
+    "pydoe",
+    "tensorflow",
+    "tf-keras", 
+    "gpflow",
+    "bokeh",
+    "numexpr!=2.8.5",  # until RE string issue gets fixed
+]
+
+[project.optional-dependencies]
+notebooks = ["jupyterlab", "chardet"]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-xdist>=3.0",  # for parallel testing
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0", 
+    "pytest-xdist>=3.0",
+    "ruff>=0.1.0",
+    "black>=23.0",
+    "pre-commit>=3.0",
+]
+
+[project.urls]
+Documentation = "https://docs.idmod.org/projects/history-matching/"
+Changelog = "https://docs.idmod.org/projects/history-matching/en/latest/changelog.html"
+"Issue Tracker" = "https://github.com/InstituteforDiseaseModeling/history_matching/issues"
+Repository = "https://github.com/InstituteforDiseaseModeling/history_matching"
+
+[project.scripts]
+history-matching = "history_matching.cli:main"
+
 [tool.ruff.per-file-ignores]
 "ci/*" = ["S"]
 

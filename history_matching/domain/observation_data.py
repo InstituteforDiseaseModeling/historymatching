@@ -1,0 +1,236 @@
+"""
+ObservationData domain object for history matching.
+"""
+
+from typing import Dict, List, Tuple, Union
+import numpy as np
+import pandas as pd
+
+try:
+    from ..utils import OBSERVATIONS_COLUMNS
+except ImportError:
+    # For standalone testing
+    from history_matching.utils import OBSERVATIONS_COLUMNS
+
+
+class ObservationData:
+    """
+    Encapsulates observational data and implausibility calculations.
+    
+    Represents the target observations that the model should match,
+    including their means and variances. Provides methods for calculating
+    implausibility metrics.
+    """
+    
+    def __init__(self, observations: Union[pd.DataFrame, dict]):
+        """
+        Initialize observation data.
+        
+        Args:
+            observations: DataFrame with columns ['feature', 'mean', 'variance']
+                         or dict mapping feature names to (mean, variance) tuples
+        """
+        if isinstance(observations, dict):
+            # Convert dict to DataFrame
+            data = [(name, values[0], values[1]) for name, values in observations.items()]
+            observations = pd.DataFrame(data, columns=OBSERVATIONS_COLUMNS)
+            
+        self._observations = self._validate_and_normalize(observations)
+        
+    def _validate_and_normalize(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Validate and normalize observations DataFrame."""
+        # Check required columns
+        if not all(col in df.columns for col in OBSERVATIONS_COLUMNS):
+            raise ValueError(f"Observations must have columns: {OBSERVATIONS_COLUMNS}")
+            
+        # Create copy to avoid modifying original
+        df = df.copy()
+        
+        # Set feature names as index for easy lookup
+        if 'feature' in df.columns:
+            df = df.set_index('feature', drop=False)
+            
+        # Validate data
+        for idx, row in df.iterrows():
+            feature_name = row['feature']
+            mean_val, var_val = row['mean'], row['variance']
+            
+            if not np.isfinite(mean_val):
+                raise ValueError(f"Feature '{feature_name}' has non-finite mean: {mean_val}")
+                
+            if not np.isfinite(var_val) or var_val <= 0:
+                raise ValueError(f"Feature '{feature_name}' has invalid variance: {var_val} (must be positive and finite)")
+                
+        # Check for duplicate feature names
+        if df['feature'].duplicated().any():
+            duplicates = df['feature'][df['feature'].duplicated()].tolist()
+            raise ValueError(f"Duplicate feature names found: {duplicates}")
+            
+        return df
+        
+    def get_feature_names(self) -> List[str]:
+        """Get list of all observed feature names."""
+        return self._observations['feature'].tolist()
+        
+    def get_target_for_feature(self, feature_name: str) -> Tuple[float, float]:
+        """
+        Get target mean and variance for a specific feature.
+        
+        Args:
+            feature_name: Name of the feature
+            
+        Returns:
+            Tuple of (mean, variance) values
+        """
+        if feature_name not in self._observations.index:
+            raise ValueError(f"Feature '{feature_name}' not found in observations")
+            
+        row = self._observations.loc[feature_name]
+        return float(row['mean']), float(row['variance'])
+        
+    def get_all_targets(self) -> Dict[str, Tuple[float, float]]:
+        """
+        Get all feature targets as a dictionary.
+        
+        Returns:
+            Dict mapping feature names to (mean, variance) tuples
+        """
+        targets = {}
+        for feature_name in self.get_feature_names():
+            targets[feature_name] = self.get_target_for_feature(feature_name)
+        return targets
+        
+    def calculate_implausibility(self, feature_name: str, predicted_mean: float, 
+                                predicted_variance: float, model_discrepancy: float = 0.0) -> float:
+        """
+        Calculate implausibility metric for a single feature.
+        
+        The implausibility is calculated as:
+        I = |predicted_mean - observed_mean| / sqrt(predicted_variance + observed_variance + model_discrepancy^2)
+        
+        Args:
+            feature_name: Name of the feature
+            predicted_mean: Predicted mean from emulator
+            predicted_variance: Predicted variance from emulator
+            model_discrepancy: Additional model uncertainty
+            
+        Returns:
+            Implausibility value (lower is more plausible)
+        """
+        if feature_name not in self._observations.index:
+            raise ValueError(f"Feature '{feature_name}' not found in observations")
+            
+        observed_mean, observed_variance = self.get_target_for_feature(feature_name)
+        
+        # Calculate total variance (emulator + observation + model discrepancy)
+        total_variance = predicted_variance + observed_variance + model_discrepancy**2
+        
+        if total_variance <= 0:
+            raise ValueError(f"Total variance must be positive, got {total_variance}")
+            
+        # Calculate implausibility
+        mean_difference = abs(predicted_mean - observed_mean)
+        implausibility = mean_difference / np.sqrt(total_variance)
+        
+        return float(implausibility)
+        
+    def calculate_implausibilities(self, predictions: Dict[str, Tuple[float, float]], 
+                                  model_discrepancy: float = 0.0) -> Dict[str, float]:
+        """
+        Calculate implausibilities for multiple features.
+        
+        Args:
+            predictions: Dict mapping feature names to (predicted_mean, predicted_variance) tuples
+            model_discrepancy: Additional model uncertainty
+            
+        Returns:
+            Dict mapping feature names to implausibility values
+        """
+        implausibilities = {}
+        
+        for feature_name, (pred_mean, pred_var) in predictions.items():
+            if self.has_feature(feature_name):
+                implausibilities[feature_name] = self.calculate_implausibility(
+                    feature_name, pred_mean, pred_var, model_discrepancy
+                )
+                
+        return implausibilities
+        
+    def calculate_maximum_implausibility(self, predictions: Dict[str, Tuple[float, float]], 
+                                       model_discrepancy: float = 0.0) -> float:
+        """
+        Calculate maximum implausibility across all features.
+        
+        Args:
+            predictions: Dict mapping feature names to (predicted_mean, predicted_variance) tuples
+            model_discrepancy: Additional model uncertainty
+            
+        Returns:
+            Maximum implausibility value across all features
+        """
+        implausibilities = self.calculate_implausibilities(predictions, model_discrepancy)
+        
+        if not implausibilities:
+            raise ValueError("No matching features found between predictions and observations")
+            
+        return max(implausibilities.values())
+        
+    def has_feature(self, feature_name: str) -> bool:
+        """
+        Check if a feature exists in observations.
+        
+        Args:
+            feature_name: Name of the feature to check
+            
+        Returns:
+            True if feature exists, False otherwise
+        """
+        return feature_name in self._observations.index
+        
+    def filter_features(self, feature_names: List[str]) -> 'ObservationData':
+        """
+        Create new ObservationData with only specified features.
+        
+        Args:
+            feature_names: List of feature names to keep
+            
+        Returns:
+            New ObservationData instance with filtered features
+        """
+        # Check that all requested features exist
+        missing_features = [f for f in feature_names if not self.has_feature(f)]
+        if missing_features:
+            raise ValueError(f"Features not found in observations: {missing_features}")
+            
+        # Filter observations
+        filtered_obs = self._observations[self._observations['feature'].isin(feature_names)]
+        
+        # Reset index to get back to standard DataFrame format
+        filtered_df = filtered_obs.reset_index(drop=True)
+        
+        return ObservationData(filtered_df)
+        
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Return the underlying observations DataFrame.
+        
+        Returns:
+            DataFrame with observations data
+        """
+        return self._observations.reset_index(drop=True).copy()
+        
+    def __len__(self) -> int:
+        """Return number of observed features."""
+        return len(self._observations)
+        
+    def __eq__(self, other) -> bool:
+        """Check equality with another ObservationData."""
+        if not isinstance(other, ObservationData):
+            return False
+            
+        return self._observations.equals(other._observations)
+        
+    def __repr__(self) -> str:
+        """String representation."""
+        features = self.get_feature_names()
+        return f"ObservationData({len(features)} features: {features})"
