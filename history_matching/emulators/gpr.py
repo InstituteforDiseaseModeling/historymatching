@@ -43,7 +43,8 @@ class GPR(BaseEmulator):
         x_gpf = np.hstack(  ( np.ones( (len(self.X_train), 1 ) ),  self.X_train ) )
         y_gpf = np.float64( self.y_train.reshape( (len(self.y_train),) ) ).reshape(-1,1)
 
-        self.model = gpflow.models.GPR( (x_gpf, y_gpf), kernel=gpflow.kernels.SquaredExponential() )
+        ls = np.ones( (x_gpf.shape[1],) )
+        self.model = gpflow.models.GPR( (x_gpf, y_gpf), kernel=gpflow.kernels.SquaredExponential(lengthscales=ls))
         opt = gpflow.optimizers.Scipy()
         self.opt_logs = opt.minimize( self.model.training_loss, self.model.trainable_variables )
 
