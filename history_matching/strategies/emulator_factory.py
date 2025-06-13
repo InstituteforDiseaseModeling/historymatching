@@ -6,17 +6,10 @@ from typing import Dict, Type, Optional, Any, List
 import pandas as pd
 import logging
 
-try:
-    from ..emulators.base import BaseEmulator
-    from ..emulators.linear import LinearModel
-    from ..emulators.glm import GLM
-    from ..emulators.gpr import GPR
-except ImportError:
-    # For standalone testing
-    from history_matching.emulators.base import BaseEmulator
-    from history_matching.emulators.linear import LinearModel
-    from history_matching.emulators.glm import GLM
-    from history_matching.emulators.gpr import GPR
+from ..emulators.base import BaseEmulator
+from ..emulators.linear import LinearModel
+from ..emulators.glm import GLM
+from ..emulators.gpr import GPR
 
 logger = logging.getLogger(__name__)
 

@@ -8,13 +8,7 @@ import numpy as np
 import pandas as pd
 import warnings
 
-try:
-    from ..domain.observation_data import ObservationData
-    from .. import features
-except ImportError:
-    # For standalone testing
-    from history_matching.domain.observation_data import ObservationData
-    import history_matching.features as features
+from ..domain.observation_data import ObservationData
 
 
 class FeatureSelectionStrategy(ABC):
@@ -182,8 +176,16 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
         # Calculate feature statistics
         try:
             if self.method == 'fano':
-                stats_df = features.Statistics.fano(feature_data)
-                metric_values = stats_df['fano']
+                # Calculate Fano factor (variance/mean) directly
+                means = feature_data.mean()
+                variances = feature_data.var()
+                # Avoid division by zero
+                metric_values = pd.Series(index=means.index, dtype=float)
+                for feature in means.index:
+                    if means[feature] != 0:
+                        metric_values[feature] = variances[feature] / means[feature]
+                    else:
+                        metric_values[feature] = np.inf  # Will be filtered out
             elif self.method == 'var':
                 metric_values = feature_data.var()
             elif self.method == 'mean':
@@ -191,18 +193,7 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
             elif self.method == 'std':
                 metric_values = feature_data.std()
             else:
-                # Try to get method from Statistics class
-                if hasattr(features.Statistics, self.method):
-                    stats_method = getattr(features.Statistics, self.method)
-                    stats_df = stats_method(feature_data)
-                    # Assume the method returns a DataFrame with method name as column
-                    if self.method in stats_df.columns:
-                        metric_values = stats_df[self.method]
-                    else:
-                        # Take the first column if method name not found
-                        metric_values = stats_df.iloc[:, 0]
-                else:
-                    raise ValueError(f"Unknown feature selection method: {self.method}")
+                raise ValueError(f"Unknown feature selection method: {self.method}. Supported: 'fano', 'var', 'mean', 'std'")
         except Exception as e:
             warnings.warn(f"Failed to calculate {self.method} statistics: {e}. "
                          f"Falling back to variance.")

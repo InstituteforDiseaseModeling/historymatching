@@ -7,13 +7,9 @@ from typing import Optional, Dict, Type
 import numpy as np
 import pandas as pd
 
-try:
-    from ..domain.parameter_space import ParameterSpace
-    from .. import samplers
-except ImportError:
-    # For standalone testing
-    from history_matching.domain.parameter_space import ParameterSpace
-    import history_matching.samplers as samplers
+from ..domain.parameter_space import ParameterSpace
+from pyDOE import lhs
+from itertools import product
 
 
 class SamplingStrategy(ABC):
@@ -99,8 +95,19 @@ class LatinHypercubeSampling(SamplingStrategy):
         # Convert ParameterSpace to legacy DataFrame format for existing sampler
         parameter_space_df = parameter_space.to_dataframe()
         
-        # Use existing LHS implementation
-        samples = samplers.lhs_sampler(parameter_space_df, n_samples)
+        # Generate Latin Hypercube samples directly
+        n_parameters = parameter_space_df.shape[0]
+        
+        # Generate Latin Hypercube Samples in the unit hypercube [0, 1]
+        lhs_samples = lhs(n_parameters, samples=n_samples)
+        
+        # Scale the samples to the ranges defined in parameter_space
+        scaled_samples = np.zeros_like(lhs_samples)
+        for i, (min_val, max_val) in enumerate(zip(parameter_space_df['minimum'], parameter_space_df['maximum'])):
+            scaled_samples[:, i] = lhs_samples[:, i] * (max_val - min_val) + min_val
+        
+        # Create a DataFrame for the samples, using the parameter names as columns
+        samples = pd.DataFrame(scaled_samples, columns=parameter_space_df['parameter'])
         
         return samples
     
@@ -140,8 +147,19 @@ class GridSampling(SamplingStrategy):
         # Convert ParameterSpace to legacy DataFrame format for existing sampler
         parameter_space_df = parameter_space.to_dataframe()
         
-        # Use existing grid implementation
-        samples = samplers.grid(parameter_space_df, n_samples)
+        # Generate grid samples directly
+        n_parameters = parameter_space_df.shape[0]
+        n_steps = max(1, int(n_samples ** (1 / n_parameters)))
+        
+        # Create a list of evenly spaced values for each parameter using n_steps
+        grid_ranges = [np.linspace(row['minimum'], row['maximum'], n_steps) 
+                      for _, row in parameter_space_df.iterrows()]
+        
+        # Generate the Cartesian product of the grid ranges (all combinations of values)
+        grid_samples = list(product(*grid_ranges))
+        
+        # Convert the list of grid samples to a DataFrame
+        samples = pd.DataFrame(grid_samples, columns=parameter_space_df['parameter'])
         
         return samples
     
@@ -171,8 +189,12 @@ class RandomSampling(SamplingStrategy):
         # Convert ParameterSpace to legacy DataFrame format for existing sampler
         parameter_space_df = parameter_space.to_dataframe()
         
-        # Use existing random implementation
-        samples = samplers.random(parameter_space_df, n_samples)
+        # Generate random samples directly
+        samples = pd.DataFrame()
+        
+        for entry in parameter_space_df.itertuples():
+            points = np.random.default_rng().uniform(entry.minimum, entry.maximum, n_samples)
+            samples[entry.parameter] = points
         
         return samples
     

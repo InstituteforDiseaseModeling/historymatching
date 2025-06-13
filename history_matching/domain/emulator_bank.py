@@ -8,11 +8,7 @@ import pickle
 import copy
 import logging
 
-try:
-    from ..emulators.base import BaseEmulator
-except ImportError:
-    # For standalone testing
-    from history_matching.emulators.base import BaseEmulator
+from ..emulators.base import BaseEmulator
 
 logger = logging.getLogger(__name__)
 
