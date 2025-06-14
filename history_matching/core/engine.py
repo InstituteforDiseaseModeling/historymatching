@@ -254,16 +254,22 @@ class HistoryMatchingEngine:
             # Determine parameter space for next iteration
             next_parameter_space = self._get_next_parameter_space(samples, emulators)
             
+            # Calculate non-implausible points and fraction
+            # For now, use all samples as non-implausible (will be filtered in next iteration)
+            non_implausible_points = samples.copy()
+            non_implausible_fraction = 1.0  # TODO: Calculate actual implausibility filtering
+            
             # Create iteration result
             iteration_result = IterationResult(
                 iteration=self._progress.current_iteration + 1,
+                parameter_space=self._parameter_space,  # Current parameter space for this iteration
                 samples=samples,
                 simulation_results=simulation_results,
                 selected_features=selected_features,
                 emulators=emulators,
-                parameter_space_before=self._parameter_space,
-                parameter_space_after=next_parameter_space,
-                implausibility_threshold=self._implausibility_threshold
+                non_implausible_points=non_implausible_points,
+                non_implausible_fraction=non_implausible_fraction,
+                execution_time_seconds=0.0  # TODO: Track actual execution time
             )
             
             # Store pending changes (not committed yet)
