@@ -58,7 +58,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-notebooks = ["jupyterlab", "chardet"]
+notebooks = ["jupyterlab", "ipykernel", "chardet"]
 test = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
