@@ -17,6 +17,7 @@ from history_matching.emulators.base import BaseEmulator
 from history_matching.emulators.linear import LinearModel
 from history_matching.emulators.glm import GLM
 from history_matching.emulators.gpr import GPR
+from history_matching.emulators.results import EmulationResults
 
 
 class MockEmulator(BaseEmulator):
@@ -32,7 +33,10 @@ class MockEmulator(BaseEmulator):
         self.training_complete = True
     
     def predict(self, x):
-        return pd.DataFrame({'value': [1.0] * len(x)})
+        return EmulationResults(
+            mean=[1.0] * len(x),
+            std=[0.316] * len(x)  # sqrt(0.1) ≈ 0.316
+        )
 
 
 class TestEmulatorFactory:
@@ -233,8 +237,11 @@ class TestEmulatorFactory:
                 pass
             
             def predict(self, x):
-                return pd.DataFrame({'value': [0.5] * len(x)})
-        
+                return EmulationResults(
+                    mean=[0.5] * len(x),
+                    std=[0.316] * len(x)  # sqrt(0.1) ≈ 0.316
+                )
+
         # Register it
         EmulatorFactory.register_emulator('custom', CustomEmulator)
         
@@ -496,7 +503,10 @@ class TestEmulatorFactoryIntegration:
             def predict(self, x):
                 if not hasattr(self, 'mean_value'):
                     raise RuntimeError("Emulator not trained")
-                return pd.DataFrame({'value': [self.mean_value] * len(x)})
+                return EmulationResults(
+                    mean=[self.mean_value] * len(x),
+                    std=[0.1] * len(x)  # sqrt(0.01) = 0.1
+                )
         
         # Register the custom emulator
         EmulatorFactory.register_emulator('simple_average', SimpleAverageEmulator)
@@ -512,7 +522,8 @@ class TestEmulatorFactoryIntegration:
             # Test prediction
             predictions = emulator.predict(X.head(5))
             assert len(predictions) == 5
-            assert 'value' in predictions.columns
+            assert hasattr(predictions, 'get_mean')
+            assert len(predictions.get_mean()) == 5
             
         finally:
             # Clean up

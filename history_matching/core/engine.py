@@ -284,7 +284,7 @@ class HistoryMatchingEngine:
             # Add emulators to pending snapshot's bank
             for feature, emulator in emulators.items():
                 self._pending_snapshot.emulator_bank.add_emulator(
-                    feature, emulator, iteration_result.iteration
+                    iteration_result.iteration, feature, emulator
                 )
             
             self._state = EngineState.PAUSED
@@ -562,25 +562,26 @@ class HistoryMatchingEngine:
         sample_implausibilities = []
         
         # Get all emulators from the bank
-        all_emulators = self._emulator_bank.get_all_emulators()
+        for iteration in reversed(self._emulator_bank.get_all_iterations()):
+            emulators = self._emulator_bank.get_emulators_for_iteration(iteration)
         
-        for feature_name, emulator in all_emulators.items():
-            try:
-                # Get predictions from emulator
-                predictions = emulator.predict(candidates)
-                
-                # Calculate implausibility for this feature
-                feature_implausibility = self._observations.calculate_implausibility(
-                    feature_name, 
-                    predictions['value'], 
-                    predictions.get('variance', None)
-                )
-                
-                sample_implausibilities.append(feature_implausibility)
-                
-            except Exception as e:
-                logger.warning(f"Failed to calculate implausibility for feature {feature_name}: {e}")
-                continue
+            for feature_name, emulator in emulators.items():
+                try:
+                    # Get predictions from emulator
+                    predictions = emulator.predict(candidates)
+                    
+                    # Calculate implausibility for this feature (vectorized)
+                    feature_implausibility = self._observations.calculate_implausibility(
+                        feature_name, 
+                        predictions.get_mean(), 
+                        predictions.get_variance()
+                    )
+                    
+                    sample_implausibilities.append(feature_implausibility)
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to calculate implausibility for feature {feature_name}: {e}")
+                    continue
         
         if not sample_implausibilities:
             logger.warning("No valid implausibility calculations. Returning all candidates.")
@@ -635,9 +636,9 @@ class HistoryMatchingEngine:
             # Get predictions
             predictions = emulator.predict(samples)
             
-            # Calculate implausibility for this feature
+            # Calculate implausibility for this feature (vectorized)
             feature_implausibility = self._observations.calculate_implausibility(
-                feature_name, predictions['value'], predictions.get('variance', None)
+                feature_name, predictions.get_mean(), predictions.get_variance()
             )
             implausibilities.append(feature_implausibility)
         

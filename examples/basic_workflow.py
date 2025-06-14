@@ -151,7 +151,8 @@ def interactive_example():
     # Setup
     parameter_bounds = {
         'transmission_rate': (0.2, 0.8),
-        'recovery_rate': (0.1, 0.2)
+        'recovery_rate': (0.1, 0.2),
+        'initial_infected': (10, 50)
     }
     
     # Only directly observable quantities
@@ -229,7 +230,7 @@ def advanced_configuration_example():
     observations_df = pd.DataFrame({
         'feature': ['peak_infections', 'total_deaths', 'attack_rate'],
         'mean': [2500, 150, 0.75],
-        'variance': [300**2, 25**2, 0.1**2]  # Note: variance not std
+        'std': [300, 25, 0.1]  # Note: std not variance
     })
     
     print("📊 Using DataFrame inputs for more control...")

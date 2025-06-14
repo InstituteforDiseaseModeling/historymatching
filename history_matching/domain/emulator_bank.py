@@ -91,27 +91,11 @@ class EmulatorBank:
         latest_iteration = max(self._emulators.keys())
         return self.get_emulators_for_iteration(latest_iteration)
     
-    def get_all_emulators(self) -> Dict[str, BaseEmulator]:
+    def get_all_emulators(self) -> Dict[int, Dict[str, BaseEmulator]]:
         """
-        Get all emulators from all iterations, with latest taking precedence.
-        
-        If the same feature exists in multiple iterations, returns the emulator
-        from the most recent iteration.
-        
-        Returns:
-            Dict mapping feature names to emulators (latest version for each feature)
+        Get all emulators in the bank.
         """
-        if not self._emulators:
-            return {}
-        
-        all_emulators = {}
-        
-        # Process iterations in order so latest overwrites earlier
-        for iteration in sorted(self._emulators.keys()):
-            iteration_emulators = self._emulators[iteration]
-            all_emulators.update(iteration_emulators)
-            
-        return all_emulators
+        return self._emulators
         
     def get_all_iterations(self) -> List[int]:
         """

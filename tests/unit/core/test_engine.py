@@ -30,8 +30,8 @@ class MockEmulator:
         """Return mock predictions."""
         n_samples = len(X)
         return pd.DataFrame({
-            'value': np.random.normal(0, 1, n_samples),
-            'variance': np.ones(n_samples) * 0.1
+            'mean': np.random.normal(0, 1, n_samples),
+            'var': np.ones(n_samples) * 0.1
         })
     
     def train(self):
@@ -391,8 +391,8 @@ class TestHistoryMatchingEngine:
             # Mock emulator that makes some samples implausible
             mock_emulator = MagicMock()
             mock_emulator.predict.return_value = pd.DataFrame({
-                'value': [100.0] * 50,  # Very different from target (5.0)
-                'variance': [0.1] * 50
+                'mean': [100.0] * 50,  # Very different from target (5.0)
+                'var': [0.1] * 50
             })
             mock_create.return_value = {'output1': mock_emulator}
             

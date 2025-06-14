@@ -112,15 +112,12 @@ class IterationResult:
                 emulator = self.emulators[feature]
                 
                 # Get predictions for all samples
-                pred_means, pred_vars = emulator.predict(self.samples)
+                predictions = emulator.predict(self.samples)
                 
-                # Calculate implausibilities
-                implausibilities = []
-                for pred_mean, pred_var in zip(pred_means, pred_vars):
-                    impl = observations.calculate_implausibility(
-                        feature, pred_mean, pred_var, model_discrepancy
-                    )
-                    implausibilities.append(impl)
+                # Calculate implausibilities (vectorized)
+                implausibilities = observations.calculate_implausibility(
+                    feature, predictions.get_mean(), predictions.get_variance(), model_discrepancy
+                )
                     
                 result_df[f'implausibility_{feature}'] = implausibilities
                 

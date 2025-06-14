@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "setuptools>=30.3.0",
+    "setuptools>=30.3.0,<81",
 ]
 
 [project]
@@ -50,7 +50,7 @@ dependencies = [
     "scipy",
     "scikit-learn",
     "pydoe",
-    "tensorflow",
+    "tensorflow>=2.18",
     "tf-keras", 
     "gpflow",
     "bokeh",
@@ -59,6 +59,7 @@ dependencies = [
 
 [project.optional-dependencies]
 notebooks = ["jupyterlab", "ipykernel", "chardet"]
+mac = ["tensorflow-metal"]
 test = [
     "pytest>=7.0",
     "pytest-cov>=4.0",

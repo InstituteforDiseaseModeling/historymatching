@@ -27,8 +27,8 @@ class ObservationData:
         Initialize observation data.
         
         Args:
-            observations: DataFrame with columns ['feature', 'mean', 'variance']
-                         or dict mapping feature names to (mean, variance) tuples
+            observations: DataFrame with columns ['feature', 'mean', 'std']
+                         or dict mapping feature names to (mean, std) tuples
         """
         if isinstance(observations, dict):
             # Convert dict to DataFrame
@@ -53,13 +53,13 @@ class ObservationData:
         # Validate data
         for idx, row in df.iterrows():
             feature_name = row['feature']
-            mean_val, var_val = row['mean'], row['variance']
+            mean_val, std_val = row['mean'], row['std']
             
             if not np.isfinite(mean_val):
                 raise ValueError(f"Feature '{feature_name}' has non-finite mean: {mean_val}")
                 
-            if not np.isfinite(var_val) or var_val <= 0:
-                raise ValueError(f"Feature '{feature_name}' has invalid variance: {var_val} (must be positive and finite)")
+            if not np.isfinite(std_val) or std_val <= 0:
+                raise ValueError(f"Feature '{feature_name}' has invalid std: {std_val} (must be positive and finite)")
                 
         # Check for duplicate feature names
         if df['feature'].duplicated().any():
@@ -74,34 +74,34 @@ class ObservationData:
         
     def get_target_for_feature(self, feature_name: str) -> Tuple[float, float]:
         """
-        Get target mean and variance for a specific feature.
+        Get target mean and std for a specific feature.
         
         Args:
             feature_name: Name of the feature
             
         Returns:
-            Tuple of (mean, variance) values
+            Tuple of (mean, std) values
         """
         if feature_name not in self._observations.index:
             raise ValueError(f"Feature '{feature_name}' not found in observations")
             
         row = self._observations.loc[feature_name]
-        return float(row['mean']), float(row['variance'])
+        return float(row['mean']), float(row['std'])
         
     def get_all_targets(self) -> Dict[str, Tuple[float, float]]:
         """
         Get all feature targets as a dictionary.
         
         Returns:
-            Dict mapping feature names to (mean, variance) tuples
+            Dict mapping feature names to (mean, std) tuples
         """
         targets = {}
         for feature_name in self.get_feature_names():
             targets[feature_name] = self.get_target_for_feature(feature_name)
         return targets
         
-    def calculate_implausibility(self, feature_name: str, predicted_mean: float, 
-                                predicted_variance: float, model_discrepancy: float = 0.0) -> float:
+    def calculate_implausibility(self, feature_name: str, predicted_mean: Union[float, pd.Series], 
+                                predicted_variance: Union[float, pd.Series], model_discrepancy: float = 0.0) -> Union[float, pd.Series]:
         """
         Calculate implausibility metric for a single feature.
         
@@ -110,29 +110,34 @@ class ObservationData:
         
         Args:
             feature_name: Name of the feature
-            predicted_mean: Predicted mean from emulator
-            predicted_variance: Predicted variance from emulator
+            predicted_mean: Predicted mean from emulator (scalar or Series)
+            predicted_variance: Predicted variance from emulator (scalar or Series)
             model_discrepancy: Additional model uncertainty
             
         Returns:
-            Implausibility value (lower is more plausible)
+            Implausibility value(s) (lower is more plausible) - scalar if inputs are scalar, Series if inputs are Series
         """
         if feature_name not in self._observations.index:
             raise ValueError(f"Feature '{feature_name}' not found in observations")
             
-        observed_mean, observed_variance = self.get_target_for_feature(feature_name)
+        observed_mean, observed_std = self.get_target_for_feature(feature_name)
+        observed_variance = observed_std**2  # Convert std to variance for calculation
         
         # Calculate total variance (emulator + observation + model discrepancy)
         total_variance = predicted_variance + observed_variance + model_discrepancy**2
         
-        if total_variance <= 0:
+        if np.any(total_variance <= 0):
             raise ValueError(f"Total variance must be positive, got {total_variance}")
             
         # Calculate implausibility
         mean_difference = abs(predicted_mean - observed_mean)
         implausibility = mean_difference / np.sqrt(total_variance)
         
-        return float(implausibility)
+        # Return appropriate type based on input
+        if isinstance(predicted_mean, pd.Series) or isinstance(predicted_variance, pd.Series):
+            return implausibility
+        else:
+            return float(implausibility)
         
     def calculate_implausibilities(self, predictions: Dict[str, Tuple[float, float]], 
                                   model_discrepancy: float = 0.0) -> Dict[str, float]:

@@ -175,7 +175,7 @@ class MockEmulator(BaseEmulator):
         # Create mock predictions
         self.y_pred_test = self.y_test + np.random.normal(0, 0.1, len(self.y_test))
         
-    def predict(self, X_test: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+    def predict(self, X_test: pd.DataFrame) -> pd.DataFrame:
         """
         Mock prediction method.
         
@@ -183,7 +183,7 @@ class MockEmulator(BaseEmulator):
             X_test: Test input data
             
         Returns:
-            Tuple of (predicted_means, predicted_variances)
+            DataFrame with predicted means and variances
         """
         n_points = len(X_test)
         
@@ -195,7 +195,12 @@ class MockEmulator(BaseEmulator):
             
         variances = np.full(n_points, 0.1)  # Constant variance
         
-        return means, variances
+        out = pd.DataFrame({
+            'mean': means,
+            'variance': variances
+        })
+        
+        return out
     
     def score(self, X_test: pd.DataFrame, y_test: pd.DataFrame) -> float:
         """Return mock R² score."""

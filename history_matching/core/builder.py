@@ -92,9 +92,8 @@ class HistoryMatchingBuilder:
         # Create parameter space
         builder._parameter_space = ParameterSpace(parameter_bounds)
         
-        # Create observations (convert std to variance)
-        obs_data = {name: (target, std**2) for name, (target, std) in observations.items()}
-        builder._observations = ObservationData(obs_data)
+        # Create observations (std is used directly now)
+        builder._observations = ObservationData(observations)
         
         # Apply additional configuration
         builder._apply_kwargs(kwargs)
