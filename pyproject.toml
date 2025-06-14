@@ -44,17 +44,17 @@ classifiers = [
 requires-python = ">=3.9"
 dependencies = [
     "numpy",
-    "pandas", 
+    "pandas",
     "matplotlib",
     "statsmodels",
     "scipy",
     "scikit-learn",
-    "pydoe",
+    "pydoe2",
     "tensorflow>=2.18",
-    "tf-keras", 
+    "tf-keras",
     "gpflow",
     "bokeh",
-    "numexpr!=2.8.5",  # until RE string issue gets fixed
+    "numexpr!=2.8.5", # until RE string issue gets fixed
 ]
 
 [project.optional-dependencies]

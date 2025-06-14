@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ..domain.parameter_space import ParameterSpace
-from pyDOE import lhs
+from pyDOE2 import lhs
 from itertools import product
 
 

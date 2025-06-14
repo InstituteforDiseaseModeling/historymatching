@@ -69,37 +69,40 @@ class TestLatinHypercubeSampling:
         with pytest.raises(ValueError, match="Iterations must be >= 1"):
             LatinHypercubeSampling(iterations=0)
     
-    @patch('history_matching.strategies.sampling.samplers.lhs_sampler')
-    def test_generate_samples(self, mock_lhs_sampler, parameter_space):
+    @patch('history_matching.strategies.sampling.lhs')
+    def test_generate_samples(self, mock_lhs, parameter_space):
         """Test sample generation."""
-        # Mock the LHS sampler
-        expected_samples = pd.DataFrame({
-            'param1': [0.2, 0.8, 0.5],
-            'param2': [-2.0, 3.0, 0.0],
-            'param3': [12.0, 18.0, 15.0]
-        })
-        mock_lhs_sampler.return_value = expected_samples
+        # Mock the pyDOE2 lhs function to return unit hypercube samples
+        mock_lhs.return_value = np.array([
+            [0.2, 0.3, 0.1],
+            [0.8, 0.8, 0.8], 
+            [0.5, 0.5, 0.5]
+        ])
         
         sampler = LatinHypercubeSampling()
         samples = sampler.generate_samples(parameter_space, n_samples=3)
         
-        # Check that the LHS sampler was called correctly
-        mock_lhs_sampler.assert_called_once()
-        call_args = mock_lhs_sampler.call_args[0]
-        param_space_df = call_args[0]
-        n_samples = call_args[1]
+        # Check that the LHS function was called correctly
+        mock_lhs.assert_called_once_with(3, samples=3)
         
-        assert isinstance(param_space_df, pd.DataFrame)
-        assert n_samples == 3
+        # Check returned samples structure
+        assert isinstance(samples, pd.DataFrame)
+        assert len(samples) == 3
+        assert list(samples.columns) == ['param1', 'param2', 'param3']
         
-        # Check returned samples
-        pd.testing.assert_frame_equal(samples, expected_samples)
+        # Check that samples are within bounds
+        assert samples['param1'].min() >= 0.0
+        assert samples['param1'].max() <= 1.0
+        assert samples['param2'].min() >= -5.0
+        assert samples['param2'].max() <= 5.0
+        assert samples['param3'].min() >= 10.0
+        assert samples['param3'].max() <= 20.0
     
     @patch('numpy.random.seed')
-    @patch('history_matching.strategies.sampling.samplers.lhs_sampler')
-    def test_generate_samples_with_seed(self, mock_lhs_sampler, mock_seed, parameter_space):
+    @patch('history_matching.strategies.sampling.lhs')
+    def test_generate_samples_with_seed(self, mock_lhs, mock_seed, parameter_space):
         """Test sample generation with random seed."""
-        mock_lhs_sampler.return_value = pd.DataFrame({'param1': [0.5]})
+        mock_lhs.return_value = np.array([[0.5, 0.5, 0.5]])
         
         sampler = LatinHypercubeSampling()
         sampler.generate_samples(parameter_space, n_samples=1, seed=42)
@@ -138,30 +141,21 @@ class TestGridSampling:
         with pytest.raises(ValueError, match="samples_per_dimension must be >= 1"):
             GridSampling(samples_per_dimension=0)
     
-    @patch('history_matching.strategies.sampling.samplers.grid')
-    def test_generate_samples(self, mock_grid, parameter_space):
+    def test_generate_samples(self, parameter_space):
         """Test sample generation."""
-        # Mock the grid sampler
-        expected_samples = pd.DataFrame({
-            'param1': [0.0, 0.5, 1.0],
-            'param2': [-1.0, 0.0, 1.0]
-        })
-        mock_grid.return_value = expected_samples
-        
         sampler = GridSampling()
         samples = sampler.generate_samples(parameter_space, n_samples=9)
         
-        # Check that the grid sampler was called correctly
-        mock_grid.assert_called_once()
-        call_args = mock_grid.call_args[0]
-        param_space_df = call_args[0]
-        n_samples = call_args[1]
+        # Check returned samples structure
+        assert isinstance(samples, pd.DataFrame)
+        assert len(samples) > 0  # Grid sampling may produce different number of samples
+        assert list(samples.columns) == ['param1', 'param2']
         
-        assert isinstance(param_space_df, pd.DataFrame)
-        assert n_samples == 9
-        
-        # Check returned samples
-        pd.testing.assert_frame_equal(samples, expected_samples)
+        # Check that samples are within bounds
+        assert samples['param1'].min() >= 0.0
+        assert samples['param1'].max() <= 1.0
+        assert samples['param2'].min() >= -1.0
+        assert samples['param2'].max() <= 1.0
     
     def test_get_strategy_name_default(self):
         """Test strategy name with default parameters."""
@@ -191,37 +185,25 @@ class TestRandomSampling:
         # No specific attributes to test
         assert isinstance(sampler, RandomSampling)
     
-    @patch('history_matching.strategies.sampling.samplers.random')
-    def test_generate_samples(self, mock_random, parameter_space):
+    def test_generate_samples(self, parameter_space):
         """Test sample generation."""
-        # Mock the random sampler
-        expected_samples = pd.DataFrame({
-            'param1': [2.5, 7.8, 1.2],
-            'param2': [-2.3, 4.1, 0.5]
-        })
-        mock_random.return_value = expected_samples
-        
         sampler = RandomSampling()
-        samples = sampler.generate_samples(parameter_space, n_samples=3)
+        samples = sampler.generate_samples(parameter_space, n_samples=3, seed=42)
         
-        # Check that the random sampler was called correctly
-        mock_random.assert_called_once()
-        call_args = mock_random.call_args[0]
-        param_space_df = call_args[0]
-        n_samples = call_args[1]
+        # Check returned samples structure
+        assert isinstance(samples, pd.DataFrame)
+        assert len(samples) == 3
+        assert list(samples.columns) == ['param1', 'param2']
         
-        assert isinstance(param_space_df, pd.DataFrame)
-        assert n_samples == 3
-        
-        # Check returned samples
-        pd.testing.assert_frame_equal(samples, expected_samples)
+        # Check that samples are within bounds
+        assert samples['param1'].min() >= 0.0
+        assert samples['param1'].max() <= 10.0
+        assert samples['param2'].min() >= -5.0
+        assert samples['param2'].max() <= 5.0
     
     @patch('numpy.random.seed')
-    @patch('history_matching.strategies.sampling.samplers.random')
-    def test_generate_samples_with_seed(self, mock_random, mock_seed, parameter_space):
+    def test_generate_samples_with_seed(self, mock_seed, parameter_space):
         """Test sample generation with random seed."""
-        mock_random.return_value = pd.DataFrame({'param1': [0.5], 'param2': [0.0]})
-        
         sampler = RandomSampling()
         sampler.generate_samples(parameter_space, n_samples=1, seed=123)
         
