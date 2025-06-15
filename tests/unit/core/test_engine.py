@@ -17,72 +17,87 @@ from history_matching.domain.iteration_result import IterationResult
 from history_matching.strategies.sampling import LatinHypercubeSampling, RandomSampling
 from history_matching.strategies.feature_selection import ManualFeatureSelection, AutoFeatureSelection
 from history_matching.strategies.emulator_factory import EmulatorFactory
+from history_matching.emulators.base import BaseEmulator
 
 
-class MockEmulator:
-    """Mock emulator for testing."""
+class MockEmulator(BaseEmulator):
+    """Mock emulator for testing that inherits from BaseEmulator."""
     
     def __init__(self, feature_name='mock_feature'):
+        super().__init__()  # Initialize BaseEmulator
         self.feature_name = feature_name
         self.training_complete = True
     
     def predict(self, X):
-        """Return mock predictions."""
+        """Return mock predictions with get_mean() and get_variance() methods."""
         n_samples = len(X)
-        return pd.DataFrame({
+        predictions = pd.DataFrame({
             'mean': np.random.normal(0, 1, n_samples),
             'var': np.ones(n_samples) * 0.1
         })
+        
+        # Add get_mean and get_variance methods that the engine expects
+        def get_mean():
+            return predictions['mean']
+        
+        def get_variance():
+            return predictions['var']
+        
+        predictions.get_mean = get_mean
+        predictions.get_variance = get_variance
+        
+        return predictions
     
     def train(self):
         self.training_complete = True
 
 
+@pytest.fixture
+def parameter_space():
+    """Create test parameter space."""
+    return ParameterSpace({
+        'param1': (0.0, 1.0),
+        'param2': (-1.0, 1.0),
+        'param3': (10.0, 20.0)
+    })
+
+@pytest.fixture
+def observations():
+    """Create test observations."""
+    return ObservationData({
+        'output1': (5.0, 1.0),  # (mean, variance)
+        'output2': (10.0, 4.0),
+        'output3': (0.5, 0.01)
+    })
+
+@pytest.fixture
+def mock_simulation_function():
+    """Create mock simulation function."""
+    def simulate(samples):
+        n_samples = len(samples)
+        return pd.DataFrame({
+            'output1': np.random.normal(5, 1, n_samples),
+            'output2': np.random.normal(10, 2, n_samples),
+            'output3': np.random.normal(0.5, 0.1, n_samples),
+            'extra_output': np.random.normal(0, 1, n_samples)
+        })
+    return simulate
+
+@pytest.fixture
+def basic_engine(parameter_space, observations):
+    """Create basic engine for testing."""
+    return HistoryMatchingEngine(
+        parameter_space=parameter_space,
+        observations=observations,
+        sampling_strategy=RandomSampling(),
+        feature_selection_strategy=ManualFeatureSelection(['output1']),
+        emulator_factory=EmulatorFactory('linear'),
+        n_samples=50  # Small for testing
+    )
+
+
 class TestHistoryMatchingEngine:
     """Test HistoryMatchingEngine functionality."""
-    
-    @pytest.fixture
-    def parameter_space(self):
-        """Create test parameter space."""
-        return ParameterSpace({
-            'param1': (0.0, 1.0),
-            'param2': (-1.0, 1.0),
-            'param3': (10.0, 20.0)
-        })
-    
-    @pytest.fixture
-    def observations(self):
-        """Create test observations."""
-        return ObservationData({
-            'output1': (5.0, 1.0),  # (mean, variance)
-            'output2': (10.0, 4.0),
-            'output3': (0.5, 0.01)
-        })
-    
-    @pytest.fixture
-    def mock_simulation_function(self):
-        """Create mock simulation function."""
-        def simulate(samples):
-            n_samples = len(samples)
-            return pd.DataFrame({
-                'output1': np.random.normal(5, 1, n_samples),
-                'output2': np.random.normal(10, 2, n_samples),
-                'output3': np.random.normal(0.5, 0.1, n_samples),
-                'extra_output': np.random.normal(0, 1, n_samples)
-            })
-        return simulate
-    
-    @pytest.fixture
-    def basic_engine(self, parameter_space, observations):
-        """Create basic engine for testing."""
-        return HistoryMatchingEngine(
-            parameter_space=parameter_space,
-            observations=observations,
-            sampling_strategy=RandomSampling(),
-            feature_selection_strategy=ManualFeatureSelection(['output1']),
-            emulator_factory=EmulatorFactory('linear'),
-            n_samples=50  # Small for testing
-        )
     
     def test_engine_initialization(self, parameter_space, observations):
         """Test basic engine initialization."""
@@ -100,7 +115,7 @@ class TestHistoryMatchingEngine:
         assert engine._observations is observations
         assert engine._n_samples == 1000  # default
         assert engine._auto_reduce_space is False  # default
-        assert engine._oversample_factor == 2.0  # default
+        assert engine._oversample_factor == 1.1  # default
     
     def test_engine_initialization_with_options(self, parameter_space, observations):
         """Test engine initialization with custom options."""
@@ -130,7 +145,7 @@ class TestHistoryMatchingEngine:
     
     def test_step_without_simulation_function(self, basic_engine):
         """Test stepping without simulation function raises error."""
-        with pytest.raises(ValueError, match="Simulation function must be set"):
+        with pytest.raises(ValueError, match="No simulation function has been configured"):
             basic_engine.step()
     
     def test_step_invalid_state(self, basic_engine, mock_simulation_function):
@@ -138,7 +153,7 @@ class TestHistoryMatchingEngine:
         basic_engine.set_simulation_function(mock_simulation_function)
         basic_engine._state = EngineState.RUNNING
         
-        with pytest.raises(RuntimeError, match="Cannot step in state"):
+        with pytest.raises(RuntimeError, match="Engine is currently running iteration"):
             basic_engine.step()
     
     def test_first_iteration_step(self, basic_engine, mock_simulation_function):
@@ -200,47 +215,49 @@ class TestHistoryMatchingEngine:
     
     def test_commit_without_pending_step(self, basic_engine):
         """Test committing without pending step raises error."""
-        with pytest.raises(RuntimeError, match="No pending iteration to commit"):
+        with pytest.raises(RuntimeError, match="No iteration has been executed yet"):
             basic_engine.commit_step()
     
     def test_revert_without_pending_step(self, basic_engine):
         """Test reverting without pending step raises error."""
-        with pytest.raises(RuntimeError, match="No pending iteration to revert"):
+        with pytest.raises(RuntimeError, match="No iteration has been executed yet"):
             basic_engine.revert_step()
     
-    def test_second_iteration_with_filtering(self, basic_engine, mock_simulation_function):
-        """Test second iteration with sample filtering."""
+    def test_second_iteration_with_precomputed_samples(self, basic_engine, mock_simulation_function):
+        """Test that second iteration uses pre-computed samples from first iteration."""
         basic_engine.set_simulation_function(mock_simulation_function)
         
-        # First iteration
+        # First iteration - mock to include next sample computation
         with patch.object(basic_engine._emulator_factory, 'create_emulators_for_features') as mock_create:
             mock_emulator = MockEmulator('output1')
             mock_create.return_value = {'output1': mock_emulator}
             
-            result1 = basic_engine.step()
-            basic_engine.commit_step()
+            # Mock the compute next iteration samples to return filtered samples
+            with patch.object(basic_engine, '_compute_next_iteration_samples') as mock_compute:
+                mock_compute.return_value = pd.DataFrame({
+                    'param1': [0.5] * 30,
+                    'param2': [0.0] * 30,
+                    'param3': [15.0] * 30
+                })
+                
+                result1 = basic_engine.step()
+                basic_engine.commit_step()
+                
+                # Should have computed next iteration samples during first step
+                assert mock_compute.call_count == 1
         
-        # Mock the emulator bank to have emulators
-        basic_engine._emulator_bank.add_emulator('output1', mock_emulator, 1)
-        
-        # Second iteration should use filtering
+        # Second iteration should use pre-computed samples (no filtering at start)
         with patch.object(basic_engine, '_filter_samples_by_implausibility') as mock_filter:
-            # Mock filtered samples
-            mock_filter.return_value = pd.DataFrame({
-                'param1': [0.5] * 30,
-                'param2': [0.0] * 30,
-                'param3': [15.0] * 30
-            })
-            
             with patch.object(basic_engine._emulator_factory, 'create_emulators_for_features') as mock_create:
                 mock_emulator2 = MockEmulator('output1')
                 mock_create.return_value = {'output1': mock_emulator2}
                 
                 result2 = basic_engine.step()
         
-        # Should have called filtering
-        mock_filter.assert_called_once()
-        assert basic_engine.acceptance_rate < 1.0  # Should have filtered some samples
+        # Should NOT have called filtering during second step (uses pre-computed samples)
+        assert mock_filter.call_count == 0
+        # Should use the pre-computed samples (30 samples from first iteration)
+        assert len(result2.samples) == 30
     
     def test_update_strategies(self, basic_engine):
         """Test updating strategies."""
@@ -308,7 +325,7 @@ class TestHistoryMatchingEngine:
             basic_engine.commit_step()
             
             # Third iteration should fail
-            with pytest.raises(RuntimeError, match="Maximum iterations"):
+            with pytest.raises(RuntimeError, match="Engine has completed all .* iterations"):
                 basic_engine.step()
     
     def test_get_iteration_results(self, basic_engine, mock_simulation_function):
@@ -388,17 +405,29 @@ class TestHistoryMatchingEngine:
         engine.set_simulation_function(mock_simulation_function)
         
         with patch.object(engine._emulator_factory, 'create_emulators_for_features') as mock_create:
-            # Mock emulator that makes some samples implausible
-            mock_emulator = MagicMock()
-            mock_emulator.predict.return_value = pd.DataFrame({
-                'mean': [100.0] * 50,  # Very different from target (5.0)
-                'var': [0.1] * 50
-            })
+            # Use our MockEmulator with custom prediction
+            mock_emulator = MockEmulator('output1')
+            # Override the predict method to return high values that will be implausible
+            def custom_predict(X):
+                n_samples = len(X)
+                predictions = pd.DataFrame({
+                    'mean': [100.0] * n_samples,  # Very different from target (5.0)
+                    'var': [0.1] * n_samples
+                })
+                # Add get_mean and get_variance methods
+                predictions.get_mean = lambda: predictions['mean']
+                predictions.get_variance = lambda: predictions['var']
+                return predictions
+            mock_emulator.predict = custom_predict
             mock_create.return_value = {'output1': mock_emulator}
             
             with patch.object(engine, '_observations') as mock_obs:
                 # Mock implausibility calculation to return high values for some samples
-                mock_obs.calculate_implausibility.return_value = pd.Series([1.0] * 25 + [5.0] * 25)
+                def mock_calculate_implausibility(feature_name, means, variances):
+                    n_samples = len(means)
+                    return pd.Series([1.0] * (n_samples // 2) + [5.0] * (n_samples - n_samples // 2))
+                
+                mock_obs.calculate_implausibility.side_effect = mock_calculate_implausibility
                 
                 result = engine.step()
                 engine.commit_step()
@@ -518,13 +547,16 @@ class TestSampleFiltering:
         })
         
         # Mock emulator bank with emulators
-        mock_emulator = MagicMock()
-        mock_emulator.predict.return_value = pd.DataFrame({
-            'value': [5.0, 10.0, 1.0],  # Different predictions
-            'variance': [0.1, 0.1, 0.1]
+        mock_emulator = MockEmulator('output1')
+        predictions = pd.DataFrame({
+            'mean': [5.0, 10.0, 1.0],  # Different predictions
+            'var': [0.1, 0.1, 0.1]
         })
+        predictions.get_mean = lambda: predictions['mean']
+        predictions.get_variance = lambda: predictions['var']
+        mock_emulator.predict = MagicMock(return_value=predictions)
         
-        basic_engine._emulator_bank.add_emulator('output1', mock_emulator, 1)
+        basic_engine._emulator_bank.add_emulator(1, 'output1', mock_emulator)
         
         # Mock observations to return specific implausibilities
         with patch.object(basic_engine._observations, 'calculate_implausibility') as mock_calc:
@@ -536,36 +568,41 @@ class TestSampleFiltering:
         assert len(filtered) == 2
         assert filtered.index.tolist() == [0, 1]
     
-    def test_insufficient_plausible_samples(self, basic_engine, mock_simulation_function):
-        """Test handling when insufficient plausible samples are found."""
+    def test_adaptive_sampling_during_next_sample_computation(self, basic_engine, mock_simulation_function):
+        """Test that adaptive sampling works during next iteration sample computation."""
         basic_engine.set_simulation_function(mock_simulation_function)
-        basic_engine._n_samples = 100  # Request more samples
+        basic_engine._n_samples = 50  # Request samples
         
-        # Mock first iteration
+        # Mock first iteration to test adaptive sampling during next sample computation
         with patch.object(basic_engine._emulator_factory, 'create_emulators_for_features') as mock_create:
             mock_emulator = MockEmulator('output1')
             mock_create.return_value = {'output1': mock_emulator}
             
-            result1 = basic_engine.step()
-            basic_engine.commit_step()
-        
-        # Add emulator to bank
-        basic_engine._emulator_bank.add_emulator('output1', mock_emulator, 1)
-        
-        # Mock filtering to return fewer samples than requested
-        with patch.object(basic_engine, '_filter_samples_by_implausibility') as mock_filter:
-            mock_filter.return_value = pd.DataFrame({
-                'param1': [0.5] * 30,  # Only 30 samples instead of 100
-                'param2': [0.0] * 30,
-                'param3': [15.0] * 30
-            })
+            # Mock the filtering within _filter_samples_with_bank to simulate low acceptance rate
+            call_count = 0
+            def mock_filter_side_effect(candidates, emulator_bank):
+                nonlocal call_count
+                call_count += 1
+                # Return 10 samples from each batch to simulate low acceptance rate
+                n_return = min(10, len(candidates))
+                return candidates.head(n_return)
             
-            with patch.object(basic_engine._emulator_factory, 'create_emulators_for_features') as mock_create:
-                mock_emulator2 = MockEmulator('output1')
-                mock_create.return_value = {'output1': mock_emulator2}
+            with patch.object(basic_engine, '_filter_samples_with_bank', side_effect=mock_filter_side_effect):
+                result1 = basic_engine.step()
                 
-                with pytest.warns(UserWarning, match="Only 30 plausible samples found"):
-                    result2 = basic_engine.step()
+                # Check that adaptive sampling occurred during next sample computation
+                # (multiple calls to _filter_samples_with_bank means multiple batches were tried)
+                assert call_count > 1
+                
+                # The pending snapshot should have the computed next samples
+                next_samples = basic_engine.get_pending_next_samples()
+                assert next_samples is not None
+                assert len(next_samples) == 50  # Should eventually get requested number
+                
+                # Commit the step
+                basic_engine.commit_step()
         
-        # Should return what was found
-        assert len(result2.samples) == 30
+        # The acceptance rate should reflect the filtering that happened during next sample computation
+        # Note: The acceptance rate is calculated based on the first iteration's box sampling (100%)
+        # plus the filtering during next sample computation
+        assert basic_engine.acceptance_rate < 1.0  # Should show filtering happened

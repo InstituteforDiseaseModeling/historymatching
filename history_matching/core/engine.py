@@ -60,6 +60,10 @@ class IterationSnapshot:
     parameter_space: ParameterSpace
     emulator_bank: EmulatorBank
     result: Optional[IterationResult] = None
+    next_samples: Optional[pd.DataFrame] = None  # Pre-computed samples for next iteration
+    total_samples_generated: int = 0  # Total samples generated up to this iteration
+    total_samples_accepted: int = 0   # Total samples accepted up to this iteration  
+    acceptance_rate: float = 1.0      # Cumulative acceptance rate up to this iteration
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -272,9 +276,21 @@ class HistoryMatchingEngine:
         self._state = EngineState.RUNNING
 
         try:
-            # Generate plausible parameter samples
-            samples = self._generate_plausible_samples()
-            logger.info(f"Generated {len(samples)} plausible samples (acceptance rate: {self._progress.acceptance_rate:.3f})")
+            # Get samples for this iteration
+            if self._progress.current_iteration == 0:
+                # First iteration - generate samples from parameter space box
+                samples = self._generate_plausible_samples()
+                logger.info(f"Generated {len(samples)} samples for first iteration (acceptance rate: {self._progress.acceptance_rate:.3f})")
+            else:
+                # Use pre-computed samples from previous iteration's snapshot
+                previous_snapshot = self._snapshots[self._progress.current_iteration - 1]
+                samples = previous_snapshot.next_samples
+                if samples is None:
+                    raise RuntimeError(
+                        f"No pre-computed samples found from iteration {previous_snapshot.iteration}. "
+                        f"This indicates an internal error - samples should have been computed during the previous step."
+                    )
+                logger.info(f"Using {len(samples)} pre-computed samples from iteration {previous_snapshot.iteration}")
 
             # Run simulation
             simulation_results = self._run_simulation(samples)
@@ -291,6 +307,10 @@ class HistoryMatchingEngine:
             # Create emulators
             emulators = self._create_emulators(samples, simulation_results, selected_features)
             logger.debug(f"Created {len(emulators)} emulators")
+
+            # Compute samples for next iteration (for user inspection before commit)
+            next_iteration_samples = self._compute_next_iteration_samples(emulators)
+            logger.info(f"Computed {len(next_iteration_samples)} samples for next iteration")
 
             # Determine parameter space for next iteration
             next_parameter_space = self._get_next_parameter_space(samples, emulators)
@@ -320,6 +340,10 @@ class HistoryMatchingEngine:
                 parameter_space=next_parameter_space,
                 emulator_bank=self._emulator_bank.copy(),  # Copy current state
                 result=iteration_result,
+                next_samples=next_iteration_samples,  # Store pre-computed samples for next iteration
+                total_samples_generated=self._progress.total_samples_generated,
+                total_samples_accepted=self._progress.total_samples_accepted,
+                acceptance_rate=self._progress.acceptance_rate,
             )
 
             # Add emulators to pending snapshot's bank
@@ -455,6 +479,18 @@ class HistoryMatchingEngine:
                     f"No pending iteration to revert (engine state: {self._state.value}). "
                     "Call step() first to execute an iteration that can be reverted."
                 )
+
+        # Restore progress information from last committed snapshot
+        if self._snapshots:
+            last_snapshot = self._snapshots[-1]
+            self._progress.total_samples_generated = last_snapshot.total_samples_generated
+            self._progress.total_samples_accepted = last_snapshot.total_samples_accepted
+            self._progress.acceptance_rate = last_snapshot.acceptance_rate
+        else:
+            # No committed snapshots, reset to initial values
+            self._progress.total_samples_generated = 0
+            self._progress.total_samples_accepted = 0
+            self._progress.acceptance_rate = 1.0
 
         # Clear pending state
         reverted_iteration = self._pending_result.iteration
@@ -604,7 +640,8 @@ class HistoryMatchingEngine:
 
             self._progress.end_time = time.time()
 
-            if self._state != EngineState.ERROR:
+            # Only set to COMPLETED if we actually finished all iterations
+            if self._state != EngineState.ERROR and self._progress.current_iteration >= self._max_iterations:
                 self._state = EngineState.COMPLETED
 
             logger.info(f"Automated run completed. {len(results)} iterations executed.")
@@ -639,6 +676,29 @@ class HistoryMatchingEngine:
     def get_all_results(self) -> List[IterationResult]:
         """Get all committed iteration results."""
         return [snapshot.result for snapshot in self._snapshots if snapshot.result is not None]
+
+    def get_pending_next_samples(self) -> Optional[pd.DataFrame]:
+        """
+        Get the proposed samples for the next iteration, if available.
+        
+        This allows inspection of pre-computed samples after step() but before commit_step().
+        The samples are computed during step() execution and will be used for the next 
+        iteration if the current step is committed.
+        
+        Returns:
+            DataFrame of proposed samples for next iteration, or None if no step is pending
+            
+        Example:
+            result = engine.step()
+            next_samples = engine.get_pending_next_samples()
+            if next_samples is not None:
+                print(f"Proposed {len(next_samples)} samples for next iteration")
+                # Inspect the samples before deciding to commit
+                engine.commit_step()  # or engine.revert_step()
+        """
+        if self._pending_snapshot is None:
+            return None
+        return self._pending_snapshot.next_samples
 
     def save_checkpoint(self, filepath: Path) -> None:
         """Save engine state to checkpoint file."""
@@ -866,6 +926,133 @@ class HistoryMatchingEngine:
 
         # Create new parameter space constrained to plausible samples
         return self._parameter_space.constrain_to_samples(plausible_samples)
+
+    def _compute_next_iteration_samples(self, current_emulators: Dict[str, Any]) -> pd.DataFrame:
+        """
+        Compute plausible parameter samples for the next iteration.
+        
+        This uses the same rejection sampling logic as the current _generate_plausible_samples(),
+        but with the newly created emulators from this iteration.
+        
+        Args:
+            current_emulators: Emulators created in the current iteration
+            
+        Returns:
+            DataFrame of plausible samples for next iteration
+        """
+        # Create a temporary emulator bank with current emulators for filtering
+        temp_bank = self._emulator_bank.copy()
+        current_iteration = self._progress.current_iteration + 1
+        
+        # Add current iteration's emulators to the temporary bank
+        for feature, emulator in current_emulators.items():
+            temp_bank.add_emulator(current_iteration, feature, emulator)
+        
+        # Use the same adaptive sampling loop as _generate_plausible_samples()
+        plausible_samples = pd.DataFrame()
+        total_candidates_generated = 0
+        
+        # Initial batch size
+        batch_size = min(int(self._n_samples * self._oversample_factor), self._max_batch_size)
+        
+        while len(plausible_samples) < self._n_samples:
+            # Generate candidate samples
+            candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=self._random_seed)
+            
+            # Filter candidates through existing + current emulators
+            batch_plausible = self._filter_samples_with_bank(candidates, temp_bank)
+            
+            # Combine with existing plausible samples
+            if len(batch_plausible) > 0:
+                plausible_samples = pd.concat([plausible_samples, batch_plausible], ignore_index=True)
+            
+            # Update counters
+            total_candidates_generated += len(candidates)
+            
+            # Calculate acceptance rate for adaptive sizing
+            current_acceptance_rate = len(plausible_samples) / total_candidates_generated
+            
+            # If we have enough samples, break
+            if len(plausible_samples) >= self._n_samples:
+                break
+            
+            # Calculate next batch size adaptively
+            remaining_needed = self._n_samples - len(plausible_samples)
+            if current_acceptance_rate > 0:
+                batch_size = min(int(self._oversample_factor * remaining_needed / current_acceptance_rate), self._max_batch_size)
+            else:
+                # If no samples accepted yet, increase batch size
+                batch_size = min(batch_size * 2, self._max_batch_size)
+        
+        # Update progress tracking to include next iteration sample generation
+        self._progress.total_samples_generated += total_candidates_generated
+        self._progress.total_samples_accepted += len(plausible_samples)
+        self._progress.acceptance_rate = self._progress.total_samples_accepted / self._progress.total_samples_generated if self._progress.total_samples_generated > 0 else 1.0
+        
+        logger.debug(f"Computed {len(plausible_samples)} samples for next iteration (acceptance rate: {len(plausible_samples)/total_candidates_generated:.3f})")
+        
+        # Return exactly the requested number of samples
+        return plausible_samples.head(self._n_samples)
+
+    def _filter_samples_with_bank(self, candidates: pd.DataFrame, emulator_bank: EmulatorBank) -> pd.DataFrame:
+        """Filter candidate samples using a specific emulator bank."""
+        if not emulator_bank.has_emulators():
+            return candidates
+        
+        # Calculate implausibility for each candidate sample
+        sample_implausibilities = []
+        
+        # Get all emulators from the bank
+        for iteration in reversed(emulator_bank.get_all_iterations()):
+            emulators = emulator_bank.get_emulators_for_iteration(iteration)
+            
+            for feature_name, emulator in emulators.items():
+                try:
+                    # Check if feature exists in observations
+                    if not self._observations.has_feature(feature_name):
+                        logger.warning(
+                            f"Skipping feature '{feature_name}' from iteration {iteration}: "
+                            f"not found in observation data. Available features: {self._observations.get_feature_names()}"
+                        )
+                        continue
+                    
+                    # Get predictions from emulator
+                    predictions = emulator.predict(candidates)
+                    
+                    # Calculate implausibility for this feature (vectorized)
+                    feature_implausibility = self._observations.calculate_implausibility(
+                        feature_name, predictions.get_mean(), predictions.get_variance()
+                    )
+                    
+                    sample_implausibilities.append(feature_implausibility)
+                
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to calculate implausibility for feature '{feature_name}' from iteration {iteration}: {e}. "
+                        f"This may indicate an issue with the emulator or observation data. Skipping this feature."
+                    )
+                    continue
+        
+        if not sample_implausibilities:
+            logger.warning(
+                "No valid implausibility calculations could be performed for next iteration samples. "
+                "Returning all candidate samples without filtering."
+            )
+            return candidates
+        
+        # Combine implausibilities (use maximum across features)
+        combined_implausibility = pd.concat(sample_implausibilities, axis=1).max(axis=1)
+        
+        # Ensure indices align for boolean indexing
+        combined_implausibility.index = candidates.index
+        
+        # Filter to plausible samples
+        plausible_mask = combined_implausibility <= self._implausibility_threshold
+        plausible_samples = candidates[plausible_mask]
+        
+        logger.debug(f"Filtered {len(candidates)} candidates to {len(plausible_samples)} plausible samples for next iteration")
+        
+        return plausible_samples
 
     def _create_snapshot(self) -> IterationSnapshot:
         """Create snapshot of current state."""
