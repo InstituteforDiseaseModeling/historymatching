@@ -5,33 +5,39 @@ Provides step-by-step execution with the ability to inspect results,
 make adjustments, and revert changes if needed.
 """
 
-from typing import Optional, Dict, Any, List, Callable, Union
-from dataclasses import dataclass, field
-from enum import Enum
-import pandas as pd
-import numpy as np
 import logging
-import warnings
-from pathlib import Path
 import pickle
+import warnings
+from dataclasses import dataclass
+from dataclasses import field
+from enum import Enum
+from pathlib import Path
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
+
+import pandas as pd
 
 try:
-    from ..domain.parameter_space import ParameterSpace
-    from ..domain.observation_data import ObservationData
     from ..domain.emulator_bank import EmulatorBank
     from ..domain.iteration_result import IterationResult
-    from ..strategies.sampling import SamplingStrategy
-    from ..strategies.feature_selection import FeatureSelectionStrategy
+    from ..domain.observation_data import ObservationData
+    from ..domain.parameter_space import ParameterSpace
     from ..strategies.emulator_factory import EmulatorFactory
+    from ..strategies.feature_selection import FeatureSelectionStrategy
+    from ..strategies.sampling import SamplingStrategy
 except ImportError:
     # For standalone testing
-    from history_matching.domain.parameter_space import ParameterSpace
-    from history_matching.domain.observation_data import ObservationData
     from history_matching.domain.emulator_bank import EmulatorBank
     from history_matching.domain.iteration_result import IterationResult
-    from history_matching.strategies.sampling import SamplingStrategy
-    from history_matching.strategies.feature_selection import FeatureSelectionStrategy
+    from history_matching.domain.observation_data import ObservationData
+    from history_matching.domain.parameter_space import ParameterSpace
     from history_matching.strategies.emulator_factory import EmulatorFactory
+    from history_matching.strategies.feature_selection import FeatureSelectionStrategy
+    from history_matching.strategies.sampling import SamplingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -226,13 +232,41 @@ class HistoryMatchingEngine:
             ValueError: If simulation function is not set
         """
         if self._state not in [EngineState.INITIALIZED, EngineState.PAUSED]:
-            raise RuntimeError(f"Cannot step in state {self._state}. Use commit_step() or revert_step() first.")
+            if self._state == EngineState.RUNNING:
+                raise RuntimeError(
+                    f"Engine is currently running iteration {self._progress.current_iteration + 1}. "
+                    "Wait for it to complete before calling step() again."
+                )
+            elif self._state == EngineState.COMPLETED:
+                raise RuntimeError(
+                    f"Engine has completed all {self._max_iterations} iterations. "
+                    "Use get_all_results() to access results or create a new engine instance to continue."
+                )
+            elif self._state == EngineState.ERROR:
+                raise RuntimeError(
+                    "Engine is in an error state from a previous operation. "
+                    "Check the logs for details or create a new engine instance."
+                )
+            else:
+                raise RuntimeError(
+                    f"Engine is in state '{self._state.value}' and cannot execute step(). "
+                    "If you have a pending iteration, use commit_step() to accept it or revert_step() to discard it."
+                )
 
         if self._simulation_function is None:
-            raise ValueError("Simulation function must be set before running iterations. Use set_simulation_function().")
+            raise ValueError(
+                "No simulation function has been configured. Before running iterations, you must provide "
+                "a simulation function using set_simulation_function(your_function). "
+                "Your function should take a pandas DataFrame of parameter samples and return "
+                "a DataFrame with simulation results."
+            )
 
         if self._progress.current_iteration >= self._max_iterations:
-            raise RuntimeError(f"Maximum iterations ({self._max_iterations}) reached")
+            raise RuntimeError(
+                f"Maximum iterations limit reached ({self._max_iterations} iterations completed). "
+                f"To run more iterations, create a new engine with a higher max_iterations value, "
+                f"or use engine.update_max_iterations({self._max_iterations + 5}) to extend the current run."
+            )
 
         logger.info(f"Starting iteration {self._progress.current_iteration + 1}")
         self._state = EngineState.RUNNING
@@ -299,8 +333,41 @@ class HistoryMatchingEngine:
 
         except Exception as e:
             self._state = EngineState.ERROR
-            logger.error(f"Error in iteration {self._progress.current_iteration + 1}: {e}")
-            raise
+            iteration_num = self._progress.current_iteration + 1
+
+            # Provide specific guidance based on the error type
+            if "simulation" in str(e).lower() or "simulation_function" in str(e):
+                error_msg = (
+                    f"Simulation function failed during iteration {iteration_num}: {e}\n\n"
+                    "Common causes and solutions:\n"
+                    "  - Check that your simulation function can handle the generated parameter values\n"
+                    "  - Ensure your simulation returns a DataFrame with the expected columns\n"
+                    "  - Verify that parameter bounds are realistic for your model\n"
+                    "  - Add error handling to your simulation function for edge cases"
+                )
+            elif "emulator" in str(e).lower():
+                error_msg = (
+                    f"Emulator creation/training failed during iteration {iteration_num}: {e}\n\n"
+                    "Common causes and solutions:\n"
+                    "  - Insufficient or invalid training data from simulation\n"
+                    "  - Features with constant values or extreme outliers\n"
+                    "  - Emulator type may be unsuitable for your data\n"
+                    "  - Try a different emulator type or adjust emulator parameters"
+                )
+            elif "feature" in str(e).lower() or "selection" in str(e).lower():
+                error_msg = (
+                    f"Feature selection failed during iteration {iteration_num}: {e}\n\n"
+                    "Common causes and solutions:\n"
+                    "  - Mismatch between simulation outputs and observation features\n"
+                    "  - Features with insufficient variation in simulation results\n"
+                    "  - Check that your observation data contains the expected features\n"
+                    "  - Verify simulation is producing all required outputs"
+                )
+            else:
+                error_msg = f"Unexpected error during iteration {iteration_num}: {e}"
+
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
 
     def commit_step(self) -> None:
         """
@@ -313,7 +380,21 @@ class HistoryMatchingEngine:
             RuntimeError: If no pending iteration to commit
         """
         if self._pending_result is None or self._pending_snapshot is None:
-            raise RuntimeError("No pending iteration to commit. Run step() first.")
+            if self._state == EngineState.INITIALIZED:
+                raise RuntimeError(
+                    "No iteration has been executed yet. Call step() first to run an iteration, "
+                    "then use commit_step() to accept the results."
+                )
+            elif self._state == EngineState.COMPLETED:
+                raise RuntimeError(
+                    "All iterations have been completed and committed. "
+                    "Use get_all_results() to access the final results."
+                )
+            else:
+                raise RuntimeError(
+                    f"No pending iteration to commit (engine state: {self._state.value}). "
+                    "Call step() first to execute an iteration that can be committed."
+                )
 
         # Apply changes
         self._emulator_bank = self._pending_snapshot.emulator_bank
@@ -359,7 +440,21 @@ class HistoryMatchingEngine:
             RuntimeError: If no pending iteration to revert
         """
         if self._pending_result is None:
-            raise RuntimeError("No pending iteration to revert. Run step() first.")
+            if self._state == EngineState.INITIALIZED:
+                raise RuntimeError(
+                    "No iteration has been executed yet. Call step() first to run an iteration "
+                    "before attempting to revert it."
+                )
+            elif self._state == EngineState.COMPLETED:
+                raise RuntimeError(
+                    "All iterations have been completed. There are no pending results to revert. "
+                    "Previous iterations were already committed."
+                )
+            else:
+                raise RuntimeError(
+                    f"No pending iteration to revert (engine state: {self._state.value}). "
+                    "Call step() first to execute an iteration that can be reverted."
+                )
 
         # Clear pending state
         reverted_iteration = self._pending_result.iteration
@@ -397,6 +492,67 @@ class HistoryMatchingEngine:
         self._emulator_factory = EmulatorFactory(default_type=emulator_type, **kwargs)
         logger.info(f"Emulator factory updated: {emulator_type}")
 
+    def update_max_iterations(self, max_iterations: int):
+        """
+        Update the maximum number of iterations.
+        
+        Args:
+            max_iterations: New maximum number of iterations
+            
+        Raises:
+            ValueError: If new limit is less than current iteration
+        """
+        if max_iterations <= self._progress.current_iteration:
+            raise ValueError(
+                f"Cannot set max_iterations to {max_iterations} because "
+                f"{self._progress.current_iteration} iterations have already been completed. "
+                f"New limit must be greater than {self._progress.current_iteration}."
+            )
+
+        self._max_iterations = max_iterations
+
+        # Update state if we were completed but now have room for more iterations
+        if self._state == EngineState.COMPLETED and self._progress.current_iteration < max_iterations:
+            self._state = EngineState.PAUSED
+
+        logger.info(f"Maximum iterations updated to {max_iterations}")
+
+    def get_status_summary(self) -> str:
+        """
+        Get a human-readable summary of the current engine status.
+        
+        Returns:
+            Multi-line string describing the engine's current state
+        """
+        summary = [
+            "=== History Matching Engine Status ===",
+            f"State: {self._state.value}",
+            f"Progress: {self._progress.current_iteration}/{self._max_iterations} iterations",
+        ]
+
+        if self._progress.current_iteration > 0:
+            summary.extend([
+                f"Acceptance rate: {self._progress.acceptance_rate:.1%}",
+                f"Total samples generated: {self._progress.total_samples_generated:,}",
+                f"Total samples accepted: {self._progress.total_samples_accepted:,}",
+                f"Emulators trained: {self._progress.total_emulators_trained}",
+            ])
+
+        if self._pending_result is not None:
+            summary.append(f"⚠️  Pending iteration {self._pending_result.iteration} - use commit_step() or revert_step()")
+
+        if self._simulation_function is None:
+            summary.append("❌ No simulation function set - use set_simulation_function()")
+        else:
+            summary.append("✅ Simulation function configured")
+
+        if self._state == EngineState.ERROR:
+            summary.append("❌ Engine is in error state - check logs for details")
+        elif self._state == EngineState.COMPLETED:
+            summary.append("✅ All iterations completed successfully")
+
+        return "\n".join(summary)
+
     def run(self, auto_commit: bool = True) -> List[IterationResult]:
         """
         Run automated history matching workflow.
@@ -411,7 +567,16 @@ class HistoryMatchingEngine:
             ValueError: If simulation function is not set
         """
         if self._simulation_function is None:
-            raise ValueError("Simulation function must be set before running. Use set_simulation_function().")
+            raise ValueError(
+                "Cannot start automated run: no simulation function has been configured. "
+                "Use set_simulation_function(your_function) to provide a function that takes "
+                "parameter samples (DataFrame) and returns simulation results (DataFrame).\n\n"
+                "Example:\n"
+                "  def my_simulation(params_df):\n"
+                "      # Your simulation code here\n"
+                "      return results_df\n"
+                "  engine.set_simulation_function(my_simulation)"
+            )
 
         logger.info(f"Starting automated run with {self._max_iterations} max iterations")
 
@@ -446,8 +611,22 @@ class HistoryMatchingEngine:
 
         except Exception as e:
             self._state = EngineState.ERROR
-            logger.error(f"Error in automated run: {e}")
-            raise
+            failed_iteration = len(results) + 1
+
+            error_msg = (
+                f"Automated run failed at iteration {failed_iteration} of {self._max_iterations}: {e}\n\n"
+                f"Progress before failure:\n"
+                f"  - Completed iterations: {len(results)}\n"
+                f"  - Total samples generated: {self._progress.total_samples_generated:,}\n"
+                f"  - Current acceptance rate: {self._progress.acceptance_rate:.1%}\n\n"
+                "You can:\n"
+                "  - Fix the issue and restart with a new engine\n"
+                "  - Use step-by-step execution (step/commit/revert) for more control\n"
+                "  - Access partial results from completed iterations with get_all_results()"
+            )
+
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
 
         return results
 
@@ -585,20 +764,39 @@ class HistoryMatchingEngine:
 
             for feature_name, emulator in emulators.items():
                 try:
+                    # Check if feature exists in observations
+                    if not self._observations.has_feature(feature_name):
+                        logger.warning(
+                            f"Skipping feature '{feature_name}' from iteration {iteration}: "
+                            f"not found in observation data. Available features: {self._observations.get_feature_names()}"
+                        )
+                        continue
+
                     # Get predictions from emulator
                     predictions = emulator.predict(candidates)
 
                     # Calculate implausibility for this feature (vectorized)
-                    feature_implausibility = self._observations.calculate_implausibility(feature_name, predictions.get_mean(), predictions.get_variance())
+                    feature_implausibility = self._observations.calculate_implausibility(
+                        feature_name, predictions.get_mean(), predictions.get_variance()
+                    )
 
                     sample_implausibilities.append(feature_implausibility)
 
                 except Exception as e:
-                    logger.warning(f"Failed to calculate implausibility for feature {feature_name}: {e}")
+                    logger.warning(
+                        f"Failed to calculate implausibility for feature '{feature_name}' from iteration {iteration}: {e}. "
+                        f"This may indicate an issue with the emulator or observation data. Skipping this feature."
+                    )
                     continue
 
         if not sample_implausibilities:
-            logger.warning("No valid implausibility calculations. Returning all candidates.")
+            logger.warning(
+                "No valid implausibility calculations could be performed. This may be due to:\n"
+                "  - Emulators failing to make predictions\n"
+                "  - Mismatch between emulated features and observation data\n"
+                "  - Invalid emulator states\n"
+                "Returning all candidate samples without filtering."
+            )
             return candidates
 
         # Combine implausibilities (use maximum across features)
@@ -656,7 +854,14 @@ class HistoryMatchingEngine:
         plausible_samples = samples[plausible_mask]
 
         if len(plausible_samples) == 0:
-            warnings.warn("No plausible samples found. Parameter space not reduced.")
+            warnings.warn(
+                f"No plausible samples found with implausibility threshold {self._implausibility_threshold}. "
+                f"Parameter space will not be reduced this iteration. Consider:\n"
+                f"  - Increasing the implausibility threshold (current: {self._implausibility_threshold})\n"
+                f"  - Generating more samples per iteration (current: {self._n_samples})\n"
+                f"  - Checking if your simulation is producing reasonable outputs\n"
+                f"  - Reviewing your observation data for inconsistencies"
+            )
             return self._parameter_space
 
         # Create new parameter space constrained to plausible samples
