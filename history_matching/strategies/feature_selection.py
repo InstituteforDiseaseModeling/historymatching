@@ -152,9 +152,8 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
         self.correlation_threshold = correlation_threshold
         self.max_features = max_features
         
-        # History tracking (class-level to persist across iterations)
-        if not hasattr(AutoFeatureSelection, '_global_history'):
-            AutoFeatureSelection._global_history = []
+        # History tracking (instance-level for clean encapsulation)
+        self.history = []
     
     def select_features(self, simulation_results: pd.DataFrame, 
                        observations: ObservationData,
@@ -224,29 +223,47 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
                 continue
             
             # Check against history (cooldown period)
-            if feature_name in AutoFeatureSelection._global_history:
+            if feature_name in self.history:
                 continue
             
             # Check correlation with already selected features
             reject_due_to_correlation = False
             for selected_feature in selected_features:
-                correlation = feature_data[feature_name].corr(
-                    feature_data[selected_feature], method='pearson'
-                )
-                if abs(correlation) >= self.correlation_threshold:
-                    reject_due_to_correlation = True
-                    break
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", RuntimeWarning)
+                        correlation = feature_data[feature_name].corr(
+                            feature_data[selected_feature], method='pearson'
+                        )
+                    # If correlation is NaN (e.g., constant data), treat as no correlation
+                    if pd.isna(correlation):
+                        correlation = 0.0
+                    if abs(correlation) >= self.correlation_threshold:
+                        reject_due_to_correlation = True
+                        break
+                except Exception:
+                    # If correlation calculation fails, assume no correlation
+                    continue
             
             # Check correlation with recently selected features
             if not reject_due_to_correlation:
-                for recent_feature in AutoFeatureSelection._global_history:
+                for recent_feature in self.history:
                     if recent_feature in feature_data.columns:
-                        correlation = feature_data[feature_name].corr(
-                            feature_data[recent_feature], method='pearson'
-                        )
-                        if abs(correlation) >= self.correlation_threshold:
-                            reject_due_to_correlation = True
-                            break
+                        try:
+                            with warnings.catch_warnings():
+                                warnings.simplefilter("ignore", RuntimeWarning)
+                                correlation = feature_data[feature_name].corr(
+                                    feature_data[recent_feature], method='pearson'
+                                )
+                            # If correlation is NaN (e.g., constant data), treat as no correlation
+                            if pd.isna(correlation):
+                                correlation = 0.0
+                            if abs(correlation) >= self.correlation_threshold:
+                                reject_due_to_correlation = True
+                                break
+                        except Exception:
+                            # If correlation calculation fails, assume no correlation
+                            continue
             
             if not reject_due_to_correlation:
                 selected_features.append(feature_name)
@@ -257,13 +274,13 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
             selected_features = [best_feature]
             warnings.warn(f"No features met selection criteria. Using best feature: {best_feature}")
         
-        # Update global history
-        AutoFeatureSelection._global_history.extend(selected_features)
+        # Update instance history
+        self.history.extend(selected_features)
         
         # Maintain history size
-        while (len(AutoFeatureSelection._global_history) > self.cooldown_period or
-               len(AutoFeatureSelection._global_history) >= len(common_features)):
-            AutoFeatureSelection._global_history.pop(0)
+        while (len(self.history) > self.cooldown_period or
+               len(self.history) >= len(common_features)):
+            self.history.pop(0)
         
         return selected_features
     
@@ -272,7 +289,7 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
     
     def reset_history(self):
         """Reset the selection history (useful for testing or restarting)."""
-        AutoFeatureSelection._global_history.clear()
+        self.history.clear()
 
 
 class InteractiveFeatureSelection(FeatureSelectionStrategy):
