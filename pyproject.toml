@@ -49,7 +49,6 @@ dependencies = [
     "statsmodels",
     "scipy",
     "scikit-learn",
-    "pydoe2",
     "tensorflow>=2.18",
     "tf-keras",
     "gpflow",

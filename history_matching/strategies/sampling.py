@@ -8,8 +8,14 @@ import numpy as np
 import pandas as pd
 
 from ..domain.parameter_space import ParameterSpace
-from pyDOE2 import lhs
 from itertools import product
+
+from scipy.stats.qmc import LatinHypercube as _LHSEngine
+
+
+def _lhs(n_parameters: int, samples: int) -> "np.ndarray":
+    """Drop-in replacement for pyDOE2.lhs using scipy.stats.qmc."""
+    return _LHSEngine(d=n_parameters).random(n=samples)
 
 
 class SamplingStrategy(ABC):
@@ -99,7 +105,7 @@ class LatinHypercubeSampling(SamplingStrategy):
         n_parameters = parameter_space_df.shape[0]
         
         # Generate Latin Hypercube Samples in the unit hypercube [0, 1]
-        lhs_samples = lhs(n_parameters, samples=n_samples)
+        lhs_samples = _lhs(n_parameters, n_samples)
         
         # Scale the samples to the ranges defined in parameter_space
         scaled_samples = np.zeros_like(lhs_samples)
