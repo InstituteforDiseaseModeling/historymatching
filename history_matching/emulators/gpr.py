@@ -47,7 +47,7 @@ class GPR(BaseEmulator):
         ls = np.ones( (x_gpf.shape[1],) )
         self.model = gpflow.models.GPR( (x_gpf, y_gpf), kernel=gpflow.kernels.SquaredExponential(lengthscales=ls))
         opt = gpflow.optimizers.Scipy()
-        self.opt_logs = opt.minimize( self.model.training_loss, self.model.trainable_variables, compile=False )
+        self.opt_logs = opt.minimize( self.model.training_loss, self.model.trainable_variables )
 
         # TODO: Validate that the optimization was successful (success = True) and respond accordingly or at least let the user know.
         if not self.opt_logs.success:
