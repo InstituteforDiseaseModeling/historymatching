@@ -69,27 +69,16 @@ class TestLatinHypercubeSampling:
         with pytest.raises(ValueError, match="Iterations must be >= 1"):
             LatinHypercubeSampling(iterations=0)
     
-    @patch('history_matching.strategies.sampling.lhs')
-    def test_generate_samples(self, mock_lhs, parameter_space):
+    def test_generate_samples(self, parameter_space):
         """Test sample generation."""
-        # Mock the pyDOE2 lhs function to return unit hypercube samples
-        mock_lhs.return_value = np.array([
-            [0.2, 0.3, 0.1],
-            [0.8, 0.8, 0.8], 
-            [0.5, 0.5, 0.5]
-        ])
-        
         sampler = LatinHypercubeSampling()
         samples = sampler.generate_samples(parameter_space, n_samples=3)
-        
-        # Check that the LHS function was called correctly
-        mock_lhs.assert_called_once_with(3, samples=3)
-        
+
         # Check returned samples structure
         assert isinstance(samples, pd.DataFrame)
         assert len(samples) == 3
         assert list(samples.columns) == ['param1', 'param2', 'param3']
-        
+
         # Check that samples are within bounds
         assert samples['param1'].min() >= 0.0
         assert samples['param1'].max() <= 1.0
@@ -97,17 +86,14 @@ class TestLatinHypercubeSampling:
         assert samples['param2'].max() <= 5.0
         assert samples['param3'].min() >= 10.0
         assert samples['param3'].max() <= 20.0
-    
-    @patch('numpy.random.seed')
-    @patch('history_matching.strategies.sampling.lhs')
-    def test_generate_samples_with_seed(self, mock_lhs, mock_seed, parameter_space):
-        """Test sample generation with random seed."""
-        mock_lhs.return_value = np.array([[0.5, 0.5, 0.5]])
-        
+
+    def test_generate_samples_with_seed(self, parameter_space):
+        """Test sample generation with random seed is reproducible."""
         sampler = LatinHypercubeSampling()
-        sampler.generate_samples(parameter_space, n_samples=1, seed=42)
-        
-        mock_seed.assert_called_once_with(42)
+        samples1 = sampler.generate_samples(parameter_space, n_samples=5, seed=42)
+        samples2 = sampler.generate_samples(parameter_space, n_samples=5, seed=42)
+
+        pd.testing.assert_frame_equal(samples1, samples2)
     
     def test_get_strategy_name(self):
         """Test strategy name generation."""

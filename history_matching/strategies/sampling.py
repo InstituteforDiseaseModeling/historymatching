@@ -13,9 +13,9 @@ from itertools import product
 from scipy.stats.qmc import LatinHypercube as _LHSEngine
 
 
-def _lhs(n_parameters: int, samples: int) -> "np.ndarray":
+def _lhs(n_parameters: int, samples: int, seed: Optional[int] = None) -> "np.ndarray":
     """Drop-in replacement for pyDOE2.lhs using scipy.stats.qmc."""
-    return _LHSEngine(d=n_parameters).random(n=samples)
+    return _LHSEngine(d=n_parameters, seed=seed).random(n=samples)
 
 
 class SamplingStrategy(ABC):
@@ -92,20 +92,17 @@ class LatinHypercubeSampling(SamplingStrategy):
         if iterations < 1:
             raise ValueError(f"Iterations must be >= 1, got {iterations}")
     
-    def generate_samples(self, parameter_space: ParameterSpace, n_samples: int, 
+    def generate_samples(self, parameter_space: ParameterSpace, n_samples: int,
                         seed: Optional[int] = None) -> pd.DataFrame:
         """Generate Latin Hypercube samples."""
-        if seed is not None:
-            np.random.seed(seed)
-            
         # Convert ParameterSpace to legacy DataFrame format for existing sampler
         parameter_space_df = parameter_space.to_dataframe()
-        
+
         # Generate Latin Hypercube samples directly
         n_parameters = parameter_space_df.shape[0]
-        
+
         # Generate Latin Hypercube Samples in the unit hypercube [0, 1]
-        lhs_samples = _lhs(n_parameters, n_samples)
+        lhs_samples = _lhs(n_parameters, n_samples, seed=seed)
         
         # Scale the samples to the ranges defined in parameter_space
         scaled_samples = np.zeros_like(lhs_samples)

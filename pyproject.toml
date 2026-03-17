@@ -38,7 +38,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Utilities",
 ]
 requires-python = ">=3.9"
@@ -49,6 +48,7 @@ dependencies = [
     "statsmodels",
     "scipy",
     "scikit-learn",
+    "setuptools<81",  # gpflow requires pkg_resources, removed in setuptools 81+
     "tensorflow>=2.18",
     "tf-keras",
     "gpflow",
@@ -119,7 +119,6 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"ci/*" = ["S"]
 
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false
@@ -128,6 +127,19 @@ mark-parentheses = false
 [tool.ruff.lint.isort]
 forced-separate = ["conftest"]
 force-single-line = true
+
+[tool.pytest.ini_options]
+norecursedirs = ["migrations"]
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+addopts = ["-ra", "--strict-markers", "--tb=short"]
+testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning:gpflow",
+    "ignore::UserWarning:history_matching",
+    "ignore:pkg_resources is deprecated as an API:UserWarning",
+]
 
 [tool.black]
 line-length = 200
