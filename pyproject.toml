@@ -7,7 +7,7 @@ requires = [
 name = "history-matching"
 version = "1.0.0"
 description = "A Python implementation of the Bayesian History Matching algorithm."
-readme = "README.rst"
+readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Daniel J. Klein", email = "Daniel.Klein@gatesfoundation.org"},
@@ -66,11 +66,17 @@ test = [
 ]
 dev = [
     "pytest>=7.0",
-    "pytest-cov>=4.0", 
+    "pytest-cov>=4.0",
     "pytest-xdist>=3.0",
     "ruff>=0.1.0",
-    "black>=23.0",
-    "pre-commit>=3.0",
+]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.24",
+    "mkdocs-jupyter>=0.24",
+    "mkdocs-include-markdown-plugin>=6.0",
+    "pymdown-extensions>=10.0",
 ]
 
 [project.urls]
@@ -79,8 +85,8 @@ Changelog = "https://docs.idmod.org/projects/history-matching/en/latest/changelo
 "Issue Tracker" = "https://github.com/InstituteforDiseaseModeling/history_matching/issues"
 Repository = "https://github.com/InstituteforDiseaseModeling/history_matching"
 
-[project.scripts]
-history-matching = "history_matching.cli:main"
+[tool.setuptools.packages.find]
+include = ["history_matching*"]
 
 [tool.ruff]
 extend-exclude = ["static", "ci/templates", "examples"]

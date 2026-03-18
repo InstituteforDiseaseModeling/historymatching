@@ -23,12 +23,12 @@ class BaseEmulator:
         """Initialize the emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
-            y : Output data. Pandas dataframe with columns representing
+            y: Output data. Pandas dataframe with columns representing
                 observations and rows representing samples. Each row in this
                 dataframe must match the corresponding row in `x`.
-            test_fraction : Fraction of `x` and `y` samples to be used for
+            test_fraction: Fraction of `x` and `y` samples to be used for
                 testing. This is a scalar between 0 and 1.
 
         Returns:
@@ -85,7 +85,7 @@ class BaseEmulator:
         """Predict an output using the trained emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
 
         Returns:
@@ -98,17 +98,15 @@ class BaseEmulator:
         """Get implausibility for a given set of parameters.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values where the implausibility metric will be evaluated.
-            target : Scalar indicating the value to use as reference for the 
-                     implausiblity computation. This is typically extracted from
-                     observed data.
-            target_var : Variance of the target point.
-            model_var : Model discrepancy or variance. This parameter quantifies
-                        the discrepancy between the model output and real life
-                        data.
-            qlow: Lower quantile for the estimated uncertainty interval.
-            qhigh: Upper quantile for the estimated uncertainty interval.
+            target: Scalar indicating the value to use as reference for the
+                implausibility computation. This is typically extracted from
+                observed data.
+            target_var: Variance of the target point.
+            model_discrepancy: Model discrepancy or variance. This parameter
+                quantifies the discrepancy between the model output and real
+                life data.
         Returns:
             Numpy array with implausibility values for each of the data points 
             in x.
@@ -306,15 +304,15 @@ class BaseEmulator:
         """Get implausibility for a given set of parameters.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values where the implausibility metric will be evaluated.
                 If not provided, both testing and training data will be used for
                 generating the plots.
-            target : Scalar indicating the value to use as reference for the 
+            target: Scalar indicating the value to use as reference for the 
                      implausiblity computation. This is typically extracted from
                      observed data.
-            target_var : Variance of the target point.
-            model_discrepancy : Model discrepancy or variance. This parameter quantifies
+            target_var: Variance of the target point.
+            model_discrepancy: Model discrepancy or variance. This parameter quantifies
                         the discrepancy between the model output and real life
                         data.
             threshold: Implausibility threshold. Sets of parameters within this
@@ -444,11 +442,11 @@ class BaseEmulator:
         """Plot a Z-score diagnoses for testing and training data.
 
         Args:
-            target : Scalar indicating the value to use as reference for the 
+            target: Scalar indicating the value to use as reference for the 
                      implausiblity computation. This is typically extracted from
                      observed data.
-            target_var : Variance of the target point.
-            model_var : Model discrepancy or variance. This parameter quantifies
+            target_var: Variance of the target point.
+            model_var: Model discrepancy or variance. This parameter quantifies
                         the discrepancy between the model output and real life
                         data.
             threshold: Implausibility threshold. Sets of parameters within this

@@ -1,0 +1,58 @@
+# History Matching
+
+[![Tests](https://github.com/InstituteforDiseaseModeling/history_matching/actions/workflows/tests.yml/badge.svg)](https://github.com/InstituteforDiseaseModeling/history_matching/actions)
+
+History Matching is a Python library for Bayesian History Matching — an iterative algorithm for calibrating computational models against observed data. It is designed for problems where simulations are expensive and exhaustive parameter sweeps are impractical.
+
+The library provides a modern, object-oriented API built around the **Builder/Engine** pattern, with pluggable strategies for sampling, feature selection, and emulation.
+
+## Requirements
+
+Python 3.9-3.12, with TensorFlow 2.18+.
+
+## Installation
+
+```bash
+pip install -e .
+```
+
+See [Installation](installation.md) for full details including optional dependencies.
+
+## Quick start
+
+```python
+import history_matching as hm
+
+# Configure and build the engine
+engine = (hm.HistoryMatchingBuilder
+    .from_data(
+        parameter_bounds={
+            'beta': (0.1, 0.5),
+            'gamma': (0.01, 0.1),
+        },
+        observations={
+            'peak_infected': (150.0, 20.0),  # (mean, std)
+            'total_cases': (500.0, 50.0),
+        },
+    )
+    .with_sampling_strategy('lhs')
+    .with_emulator_type('gpr')
+    .with_samples_per_iteration(500)
+    .with_max_iterations(5)
+    .build()
+)
+
+# Provide a simulation function and run
+engine.set_simulation_function(my_model)
+results = engine.run()
+```
+
+See the [Usage guide](usage.md) for a complete walkthrough, or jump into the [Tutorials](tutorials.md).
+
+## Contributing
+
+Questions or comments can be directed to the project's [GitHub](https://github.com/InstituteforDiseaseModeling/history_matching) page.
+
+## Disclaimer
+
+The code in this repository was developed by IDM and other collaborators to support our joint research on model calibration. We've made it publicly available under the MIT License to provide others with a better understanding of our research and an opportunity to build upon it for their own work. We make no representations that the code works as intended or that we will provide support, address issues that are found, or accept pull requests. You are welcome to create your own fork and modify the code to suit your own modeling needs as permitted under the MIT License.

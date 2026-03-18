@@ -20,12 +20,12 @@ class GPR(BaseEmulator):
         """Initialise the Gaussian Process Regression (GPR) emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
-            y : Output data. Pandas dataframe with columns representing
+            y: Output data. Pandas dataframe with columns representing
                 observations and rows representing samples. Each row in this
                 dataframe must match the corresponding row in `x`.
-            test_fraction : Fraction of `x` and `y` samples to be used for
+            test_fraction: Fraction of `x` and `y` samples to be used for
                 testing. This is a scalar between 0 and 1.
 
         Returns:

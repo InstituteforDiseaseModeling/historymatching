@@ -1,0 +1,14 @@
+/* Admonition styling */
+.md-typeset .admonition {
+    border-radius: 4px;
+}
+
+/* Table styling */
+.md-typeset table:not([class]) {
+    border-radius: 4px;
+}
+
+/* Code block styling */
+.md-typeset pre > code {
+    border-radius: 4px;
+}
