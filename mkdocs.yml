@@ -41,6 +41,7 @@ nav:
       - Manual workflow: tutorials/02_manual_workflow.ipynb
       - Advanced configuration: tutorials/03_advanced_configuration.ipynb
       - Emulator showcase: tutorials/04_emulator_showcase.ipynb
+      - Trajectory selection: tutorials/05_trajectory_selection.ipynb
   - Usage guide: usage.md
   - API reference: api.md
   - Contributing: contributing.md

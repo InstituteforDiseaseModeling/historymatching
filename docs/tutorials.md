@@ -16,3 +16,7 @@ These tutorials walk through how to use the history matching library, from basic
 ## Emulators
 
 - [Emulator showcase](tutorials/04_emulator_showcase.ipynb) — Comparison of Linear, GLM, and GPR emulators on different test functions
+
+## Post-calibration
+
+- [Trajectory selection](tutorials/05_trajectory_selection.ipynb) — Select plausible `(parameter, seed)` pairs for stochastic simulation using importance resampling
