@@ -37,11 +37,9 @@ nav:
   - Installation: installation.md
   - Tutorials:
       - Tutorials index: tutorials.md
-      - Quick start: tutorials/01_basic_sir_model.ipynb
-      - Interactive workflow: tutorials/01_basic_sir_oop_demo.ipynb
-      - Manual control: tutorials/01_manual_history_matching_oop.ipynb
-      - Advanced configuration: tutorials/02_advanced_configuration.ipynb
-      - Automatic workflow: tutorials/03_automatic_workflow.ipynb
+      - Basic workflow: tutorials/01_basic_workflow.ipynb
+      - Manual workflow: tutorials/02_manual_workflow.ipynb
+      - Advanced configuration: tutorials/03_advanced_configuration.ipynb
       - Emulator showcase: tutorials/04_emulator_showcase.ipynb
   - Usage guide: usage.md
   - API reference: api.md
