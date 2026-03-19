@@ -8,6 +8,7 @@ import statsmodels.api as sm
 import scipy
 
 from .base import BaseEmulator
+from .results import EmulationResults
 
 
 class GLM(BaseEmulator):
@@ -18,14 +19,14 @@ class GLM(BaseEmulator):
         """Initialize the emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
-            y : Output data. Pandas dataframe with columns representing
+            y: Output data. Pandas dataframe with columns representing
                 observations and rows representing samples. Each row in this
                 dataframe must match the corresponding row in `x`.
-            test_fraction : Fraction of `x` and `y` samples to be used for
+            test_fraction: Fraction of `x` and `y` samples to be used for
                 testing. This is a scalar between 0 and 1.
-            link : Link function for the GLM model. It can be either 'linear'
+            link: Link function for the GLM model. It can be either 'linear'
                 or 'poisson'.
                 
         Returns:
@@ -53,15 +54,15 @@ class GLM(BaseEmulator):
         return
 
     
-    def predict(self, x: pd.DataFrame()):
+    def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict an output using the trained emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
 
         Returns:
-            Pandas dataframe with predicted values and uncertainty intervals.
+            EmulationResults with predicted values and uncertainty intervals.
         """
         logging.debug("... predicting outputs using the trained emulator")
 
@@ -79,15 +80,19 @@ class GLM(BaseEmulator):
         low = pred_ci.conf_int(obs=True)[:,0]
         high = pred_ci.conf_int(obs=True)[:,1]
 
+        # Create additional data for emulator-specific outputs
+        additional = pd.DataFrame({
+            'ci_obs_low': low,
+            'ci_obs_high': high,
+            'ci_pred_low': low_mean,
+            'ci_pred_high': high_mean
+        }, index=x.index)
         
-        # Prepare output and return
-        out = pd.DataFrame(index=x.index)
-        out['value'] = predicted_mean
-        out['ci_obs_low' ] = low
-        out['ci_obs_high'] = high
-        out['ci_pred_low' ] = low_mean
-        out['ci_pred_high'] = high_mean
-        return out
+        return EmulationResults(
+            mean=predicted_mean,
+            std=pred_ci.se_mean,  # Standard error is already std
+            additional_data=additional
+        )
 
     
     def print_emulator_description(self):

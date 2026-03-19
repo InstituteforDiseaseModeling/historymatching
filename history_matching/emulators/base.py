@@ -11,6 +11,8 @@ import pandas as pd
 from sklearn import model_selection
 from sklearn import metrics
 
+from .results import EmulationResults
+
 
 
 
@@ -21,12 +23,12 @@ class BaseEmulator:
         """Initialize the emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
-            y : Output data. Pandas dataframe with columns representing
+            y: Output data. Pandas dataframe with columns representing
                 observations and rows representing samples. Each row in this
                 dataframe must match the corresponding row in `x`.
-            test_fraction : Fraction of `x` and `y` samples to be used for
+            test_fraction: Fraction of `x` and `y` samples to be used for
                 testing. This is a scalar between 0 and 1.
 
         Returns:
@@ -79,15 +81,15 @@ class BaseEmulator:
 
     
     @abstractmethod
-    def predict(self, x: pd.DataFrame()):
+    def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict an output using the trained emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
 
         Returns:
-            Pandas dataframe with predicted values and uncertainty intervals.
+            EmulationResults with predicted values and uncertainty information.
         """
         raise NotImplementedError
 
@@ -96,17 +98,15 @@ class BaseEmulator:
         """Get implausibility for a given set of parameters.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values where the implausibility metric will be evaluated.
-            target : Scalar indicating the value to use as reference for the 
-                     implausiblity computation. This is typically extracted from
-                     observed data.
-            target_var : Variance of the target point.
-            model_var : Model discrepancy or variance. This parameter quantifies
-                        the discrepancy between the model output and real life
-                        data.
-            qlow: Lower quantile for the estimated uncertainty interval.
-            qhigh: Upper quantile for the estimated uncertainty interval.
+            target: Scalar indicating the value to use as reference for the
+                implausibility computation. This is typically extracted from
+                observed data.
+            target_var: Variance of the target point.
+            model_discrepancy: Model discrepancy or variance. This parameter
+                quantifies the discrepancy between the model output and real
+                life data.
         Returns:
             Numpy array with implausibility values for each of the data points 
             in x.
@@ -115,8 +115,8 @@ class BaseEmulator:
             self.train()
 
         predictions = self.predict(x)
-        predictions_var = predictions['ci_obs_high'] - predictions['ci_obs_low']
-        implausibility = abs( predictions['value'] - target ) / np.sqrt( predictions_var + target_var + model_discrepancy )
+        predictions_var = predictions.get_variance()  # Get variance directly
+        implausibility = abs( predictions.get_mean() - target ) / np.sqrt( predictions_var + target_var + model_discrepancy )
         
         return implausibility    
     
@@ -137,11 +137,11 @@ class BaseEmulator:
             logging.warning('this emulator has not been trained yet')
         else:
             
-            self.y_test_pred_df = self.predict( self.X_test_df )
-            self.y_test_pred = self.y_test_pred_df['value'].to_numpy()
+            self.y_test_pred_results = self.predict( self.X_test_df )
+            self.y_test_pred = self.y_test_pred_results.get_mean().to_numpy()
 
-            self.y_train_pred_df = self.predict( self.X_train_df )
-            self.y_train_pred = self.y_test_pred_df['value'].to_numpy()
+            self.y_train_pred_results = self.predict( self.X_train_df )
+            self.y_train_pred = self.y_train_pred_results.get_mean().to_numpy()
 
             y_test = self.y_test.flatten()
             y_pred = self.y_test_pred.flatten()
@@ -226,9 +226,17 @@ class BaseEmulator:
         n_params = len( params )
         predictions_df = self.X_test_df.copy()
         predictions_df['true'] = self.y_test
-        predictions_df['prediction'] = self.y_test_pred_df['value']
-        predictions_df['prediction (low)'] = self.y_test_pred_df['ci_pred_low']
-        predictions_df['prediction (high)'] = self.y_test_pred_df['ci_pred_high']
+        predictions_df['prediction'] = self.y_test_pred_results.get_mean()
+        # Try to get confidence intervals from additional data, fallback to computed ones
+        additional_data = self.y_test_pred_results.get_additional_data()
+        if additional_data is not None and 'ci_pred_low' in additional_data.columns:
+            predictions_df['prediction (low)'] = additional_data['ci_pred_low']
+            predictions_df['prediction (high)'] = additional_data['ci_pred_high']
+        else:
+            # Compute confidence intervals if not available
+            ci_low, ci_high = self.y_test_pred_results.get_ci(0.95)
+            predictions_df['prediction (low)'] = ci_low
+            predictions_df['prediction (high)'] = ci_high
         predictions_df['error (normalized)'] = ( predictions_df['true'] - predictions_df['prediction'] )    \
                                                .div( predictions_df['true'] )
 
@@ -296,15 +304,15 @@ class BaseEmulator:
         """Get implausibility for a given set of parameters.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values where the implausibility metric will be evaluated.
                 If not provided, both testing and training data will be used for
                 generating the plots.
-            target : Scalar indicating the value to use as reference for the 
+            target: Scalar indicating the value to use as reference for the 
                      implausiblity computation. This is typically extracted from
                      observed data.
-            target_var : Variance of the target point.
-            model_discrepancy : Model discrepancy or variance. This parameter quantifies
+            target_var: Variance of the target point.
+            model_discrepancy: Model discrepancy or variance. This parameter quantifies
                         the discrepancy between the model output and real life
                         data.
             threshold: Implausibility threshold. Sets of parameters within this
@@ -318,7 +326,7 @@ class BaseEmulator:
         y_pred = self.predict(x)
         implausibility = x.copy()
         implausibility['implausibility'] = self.get_implausibility( x, target, target_var, model_discrepancy ).values
-        implausibility['predicted'] = y_pred['value'].values
+        implausibility['predicted'] = y_pred.get_mean().values
         implausible = implausibility[ implausibility['implausibility'] > threshold ]
         non_implausible = implausibility[ implausibility['implausibility'] <= threshold ]
 
@@ -336,7 +344,7 @@ class BaseEmulator:
                 if i != j:
                     x.plot.scatter( x = param1, 
                                     y = param2, 
-                                    c = y_pred['value'].values,
+                                    c = y_pred.get_mean().values,
                                     cmap = 'viridis',
                                     colorbar = True, 
                                     edgecolors = edge_colors,
@@ -434,11 +442,11 @@ class BaseEmulator:
         """Plot a Z-score diagnoses for testing and training data.
 
         Args:
-            target : Scalar indicating the value to use as reference for the 
+            target: Scalar indicating the value to use as reference for the 
                      implausiblity computation. This is typically extracted from
                      observed data.
-            target_var : Variance of the target point.
-            model_var : Model discrepancy or variance. This parameter quantifies
+            target_var: Variance of the target point.
+            model_var: Model discrepancy or variance. This parameter quantifies
                         the discrepancy between the model output and real life
                         data.
             threshold: Implausibility threshold. Sets of parameters within this
@@ -449,10 +457,18 @@ class BaseEmulator:
         data_train = self.X_train_df.copy()
         data_train['output (true)'] = self.y_train.flatten()
         data_train['implausibility'] = self.get_implausibility( self.X_train_df, target, target_var, model_var ).values
-        data_train['predicted'] = self.y_train_pred_df['value'].values
-        data_train['predicted_obs_var' ] = ( ( self.y_train_pred_df['ci_obs_high' ] - self.y_train_pred_df['ci_obs_low' ] )/3 )**2
-        data_train['predicted_pred_var'] = ( ( self.y_train_pred_df['ci_pred_high'] - self.y_train_pred_df['ci_pred_low'] )/3 )**2
-        data_train['error'] = self.y_train.flatten() - self.y_train_pred_df['value'].values
+        data_train['predicted'] = self.y_train_pred_results.get_mean().values
+        # Try to get confidence intervals from additional data, fallback to computed ones
+        train_additional = self.y_train_pred_results.get_additional_data()
+        if train_additional is not None and 'ci_obs_high' in train_additional.columns:
+            data_train['predicted_obs_var' ] = ( ( train_additional['ci_obs_high'] - train_additional['ci_obs_low'] )/3 )**2
+            data_train['predicted_pred_var'] = ( ( train_additional['ci_pred_high'] - train_additional['ci_pred_low'] )/3 )**2
+        else:
+            # Use standard deviation as fallback
+            train_std = self.y_train_pred_results.get_std()
+            data_train['predicted_obs_var'] = train_std**2
+            data_train['predicted_pred_var'] = train_std**2
+        data_train['error'] = self.y_train.flatten() - self.y_train_pred_results.get_mean().values
         data_train['Z_noisy'] = data_train['error'].div( np.sqrt( data_train['predicted_obs_var' ] ) )
         data_train['Z_noiseless'] = data_train['error'].div( np.sqrt( data_train['predicted_pred_var' ] ) )
         data_train_implausible    = data_train[ data_train['implausibility']> threshold ]
@@ -461,10 +477,18 @@ class BaseEmulator:
         data_test = self.X_test_df.copy()
         data_test['output (true)'] = self.y_test.flatten()
         data_test['implausibility'] = self.get_implausibility( self.X_test_df, target, target_var, model_var ).values
-        data_test['predicted'] = self.y_test_pred_df['value'].values
-        data_test['predicted_obs_var' ] = ( ( self.y_test_pred_df['ci_obs_high' ] - self.y_test_pred_df['ci_obs_low' ] )/3 )**2
-        data_test['predicted_pred_var'] = ( ( self.y_test_pred_df['ci_pred_high'] - self.y_test_pred_df['ci_pred_low'] )/3 )**2
-        data_test['error'] = self.y_test.flatten() - self.y_test_pred_df['value'].values
+        data_test['predicted'] = self.y_test_pred_results.get_mean().values
+        # Try to get confidence intervals from additional data, fallback to computed ones
+        test_additional = self.y_test_pred_results.get_additional_data()
+        if test_additional is not None and 'ci_obs_high' in test_additional.columns:
+            data_test['predicted_obs_var' ] = ( ( test_additional['ci_obs_high'] - test_additional['ci_obs_low'] )/3 )**2
+            data_test['predicted_pred_var'] = ( ( test_additional['ci_pred_high'] - test_additional['ci_pred_low'] )/3 )**2
+        else:
+            # Use standard deviation as fallback
+            test_std = self.y_test_pred_results.get_std()
+            data_test['predicted_obs_var'] = test_std**2
+            data_test['predicted_pred_var'] = test_std**2
+        data_test['error'] = self.y_test.flatten() - self.y_test_pred_results.get_mean().values
         data_test['Z_noisy'] = data_test['error'].div( np.sqrt( data_test['predicted_obs_var' ] ) )
         data_test['Z_noiseless'] = data_test['error'].div( np.sqrt( data_test['predicted_pred_var' ] ) )
         data_test_implausible    = data_test[ data_test['implausibility']> threshold ]

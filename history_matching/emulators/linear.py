@@ -9,6 +9,7 @@ import scipy
 from sklearn import linear_model as sklm
 
 from .base import BaseEmulator
+from .results import EmulationResults
 
 
 class LinearModel(BaseEmulator):
@@ -21,12 +22,12 @@ class LinearModel(BaseEmulator):
         """Initialize the emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
-            y : Output data. Pandas dataframe with columns representing
+            y: Output data. Pandas dataframe with columns representing
                 observations and rows representing samples. Each row in this
                 dataframe must match the corresponding row in `x`.
-            test_fraction : Fraction of `x` and `y` samples to be used for
+            test_fraction: Fraction of `x` and `y` samples to be used for
                 testing. This is a scalar between 0 and 1.
 
         Returns:
@@ -52,15 +53,15 @@ class LinearModel(BaseEmulator):
         return
 
     
-    def predict(self, x: pd.DataFrame()):
+    def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict an output using the trained emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
 
         Returns:
-            Pandas dataframe with predicted values and uncertainty intervals.
+            EmulationResults with predicted values and uncertainty intervals.
         """
         logging.debug("... predicting outputs using the trained emulator")
 
@@ -77,14 +78,19 @@ class LinearModel(BaseEmulator):
         low = prediction_results.summary_frame()['obs_ci_lower']
         high = prediction_results.summary_frame()['obs_ci_upper']
         
-        # Prepare output and return
-        out = pd.DataFrame(index=x.index)
-        out['value'] = predicted_mean
-        out['ci_obs_low'] = low    # CI of prediction
-        out['ci_obs_high'] = high
-        out['ci_pred_low'] = low_mean    # CI of predicted mean
-        out['ci_pred_high'] = high_mean
-        return out
+        # Create additional data for emulator-specific outputs
+        additional = pd.DataFrame({
+            'ci_obs_low': low,    # CI of prediction
+            'ci_obs_high': high,
+            'ci_pred_low': low_mean,    # CI of predicted mean
+            'ci_pred_high': high_mean
+        }, index=x.index)
+        
+        return EmulationResults(
+            mean=predicted_mean,
+            std=prediction_results.summary_frame()['mean_se'],  # Standard error is already std
+            additional_data=additional
+        )
 
     
     def print_emulator_description(self):
@@ -106,12 +112,12 @@ class LinearModelScipy(BaseEmulator):
         """Initialize the emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
-            y : Output data. Pandas dataframe with columns representing
+            y: Output data. Pandas dataframe with columns representing
                 observations and rows representing samples. Each row in this
                 dataframe must match the corresponding row in `x`.
-            test_fraction : Fraction of `x` and `y` samples to be used for
+            test_fraction: Fraction of `x` and `y` samples to be used for
                 testing. This is a scalar between 0 and 1.
 
         Returns:
@@ -136,17 +142,15 @@ class LinearModelScipy(BaseEmulator):
         return
 
     
-    def predict(self, x: pd.DataFrame(), qlow=0.05, qhi=0.95):
+    def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict an output using the trained emulator.
 
         Args:
-            x : Input data. Pandas dataframe with columns representing parameter
+            x: Input data. Pandas dataframe with columns representing parameter
                 values.
-            qlow  : Lower quantile for the estimated uncertainty interval.
-            qhigh : Upper quantile for the estimated uncertainty interval.
 
         Returns:
-            Pandas dataframe with predicted values and uncertainty intervals.
+            EmulationResults with predicted values and uncertainty intervals.
         """
         logging.debug("... predicting outputs using the trained emulator")
         # Compute the prediction
@@ -164,15 +168,21 @@ class LinearModelScipy(BaseEmulator):
         # to be updated to compute the variance of the predicted mean. 
         variance = np.var(self.y_train)
         sigma = variance**0.5
-        low = scipy.stats.norm.ppf(q=qlow, scale=sigma)
-        hi = scipy.stats.norm.ppf(q=qhi, scale=sigma)
+        
+        # Compute default confidence intervals for additional data
+        low = scipy.stats.norm.ppf(q=0.05, scale=sigma)
+        hi = scipy.stats.norm.ppf(q=0.95, scale=sigma)
+        
+        additional = pd.DataFrame({
+            "low": y_pred.flatten() + low,
+            "high": y_pred.flatten() + hi
+        }, index=x.index)
 
-        # Prepare output and return
-        out = pd.DataFrame(index=x.index)
-        out["value"] = y_pred
-        out["low"] = out["value"] + low
-        out["high"] = out["value"] + hi
-        return out
+        return EmulationResults(
+            mean=y_pred.flatten(),  # sklearn returns 2D (n_samples, 1), flatten to 1D
+            std=np.full(len(y_pred), sigma),  # Create array of constant std values
+            additional_data=additional
+        )
 
     
     def print_emulator_description(self):

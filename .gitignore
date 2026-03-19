@@ -72,6 +72,9 @@ output/*/index.html
 docs/api
 docs/_build
 
+# MkDocs
+site/
+
 # Mypy Cache
 .mypy_cache/
 
