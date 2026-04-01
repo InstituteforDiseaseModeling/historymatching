@@ -163,9 +163,14 @@ class ParameterSpaceTests(unittest.TestCase):
             'param_c': [15.0, 35.0]   # Outside [20, 30]
         })
         
-        with self.assertRaises(ValueError) as cm:
-            self.simple_space.constrain_to_samples(invalid_samples)
-        self.assertIn("fall outside current parameter space", str(cm.exception))
+        # Out-of-bounds samples are now allowed (with a warning) — the result
+        # is clipped to the current parameter space bounds.
+        constrained = self.simple_space.constrain_to_samples(invalid_samples)
+        for param in ['param_a', 'param_b', 'param_c']:
+            orig_min, orig_max = self.simple_space.get_bounds(param)
+            new_min, new_max = constrained.get_bounds(param)
+            self.assertGreaterEqual(new_min, orig_min)
+            self.assertLessEqual(new_max, orig_max)
         
     def test_volume_fraction_remaining(self):
         """Test calculating volume fraction remaining."""

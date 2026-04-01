@@ -808,16 +808,22 @@ class HistoryMatchingEngine:
             self._progress.acceptance_rate = 1.0
             return samples
 
-        # Subsequent iterations - adaptive sampling loop
+        # Subsequent iterations - adaptive rejection sampling loop
         plausible_samples = pd.DataFrame()
         total_candidates_generated = 0
+        batch_num = 0
+        batch_seed = self._random_seed  # Incremented each batch for fresh LHS draws
+        max_candidate_factor = self._settings.get('max_candidate_factor', 1000)
+        max_candidates = self._n_samples * max_candidate_factor
 
         # Initial batch size
         batch_size = min(int(self._n_samples * self._oversample_factor), self._max_batch_size)
 
         while len(plausible_samples) < self._n_samples:
-            # Generate candidate samples
-            candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=self._random_seed)
+            # Generate candidate samples (fresh seed each batch)
+            candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=batch_seed)
+            if batch_seed is not None:
+                batch_seed += 1
 
             # Filter candidates through existing emulators
             batch_plausible = self._filter_samples_by_implausibility(candidates)
@@ -828,12 +834,31 @@ class HistoryMatchingEngine:
 
             # Update counters
             total_candidates_generated += len(candidates)
+            batch_num += 1
 
             # Calculate acceptance rate for adaptive sizing
             current_acceptance_rate = len(plausible_samples) / total_candidates_generated
 
+            logger.info(
+                f"  Sampling batch {batch_num}: {len(batch_plausible)}/{len(candidates)} accepted "
+                f"| {len(plausible_samples)}/{self._n_samples} collected "
+                f"| {total_candidates_generated:,} total candidates "
+                f"| rate={current_acceptance_rate:.4%}"
+            )
+
             # If we have enough samples, break
             if len(plausible_samples) >= self._n_samples:
+                break
+
+            # Safety valve: stop after generating too many candidates
+            if total_candidates_generated >= max_candidates:
+                logger.warning(
+                    f"Reached candidate limit ({max_candidates:,}) with only "
+                    f"{len(plausible_samples)}/{self._n_samples} plausible samples "
+                    f"(acceptance rate: {current_acceptance_rate:.4%}).  "
+                    f"Proceeding with {len(plausible_samples)} samples.  "
+                    f"Adjust with .with_setting('max_candidate_factor', N)."
+                )
                 break
 
             # Calculate next batch size adaptively
@@ -846,7 +871,7 @@ class HistoryMatchingEngine:
 
         # Update global progress tracking
         self._progress.total_samples_generated += total_candidates_generated
-        self._progress.acceptance_rate = len(plausible_samples) / total_candidates_generated
+        self._progress.acceptance_rate = len(plausible_samples) / total_candidates_generated if total_candidates_generated > 0 else 1.0
 
         # Return exactly the requested number of samples
         return plausible_samples.head(self._n_samples)
@@ -992,13 +1017,19 @@ class HistoryMatchingEngine:
         # Use the same adaptive sampling loop as _generate_plausible_samples()
         plausible_samples = pd.DataFrame()
         total_candidates_generated = 0
+        batch_num = 0
+        batch_seed = self._random_seed  # Incremented each batch for fresh LHS draws
+        max_candidate_factor = self._settings.get('max_candidate_factor', 1000)
+        max_candidates = self._n_samples * max_candidate_factor
 
         # Initial batch size
         batch_size = min(int(self._n_samples * self._oversample_factor), self._max_batch_size)
 
         while len(plausible_samples) < self._n_samples:
-            # Generate candidate samples
-            candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=self._random_seed)
+            # Generate candidate samples (fresh seed each batch)
+            candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=batch_seed)
+            if batch_seed is not None:
+                batch_seed += 1
 
             # Filter candidates through existing + current emulators
             batch_plausible = self._filter_samples_with_bank(candidates, temp_bank)
@@ -1009,12 +1040,31 @@ class HistoryMatchingEngine:
 
             # Update counters
             total_candidates_generated += len(candidates)
+            batch_num += 1
 
             # Calculate acceptance rate for adaptive sizing
             current_acceptance_rate = len(plausible_samples) / total_candidates_generated
 
+            logger.info(
+                f"  Next-wave sampling batch {batch_num}: {len(batch_plausible)}/{len(candidates)} accepted "
+                f"| {len(plausible_samples)}/{self._n_samples} collected "
+                f"| {total_candidates_generated:,} total candidates "
+                f"| rate={current_acceptance_rate:.4%}"
+            )
+
             # If we have enough samples, break
             if len(plausible_samples) >= self._n_samples:
+                break
+
+            # Safety valve: stop after generating too many candidates
+            if total_candidates_generated >= max_candidates:
+                logger.warning(
+                    f"Reached candidate limit ({max_candidates:,}) with only "
+                    f"{len(plausible_samples)}/{self._n_samples} plausible samples "
+                    f"(acceptance rate: {current_acceptance_rate:.4%}).  "
+                    f"Proceeding with {len(plausible_samples)} samples.  "
+                    f"Adjust with .with_setting('max_candidate_factor', N)."
+                )
                 break
 
             # Calculate next batch size adaptively

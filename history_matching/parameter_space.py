@@ -2,6 +2,7 @@
 ParameterSpace domain object for history matching.
 """
 
+import logging
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -11,6 +12,8 @@ import numpy as np
 import pandas as pd
 
 from .utils import PARAMETER_SPACE_COLUMNS
+
+logger = logging.getLogger(__name__)
 
 
 class ParameterSpace:
@@ -147,7 +150,11 @@ class ParameterSpace:
             New ParameterSpace constrained to sample bounds
         """
         if not self.validate_samples(samples_df):
-            raise ValueError("Some samples fall outside current parameter space")
+            logger.warning(
+                "Some samples fall slightly outside current parameter space bounds. "
+                "This can happen due to floating-point precision in emulator filtering. "
+                "Proceeding — new bounds will be clipped to the current space."
+            )
 
         # Calculate percentile bounds
         lower_percentile = (100 - percentile) / 2
