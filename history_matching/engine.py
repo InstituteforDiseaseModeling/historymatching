@@ -303,16 +303,10 @@ class HistoryMatchingEngine:
             # Determine parameter space for next iteration
             next_parameter_space = self._get_next_parameter_space(samples, emulators)
 
-            # Filter this wave's samples through ALL emulators (existing + new)
-            # to compute the actual NROY set and fraction for this iteration.
-            temp_bank = self._emulator_bank.copy()
-            current_iter = self._progress.current_iteration + 1
-            for feat, emul in emulators.items():
-                temp_bank.add_emulator(current_iter, feat, emul)
-            non_implausible_points = self._filter_samples_with_bank(samples, temp_bank)
-            non_implausible_fraction = (
-                len(non_implausible_points) / len(samples) if len(samples) > 0 else 0.0
-            )
+            # NROY fraction: the acceptance rate from _compute_next_iteration_samples
+            # — what fraction of fresh LHS candidates pass ALL emulators in the bank.
+            # This is the real convergence diagnostic (not re-filtering pre-screened samples).
+            nroy_fraction = self._progress.acceptance_rate
 
             # Create iteration result
             iteration_result = IterationResult(
@@ -322,8 +316,7 @@ class HistoryMatchingEngine:
                 simulation_results=simulation_results,
                 selected_features=selected_features,
                 emulators=emulators,
-                non_implausible_points=non_implausible_points,
-                non_implausible_fraction=non_implausible_fraction,
+                nroy_fraction=nroy_fraction,
                 execution_time_seconds=0.0,  # TODO: Track actual execution time
             )
 

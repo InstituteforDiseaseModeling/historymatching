@@ -19,19 +19,24 @@ from .emulators.base import BaseEmulator
 class IterationResult:
     """
     Immutable result object from a single history matching iteration.
-    
+
     Contains all data and results from one iteration, including samples,
-    simulation results, trained emulators, and analysis results.
+    simulation results, trained emulators, and convergence diagnostics.
+
+    The NROY set is not stored here — it is defined implicitly by the
+    emulator bank.  To obtain NROY samples, generate fresh candidates
+    and filter them through the engine's emulator bank.  The final wave's
+    ``samples`` + ``simulation_results`` can be fed directly into
+    trajectory selection (likelihood + resampling).
     """
-    
+
     iteration: int
     parameter_space: ParameterSpace
     samples: pd.DataFrame
     simulation_results: pd.DataFrame
     selected_features: List[str]
     emulators: Dict[str, BaseEmulator]
-    non_implausible_points: pd.DataFrame
-    non_implausible_fraction: float
+    nroy_fraction: float
     execution_time_seconds: float
     
     def get_emulator_for_feature(self, feature: str) -> BaseEmulator:
@@ -73,23 +78,23 @@ class IterationResult:
     def calculate_space_reduction(self, original_space: ParameterSpace) -> float:
         """
         Calculate parameter space reduction factor.
-        
+
         Args:
             original_space: Original parameter space before constraints
-            
+
         Returns:
             Space reduction factor (higher means more reduction)
         """
-        if self.non_implausible_fraction == 0:
+        if self.nroy_fraction == 0:
             return float('inf')  # Complete reduction
-            
+
         # Calculate volume-based reduction if we have bounds
         try:
             volume_fraction = self.parameter_space.volume_fraction_remaining(original_space)
             return 1.0 / volume_fraction if volume_fraction > 0 else float('inf')
         except:
             # Fall back to point-based reduction
-            return 1.0 / self.non_implausible_fraction
+            return 1.0 / self.nroy_fraction
             
     def get_implausibility_scores(self, observations: ObservationData, 
                                  model_discrepancy: float = 0.0) -> pd.DataFrame:
@@ -186,8 +191,7 @@ class IterationResult:
             'n_samples': len(self.samples),
             'n_features': len(self.selected_features),
             'selected_features': self.selected_features,
-            'non_implausible_points': len(self.non_implausible_points),
-            'non_implausible_fraction': self.non_implausible_fraction,
+            'nroy_fraction': self.nroy_fraction,
             'execution_time_seconds': self.execution_time_seconds,
             'parameter_count': len(self.parameter_space),
             'average_emulator_r2': avg_r2,
@@ -278,10 +282,6 @@ class IterationResult:
         results_file = os.path.join(directory_path, f"iteration_{self.iteration}_simulation_results.csv")
         self.simulation_results.to_csv(results_file, index=False)
         
-        # Export non-implausible points
-        if not self.non_implausible_points.empty:
-            non_impl_file = os.path.join(directory_path, f"iteration_{self.iteration}_non_implausible.csv")
-            self.non_implausible_points.to_csv(non_impl_file, index=False)
             
     def save_diagnostics(self, fig_dir: str, all_results: Optional[list] = None) -> None:
         """Save per-wave emulator diagnostic figures and metrics summary.
@@ -402,12 +402,11 @@ class IterationResult:
         if all_results is not None and len(all_results) > 0:
             fig, ax = plt.subplots(figsize=(7, 4))
             waves = [r.iteration for r in all_results]
-            fracs = [r.non_implausible_fraction for r in all_results]
-            n_nroy = [len(r.non_implausible_points) for r in all_results]
+            fracs = [r.nroy_fraction for r in all_results]
 
             ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
-            for w, f, nn in zip(waves, fracs, n_nroy):
-                ax.annotate(f"{f:.1%}\n({nn})", (w, f),
+            for w, f in zip(waves, fracs):
+                ax.annotate(f"{f:.1%}", (w, f),
                             textcoords='offset points', xytext=(0, 6),
                             ha='center', fontsize=8)
             ax.set_xlabel('Wave', fontsize=10)
@@ -439,8 +438,8 @@ class IterationResult:
             raise ValueError("Samples and simulation results must have same length")
             
         # Validate fractions
-        if not 0.0 <= self.non_implausible_fraction <= 1.0:
-            raise ValueError(f"Non-implausible fraction must be between 0 and 1, got {self.non_implausible_fraction}")
+        if not 0.0 <= self.nroy_fraction <= 1.0:
+            raise ValueError(f"NROY fraction must be between 0 and 1, got {self.nroy_fraction}")
             
         # Validate features
         for feature in self.selected_features:
@@ -455,11 +454,11 @@ class IterationResult:
         """Human-readable string representation."""
         return (f"IterationResult(iteration={self.iteration}, "
                 f"features={self.selected_features}, "
-                f"non_implausible_fraction={self.non_implausible_fraction:.3f})")
+                f"nroy_fraction={self.nroy_fraction:.3f})")
                 
     def __repr__(self) -> str:
         """Developer string representation."""
         return (f"IterationResult(iteration={self.iteration}, "
                 f"n_samples={len(self.samples)}, "
                 f"features={len(self.selected_features)}, "
-                f"non_implausible_fraction={self.non_implausible_fraction:.3f})")
+                f"nroy_fraction={self.nroy_fraction:.3f})")

@@ -122,7 +122,7 @@ result = engine.step()
 
 # Inspect before committing
 print(f"Features: {result.selected_features}")
-print(f"Non-implausible: {result.non_implausible_fraction:.1%}")
+print(f"NROY fraction: {result.nroy_fraction:.1%}")
 
 # Accept or reject
 engine.commit_step()   # Accept this iteration

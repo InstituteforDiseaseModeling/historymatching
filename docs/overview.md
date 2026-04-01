@@ -45,7 +45,7 @@ IterationResult                 # Immutable results per iteration
     ├── samples                 # Parameter samples used
     ├── simulation_results      # Model outputs
     ├── emulators               # Trained emulators
-    └── non_implausible_points  # Filtered plausible points
+    └── nroy_fraction           # Fresh-LHS acceptance rate (convergence diagnostic)
 ```
 
 ## When to use history matching
