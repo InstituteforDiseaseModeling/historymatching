@@ -289,17 +289,19 @@ class IterationResult:
         Saves a multi-panel diagnostic figure for each emulated feature and
         an overall wave summary figure:
 
-        Per feature (``wave{N}_{feature}_diagnostics.png``):
+        Creates ``{fig_dir}/wave{N}/`` with:
+
+        Per feature (``{feature}_diagnostics.png``):
           - **Predicted vs actual** scatter with 1:1 line and R²/MSE annotation
           - **ARD lengthscales** bar chart (GPR only) showing which parameters
             the emulator found most/least relevant
 
-        Wave summary (``wave{N}_summary.png``):
+        Wave summary (``convergence.png``):
           - **NROY convergence** — cumulative non-implausible fraction across
             waves (requires ``all_results`` for history)
 
-        Also saves ``wave{N}_metrics.json`` with R², MSE, training size, and
-        (for GPR) ARD lengthscales per feature.
+        Also saves ``metrics.json`` with R², MSE, training size, and (for GPR)
+        ARD lengthscales per feature.
 
         Args:
             fig_dir: Directory to save figures into (created if needed).
@@ -311,8 +313,8 @@ class IterationResult:
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
 
-        os.makedirs(fig_dir, exist_ok=True)
-        prefix = f"wave{self.iteration}"
+        wave_dir = os.path.join(fig_dir, f"wave{self.iteration}")
+        os.makedirs(wave_dir, exist_ok=True)
 
         all_metrics = self.get_emulator_quality_metrics()
 
@@ -392,7 +394,7 @@ class IterationResult:
             fig.suptitle(f"Wave {self.iteration} — {feature}",
                          fontsize=11, fontweight='bold', y=1.02)
             fig.tight_layout()
-            path = os.path.join(fig_dir, f"{prefix}_{feature}_diagnostics.png")
+            path = os.path.join(wave_dir, f"{feature}_diagnostics.png")
             fig.savefig(path, dpi=150, bbox_inches='tight')
             plt.close(fig)
 
@@ -417,12 +419,12 @@ class IterationResult:
                 ax.spines[spine].set_visible(False)
             ax.grid(axis='y', alpha=0.3)
             fig.tight_layout()
-            path = os.path.join(fig_dir, f"{prefix}_convergence.png")
+            path = os.path.join(wave_dir, "convergence.png")
             fig.savefig(path, dpi=150, bbox_inches='tight')
             plt.close(fig)
 
         # ── Save metrics JSON ─────────────────────────────────────────
-        metrics_path = os.path.join(fig_dir, f"{prefix}_metrics.json")
+        metrics_path = os.path.join(wave_dir, "metrics.json")
         with open(metrics_path, 'w') as f:
             json.dump(all_metrics, f, indent=2, default=float)
 
