@@ -303,10 +303,16 @@ class HistoryMatchingEngine:
             # Determine parameter space for next iteration
             next_parameter_space = self._get_next_parameter_space(samples, emulators)
 
-            # Calculate non-implausible points and fraction
-            # For now, use all samples as non-implausible (will be filtered in next iteration)
-            non_implausible_points = samples.copy()
-            non_implausible_fraction = 1.0  # TODO: Calculate actual implausibility filtering
+            # Filter this wave's samples through ALL emulators (existing + new)
+            # to compute the actual NROY set and fraction for this iteration.
+            temp_bank = self._emulator_bank.copy()
+            current_iter = self._progress.current_iteration + 1
+            for feat, emul in emulators.items():
+                temp_bank.add_emulator(current_iter, feat, emul)
+            non_implausible_points = self._filter_samples_with_bank(samples, temp_bank)
+            non_implausible_fraction = (
+                len(non_implausible_points) / len(samples) if len(samples) > 0 else 0.0
+            )
 
             # Create iteration result
             iteration_result = IterationResult(
@@ -489,6 +495,53 @@ class HistoryMatchingEngine:
         self._state = EngineState.PAUSED
 
         logger.info(f"Iteration {reverted_iteration} reverted")
+
+    def drop_emulator_from_pending(self, feature: str) -> None:
+        """
+        Remove a specific emulator from the pending iteration before committing.
+
+        Call this after step() but before commit_step() to exclude an emulator
+        whose diagnostics indicate a poor fit. The emulator will not be stored
+        in the bank and will not contribute to implausibility filtering in
+        future waves.
+
+        The simulation data for this wave is unaffected — only the emulator is
+        dropped. The remaining emulators are committed as normal.
+
+        Args:
+            feature: Name of the feature whose emulator should be dropped.
+
+        Raises:
+            RuntimeError: If called when no step is pending.
+            KeyError: If the feature was not emulated in the pending step.
+
+        Example:
+            result = engine.step()
+
+            for f in result.selected_features:
+                metrics = result.get_emulator_quality_metrics()
+                print(f"{f}: R²={metrics[f]['r2']:.3f}")
+
+            # Drop any emulator with a poor fit before committing
+            engine.drop_emulator_from_pending('feature_c')
+            engine.commit_step()
+        """
+        if self._pending_snapshot is None:
+            raise RuntimeError(
+                "No pending iteration to modify. Call step() first, inspect the emulator "
+                "diagnostics, then call drop_emulator_from_pending() before commit_step()."
+            )
+
+        iteration = self._pending_result.iteration
+        if not self._pending_snapshot.emulator_bank.has_emulator(iteration, feature):
+            available = list(self._pending_result.emulators.keys())
+            raise KeyError(
+                f"Feature '{feature}' was not emulated in the pending iteration. "
+                f"Available features: {available}"
+            )
+
+        self._pending_snapshot.emulator_bank.remove_emulator(iteration, feature)
+        logger.info(f"Emulator for '{feature}' removed from pending iteration {iteration}.")
 
     def update_feature_selection(self, features: Union[list[str], FeatureSelectionStrategy]):
         """
@@ -1047,9 +1100,29 @@ class HistoryMatchingEngine:
         return IterationSnapshot(iteration=self._progress.current_iteration, parameter_space=self._parameter_space, emulator_bank=self._emulator_bank.copy())
 
     def _check_convergence(self) -> bool:
-        """Check if convergence criteria are met."""
-        # Simple convergence check based on acceptance rate
-        return self._progress.acceptance_rate < 0.01  # Less than 1% of samples accepted
+        """Check if convergence criteria are met.
+
+        Returns True only when the acceptance rate (fraction of LHS candidates
+        passing the emulator filter) drops below the configurable threshold.
+
+        The threshold is set via ``HistoryMatchingBuilder.with_convergence_threshold()``
+        and defaults to 0.01 (1%).  Setting the threshold to 0.0 disables early
+        stopping entirely.
+        """
+        threshold = self._settings.get('convergence_threshold', 0.01)
+        if threshold <= 0:
+            return False  # Early stopping disabled
+
+        rate = self._progress.acceptance_rate
+        if rate < threshold:
+            logger.warning(
+                f"Acceptance rate ({rate:.4%}) fell below convergence threshold "
+                f"({threshold:.2%}).  The NROY region may be very small — consider "
+                f"relaxing the implausibility threshold or checking emulator quality.  "
+                f"Stopping after {self._progress.current_iteration} iterations."
+            )
+            return True
+        return False
 
     def _call_iteration_callbacks(self, result: IterationResult):
         """Call registered iteration callbacks."""

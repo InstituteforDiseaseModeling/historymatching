@@ -323,6 +323,26 @@ class HistoryMatchingBuilder:
         self._random_seed = seed
         return self
     
+    def with_convergence_threshold(self, threshold: float) -> 'HistoryMatchingBuilder':
+        """
+        Set the acceptance-rate threshold for early stopping.
+
+        When the cumulative fraction of candidate samples that pass the
+        emulator implausibility filter drops below *threshold*, the engine
+        stops and returns the results collected so far.
+
+        Args:
+            threshold: Acceptance-rate floor (default 0.01 = 1%).
+                       Set to 0.0 to disable early stopping entirely.
+
+        Returns:
+            Self for method chaining
+        """
+        if threshold < 0 or threshold > 1:
+            raise ValueError("Convergence threshold must be between 0.0 and 1.0")
+        self._settings['convergence_threshold'] = threshold
+        return self
+
     def with_space_reduction(self, auto_reduce: bool) -> 'HistoryMatchingBuilder':
         """
         Enable or disable automatic parameter space reduction.
