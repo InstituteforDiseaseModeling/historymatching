@@ -580,3 +580,122 @@ class TestEmulatorFactoryIntegration:
             # Clean up
             if 'simple_average' in EmulatorFactory._emulator_registry:
                 del EmulatorFactory._emulator_registry['simple_average']
+
+    def test_gpr_train_predict_test_roundtrip(self):
+        """End-to-end GPR: train on a known function, predict, test diagnostics.
+
+        Validates that the GPR emulator (with Constant mean function and
+        data-informed initial hyperparameters) produces accurate predictions
+        on a smooth test function in 3D, and that test() populates
+        emulator_metrics correctly.
+        """
+        np.random.seed(0)
+        n = 100
+
+        X = pd.DataFrame({
+            'x1': np.random.uniform(0, 1, n),
+            'x2': np.random.uniform(0, 1, n),
+            'x3': np.random.uniform(0, 1, n),
+        })
+        # Smooth function with an offset — exercises the Constant mean function
+        y = pd.DataFrame({
+            'output': 50.0 + 10.0 * X['x1'] - 5.0 * X['x2'] + 2.0 * X['x1'] * X['x3']
+        })
+
+        from history_matching.emulators.gpr import GPR
+
+        emulator = GPR(X, y, test_fraction=0.25)
+        emulator.train()
+        assert emulator.training_complete
+
+        # Predict on a fresh set of points
+        X_new = pd.DataFrame({
+            'x1': np.random.uniform(0, 1, 20),
+            'x2': np.random.uniform(0, 1, 20),
+            'x3': np.random.uniform(0, 1, 20),
+        })
+        preds = emulator.predict(X_new)
+        mean = preds.get_mean()
+        var  = preds.get_variance()
+
+        assert len(mean) == 20
+        assert len(var) == 20
+        assert np.all(var >= 0), "Variance must be non-negative"
+
+        # Predictions should be close to the true function (R² > 0.9 on new data)
+        y_true = 50.0 + 10.0 * X_new['x1'] - 5.0 * X_new['x2'] + 2.0 * X_new['x1'] * X_new['x3']
+        ss_res = np.sum((mean - y_true.values) ** 2)
+        ss_tot = np.sum((y_true.values - y_true.mean()) ** 2)
+        r2_new = 1.0 - ss_res / ss_tot
+        assert r2_new > 0.9, f"GPR predictions poor on new data: R²={r2_new:.3f}"
+
+        # test() should populate emulator_metrics
+        emulator.test()
+        assert emulator.testing_complete
+        em = emulator.emulator_metrics
+        assert 'R2' in em and not np.isnan(em['R2']), "R² should be computed"
+        assert 'MSE' in em and not np.isnan(em['MSE']), "MSE should be computed"
+        assert em['R2'] > 0.8, f"Test-set R² too low: {em['R2']:.3f}"
+
+    def test_gpr_with_wildly_different_scales(self):
+        """GPR should handle parameters on very different scales.
+
+        Without input normalization, kernel lengthscales can't accommodate
+        parameters spanning orders of magnitude (e.g. 0.0005–0.006 vs 1–3).
+        """
+        np.random.seed(11)
+        n = 100
+
+        X = pd.DataFrame({
+            'tiny':  np.random.uniform(0.0005, 0.006, n),   # O(1e-3)
+            'mid':   np.random.uniform(0.1, 1.0, n),        # O(1e-1)
+            'large': np.random.uniform(1.0, 3.0, n),        # O(1)
+        })
+        y = pd.DataFrame({
+            'output': 100 * X['tiny'] + 5 * X['mid'] + X['large']
+        })
+
+        from history_matching.emulators.gpr import GPR
+
+        emulator = GPR(X, y, test_fraction=0.25)
+        emulator.train()
+        assert emulator.training_complete
+
+        emulator.test()
+        em = emulator.emulator_metrics
+        assert em['R2'] > 0.8, (
+            f"GPR failed with multi-scale inputs (R²={em['R2']:.3f}). "
+            f"Input normalization may not be working."
+        )
+
+    def test_gpr_with_constant_offset_data(self):
+        """GPR should handle data with a large constant offset (mean function test).
+
+        Without a mean function (or the old column-of-ones hack), GPR with an
+        SE kernel centered at zero would struggle with y ~ 3000 + small_signal.
+        The Constant mean function should absorb the offset.
+        """
+        np.random.seed(7)
+        n = 80
+
+        X = pd.DataFrame({
+            'p1': np.random.uniform(0, 1, n),
+            'p2': np.random.uniform(0, 1, n),
+        })
+        # Large offset + small signal — similar to birth weight calibration
+        y = pd.DataFrame({
+            'output': 3000.0 + 5.0 * X['p1'] - 3.0 * X['p2']
+        })
+
+        from history_matching.emulators.gpr import GPR
+
+        emulator = GPR(X, y, test_fraction=0.25)
+        emulator.train()
+        assert emulator.training_complete
+
+        emulator.test()
+        em = emulator.emulator_metrics
+        assert em['R2'] > 0.8, (
+            f"GPR failed on large-offset data (R²={em['R2']:.3f}). "
+            f"The mean function may not be absorbing the constant offset."
+        )

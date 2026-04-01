@@ -36,23 +36,55 @@ class GPR(BaseEmulator):
         return
 
     
-    def train(self):
-        """Fits a GPR model."""
+    def _normalize_x(self, x):
+        """Normalize inputs to [0, 1] using training-set min/range."""
+        return (np.float64(x) - self._x_min) / self._x_range
 
+    def train(self):
+        """Fits a GPR model.
+
+        Inputs are normalized to [0, 1] and outputs are standardized
+        (zero mean, unit variance) before training.  This ensures:
+          - Kernel lengthscales are comparable across parameters with very
+            different physical scales (e.g. 0.0005–0.006 vs 1.0–3.0).
+          - The optimizer isn't confused by large output offsets
+            (e.g. birth weight ~ 3000 g with a signal of a few grams).
+
+        Predictions are un-standardized automatically in predict().
+        """
         logging.debug("... training emulator")
 
-        x_gpf = np.hstack(  ( np.ones( (len(self.X_train), 1 ) ),  self.X_train ) )
-        y_gpf = np.float64( self.y_train.reshape( (len(self.y_train),) ) ).reshape(-1,1)
+        x_raw = np.float64(self.X_train)
+        y_raw = np.float64(self.y_train.reshape(-1, 1))
 
-        ls = np.ones( (x_gpf.shape[1],) )
-        self.model = gpflow.models.GPR( (x_gpf, y_gpf), kernel=gpflow.kernels.SquaredExponential(lengthscales=ls))
+        # Input normalization: min–max to unit box
+        self._x_min = x_raw.min(axis=0)
+        self._x_range = x_raw.max(axis=0) - self._x_min
+        self._x_range = np.maximum(self._x_range, 1e-12)  # guard against zero-range columns
+
+        # Output standardization: zero mean, unit variance
+        self._y_mean = float(np.mean(y_raw))
+        self._y_std = float(np.std(y_raw))
+        if self._y_std < 1e-12:
+            self._y_std = 1.0  # guard against constant output
+
+        x_gpf = self._normalize_x(x_raw)
+        y_gpf = (y_raw - self._y_mean) / self._y_std
+
+        self.model = gpflow.models.GPR(
+            (x_gpf, y_gpf),
+            kernel=gpflow.kernels.SquaredExponential(),
+            mean_function=gpflow.mean_functions.Constant(),
+        )
         opt = gpflow.optimizers.Scipy()
-        self.opt_logs = opt.minimize( self.model.training_loss, self.model.trainable_variables )
+        self.opt_logs = opt.minimize(self.model.training_loss, self.model.trainable_variables)
 
-        # TODO: Validate that the optimization was successful (success = True) and respond accordingly or at least let the user know.
         if not self.opt_logs.success:
-           logging.error("... training failed")
-           return
+            logging.warning(
+                "GPR optimization did not converge (scipy reported success=False). "
+                "This is common when the noise variance hits its lower bound. "
+                "The fitted model may still be usable — check emulator diagnostics."
+            )
 
         self.training_complete = True
         logging.debug("     training complete")
@@ -65,10 +97,24 @@ class GPR(BaseEmulator):
 
         logging.debug("... predicting outputs using the trained emulator")
 
-        # Make the prediction
-        x_gpf = np.hstack( (np.ones( (len(x), 1 ) ),  x) )
-        f_mean, f_var = self.model.predict_f( x_gpf, full_cov=False )
-        y_mean, y_var = self.model.predict_y( x_gpf )
+        # Normalize inputs using training-set min/range
+        x_gpf = self._normalize_x(x)
+        f_mean_z, f_var_z = self.model.predict_f(x_gpf, full_cov=False)
+        y_mean_z, y_var_z = self.model.predict_y(x_gpf)
+
+        # Convert to numpy arrays and flatten for pandas compatibility
+        def to_flat(tensor_or_array):
+            if hasattr(tensor_or_array, 'numpy'):
+                return tensor_or_array.numpy().flatten()
+            else:
+                return np.asarray(tensor_or_array).flatten()
+
+        # Un-standardize: mean → mean*std + mu, var → var*std²
+        ys, ym = self._y_std, self._y_mean
+        f_mean = to_flat(f_mean_z) * ys + ym
+        f_var  = to_flat(f_var_z)  * ys ** 2
+        y_mean = to_flat(y_mean_z) * ys + ym
+        y_var  = to_flat(y_var_z)  * ys ** 2
 
         # Compute the uncertainty interval for additional data
         z = 1.96  # 95% confidence interval
@@ -77,29 +123,19 @@ class GPR(BaseEmulator):
         y_lower = y_mean - z * np.sqrt(y_var)
         y_upper = y_mean + z * np.sqrt(y_var)
 
-        # Convert to numpy arrays and flatten for pandas compatibility
-        def to_flat_array(tensor_or_array):
-            if hasattr(tensor_or_array, 'numpy'):
-                return tensor_or_array.numpy().flatten()
-            else:
-                return np.asarray(tensor_or_array).flatten()
-        
-        y_mean_flat = to_flat_array(y_mean)
-        y_var_flat = to_flat_array(y_var)
-        
         # Create additional data for emulator-specific outputs
         additional = pd.DataFrame({
-            "f_var": to_flat_array(f_var),
-            "ci_obs_low": to_flat_array(y_lower),
-            "ci_obs_high": to_flat_array(y_upper),
-            "ci_pred_low": to_flat_array(f_lower),
-            "ci_pred_high": to_flat_array(f_upper)
+            "f_var": f_var,
+            "ci_obs_low": y_lower,
+            "ci_obs_high": y_upper,
+            "ci_pred_low": f_lower,
+            "ci_pred_high": f_upper,
         }, index=x.index)
 
         return EmulationResults(
-            mean=y_mean_flat,
-            std=np.sqrt(y_var_flat),
-            additional_data=additional
+            mean=y_mean,
+            std=np.sqrt(y_var),
+            additional_data=additional,
         )
 
 

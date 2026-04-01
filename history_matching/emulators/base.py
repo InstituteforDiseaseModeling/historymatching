@@ -163,8 +163,8 @@ class BaseEmulator:
         print("... General information:")
         print("      Number of parameters = ", len(self.X_df.columns))
         print("      Number of samples (total) = ", len(self.X_df))
-        print("      Number of training samples = ", np.size(self.X_train))
-        print("      Number of testing samples = ", np.size(self.X_test))
+        print("      Number of training samples = ", len(self.X_train))
+        print("      Number of testing samples = ", len(self.X_test))
         print("")
 
         if not self.training_complete:

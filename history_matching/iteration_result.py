@@ -139,27 +139,26 @@ class IterationResult:
         
         for feature, emulator in self.emulators.items():
             feature_metrics = {}
-            
-            # Try to get R² if available
-            if hasattr(emulator, 'score') and emulator.testing_complete:
+
+            # Ensure emulator has been tested (lazy — test() is not called
+            # by the engine automatically, only train() is).
+            if hasattr(emulator, 'test') and not getattr(emulator, 'testing_complete', False):
                 try:
-                    r2 = emulator.score(emulator.X_test, emulator.y_test)
-                    feature_metrics['r2_score'] = float(r2)
-                except:
-                    pass
-                    
-            # Try to get MSE if available
-            if hasattr(emulator, 'y_test') and hasattr(emulator, 'y_pred_test'):
-                try:
-                    mse = np.mean((emulator.y_test - emulator.y_pred_test)**2)
-                    feature_metrics['mse'] = float(mse)
-                except:
-                    pass
-                    
+                    emulator.test()
+                except Exception:
+                    pass  # Testing may fail; metrics will remain absent
+
+            # Pull metrics from emulator_metrics dict (populated by test())
+            em_metrics = getattr(emulator, 'emulator_metrics', {})
+            if 'R2' in em_metrics:
+                feature_metrics['r2_score'] = float(em_metrics['R2'])
+            if 'MSE' in em_metrics:
+                feature_metrics['mse'] = float(em_metrics['MSE'])
+
             # Try to get training data size
             if hasattr(emulator, 'X_train') and emulator.X_train is not None:
                 feature_metrics['training_size'] = len(emulator.X_train)
-                
+
             # Store completion status
             feature_metrics['training_complete'] = getattr(emulator, 'training_complete', False)
             feature_metrics['testing_complete'] = getattr(emulator, 'testing_complete', False)
