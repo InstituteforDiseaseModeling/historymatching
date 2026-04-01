@@ -938,8 +938,15 @@ class HistoryMatchingEngine:
         return self._feature_selection_strategy.select_features(simulation_results, self._observations, self._progress.current_iteration + 1)
 
     def _create_emulators(self, samples: pd.DataFrame, simulation_results: pd.DataFrame, features: list[str]) -> dict[str, Any]:
-        """Create and train emulators for selected features."""
-        return self._emulator_factory.create_emulators_for_features(samples, simulation_results, features)
+        """Create and train emulators for selected features.
+
+        Only parameter-space columns are passed to emulators — any extra
+        columns (e.g. ``rand_seed``) added by the simulation function are
+        excluded so they don't become spurious input dimensions.
+        """
+        param_cols = self._parameter_space.get_parameter_names()
+        samples_clean = samples[param_cols]
+        return self._emulator_factory.create_emulators_for_features(samples_clean, simulation_results, features)
 
     def _get_next_parameter_space(self, samples: pd.DataFrame, emulators: dict[str, Any]) -> ParameterSpace:
         """
@@ -955,8 +962,9 @@ class HistoryMatchingEngine:
         implausibilities = []
 
         for feature_name, emulator in emulators.items():
-            # Get predictions
-            predictions = emulator.predict(samples)
+            # Get predictions (only parameter columns, not metadata like rand_seed)
+            param_cols = self._parameter_space.get_parameter_names()
+            predictions = emulator.predict(samples[param_cols])
 
             # Calculate implausibility for this feature (vectorized)
             feature_implausibility = self._observations.calculate_implausibility(feature_name, predictions.get_mean(), predictions.get_variance())
