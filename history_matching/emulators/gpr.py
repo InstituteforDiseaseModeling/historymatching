@@ -70,10 +70,13 @@ class GPR(BaseEmulator):
 
         x_gpf = self._normalize_x(x_raw)
         y_gpf = (y_raw - self._y_mean) / self._y_std
+        n_dims = x_gpf.shape[1]
 
         self.model = gpflow.models.GPR(
             (x_gpf, y_gpf),
-            kernel=gpflow.kernels.SquaredExponential(),
+            kernel=gpflow.kernels.SquaredExponential(
+                lengthscales=np.ones(n_dims),  # one per parameter → ARD
+            ),
             mean_function=gpflow.mean_functions.Constant(),
         )
         opt = gpflow.optimizers.Scipy()
