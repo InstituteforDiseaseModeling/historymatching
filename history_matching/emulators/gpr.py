@@ -79,6 +79,14 @@ class GPR(BaseEmulator):
             ),
             mean_function=gpflow.mean_functions.Constant(),
         )
+        # GPflow's default likelihood.variance transform is Shift+Softplus
+        # with a hard floor at ~1e-6.  For stochastic simulators the
+        # optimizer gets trapped at that floor and the GP becomes
+        # overconfident.  Plain Softplus (no shift) lets the noise
+        # variance be optimized freely from any starting point.
+        self.model.likelihood.variance = gpflow.Parameter(
+            1.0, transform=gpflow.utilities.positive(),
+        )
         opt = gpflow.optimizers.Scipy()
         self.opt_logs = opt.minimize(self.model.training_loss, self.model.trainable_variables)
 

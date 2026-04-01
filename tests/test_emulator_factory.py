@@ -597,9 +597,11 @@ class TestEmulatorFactoryIntegration:
             'x2': np.random.uniform(0, 1, n),
             'x3': np.random.uniform(0, 1, n),
         })
-        # Smooth function with an offset — exercises the Constant mean function
+        # Smooth function with an offset + small noise (noise-free data causes
+        # Cholesky failures when likelihood variance is unconstrained)
         y = pd.DataFrame({
             'output': 50.0 + 10.0 * X['x1'] - 5.0 * X['x2'] + 2.0 * X['x1'] * X['x3']
+                      + np.random.normal(0, 0.1, n)
         })
 
         from history_matching.emulators.gpr import GPR
@@ -653,6 +655,7 @@ class TestEmulatorFactoryIntegration:
         })
         y = pd.DataFrame({
             'output': 100 * X['tiny'] + 5 * X['mid'] + X['large']
+                      + np.random.normal(0, 0.01, n)
         })
 
         from history_matching.emulators.gpr import GPR
@@ -685,6 +688,7 @@ class TestEmulatorFactoryIntegration:
         # Large offset + small signal — similar to birth weight calibration
         y = pd.DataFrame({
             'output': 3000.0 + 5.0 * X['p1'] - 3.0 * X['p2']
+                      + np.random.normal(0, 0.1, n)
         })
 
         from history_matching.emulators.gpr import GPR

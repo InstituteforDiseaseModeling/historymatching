@@ -283,6 +283,149 @@ class IterationResult:
             non_impl_file = os.path.join(directory_path, f"iteration_{self.iteration}_non_implausible.csv")
             self.non_implausible_points.to_csv(non_impl_file, index=False)
             
+    def save_diagnostics(self, fig_dir: str, all_results: Optional[list] = None) -> None:
+        """Save per-wave emulator diagnostic figures and metrics summary.
+
+        Saves a multi-panel diagnostic figure for each emulated feature and
+        an overall wave summary figure:
+
+        Per feature (``wave{N}_{feature}_diagnostics.png``):
+          - **Predicted vs actual** scatter with 1:1 line and R²/MSE annotation
+          - **ARD lengthscales** bar chart (GPR only) showing which parameters
+            the emulator found most/least relevant
+
+        Wave summary (``wave{N}_summary.png``):
+          - **NROY convergence** — cumulative non-implausible fraction across
+            waves (requires ``all_results`` for history)
+
+        Also saves ``wave{N}_metrics.json`` with R², MSE, training size, and
+        (for GPR) ARD lengthscales per feature.
+
+        Args:
+            fig_dir: Directory to save figures into (created if needed).
+            all_results: List of all IterationResult objects so far (including
+                this one).  Needed for the convergence plot.  If None, the
+                convergence panel is skipped.
+        """
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+
+        os.makedirs(fig_dir, exist_ok=True)
+        prefix = f"wave{self.iteration}"
+
+        all_metrics = self.get_emulator_quality_metrics()
+
+        for feature, emulator in self.emulators.items():
+            # Ensure tested
+            if not getattr(emulator, 'testing_complete', False):
+                try:
+                    emulator.test()
+                except Exception:
+                    continue
+
+            # Extract ARD lengthscales (if GPR)
+            ard_ls = None
+            ard_names = None
+            model = getattr(emulator, 'model', None)
+            if model is not None and hasattr(model, 'kernel'):
+                try:
+                    ls = model.kernel.lengthscales.numpy()
+                    if ls.ndim > 0:
+                        ard_names = (list(emulator.X_train_df.columns)
+                                     if hasattr(emulator, 'X_train_df') else
+                                     [f"dim_{i}" for i in range(len(ls))])
+                        ard_ls = ls
+                        ls_dict = {n: float(v) for n, v in zip(ard_names, ls)}
+                        all_metrics.setdefault(feature, {})['ard_lengthscales'] = ls_dict
+                except Exception:
+                    pass
+
+            has_ard = ard_ls is not None
+            ncols = 2 if has_ard else 1
+            fig, axes = plt.subplots(1, ncols, figsize=(5.5 * ncols, 5))
+            if ncols == 1:
+                axes = [axes]
+
+            # ── Panel 1: Predicted vs actual ──────────────────────────
+            ax = axes[0]
+            y_true = emulator.y_test.flatten()
+            y_pred = emulator.y_test_pred.flatten()
+            ax.scatter(y_true, y_pred, s=12, alpha=0.6, edgecolors='none')
+            lo = min(y_true.min(), y_pred.min())
+            hi = max(y_true.max(), y_pred.max())
+            margin = (hi - lo) * 0.05 or 1.0
+            ax.plot([lo - margin, hi + margin], [lo - margin, hi + margin],
+                    '--', color='grey', linewidth=0.8, alpha=0.6)
+            ax.set_xlim(lo - margin, hi + margin)
+            ax.set_ylim(lo - margin, hi + margin)
+            ax.set_xlabel('Simulation (true)', fontsize=9)
+            ax.set_ylabel('Emulator (predicted)', fontsize=9)
+
+            em = getattr(emulator, 'emulator_metrics', {})
+            r2  = em.get('R2', float('nan'))
+            mse = em.get('MSE', float('nan'))
+            n_train = len(emulator.X_train) if emulator.X_train is not None else '?'
+            ax.set_title(f"Predicted vs Actual\nR²={r2:.3f}  MSE={mse:.3g}  n={n_train}",
+                         fontsize=9)
+            ax.set_aspect('equal', adjustable='box')
+
+            # ── Panel 2: ARD lengthscales ─────────────────────────────
+            if has_ard:
+                ax2 = axes[1]
+                order = np.argsort(ard_ls)
+                sorted_names = [ard_names[i] for i in order]
+                sorted_ls = ard_ls[order]
+                colors = ['#d44d4d' if v < np.median(ard_ls) else '#888888'
+                          for v in sorted_ls]
+                ax2.barh(range(len(sorted_ls)), sorted_ls, color=colors, height=0.7)
+                ax2.set_yticks(range(len(sorted_ls)))
+                ax2.set_yticklabels([n.replace('_', '\n') for n in sorted_names],
+                                    fontsize=6)
+                ax2.set_xlabel('Lengthscale (shorter = more relevant)', fontsize=8)
+                ax2.set_title('ARD Lengthscales', fontsize=9)
+
+            for ax in axes:
+                for spine in ['top', 'right']:
+                    ax.spines[spine].set_visible(False)
+
+            fig.suptitle(f"Wave {self.iteration} — {feature}",
+                         fontsize=11, fontweight='bold', y=1.02)
+            fig.tight_layout()
+            path = os.path.join(fig_dir, f"{prefix}_{feature}_diagnostics.png")
+            fig.savefig(path, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
+        # ── Wave summary: NROY convergence ────────────────────────────
+        if all_results is not None and len(all_results) > 0:
+            fig, ax = plt.subplots(figsize=(7, 4))
+            waves = [r.iteration for r in all_results]
+            fracs = [r.non_implausible_fraction for r in all_results]
+            n_nroy = [len(r.non_implausible_points) for r in all_results]
+
+            ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
+            for w, f, nn in zip(waves, fracs, n_nroy):
+                ax.annotate(f"{f:.1%}\n({nn})", (w, f),
+                            textcoords='offset points', xytext=(0, 6),
+                            ha='center', fontsize=8)
+            ax.set_xlabel('Wave', fontsize=10)
+            ax.set_ylabel('Non-implausible fraction', fontsize=10)
+            ax.set_title('NROY Convergence', fontsize=11, fontweight='bold')
+            ax.set_ylim(0, min(1.0, max(fracs) * 1.3) if fracs else 1.0)
+            ax.set_xticks(waves)
+            for spine in ['top', 'right']:
+                ax.spines[spine].set_visible(False)
+            ax.grid(axis='y', alpha=0.3)
+            fig.tight_layout()
+            path = os.path.join(fig_dir, f"{prefix}_convergence.png")
+            fig.savefig(path, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
+        # ── Save metrics JSON ─────────────────────────────────────────
+        metrics_path = os.path.join(fig_dir, f"{prefix}_metrics.json")
+        with open(metrics_path, 'w') as f:
+            json.dump(all_metrics, f, indent=2, default=float)
+
     def __post_init__(self):
         """Validate the iteration result after creation."""
         # Validate iteration number
