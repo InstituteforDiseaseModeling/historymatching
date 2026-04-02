@@ -1131,6 +1131,171 @@ class HistoryMatchingEngine:
         except Exception as e:
             logger.warning(f"Failed to save convergence plot: {e}")
 
+        # ── Wave-level: z-scores vs ALL targets ─────────────────────────
+        try:
+            all_results = self.get_all_results()
+            if len(all_results) > 0:
+                import matplotlib
+                matplotlib.use('Agg')
+                import matplotlib.pyplot as plt
+
+                targets = self._observations.get_all_targets()
+                target_names = [k for k in targets if k in result.simulation_results.columns]
+
+                if len(target_names) > 0 and len(all_results) > 0:
+                    # Collect which features were emulated in which wave
+                    emulated = {}
+                    for r in all_results:
+                        for feat in r.selected_features:
+                            emulated.setdefault(feat, []).append(r.iteration)
+
+                    n_targets = len(target_names)
+                    n_waves = len(all_results)
+                    cmap = plt.get_cmap('plasma')
+                    bar_width = 0.8 / n_waves
+
+                    fig, ax = plt.subplots(figsize=(max(14, n_targets * 0.7), 7))
+                    ymin_data, ymax_data = 0, 0
+
+                    for wi, r in enumerate(all_results):
+                        sims = r.simulation_results
+                        for ti, key in enumerate(target_names):
+                            if key not in sims.columns:
+                                continue
+                            obs_mean, obs_std = targets[key]
+                            z = (sims[key].dropna() - obs_mean) / obs_std
+                            x_pos = ti + (wi - n_waves / 2 + 0.5) * bar_width
+                            color = cmap(wi / n_waves)
+                            q05, q25, med, q75, q95 = np.percentile(z, [5, 25, 50, 75, 95])
+                            ymin_data = min(ymin_data, q05)
+                            ymax_data = max(ymax_data, q95)
+                            ax.plot([x_pos, x_pos], [q05, q95],
+                                    color=color, linewidth=1.2, alpha=0.5, solid_capstyle='round')
+                            ax.plot([x_pos, x_pos], [q25, q75],
+                                    color=color, linewidth=3.5, alpha=0.7, solid_capstyle='round')
+                            ax.plot(x_pos, med, 'o', color=color, markersize=4, zorder=5)
+
+                    for wi, r in enumerate(all_results):
+                        ax.plot([], [], color=cmap(wi / n_waves), linewidth=3.5, label=f'Wave {r.iteration}')
+
+                    ax.axhline(0, color='#d44d4d', lw=1.5, ls='--', alpha=0.7, label='Target')
+                    ax.axhline(3.5, color='green', lw=0.8, ls=':', alpha=0.4)
+                    ax.axhline(-3.5, color='green', lw=0.8, ls=':', alpha=0.4)
+                    ax.axhspan(-3.5, 3.5, color='green', alpha=0.03)
+
+                    margin = max(abs(ymin_data), abs(ymax_data)) * 1.15
+                    if margin > 0:
+                        ax.set_ylim(-margin, margin)
+
+                    for ti, key in enumerate(target_names):
+                        if key in emulated:
+                            wlist = ','.join(str(w) for w in emulated[key])
+                            ax.annotate(f'\u2605w{wlist}', (ti, -margin * 0.93), ha='center',
+                                        fontsize=7, color='#2a7f3f', fontweight='bold')
+
+                    ax.set_xticks(range(n_targets))
+                    ax.set_xticklabels([k.replace('_', '\n') for k in target_names],
+                                       fontsize=8, rotation=45, ha='right')
+                    ax.set_ylabel('(Sim \u2212 Target) / Target \u03c3', fontsize=12)
+                    ax.set_title('NROY z-scores across waves \u2014 thick=IQR, thin=5th\u201395th pctl, dot=median\n'
+                                 'Green \u2605 = target was emulated in that wave', fontsize=13)
+                    ax.legend(fontsize=9, loc='upper center', bbox_to_anchor=(0.5, -0.18),
+                              ncol=min(n_waves + 1, 8), framealpha=0.9)
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
+                    ax.grid(axis='y', alpha=0.2)
+                    fig.tight_layout()
+                    fig.savefig(wave_dir / "zscores_vs_targets.png", dpi=150, bbox_inches='tight')
+                    plt.close(fig)
+        except Exception as e:
+            logger.warning(f"Failed to save z-scores plot: {e}")
+
+        # ── Wave-level: parameter space pair plot ────────────────────────
+        try:
+            all_results = self.get_all_results()
+            if len(all_results) >= 2:
+                import matplotlib
+                matplotlib.use('Agg')
+                import matplotlib.pyplot as plt
+
+                param_names = self._parameter_space.get_parameter_names()
+
+                # Pick top 8 most relevant params by shortest ARD lengthscale
+                # across all emulators in this wave
+                ls_min = {}
+                for feat, emul in result.emulators.items():
+                    model = getattr(emul, 'model', None)
+                    if model is None or not hasattr(model, 'kernel'):
+                        continue
+                    try:
+                        ls = model.kernel.lengthscales.numpy()
+                        if ls.ndim == 0:
+                            continue
+                        names = (list(emul.X_train_df.columns) if hasattr(emul, 'X_train_df')
+                                 else param_names[:len(ls)])
+                        for n, v in zip(names, ls):
+                            if n not in ls_min or v < ls_min[n]:
+                                ls_min[n] = v
+                    except Exception:
+                        pass
+
+                if len(ls_min) > 0:
+                    sorted_params = sorted(ls_min, key=ls_min.get)[:8]
+                else:
+                    sorted_params = param_names[:8]
+
+                n_pars = len(sorted_params)
+                n_show = min(len(all_results), 3)
+                show_indices = np.linspace(0, len(all_results) - 1, n_show, dtype=int)
+                show_results = [all_results[i] for i in show_indices]
+
+                cmap = plt.get_cmap('plasma')
+                fig, axes = plt.subplots(n_pars, n_pars, figsize=(2.2 * n_pars, 2.2 * n_pars))
+                if n_pars == 1:
+                    axes = np.array([[axes]])
+
+                for i, p1 in enumerate(sorted_params):
+                    for j, p2 in enumerate(sorted_params):
+                        ax = axes[i][j]
+                        if i == j:
+                            for si, r in enumerate(show_results):
+                                if p1 in r.samples.columns:
+                                    ax.hist(r.samples[p1], bins=25, density=True, alpha=0.5,
+                                            color=cmap(si / n_show), edgecolor='none',
+                                            label=f'W{r.iteration}')
+                            if i == 0:
+                                ax.legend(fontsize=6)
+                        elif i > j:
+                            for si, r in enumerate(show_results):
+                                if p2 in r.samples.columns and p1 in r.samples.columns:
+                                    alpha = 0.15 + 0.35 * (si / max(n_show - 1, 1))
+                                    ax.scatter(r.samples[p2], r.samples[p1], s=2, alpha=alpha,
+                                               color=cmap(si / n_show), edgecolors='none')
+                        else:
+                            ax.set_visible(False)
+
+                        if j == 0 and i > 0:
+                            ax.set_ylabel(p1.replace('_', '\n'), fontsize=6)
+                        else:
+                            ax.set_ylabel('')
+                        if i == n_pars - 1:
+                            ax.set_xlabel(p2.replace('_', '\n'), fontsize=6)
+                        else:
+                            ax.set_xlabel('')
+                        ax.tick_params(labelsize=4)
+                        ax.spines['top'].set_visible(False)
+                        ax.spines['right'].set_visible(False)
+
+                wave_labels = ' \u2192 '.join(str(r.iteration) for r in show_results)
+                fig.suptitle(f'Parameter space: Waves {wave_labels}\n'
+                             f'({n_pars} most relevant parameters by ARD)',
+                             fontsize=13, fontweight='bold', y=1.02)
+                fig.tight_layout()
+                fig.savefig(wave_dir / "pairplot.png", dpi=150, bbox_inches='tight')
+                plt.close(fig)
+        except Exception as e:
+            logger.warning(f"Failed to save pair plot: {e}")
+
         # Save NROY samples for this wave (next iteration's candidates)
         try:
             snapshot = self._snapshots[-1]

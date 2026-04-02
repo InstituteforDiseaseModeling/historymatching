@@ -286,28 +286,23 @@ class IterationResult:
     def save_diagnostics(self, fig_dir: str, all_results: Optional[list] = None) -> None:
         """Save per-wave emulator diagnostic figures and metrics summary.
 
-        Saves a multi-panel diagnostic figure for each emulated feature and
-        an overall wave summary figure:
-
         Creates ``{fig_dir}/wave{N}/`` with:
 
-        Per feature (``{feature}_diagnostics.png``):
+        Per emulator (``{feature}_diagnostics.png``):
           - **Predicted vs actual** scatter with 1:1 line and R²/MSE annotation
-          - **ARD lengthscales** bar chart (GPR only) showing which parameters
-            the emulator found most/least relevant
+          - **ARD lengthscales** bar chart (GPR only)
 
-        Wave summary (``convergence.png``):
-          - **NROY convergence** — cumulative non-implausible fraction across
-            waves (requires ``all_results`` for history)
+        Wave-level summaries:
+          - ``convergence.png`` — NROY fraction across waves
+          - ``metrics.json`` — R², MSE, training size, ARD lengthscales
 
-        Also saves ``metrics.json`` with R², MSE, training size, and (for GPR)
-        ARD lengthscales per feature.
+        For z-scores-vs-targets and pair plots, use the engine's auto-output
+        (``builder.with_output_dir(...)``), which has access to observations.
 
         Args:
             fig_dir: Directory to save figures into (created if needed).
             all_results: List of all IterationResult objects so far (including
-                this one).  Needed for the convergence plot.  If None, the
-                convergence panel is skipped.
+                this one).  Needed for the convergence plot.
         """
         import matplotlib
         matplotlib.use('Agg')

@@ -212,6 +212,8 @@ hm_output/my_calibration/
     total_cases/
       ...
     convergence.png         # NROY fraction bar chart
+    zscores_vs_targets.png  # sim outputs vs ALL targets across waves
+    pairplot.png            # parameter space shrinkage (top 8 by ARD)
     nroy_samples.csv        # candidates for next wave
   wave2/
     ...
