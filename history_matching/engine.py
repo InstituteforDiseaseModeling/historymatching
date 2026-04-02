@@ -303,10 +303,10 @@ class HistoryMatchingEngine:
             # Determine parameter space for next iteration
             next_parameter_space = self._get_next_parameter_space(samples, emulators)
 
-            # NROY fraction: the acceptance rate from _compute_next_iteration_samples
-            # — what fraction of fresh LHS candidates pass ALL emulators in the bank.
-            # This is the real convergence diagnostic (not re-filtering pre-screened samples).
-            nroy_fraction = self._progress.acceptance_rate
+            # NROY fraction: what fraction of fresh LHS from the FULL prior pass
+            # ALL emulators in the bank (including this wave's).  Cumulative —
+            # must decrease monotonically as each wave adds constraints.
+            nroy_fraction = getattr(self, '_last_nroy_fraction', 1.0)
 
             # Create iteration result
             iteration_result = IterationResult(
@@ -711,6 +711,25 @@ class HistoryMatchingEngine:
         """Get all committed iteration results."""
         return [snapshot.result for snapshot in self._snapshots if snapshot.result is not None]
 
+    def get_nroy_samples(self) -> pd.DataFrame:
+        """
+        Get the final NROY parameter samples — filtered through ALL committed emulators.
+
+        After ``run()`` or the last ``commit_step()``, this returns the samples that
+        passed every emulator in the bank.  These are the candidates that *would* be
+        used as training data for the next wave if one were run.
+
+        Returns:
+            DataFrame of NROY samples, or empty DataFrame if no iterations committed.
+
+        Example:
+            results = engine.run()
+            nroy = engine.get_nroy_samples()   # passed all waves
+        """
+        if not self._snapshots:
+            return pd.DataFrame()
+        return self._snapshots[-1].next_samples
+
     def get_pending_next_samples(self) -> Optional[pd.DataFrame]:
         """
         Get the proposed samples for the next iteration, if available.
@@ -1076,12 +1095,20 @@ class HistoryMatchingEngine:
                 # If no samples accepted yet, increase batch size
                 batch_size = min(batch_size * 2, self._max_batch_size)
 
-        # Update progress tracking to include next iteration sample generation
+        # Per-wave NROY fraction: what fraction of fresh LHS from the FULL prior
+        # passed ALL emulators (including this wave's).  This is the convergence
+        # diagnostic — it must decrease monotonically across waves.
+        self._last_nroy_fraction = (
+            len(plausible_samples) / total_candidates_generated
+            if total_candidates_generated > 0 else 1.0
+        )
+
+        # Update cumulative progress tracking (used for adaptive batch sizing)
         self._progress.total_samples_generated += total_candidates_generated
         self._progress.total_samples_accepted += len(plausible_samples)
         self._progress.acceptance_rate = self._progress.total_samples_accepted / self._progress.total_samples_generated if self._progress.total_samples_generated > 0 else 1.0
 
-        logger.debug(f"Computed {len(plausible_samples)} samples for next iteration (acceptance rate: {len(plausible_samples)/total_candidates_generated:.3f})")
+        logger.debug(f"Computed {len(plausible_samples)} samples for next iteration (NROY fraction: {self._last_nroy_fraction:.3f})")
 
         # Return exactly the requested number of samples
         return plausible_samples.head(self._n_samples)
@@ -1164,10 +1191,10 @@ class HistoryMatchingEngine:
         if threshold <= 0:
             return False  # Early stopping disabled
 
-        rate = self._progress.acceptance_rate
+        rate = getattr(self, '_last_nroy_fraction', 1.0)
         if rate < threshold:
             logger.warning(
-                f"Acceptance rate ({rate:.4%}) fell below convergence threshold "
+                f"NROY fraction ({rate:.4%}) fell below convergence threshold "
                 f"({threshold:.2%}).  The NROY region may be very small — consider "
                 f"relaxing the implausibility threshold or checking emulator quality.  "
                 f"Stopping after {self._progress.current_iteration} iterations."
