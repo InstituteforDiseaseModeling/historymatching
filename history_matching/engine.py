@@ -711,24 +711,67 @@ class HistoryMatchingEngine:
         """Get all committed iteration results."""
         return [snapshot.result for snapshot in self._snapshots if snapshot.result is not None]
 
-    def get_nroy_samples(self) -> pd.DataFrame:
+    def get_nroy_samples(self, n: Optional[int] = None) -> pd.DataFrame:
         """
-        Get the final NROY parameter samples — filtered through ALL committed emulators.
+        Get NROY parameter samples — filtered through ALL committed emulators.
 
-        After ``run()`` or the last ``commit_step()``, this returns the samples that
-        passed every emulator in the bank.  These are the candidates that *would* be
-        used as training data for the next wave if one were run.
+        By default returns the pre-computed samples from the last wave (size =
+        ``samples_per_iteration``).  Pass ``n`` to draw a fresh, larger set by
+        rejection-sampling from the full prior against the current emulator bank.
+        No new simulations are run — only emulator predictions are used.
+
+        Args:
+            n: Number of NROY samples to return.  If None, returns the
+               pre-computed set from the last committed wave.
 
         Returns:
             DataFrame of NROY samples, or empty DataFrame if no iterations committed.
 
         Example:
             results = engine.run()
-            nroy = engine.get_nroy_samples()   # passed all waves
+            nroy = engine.get_nroy_samples()       # default: ~samples_per_iteration
+            nroy = engine.get_nroy_samples(5000)   # larger draw for trajectory selection
         """
         if not self._snapshots:
             return pd.DataFrame()
-        return self._snapshots[-1].next_samples
+
+        cached = self._snapshots[-1].next_samples
+        if n is None or n <= len(cached):
+            return cached.head(n) if n is not None else cached
+
+        # Draw more by rejection-sampling fresh LHS through the full emulator bank
+        plausible = pd.DataFrame()
+        total_generated = 0
+        batch_size = min(int(n * self._oversample_factor), self._max_batch_size)
+        batch_seed = self._random_seed
+        max_candidates = n * self._settings.get('max_candidate_factor', 1000)
+
+        while len(plausible) < n:
+            candidates = self._sampling_strategy.generate_samples(
+                self._parameter_space, batch_size, seed=batch_seed,
+            )
+            if batch_seed is not None:
+                batch_seed += 1
+
+            batch_pass = self._filter_samples_by_implausibility(candidates)
+            if len(batch_pass) > 0:
+                plausible = pd.concat([plausible, batch_pass], ignore_index=True)
+
+            total_generated += len(candidates)
+
+            if total_generated >= max_candidates:
+                logger.warning(
+                    f"get_nroy_samples: reached candidate limit ({max_candidates:,}) "
+                    f"with {len(plausible)}/{n} samples."
+                )
+                break
+
+            remaining = n - len(plausible)
+            rate = len(plausible) / total_generated if total_generated > 0 else 0.01
+            if rate > 0:
+                batch_size = min(int(self._oversample_factor * remaining / rate), self._max_batch_size)
+
+        return plausible.head(n)
 
     def get_pending_next_samples(self) -> Optional[pd.DataFrame]:
         """

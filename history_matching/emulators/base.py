@@ -227,11 +227,13 @@ class BaseEmulator:
         predictions_df = self.X_test_df.copy()
         predictions_df['true'] = self.y_test
         predictions_df['prediction'] = self.y_test_pred_results.get_mean()
-        # Try to get confidence intervals from additional data, fallback to computed ones
+        # Use observation CIs (includes noise variance) so that stochastic
+        # test points are classified correctly.  Latent-function CIs (ci_pred)
+        # exclude noise and will over-count "failed" predictions.
         additional_data = self.y_test_pred_results.get_additional_data()
-        if additional_data is not None and 'ci_pred_low' in additional_data.columns:
-            predictions_df['prediction (low)'] = additional_data['ci_pred_low']
-            predictions_df['prediction (high)'] = additional_data['ci_pred_high']
+        if additional_data is not None and 'ci_obs_low' in additional_data.columns:
+            predictions_df['prediction (low)'] = additional_data['ci_obs_low']
+            predictions_df['prediction (high)'] = additional_data['ci_obs_high']
         else:
             # Compute confidence intervals if not available
             ci_low, ci_high = self.y_test_pred_results.get_ci(0.95)

@@ -183,22 +183,21 @@ class RandomSampling(SamplingStrategy):
         """Initialize random sampling strategy."""
         pass
     
-    def generate_samples(self, parameter_space: ParameterSpace, n_samples: int, 
+    def generate_samples(self, parameter_space: ParameterSpace, n_samples: int,
                         seed: Optional[int] = None) -> pd.DataFrame:
         """Generate random samples."""
-        if seed is not None:
-            np.random.seed(seed)
-            
+        rng = np.random.default_rng(seed)
+
         # Convert ParameterSpace to legacy DataFrame format for existing sampler
         parameter_space_df = parameter_space.to_dataframe()
-        
+
         # Generate random samples directly
         samples = pd.DataFrame()
-        
+
         for entry in parameter_space_df.itertuples():
-            points = np.random.default_rng().uniform(entry.minimum, entry.maximum, n_samples)
+            points = rng.uniform(entry.minimum, entry.maximum, n_samples)
             samples[entry.parameter] = points
-        
+
         return samples
     
     def get_strategy_name(self) -> str:
