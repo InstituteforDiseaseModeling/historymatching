@@ -1619,7 +1619,7 @@ class HistoryMatchingEngine:
         and defaults to 0.01 (1%).  Setting the threshold to 0.0 disables early
         stopping entirely.
         """
-        threshold = self._settings.get('convergence_threshold', 0.01)
+        threshold = self._settings.get('convergence_threshold', 0.0)
         if threshold <= 0:
             return False  # Early stopping disabled
 
