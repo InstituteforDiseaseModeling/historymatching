@@ -172,31 +172,43 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
         # Create subset with only common features
         feature_data = simulation_results[common_features]
         
-        # Calculate feature statistics
+        # Normalize to z-scores before computing metrics so that features
+        # on different scales (e.g. birth weight in grams vs rates in 0-1)
+        # are comparable.  Without this, Fano/var always picks the feature
+        # with the largest physical units.
+        z_data = pd.DataFrame(index=feature_data.index)
+        for feature in common_features:
+            obs_mean, obs_std = observations.get_target_for_feature(feature)
+            if obs_std > 0:
+                z_data[feature] = (feature_data[feature] - obs_mean) / obs_std
+            else:
+                z_data[feature] = feature_data[feature] - obs_mean
+
+        # Calculate feature statistics on z-scores
         try:
             if self.method == 'fano':
-                # Calculate Fano factor (variance/mean) directly
-                means = feature_data.mean()
-                variances = feature_data.var()
-                # Avoid division by zero
+                # Fano factor on z-scores: variance / |mean|
+                # High Fano = high spread relative to bias → emulator can help most
+                means = z_data.mean()
+                variances = z_data.var()
                 metric_values = pd.Series(index=means.index, dtype=float)
                 for feature in means.index:
-                    if means[feature] != 0:
-                        metric_values[feature] = variances[feature] / means[feature]
+                    if abs(means[feature]) > 1e-10:
+                        metric_values[feature] = variances[feature] / abs(means[feature])
                     else:
-                        metric_values[feature] = np.inf  # Will be filtered out
+                        metric_values[feature] = variances[feature]  # Pure variance when unbiased
             elif self.method == 'var':
-                metric_values = feature_data.var()
+                metric_values = z_data.var()
             elif self.method == 'mean':
-                metric_values = feature_data.mean().abs()  # Use absolute mean
+                metric_values = z_data.mean().abs()
             elif self.method == 'std':
-                metric_values = feature_data.std()
+                metric_values = z_data.std()
             else:
                 raise ValueError(f"Unknown feature selection method: {self.method}. Supported: 'fano', 'var', 'mean', 'std'")
         except Exception as e:
             warnings.warn(f"Failed to calculate {self.method} statistics: {e}. "
-                         f"Falling back to variance.")
-            metric_values = feature_data.var()
+                         f"Falling back to variance of z-scores.")
+            metric_values = z_data.var()
         
         # Apply threshold if specified
         if self.threshold is not None:
@@ -226,14 +238,14 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
             if feature_name in self.history:
                 continue
             
-            # Check correlation with already selected features
+            # Check correlation with already selected features (on z-scores)
             reject_due_to_correlation = False
             for selected_feature in selected_features:
                 try:
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore", RuntimeWarning)
-                        correlation = feature_data[feature_name].corr(
-                            feature_data[selected_feature], method='pearson'
+                        correlation = z_data[feature_name].corr(
+                            z_data[selected_feature], method='pearson'
                         )
                     # If correlation is NaN (e.g., constant data), treat as no correlation
                     if pd.isna(correlation):
@@ -245,15 +257,15 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
                     # If correlation calculation fails, assume no correlation
                     continue
             
-            # Check correlation with recently selected features
+            # Check correlation with recently selected features (on z-scores)
             if not reject_due_to_correlation:
                 for recent_feature in self.history:
-                    if recent_feature in feature_data.columns:
+                    if recent_feature in z_data.columns:
                         try:
                             with warnings.catch_warnings():
                                 warnings.simplefilter("ignore", RuntimeWarning)
-                                correlation = feature_data[feature_name].corr(
-                                    feature_data[recent_feature], method='pearson'
+                                correlation = z_data[feature_name].corr(
+                                    z_data[recent_feature], method='pearson'
                                 )
                             # If correlation is NaN (e.g., constant data), treat as no correlation
                             if pd.isna(correlation):

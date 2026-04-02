@@ -253,27 +253,34 @@ class TestAutoFeatureSelection:
         assert selector.max_features == 2
     
     def test_select_features_fano_method(self, sample_data):
-        """Test feature selection using fano method."""
+        """Test feature selection using fano method.
+
+        Fano is computed on z-scores (normalized by observation uncertainty)
+        so that features on different scales are comparable.  The feature with
+        the highest z-score Fano factor should be selected — it has the most
+        spread relative to the target tolerance.
+        """
         simulation_results, observations = sample_data
-        
+
         selector = AutoFeatureSelection(method='fano', max_features=1)
         selected = selector.select_features(simulation_results, observations, iteration=1)
-        
+
         # Should select one feature
         assert len(selected) == 1
-        
-        # Verify that fano factor calculation is used
-        # Calculate expected fano factors manually to verify logic
-        means = simulation_results.mean()
-        variances = simulation_results.var()
-        
+
+        # Compute expected z-score Fano factors manually
         expected_fano = {}
-        for feature in means.index:
-            if means[feature] != 0:
-                expected_fano[feature] = variances[feature] / abs(means[feature])  # Use abs() like the code does
-            else:
-                expected_fano[feature] = np.inf
-        
+        for feature in simulation_results.columns:
+            if observations.has_feature(feature):
+                obs_mean, obs_std = observations.get_target_for_feature(feature)
+                z = (simulation_results[feature] - obs_mean) / obs_std
+                z_mean = z.mean()
+                z_var = z.var()
+                if abs(z_mean) > 1e-10:
+                    expected_fano[feature] = z_var / abs(z_mean)
+                else:
+                    expected_fano[feature] = z_var
+
         # The selected feature should have the highest finite fano factor
         finite_fano = {k: v for k, v in expected_fano.items() if np.isfinite(v)}
         if finite_fano:
@@ -281,29 +288,37 @@ class TestAutoFeatureSelection:
             assert selected[0] == expected_best
     
     def test_select_features_variance_method(self, sample_data):
-        """Test feature selection using variance method."""
+        """Test feature selection using variance method (on z-scores)."""
         simulation_results, observations = sample_data
-        
+
         selector = AutoFeatureSelection(method='var', max_features=1)
         selected = selector.select_features(simulation_results, observations, iteration=1)
-        
+
         assert len(selected) == 1
-        # Should select the feature with highest variance
-        variances = simulation_results.var()
-        expected_feature = variances.idxmax()
+        # Should select the feature with highest z-score variance
+        z_vars = {}
+        for feature in simulation_results.columns:
+            if observations.has_feature(feature):
+                obs_mean, obs_std = observations.get_target_for_feature(feature)
+                z_vars[feature] = ((simulation_results[feature] - obs_mean) / obs_std).var()
+        expected_feature = max(z_vars, key=z_vars.get)
         assert selected[0] == expected_feature
     
     def test_select_features_mean_method(self, sample_data):
-        """Test feature selection using mean method."""
+        """Test feature selection using mean method (on z-scores)."""
         simulation_results, observations = sample_data
-        
+
         selector = AutoFeatureSelection(method='mean', max_features=1)
         selected = selector.select_features(simulation_results, observations, iteration=1)
-        
+
         assert len(selected) == 1
-        # Should select the feature with highest absolute mean
-        abs_means = simulation_results.mean().abs()
-        expected_feature = abs_means.idxmax()
+        # Should select the feature with highest absolute z-score mean (most biased)
+        z_means = {}
+        for feature in simulation_results.columns:
+            if observations.has_feature(feature):
+                obs_mean, obs_std = observations.get_target_for_feature(feature)
+                z_means[feature] = abs(((simulation_results[feature] - obs_mean) / obs_std).mean())
+        expected_feature = max(z_means, key=z_means.get)
         assert selected[0] == expected_feature
     
     def test_select_features_unknown_method_fallback(self, sample_data):
@@ -321,17 +336,23 @@ class TestAutoFeatureSelection:
             assert len(selected) == 1
     
     def test_select_features_with_threshold(self, sample_data):
-        """Test feature selection with threshold filtering."""
+        """Test feature selection with threshold filtering (on z-scores)."""
         simulation_results, observations = sample_data
-        
-        # Set a high threshold that only high variance features can meet
-        high_threshold = simulation_results.var().quantile(0.8)
+
+        # Compute z-score variances to set a meaningful threshold
+        z_vars = {}
+        for feature in simulation_results.columns:
+            if observations.has_feature(feature):
+                obs_mean, obs_std = observations.get_target_for_feature(feature)
+                z_vars[feature] = ((simulation_results[feature] - obs_mean) / obs_std).var()
+
+        high_threshold = pd.Series(z_vars).quantile(0.8)
         selector = AutoFeatureSelection(method='var', threshold=high_threshold, max_features=2)
         selected = selector.select_features(simulation_results, observations, iteration=1)
-        
-        # Should only select features above threshold
+
+        # Should only select features whose z-score variance is above threshold
         for feature in selected:
-            assert simulation_results[feature].var() >= high_threshold
+            assert z_vars[feature] >= high_threshold
     
     def test_select_features_correlation_filtering(self, sample_data):
         """Test that highly correlated features are filtered out."""
