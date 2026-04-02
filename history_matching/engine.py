@@ -30,6 +30,82 @@ from .sampling import SamplingStrategy
 logger = logging.getLogger(__name__)
 
 
+# ── Parallel NROY worker functions (module-level for multiprocessing) ─────
+
+_worker_emulator_bank = None
+_worker_param_space = None
+_worker_observations = None
+_worker_threshold = None
+
+
+def _nroy_worker_init(run_dir: str, param_bounds: dict, obs_targets: dict, threshold: float):
+    """Initializer for each worker process — loads emulators from disk once."""
+    global _worker_emulator_bank, _worker_param_space, _worker_observations, _worker_threshold
+    import numpy as np
+
+    _worker_param_space = ParameterSpace(param_bounds)
+    _worker_observations = ObservationData(obs_targets)
+    _worker_threshold = threshold
+
+    # Load emulators from all wave subdirectories
+    _worker_emulator_bank = EmulatorBank()
+    run_path = Path(run_dir)
+    for wave_dir in sorted(run_path.glob("wave*")):
+        wave_num = int(wave_dir.name.replace("wave", ""))
+        for feat_dir in wave_dir.iterdir():
+            if not feat_dir.is_dir():
+                continue
+            pkl = feat_dir / "emulator.pkl"
+            if pkl.exists():
+                with open(pkl, "rb") as f:
+                    emulator = pickle.load(f)
+                _worker_emulator_bank.add_emulator(wave_num, feat_dir.name, emulator)
+
+
+def _nroy_worker_batch(n_candidates: int, seed: int) -> pd.DataFrame:
+    """Worker function: generate LHS candidates and filter through emulators."""
+    from .sampling import SamplingStrategyFactory
+
+    sampler = SamplingStrategyFactory.create('lhs')
+    param_cols = _worker_param_space.get_parameter_names()
+    plausible_parts = []
+    batch_seed = seed
+    generated = 0
+
+    while generated < n_candidates:
+        batch_size = min(10000, n_candidates - generated)
+        candidates = sampler.generate_samples(_worker_param_space, batch_size, seed=batch_seed)
+        batch_seed += 1
+        generated += len(candidates)
+
+        # Filter through all emulators
+        sample_implausibilities = []
+        for iteration in _worker_emulator_bank.get_all_iterations():
+            emulators = _worker_emulator_bank.get_emulators_for_iteration(iteration)
+            for feature_name, emulator in emulators.items():
+                if not _worker_observations.has_feature(feature_name):
+                    continue
+                predictions = emulator.predict(candidates[param_cols])
+                impl = _worker_observations.calculate_implausibility(
+                    feature_name, predictions.get_mean(), predictions.get_variance()
+                )
+                sample_implausibilities.append(impl)
+
+        if not sample_implausibilities:
+            plausible_parts.append(candidates)
+            continue
+
+        combined = pd.concat(sample_implausibilities, axis=1).max(axis=1)
+        passed = candidates[combined <= _worker_threshold]
+
+        if len(passed) > 0:
+            plausible_parts.append(passed)
+
+    if not plausible_parts:
+        return pd.DataFrame()
+    return pd.concat(plausible_parts, ignore_index=True)
+
+
 class EngineState(Enum):
     """Possible states of the HistoryMatchingEngine."""
 
@@ -109,6 +185,9 @@ class HistoryMatchingEngine:
         auto_reduce_space: bool = False,
         oversample_factor: float = 1.1,
         max_batch_size: int = 10000,
+        output_dir: Optional[str] = "./hm_output",
+        run_name: Optional[str] = None,
+        n_jobs: int = 1,
         **kwargs,
     ):
         """
@@ -163,8 +242,19 @@ class HistoryMatchingEngine:
         # Simulation function (to be provided by user)
         self._simulation_function: Optional[Callable] = None
 
+        # Output directory for checkpoints, emulators, and diagnostics
+        self._n_jobs = n_jobs
+        self._run_dir: Optional[Path] = None
+        if output_dir is not None:
+            import datetime
+            if run_name is None:
+                run_name = datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S")
+            self._run_dir = Path(output_dir) / run_name
+
         logger.info(f"HistoryMatchingEngine initialized with {len(parameter_space.get_parameter_names())} parameters")
         logger.info(f"Auto space reduction: {'enabled' if auto_reduce_space else 'disabled'}")
+        if self._run_dir:
+            logger.info(f"Output directory: {self._run_dir}")
 
     @property
     def state(self) -> EngineState:
@@ -190,6 +280,11 @@ class HistoryMatchingEngine:
     def acceptance_rate(self) -> float:
         """Current acceptance rate for sample filtering."""
         return self._progress.acceptance_rate
+
+    @property
+    def run_dir(self) -> Optional[Path]:
+        """Output directory for this run, or None if disk output is disabled."""
+        return self._run_dir
 
     def set_simulation_function(self, func: Callable[[pd.DataFrame], pd.DataFrame]):
         """
@@ -434,6 +529,9 @@ class HistoryMatchingEngine:
         else:
             self._state = EngineState.PAUSED
 
+        # Save wave output (emulators, diagnostics, checkpoint)
+        self._save_wave_output(committed_result)
+
         # Call callbacks
         self._call_iteration_callbacks(committed_result)
         self._call_progress_callbacks()
@@ -623,12 +721,15 @@ class HistoryMatchingEngine:
 
         return "\n".join(summary)
 
-    def run(self, auto_commit: bool = True) -> list[IterationResult]:
+    def run(self, auto_commit: bool = True, resume: bool = False) -> list[IterationResult]:
         """
         Run automated history matching workflow.
 
         Args:
             auto_commit: Whether to automatically commit each iteration
+            resume: If True, load checkpoint from output_dir and continue.
+                    If False (default), start fresh.  Raises if a checkpoint
+                    exists and resume is False (to prevent accidental overwrites).
 
         Returns:
             List of IterationResult objects for all iterations
@@ -648,9 +749,22 @@ class HistoryMatchingEngine:
                 "  engine.set_simulation_function(my_simulation)"
             )
 
+        # Resume from checkpoint if requested
+        if self._run_dir is not None:
+            ckpt = self._run_dir / "checkpoint.pkl"
+            if resume and ckpt.exists():
+                logger.info(f"Resuming from checkpoint: {ckpt}")
+                self._load_checkpoint_state(ckpt)
+                logger.info(f"Resumed at wave {self._progress.current_iteration}")
+            elif not resume and ckpt.exists():
+                logger.warning(
+                    f"Checkpoint exists at {ckpt} but resume=False. "
+                    f"Starting fresh (existing output will be overwritten)."
+                )
+
         logger.info(f"Starting automated run with {self._max_iterations} max iterations")
 
-        results = []
+        results = self.get_all_results()  # includes any resumed waves
 
         try:
             import time
@@ -711,7 +825,7 @@ class HistoryMatchingEngine:
         """Get all committed iteration results."""
         return [snapshot.result for snapshot in self._snapshots if snapshot.result is not None]
 
-    def get_nroy_samples(self, n: Optional[int] = None) -> pd.DataFrame:
+    def get_nroy_samples(self, n: Optional[int] = None, n_jobs: Optional[int] = None) -> pd.DataFrame:
         """
         Get NROY parameter samples — filtered through ALL committed emulators.
 
@@ -723,14 +837,18 @@ class HistoryMatchingEngine:
         Args:
             n: Number of NROY samples to return.  If None, returns the
                pre-computed set from the last committed wave.
+            n_jobs: Number of worker processes for parallel rejection sampling.
+                    None uses the engine default (set via builder).
+                    1 = serial.  -1 = all cores.
 
         Returns:
             DataFrame of NROY samples, or empty DataFrame if no iterations committed.
 
         Example:
             results = engine.run()
-            nroy = engine.get_nroy_samples()       # default: ~samples_per_iteration
-            nroy = engine.get_nroy_samples(5000)   # larger draw for trajectory selection
+            nroy = engine.get_nroy_samples()             # default size
+            nroy = engine.get_nroy_samples(10000)         # larger draw
+            nroy = engine.get_nroy_samples(10000, n_jobs=4)  # parallel
         """
         if not self._snapshots:
             return pd.DataFrame()
@@ -739,7 +857,20 @@ class HistoryMatchingEngine:
         if n is None or n <= len(cached):
             return cached.head(n) if n is not None else cached
 
-        # Draw more by rejection-sampling fresh LHS through the full emulator bank
+        if n_jobs is None:
+            n_jobs = self._n_jobs
+
+        if n_jobs == -1:
+            import os
+            n_jobs = os.cpu_count() or 1
+
+        if n_jobs > 1 and self._run_dir is not None:
+            return self._get_nroy_samples_parallel(n, n_jobs)
+
+        return self._get_nroy_samples_serial(n)
+
+    def _get_nroy_samples_serial(self, n: int) -> pd.DataFrame:
+        """Serial rejection sampling for NROY candidates."""
         plausible = pd.DataFrame()
         total_generated = 0
         batch_size = min(int(n * self._oversample_factor), self._max_batch_size)
@@ -772,6 +903,61 @@ class HistoryMatchingEngine:
                 batch_size = min(int(self._oversample_factor * remaining / rate), self._max_batch_size)
 
         return plausible.head(n)
+
+    def _get_nroy_samples_parallel(self, n: int, n_jobs: int) -> pd.DataFrame:
+        """Parallel rejection sampling using worker processes.
+
+        Each worker loads emulators from disk (no pickling of GPflow objects),
+        generates LHS batches, and filters through the full emulator bank.
+        Uses batch-then-check: each worker gets a fixed candidate budget,
+        results are collected and topped up if needed.
+        """
+        import multiprocessing as mp
+
+        # Estimate candidates per worker from last acceptance rate
+        last_nroy_frac = getattr(self, '_last_nroy_fraction', 0.1)
+        candidates_per_worker = int(n / max(last_nroy_frac, 0.001) / n_jobs * 1.5)
+        candidates_per_worker = max(candidates_per_worker, 1000)
+
+        param_bounds = {
+            p: self._parameter_space.get_bounds(p)
+            for p in self._parameter_space.get_parameter_names()
+        }
+        obs_targets = self._observations.get_all_targets()
+        threshold = self._implausibility_threshold
+
+        # Use spawn context — fork + TensorFlow/GPflow causes hangs
+        ctx = mp.get_context('spawn')
+        all_plausible = []
+
+        with ctx.Pool(
+            processes=n_jobs,
+            initializer=_nroy_worker_init,
+            initargs=(str(self._run_dir), param_bounds, obs_targets, threshold),
+        ) as pool:
+            args = [
+                (candidates_per_worker, (self._random_seed or 0) + job_id * 10000)
+                for job_id in range(n_jobs)
+            ]
+            results = pool.starmap(_nroy_worker_batch, args)
+
+            for r in results:
+                if r is not None and len(r) > 0:
+                    all_plausible.append(r)
+
+        if not all_plausible:
+            logger.warning("Parallel NROY sampling returned no samples")
+            return pd.DataFrame()
+
+        combined = pd.concat(all_plausible, ignore_index=True)
+
+        # If we didn't get enough, top up serially
+        if len(combined) < n:
+            logger.info(f"Parallel got {len(combined)}/{n}, topping up serially")
+            extra = self._get_nroy_samples_serial(n - len(combined))
+            combined = pd.concat([combined, extra], ignore_index=True)
+
+        return combined.head(n)
 
     def get_pending_next_samples(self) -> Optional[pd.DataFrame]:
         """
@@ -848,6 +1034,138 @@ class HistoryMatchingEngine:
         return engine
 
     # Internal methods
+
+    def _load_checkpoint_state(self, filepath: Path) -> None:
+        """Restore engine state from a checkpoint file (for resume)."""
+        with open(filepath, "rb") as f:
+            data = pickle.load(f)
+
+        self._emulator_bank = data["emulator_bank"]
+        self._progress = data["progress"]
+        self._snapshots = data["snapshots"]
+        self._state = EngineState.PAUSED
+        logger.info(f"Loaded checkpoint: {len(self._snapshots)} waves completed")
+
+    def _save_wave_output(self, result: IterationResult) -> None:
+        """Save emulators, diagnostics, and checkpoint after committing a wave.
+
+        Directory layout::
+
+            {run_dir}/
+              wave{N}/
+                {feature}/
+                  emulator.pkl
+                  diagnostics.png
+                  metrics.json
+                convergence.png
+                nroy_samples.csv
+              checkpoint.pkl       # latest engine state (overwritten each wave)
+              run_config.json      # written once on first wave
+        """
+        if self._run_dir is None:
+            return
+
+        import json as _json
+
+        wave_dir = self._run_dir / f"wave{result.iteration}"
+        wave_dir.mkdir(parents=True, exist_ok=True)
+
+        # ── Per-feature: emulator + diagnostics ──────────────────────────
+        for feature, emulator in result.emulators.items():
+            feat_dir = wave_dir / feature
+            feat_dir.mkdir(exist_ok=True)
+
+            # Save emulator pickle
+            try:
+                import pickle
+                with open(feat_dir / "emulator.pkl", "wb") as f:
+                    pickle.dump(emulator, f)
+            except Exception as e:
+                logger.warning(f"Failed to save emulator for '{feature}': {e}")
+
+            # Save diagnostics figure
+            try:
+                if not getattr(emulator, 'testing_complete', False):
+                    emulator.test()
+                import matplotlib
+                matplotlib.use('Agg')
+                emulator.plot_diagnostics()
+                import matplotlib.pyplot as plt
+                for i, fig_num in enumerate(plt.get_fignums()[-4:]):  # plot_diagnostics creates up to 4 figs
+                    plt.figure(fig_num)
+                    plt.savefig(feat_dir / f"diagnostics_{i}.png", dpi=100, bbox_inches='tight')
+                    plt.close(fig_num)
+            except Exception as e:
+                logger.warning(f"Failed to save diagnostics for '{feature}': {e}")
+
+            # Save metrics
+            try:
+                metrics = result.get_emulator_quality_metrics().get(feature, {})
+                with open(feat_dir / "metrics.json", "w") as f:
+                    _json.dump(metrics, f, indent=2, default=float)
+            except Exception as e:
+                logger.warning(f"Failed to save metrics for '{feature}': {e}")
+
+        # ── Wave-level: convergence + NROY samples ───────────────────────
+        try:
+            all_results = self.get_all_results()
+            if len(all_results) > 0:
+                import matplotlib
+                matplotlib.use('Agg')
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots(figsize=(7, 4))
+                waves = [r.iteration for r in all_results]
+                fracs = [r.nroy_fraction for r in all_results]
+                ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
+                for w, frac in zip(waves, fracs):
+                    ax.annotate(f'{frac:.1%}', (w, frac), textcoords='offset points',
+                                xytext=(0, 5), ha='center', fontsize=9)
+                ax.set_xlabel('Wave')
+                ax.set_ylabel('NROY fraction')
+                ax.set_title('Convergence')
+                ax.set_ylim(0, 1)
+                ax.set_xticks(waves)
+                fig.tight_layout()
+                fig.savefig(wave_dir / "convergence.png", dpi=100, bbox_inches='tight')
+                plt.close(fig)
+        except Exception as e:
+            logger.warning(f"Failed to save convergence plot: {e}")
+
+        # Save NROY samples for this wave (next iteration's candidates)
+        try:
+            snapshot = self._snapshots[-1]
+            if snapshot.next_samples is not None:
+                snapshot.next_samples.to_csv(wave_dir / "nroy_samples.csv", index=False)
+        except Exception as e:
+            logger.warning(f"Failed to save NROY samples: {e}")
+
+        # ── Run-level: checkpoint + config ───────────────────────────────
+        try:
+            self.save_checkpoint(self._run_dir / "checkpoint.pkl")
+        except Exception as e:
+            logger.warning(f"Failed to save checkpoint: {e}")
+
+        # Run config (written once)
+        config_path = self._run_dir / "run_config.json"
+        if not config_path.exists():
+            try:
+                config = {
+                    'parameters': self._parameter_space.get_parameter_names(),
+                    'parameter_bounds': {
+                        p: list(self._parameter_space.get_bounds(p))
+                        for p in self._parameter_space.get_parameter_names()
+                    },
+                    'observations': self._observations.get_all_targets(),
+                    'n_samples': self._n_samples,
+                    'max_iterations': self._max_iterations,
+                    'implausibility_threshold': self._implausibility_threshold,
+                }
+                with open(config_path, "w") as f:
+                    _json.dump(config, f, indent=2, default=str)
+            except Exception as e:
+                logger.warning(f"Failed to save run config: {e}")
+
+        logger.info(f"Wave {result.iteration} output saved to {wave_dir}")
 
     def _generate_plausible_samples(self) -> pd.DataFrame:
         """
@@ -1060,8 +1378,9 @@ class HistoryMatchingEngine:
         """
         Compute plausible parameter samples for the next iteration.
 
-        This uses the same rejection sampling logic as the current _generate_plausible_samples(),
-        but with the newly created emulators from this iteration.
+        Uses parallel rejection sampling if n_jobs > 1 and an output directory
+        is configured (workers need emulators on disk).  Falls back to serial
+        otherwise.
 
         Args:
             current_emulators: Emulators created in the current iteration
@@ -1072,40 +1391,38 @@ class HistoryMatchingEngine:
         # Create a temporary emulator bank with current emulators for filtering
         temp_bank = self._emulator_bank.copy()
         current_iteration = self._progress.current_iteration + 1
-
-        # Add current iteration's emulators to the temporary bank
         for feature, emulator in current_emulators.items():
             temp_bank.add_emulator(current_iteration, feature, emulator)
 
-        # Use the same adaptive sampling loop as _generate_plausible_samples()
+        # Try parallel path
+        if self._n_jobs > 1 and self._run_dir is not None:
+            result = self._compute_next_samples_parallel(temp_bank, current_iteration)
+        else:
+            result = self._compute_next_samples_serial(temp_bank)
+
+        return result
+
+    def _compute_next_samples_serial(self, temp_bank: EmulatorBank) -> pd.DataFrame:
+        """Serial rejection sampling for next-wave candidates."""
         plausible_samples = pd.DataFrame()
         total_candidates_generated = 0
         batch_num = 0
-        batch_seed = self._random_seed  # Incremented each batch for fresh LHS draws
+        batch_seed = self._random_seed
         max_candidate_factor = self._settings.get('max_candidate_factor', 1000)
         max_candidates = self._n_samples * max_candidate_factor
-
-        # Initial batch size
         batch_size = min(int(self._n_samples * self._oversample_factor), self._max_batch_size)
 
         while len(plausible_samples) < self._n_samples:
-            # Generate candidate samples (fresh seed each batch)
             candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=batch_seed)
             if batch_seed is not None:
                 batch_seed += 1
 
-            # Filter candidates through existing + current emulators
             batch_plausible = self._filter_samples_with_bank(candidates, temp_bank)
-
-            # Combine with existing plausible samples
             if len(batch_plausible) > 0:
                 plausible_samples = pd.concat([plausible_samples, batch_plausible], ignore_index=True)
 
-            # Update counters
             total_candidates_generated += len(candidates)
             batch_num += 1
-
-            # Calculate acceptance rate for adaptive sizing
             current_acceptance_rate = len(plausible_samples) / total_candidates_generated
 
             logger.info(
@@ -1115,11 +1432,9 @@ class HistoryMatchingEngine:
                 f"| rate={current_acceptance_rate:.4%}"
             )
 
-            # If we have enough samples, break
             if len(plausible_samples) >= self._n_samples:
                 break
 
-            # Safety valve: stop after generating too many candidates
             if total_candidates_generated >= max_candidates:
                 logger.warning(
                     f"Reached candidate limit ({max_candidates:,}) with only "
@@ -1130,31 +1445,105 @@ class HistoryMatchingEngine:
                 )
                 break
 
-            # Calculate next batch size adaptively
             remaining_needed = self._n_samples - len(plausible_samples)
             if current_acceptance_rate > 0:
                 batch_size = min(int(self._oversample_factor * remaining_needed / current_acceptance_rate), self._max_batch_size)
             else:
-                # If no samples accepted yet, increase batch size
                 batch_size = min(batch_size * 2, self._max_batch_size)
 
-        # Per-wave NROY fraction: what fraction of fresh LHS from the FULL prior
-        # passed ALL emulators (including this wave's).  This is the convergence
-        # diagnostic — it must decrease monotonically across waves.
-        self._last_nroy_fraction = (
-            len(plausible_samples) / total_candidates_generated
-            if total_candidates_generated > 0 else 1.0
-        )
-
-        # Update cumulative progress tracking (used for adaptive batch sizing)
-        self._progress.total_samples_generated += total_candidates_generated
-        self._progress.total_samples_accepted += len(plausible_samples)
-        self._progress.acceptance_rate = self._progress.total_samples_accepted / self._progress.total_samples_generated if self._progress.total_samples_generated > 0 else 1.0
-
-        logger.debug(f"Computed {len(plausible_samples)} samples for next iteration (NROY fraction: {self._last_nroy_fraction:.3f})")
-
-        # Return exactly the requested number of samples
+        self._update_nroy_stats(len(plausible_samples), total_candidates_generated)
         return plausible_samples.head(self._n_samples)
+
+    def _compute_next_samples_parallel(self, temp_bank: EmulatorBank, current_iteration: int) -> pd.DataFrame:
+        """Parallel rejection sampling for next-wave candidates.
+
+        Saves the temp emulator bank to a staging directory so workers can
+        load it, then dispatches n_jobs workers.
+        """
+        import multiprocessing as mp
+        import tempfile
+        import shutil
+
+        n_jobs = self._n_jobs if self._n_jobs != -1 else (mp.cpu_count() or 1)
+
+        # Save temp bank to a staging dir (includes this wave's new emulators)
+        staging_dir = Path(tempfile.mkdtemp(prefix="hm_staging_"))
+        try:
+            # Save each emulator as wave#/feature/emulator.pkl
+            for iteration in temp_bank.get_all_iterations():
+                emulators = temp_bank.get_emulators_for_iteration(iteration)
+                for feature, emulator in emulators.items():
+                    feat_dir = staging_dir / f"wave{iteration}" / feature
+                    feat_dir.mkdir(parents=True, exist_ok=True)
+                    with open(feat_dir / "emulator.pkl", "wb") as f:
+                        pickle.dump(emulator, f)
+
+            # Estimate candidates per worker
+            last_frac = getattr(self, '_last_nroy_fraction', 0.1)
+            total_candidates_needed = int(self._n_samples / max(last_frac, 0.001) * 1.5)
+            candidates_per_worker = max(total_candidates_needed // n_jobs, 1000)
+
+            param_bounds = {
+                p: self._parameter_space.get_bounds(p)
+                for p in self._parameter_space.get_parameter_names()
+            }
+            obs_targets = self._observations.get_all_targets()
+
+            logger.info(
+                f"  Parallel next-wave sampling: {n_jobs} workers × "
+                f"~{candidates_per_worker:,} candidates each"
+            )
+
+            ctx = mp.get_context('spawn')
+            with ctx.Pool(
+                processes=n_jobs,
+                initializer=_nroy_worker_init,
+                initargs=(str(staging_dir), param_bounds, obs_targets, self._implausibility_threshold),
+            ) as pool:
+                args = [
+                    (candidates_per_worker, (self._random_seed or 0) + job_id * 10000)
+                    for job_id in range(n_jobs)
+                ]
+                worker_results = pool.starmap(_nroy_worker_batch, args)
+
+            all_plausible = [r for r in worker_results if r is not None and len(r) > 0]
+
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
+
+        if all_plausible:
+            plausible_samples = pd.concat(all_plausible, ignore_index=True)
+        else:
+            plausible_samples = pd.DataFrame()
+
+        total_generated = candidates_per_worker * n_jobs
+        self._update_nroy_stats(len(plausible_samples), total_generated)
+
+        if len(plausible_samples) < self._n_samples:
+            logger.info(
+                f"  Parallel got {len(plausible_samples)}/{self._n_samples}, "
+                f"topping up serially"
+            )
+            extra = self._compute_next_samples_serial(
+                # Rebuild temp bank (staging dir is gone)
+                self._emulator_bank  # serial uses existing bank — close enough for top-up
+            )
+            plausible_samples = pd.concat([plausible_samples, extra], ignore_index=True)
+
+        return plausible_samples.head(self._n_samples)
+
+    def _update_nroy_stats(self, n_plausible: int, n_generated: int) -> None:
+        """Update NROY fraction and cumulative progress after rejection sampling."""
+        self._last_nroy_fraction = (
+            n_plausible / n_generated if n_generated > 0 else 1.0
+        )
+        self._progress.total_samples_generated += n_generated
+        self._progress.total_samples_accepted += n_plausible
+        self._progress.acceptance_rate = (
+            self._progress.total_samples_accepted / self._progress.total_samples_generated
+            if self._progress.total_samples_generated > 0 else 1.0
+        )
+        logger.debug(f"NROY fraction: {self._last_nroy_fraction:.3f}")
 
     def _filter_samples_with_bank(self, candidates: pd.DataFrame, emulator_bank: EmulatorBank) -> pd.DataFrame:
         """Filter candidate samples using a specific emulator bank."""

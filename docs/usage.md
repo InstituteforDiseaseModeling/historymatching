@@ -183,15 +183,57 @@ builder.with_emulator_type('glm')    # Generalized linear model
 | `{'method': 'fano'}` | Automatic selection via Fano factor |
 | `{'method': 'var'}` | Automatic selection via variance |
 
-## Checkpoints
+## Output and checkpoints
 
-Save and resume long-running workflows:
+By default the engine saves emulators, diagnostics, and checkpoints after each wave:
 
 ```python
-# Save
+engine = builder \
+    .with_output_dir('./hm_output')       # default; None disables all disk output
+    .with_run_name('my_calibration')      # default: auto-generated timestamp
+    .build()
+
+engine.set_simulation_function(my_model)
+results = engine.run()
+
+print(engine.run_dir)
+# ./hm_output/my_calibration/
+```
+
+Output layout:
+
+```
+hm_output/my_calibration/
+  wave1/
+    peak_infected/
+      emulator.pkl          # pickled emulator
+      diagnostics_*.png     # predicted vs actual, residuals
+      metrics.json          # R², MSE, training size
+    total_cases/
+      ...
+    convergence.png         # NROY fraction bar chart
+    nroy_samples.csv        # candidates for next wave
+  wave2/
+    ...
+  checkpoint.pkl            # latest engine state (overwritten each wave)
+  run_config.json           # parameter bounds, observations, settings
+```
+
+### Resume from checkpoint
+
+```python
+engine = builder.with_run_name('my_calibration').build()
+engine.set_simulation_function(my_model)
+results = engine.run(resume=True)   # loads checkpoint.pkl, continues
+```
+
+### Manual checkpoints
+
+For finer control, save and load checkpoints explicitly:
+
+```python
 engine.save_checkpoint('checkpoint.pkl')
 
-# Load (requires providing strategies)
 loaded = hm.HistoryMatchingEngine.load_checkpoint(
     'checkpoint.pkl',
     sampling_strategy=hm.SamplingStrategyFactory.create('lhs'),
@@ -200,3 +242,35 @@ loaded = hm.HistoryMatchingEngine.load_checkpoint(
 )
 loaded.set_simulation_function(my_model)
 ```
+
+## NROY samples and trajectory selection
+
+After `run()` completes, draw NROY samples filtered through ALL emulators:
+
+```python
+# Default: returns pre-computed samples (~samples_per_iteration)
+nroy = engine.get_nroy_samples()
+
+# Request more (cheap — emulator predictions only, no new sims)
+nroy = engine.get_nroy_samples(10000)
+```
+
+## Parallel rejection sampling
+
+When the NROY fraction is small (high-dimensional problems), rejection sampling
+can be slow. Parallelize across CPU cores:
+
+```python
+# Set default parallelism via builder
+engine = builder.with_n_jobs(4).build()
+
+# Or override per-call
+nroy = engine.get_nroy_samples(10000, n_jobs=8)
+
+# -1 = all available cores
+engine = builder.with_n_jobs(-1).build()
+```
+
+Workers load emulators from disk (saved by auto-checkpointing) and filter
+LHS candidates independently. No GPU required — prediction is CPU-bound
+matrix multiplication.

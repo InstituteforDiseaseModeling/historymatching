@@ -57,7 +57,12 @@ class HistoryMatchingBuilder:
         self._implausibility_threshold: float = 3.0
         self._max_iterations: int = 10
         self._random_seed: Optional[int] = None
-        
+
+        # Output / checkpoint / parallelism
+        self._output_dir: str = "./hm_output"
+        self._run_name: Optional[str] = None     # auto-generated if None
+        self._n_jobs: int = 1
+
         # Additional settings
         self._settings: Dict[str, Any] = {}
     
@@ -384,6 +389,32 @@ class HistoryMatchingBuilder:
         self._emulator_bank = bank
         return self
     
+    def with_output_dir(self, path: Optional[str]) -> 'HistoryMatchingBuilder':
+        """Set the output directory for checkpoints, emulators, and diagnostics.
+
+        Pass ``None`` to disable all disk output.  Default: ``"./hm_output"``.
+        """
+        self._output_dir = path
+        return self
+
+    def with_run_name(self, name: str) -> 'HistoryMatchingBuilder':
+        """Set the run name (subdirectory under output_dir).
+
+        Default: auto-generated ``run_YYYYMMDD_HHMMSS``.
+        """
+        self._run_name = name
+        return self
+
+    def with_n_jobs(self, n_jobs: int) -> 'HistoryMatchingBuilder':
+        """Set parallelism for rejection sampling (NROY candidate filtering).
+
+        Args:
+            n_jobs: Number of worker processes.  1 = serial (default).
+                    -1 = all available cores.
+        """
+        self._n_jobs = n_jobs
+        return self
+
     def with_setting(self, key: str, value: Any) -> 'HistoryMatchingBuilder':
         """
         Add custom setting.
@@ -430,6 +461,9 @@ class HistoryMatchingBuilder:
             implausibility_threshold=self._implausibility_threshold,
             max_iterations=self._max_iterations,
             random_seed=self._random_seed,
+            output_dir=self._output_dir,
+            run_name=self._run_name,
+            n_jobs=self._n_jobs,
             **self._settings
         )
         

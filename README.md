@@ -51,11 +51,36 @@ engine = builder \
     .with_emulator_type('gpr') \
     .with_samples_per_iteration(500) \
     .with_max_iterations(5) \
+    .with_output_dir('./hm_output') \
+    .with_run_name('my_calibration') \
     .build()
 
 # Provide a simulation function and run
 engine.set_simulation_function(my_model)
 results = engine.run()
+
+# Emulators, diagnostics, and checkpoints are saved automatically to
+# hm_output/my_calibration/wave1/, wave2/, etc.
+
+# Get NROY samples (filtered through ALL emulators)
+nroy = engine.get_nroy_samples(10000)
+```
+
+### Resume from checkpoint
+
+```python
+engine = builder.with_run_name('my_calibration').build()
+engine.set_simulation_function(my_model)
+results = engine.run(resume=True)  # continues from last committed wave
+```
+
+### Parallel rejection sampling
+
+For high-dimensional problems where the NROY fraction is small:
+
+```python
+engine = builder.with_n_jobs(4).build()    # 4 workers during run()
+nroy = engine.get_nroy_samples(10000, n_jobs=8)  # or override per-call
 ```
 
 ## Documentation
