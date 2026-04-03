@@ -19,6 +19,8 @@ from scipy.linalg import cho_factor, cho_solve
 from .base import BaseEmulator
 from .results import EmulationResults
 
+logger = logging.getLogger(__name__)
+
 
 class BayesLinear(BaseEmulator):
     """Bayes Linear emulator with OLS trend and squared-exponential residual correlation."""
@@ -106,7 +108,7 @@ class BayesLinear(BaseEmulator):
         x_raw = np.asarray(self.X_train, dtype=np.float64)
         y_raw = np.asarray(self.y_train, dtype=np.float64).ravel()
         n_train, n_dims = x_raw.shape
-        logging.info(f"    Training Bayes Linear: {n_train} points, {n_dims} dims")
+        logger.info(f"    Training Bayes Linear: {n_train} points, {n_dims} dims")
 
         # --- Input normalization (min-max to unit box) ---
         self._x_min = x_raw.min(axis=0)
@@ -124,14 +126,14 @@ class BayesLinear(BaseEmulator):
         n, d = X_norm.shape
 
         # --- OLS trend ---
-        logging.info(f"    OLS trend fit [{_time.time()-t0:.1f}s]")
+        logger.info(f"    OLS trend fit [{_time.time()-t0:.1f}s]")
         G = self._design_matrix(X_norm)  # (n, d+1)
         GtG = G.T @ G
         self._beta_hat = np.linalg.solve(GtG, G.T @ y_std)
         residuals = y_std - G @ self._beta_hat
 
         # --- Optimize theta (correlation lengths) ---
-        logging.info(f"    Optimizing theta ({d} correlation lengths, {n}x{n} Cholesky per eval)...")
+        logger.info(f"    Optimizing theta ({d} correlation lengths, {n}x{n} Cholesky per eval)...")
         self._nll_eval_count = 0
         log_theta0 = np.zeros(d)  # initial guess: theta=1 in normalised space
         result = minimize(
@@ -141,11 +143,11 @@ class BayesLinear(BaseEmulator):
             method='L-BFGS-B',
             bounds=[(-4, 4)] * d,  # theta in [~0.018, ~55] — wide range
             options={'maxiter': 200},
-            callback=lambda xk: logging.debug(f"    theta optimizer step {self._nll_eval_count}"),
+            callback=lambda xk: logger.debug(f"    theta optimizer step {self._nll_eval_count}"),
         )
         self._theta = np.exp(result.x)
         self._opt_result = result
-        logging.info(f"    Theta optimization: {result.nit} iterations, {self._nll_eval_count} NLL evals [{_time.time()-t0:.1f}s]")
+        logger.info(f"    Theta optimization: {result.nit} iterations, {self._nll_eval_count} NLL evals [{_time.time()-t0:.1f}s]")
 
         if not result.success:
             logging.warning(
@@ -154,7 +156,7 @@ class BayesLinear(BaseEmulator):
             )
 
         # --- Build correlation matrix and pre-compute Cholesky ---
-        logging.info(f"    Building {n}x{n} correlation matrix and Cholesky...")
+        logger.info(f"    Building {n}x{n} correlation matrix and Cholesky...")
         R = self._sq_exp_corr(X_norm, X_norm, self._theta)
         R_nug = R + self.nugget * np.eye(n)
         self._L, self._lower = cho_factor(R_nug)
@@ -168,12 +170,12 @@ class BayesLinear(BaseEmulator):
         self._residuals = residuals
 
         self.training_complete = True
-        logging.info(f"    Training complete — sigma²={self._sigma2:.4f}, "
+        logger.info(f"    Training complete — sigma²={self._sigma2:.4f}, "
                      f"theta range=[{self._theta.min():.3f}, {self._theta.max():.3f}] [{_time.time()-t0:.1f}s total]")
 
     def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict using the trained Bayes Linear emulator."""
-        logging.debug("... predicting with Bayes Linear emulator")
+        logger.debug("... predicting with Bayes Linear emulator")
 
         X_new = self._normalize_x(x)
         n_new = X_new.shape[0]

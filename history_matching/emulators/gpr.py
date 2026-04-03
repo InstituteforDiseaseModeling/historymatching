@@ -9,6 +9,8 @@ import gpflow
 from .base import BaseEmulator
 from .results import EmulationResults
 
+logger = logging.getLogger(__name__)
+
 
 
 
@@ -71,12 +73,12 @@ class GPR(BaseEmulator):
 
         n_train = x_raw.shape[0]
         n_dims = x_raw.shape[1]
-        logging.info(f"    Training GPR: {n_train} points, {n_dims} dims")
+        logger.info(f"    Training GPR: {n_train} points, {n_dims} dims")
 
         x_gpf = self._normalize_x(x_raw)
         y_gpf = (y_raw - self._y_mean) / self._y_std
 
-        logging.info(f"    Building GPflow model and optimizing hyperparameters...")
+        logger.info(f"    Building GPflow model and optimizing hyperparameters...")
         self.model = gpflow.models.GPR(
             (x_gpf, y_gpf),
             kernel=gpflow.kernels.SquaredExponential(
@@ -96,7 +98,7 @@ class GPR(BaseEmulator):
         self.opt_logs = opt.minimize(self.model.training_loss, self.model.trainable_variables)
 
         if not self.opt_logs.success:
-            logging.warning(
+            logger.warning(
                 "GPR optimization did not converge (scipy reported success=False). "
                 "This is common when the noise variance hits its lower bound. "
                 "The fitted model may still be usable — check emulator diagnostics."
@@ -105,7 +107,7 @@ class GPR(BaseEmulator):
         self.training_complete = True
         ls = self.model.kernel.lengthscales.numpy()
         noise = float(self.model.likelihood.variance.numpy())
-        logging.info(f"    GPR training complete — noise={noise:.4f}, "
+        logger.info(f"    GPR training complete — noise={noise:.4f}, "
                      f"lengthscale range=[{ls.min():.3f}, {ls.max():.3f}] [{_time.time()-t0:.1f}s]")
 
         return
@@ -114,7 +116,7 @@ class GPR(BaseEmulator):
     def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict an output using the trained emulator."""
 
-        logging.debug("... predicting outputs using the trained emulator")
+        logger.debug("... predicting outputs using the trained emulator")
 
         # Normalize inputs using training-set min/range
         x_gpf = self._normalize_x(x)
