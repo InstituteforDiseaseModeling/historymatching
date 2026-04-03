@@ -350,20 +350,42 @@ class BaseEmulator:
         fig_predobs.tight_layout()
         
         
-        # plot predicted vs (normalized) error
-        fig_prederr, ax_prederr = plt.subplots( 1, 1, figsize=(4,4) )
-        predictions_df.plot.scatter( x='error (normalized)', y='prediction', ax=ax_prederr )
-        ax_prederr.set_title( 'Predictions vs Normalized Error' )
+        # Compute normalized errors for train and test
+        train_error_norm = ((self.y_train.flatten() - self.y_train_pred_results.get_mean().values)
+                            / np.where(self.y_train.flatten() != 0, self.y_train.flatten(), 1.0))
+        test_error_norm = predictions_df['error (normalized)'].values
+
+        # plot predicted vs (normalized) error — train and test panels
+        fig_prederr, (ax_prederr_tr, ax_prederr_te) = plt.subplots(1, 2, figsize=(10, 5))
+
+        ax_prederr_tr.scatter(train_error_norm, train_pred, color='tab:blue', alpha=0.4, s=10)
+        ax_prederr_tr.set_title(f'Train (n={len(train_true)})')
+        ax_prederr_tr.set_xlabel('error (normalized)')
+        ax_prederr_tr.set_ylabel('prediction')
+
+        ax_prederr_te.scatter(test_error_norm, test_pred, color='tab:blue', alpha=0.4, s=10)
+        ax_prederr_te.set_title(f'Test (n={len(test_true)})')
+        ax_prederr_te.set_xlabel('error (normalized)')
+        ax_prederr_te.set_ylabel('prediction')
+
         fig_prederr.tight_layout()
 
-        
-        # Plot histogram with normalized error in the x-axis
-        n_bins = 12
-        fig_errhist, ax_errhist = plt.subplots( 1, 1, figsize=(4,4) )
-        predictions_df['error (normalized)'].replace([np.inf, -np.inf], np.nan).dropna().plot.hist( bins=n_bins, ax=ax_errhist )
-        ax_errhist.set_title( 'Normalized Error Histogram' )
-        ax_errhist.set_xlabel( 'error (normalized)' )
-        ax_errhist.set_ylabel( 'Count' )
+
+        # Plot histogram with normalized error — train and test panels
+        n_bins = 20
+        fig_errhist, (ax_hist_tr, ax_hist_te) = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+
+        pd.Series(train_error_norm).replace([np.inf, -np.inf], np.nan).dropna().plot.hist(
+            bins=n_bins, ax=ax_hist_tr, color='tab:blue', alpha=0.7)
+        ax_hist_tr.set_title(f'Train (n={len(train_true)})')
+        ax_hist_tr.set_xlabel('error (normalized)')
+        ax_hist_tr.set_ylabel('Count')
+
+        pd.Series(test_error_norm).replace([np.inf, -np.inf], np.nan).dropna().plot.hist(
+            bins=n_bins, ax=ax_hist_te, color='tab:blue', alpha=0.7)
+        ax_hist_te.set_title(f'Test (n={len(test_true)})')
+        ax_hist_te.set_xlabel('error (normalized)')
+
         fig_errhist.tight_layout()
         
         return
