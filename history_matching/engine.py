@@ -926,8 +926,9 @@ class HistoryMatchingEngine:
         obs_targets = self._observations.get_all_targets()
         threshold = self._implausibility_threshold
 
-        # Use spawn context — fork + TensorFlow/GPflow causes hangs
-        ctx = mp.get_context('spawn')
+        import sys
+        start_method = 'fork' if sys.platform != 'win32' else 'spawn'
+        ctx = mp.get_context(start_method)
         all_plausible = []
 
         with ctx.Pool(
@@ -1659,7 +1660,12 @@ class HistoryMatchingEngine:
                 f"~{candidates_per_worker:,} candidates each"
             )
 
-            ctx = mp.get_context('spawn')
+            # Use 'fork' on Linux/macOS for fast worker startup (avoids
+            # re-importing the entire module tree).  Fall back to 'spawn'
+            # only on Windows where fork is unavailable.
+            import sys
+            start_method = 'fork' if sys.platform != 'win32' else 'spawn'
+            ctx = mp.get_context(start_method)
             with ctx.Pool(
                 processes=n_jobs,
                 initializer=_nroy_worker_init,
