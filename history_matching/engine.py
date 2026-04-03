@@ -174,7 +174,9 @@ class HistoryMatchingEngine:
                 run_name = datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S")
             self._run_dir = Path(output_dir) / run_name
 
-        # Set up file logging to run directory
+        # Set up file logging to run directory — always works even if the
+        # caller never configures Python logging (the logger level defaults
+        # to WARNING, so we lower it here to let our messages through).
         if self._run_dir:
             self._run_dir.mkdir(parents=True, exist_ok=True)
             fh = logging.FileHandler(self._run_dir / "log.txt")
@@ -182,8 +184,10 @@ class HistoryMatchingEngine:
             fh.setFormatter(logging.Formatter(
                 '%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
             logger.addHandler(fh)
-            # Also capture emulator factory logs
-            logging.getLogger('history_matching.emulators').addHandler(fh)
+            logger.setLevel(logging.DEBUG)
+            emulator_logger = logging.getLogger('history_matching.emulators')
+            emulator_logger.addHandler(fh)
+            emulator_logger.setLevel(logging.DEBUG)
 
         logger.info(f"HistoryMatchingEngine initialized with {len(parameter_space.get_parameter_names())} parameters")
         logger.info(f"  Emulator type: {emulator_factory.get_default_type()}")
