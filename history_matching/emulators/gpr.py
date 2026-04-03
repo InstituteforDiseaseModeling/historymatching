@@ -116,7 +116,6 @@ class GPR(BaseEmulator):
     def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict an output using the trained emulator."""
 
-        logger.debug("... predicting outputs using the trained emulator")
 
         # Normalize inputs using training-set min/range
         x_gpf = self._normalize_x(x)

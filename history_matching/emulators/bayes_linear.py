@@ -185,7 +185,6 @@ class BayesLinear(BaseEmulator):
 
     def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict using the trained Bayes Linear emulator."""
-        logger.debug("... predicting with Bayes Linear emulator")
 
         X_new = self._normalize_x(x)
         n_new = X_new.shape[0]
