@@ -59,8 +59,12 @@ try:
                                      mean_c, noise_var, L_inv):
         """Predict GP mean and variance for test points.
 
-        Variance = kernel_var - K_star @ L_inv^T @ L_inv @ K_star^T + noise_var
-        where L_inv is the inverse of the Cholesky factor.
+        Variance = kernel_var + noise_var - ||L_inv @ k_star||²
+        where L_inv is the inverse of the Cholesky factor (precomputed).
+
+        The L_inv @ k_row product is a simple dot (not triangular solve),
+        so the cost per test point is O(n_train²) — same as O(n_train) for
+        the mean when n_train is the dominant term.
         """
         n_test = X_test.shape[0]
         n_train = X_train.shape[0]
@@ -80,17 +84,14 @@ try:
                 s += k_row[j] * alpha[j]
             mean[i] = s + mean_c
 
-            # Variance: k(x*,x*) - k_row @ (K + σ²I)^{-1} @ k_row
-            # = kernel_var - ||L^{-1} @ k_row||²
-            v = np.empty(n_train)
-            for j in range(n_train):
-                t = 0.0
-                for jj in range(j + 1):
-                    t += L_inv[j, jj] * k_row[jj]
-                v[j] = t
+            # Variance: kernel_var + noise_var - ||L_inv @ k_row||²
+            # L_inv is full (not triangular), so just dot products
             var_reduction = 0.0
             for j in range(n_train):
-                var_reduction += v[j] * v[j]
+                v_j = 0.0
+                for jj in range(n_train):
+                    v_j += L_inv[j, jj] * k_row[jj]
+                var_reduction += v_j * v_j
             var[i] = kernel_var - var_reduction + noise_var
             if var[i] < 0:
                 var[i] = 0.0
