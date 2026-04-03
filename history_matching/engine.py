@@ -1526,10 +1526,32 @@ class HistoryMatchingEngine:
         for feature, emulator in current_emulators.items():
             temp_bank.add_emulator(current_iteration, feature, emulator)
 
-        return self._compute_next_samples_serial(temp_bank)
+        from .nroy_sampling import generate_nroy_design
+
+        nroy_method = self._settings.get('nroy_method', 'ray_resample')
+        nroy_opts = self._settings.get('nroy_options', {})
+
+        result = generate_nroy_design(
+            n_points=self._n_samples,
+            parameter_space=self._parameter_space,
+            emulator_bank=temp_bank,
+            observations=self._observations,
+            threshold=self._implausibility_threshold,
+            sampling_strategy=self._sampling_strategy,
+            method=nroy_method,
+            seed=self._random_seed,
+            max_candidates=self._n_samples * self._settings.get('max_candidate_factor', 1000),
+            **nroy_opts,
+        )
+
+        # NROY fraction from stage 1 LHS acceptance (attached by generate_nroy_design)
+        lhs_accepted = getattr(result, '_lhs_accepted', len(result))
+        lhs_tested = getattr(result, '_lhs_tested', len(result))
+        self._update_nroy_stats(lhs_accepted, lhs_tested)
+        return result
 
     def _compute_next_samples_serial(self, temp_bank: EmulatorBank) -> pd.DataFrame:
-        """Serial rejection sampling for next-wave candidates."""
+        """Serial rejection sampling for next-wave candidates (legacy, unused)."""
         plausible_samples = pd.DataFrame()
         total_candidates_generated = 0
         batch_num = 0

@@ -406,6 +406,44 @@ class HistoryMatchingBuilder:
         self._emulator_bank = bank
         return self
     
+    def with_nroy_method(self, method: str) -> 'HistoryMatchingBuilder':
+        """Set NROY sampling method.
+
+        Args:
+            method: ``'ray_resample'`` (default) for the 4-stage pipeline
+                (LHS → ray sampling → importance sampling → maximin thinning),
+                or ``'lhs'`` for pure LHS rejection sampling.
+
+        Returns:
+            Self for method chaining
+        """
+        valid = ('ray_resample', 'lhs')
+        if method not in valid:
+            raise ValueError(f"Unknown NROY method '{method}'. Valid: {valid}")
+        self._settings['nroy_method'] = method
+        return self
+
+    def with_nroy_options(self, **kwargs) -> 'HistoryMatchingBuilder':
+        """Tune NROY sampling parameters.
+
+        Keyword arguments are passed to ``generate_nroy_design()``.
+        Useful options include:
+
+        - ``lhs_factor`` (int, default 10): LHS candidates = max(n_points, lhs_factor × n_dims)
+        - ``n_lines`` (int, default 20): Number of ray pairs for ray sampling
+        - ``points_per_line`` (int, default 50): Points sampled per ray
+        - ``imp_scale`` (float, default 1.0): Initial importance sampling scale
+        - ``imp_target_rate`` (tuple, default (0.10, 0.225)): Target acceptance range
+        - ``maximin_reps`` (int, default 1000): Random subsets for maximin thinning
+
+        Returns:
+            Self for method chaining
+        """
+        opts = self._settings.get('nroy_options', {})
+        opts.update(kwargs)
+        self._settings['nroy_options'] = opts
+        return self
+
     def with_output_dir(self, path: Optional[str]) -> 'HistoryMatchingBuilder':
         """Set the output directory for checkpoints, emulators, and diagnostics.
 

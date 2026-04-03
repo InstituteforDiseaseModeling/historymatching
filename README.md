@@ -74,13 +74,21 @@ engine.set_simulation_function(my_model)
 results = engine.run(resume=True)  # continues from last committed wave
 ```
 
-### Parallel rejection sampling
+### NROY sampling methods
 
-For high-dimensional problems where the NROY fraction is small:
+The default `ray_resample` method uses a 4-stage pipeline (LHS → ray sampling → importance sampling → maximin thinning) that efficiently explores small NROY regions:
 
 ```python
-engine = builder.with_n_jobs(4).build()    # 4 workers during run()
-nroy = engine.get_nroy_samples(10000, n_jobs=8)  # or override per-call
+engine = builder \
+    .with_nroy_method('ray_resample') \  # default; or 'lhs' for pure rejection
+    .with_nroy_options(n_lines=30, points_per_line=100) \  # optional tuning
+    .build()
+```
+
+For simple problems, pure LHS rejection is fine:
+
+```python
+engine = builder.with_nroy_method('lhs').build()
 ```
 
 ## Documentation
