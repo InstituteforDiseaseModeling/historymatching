@@ -189,15 +189,28 @@ class HistoryMatchingEngine:
             emulator_logger.addHandler(fh)
             emulator_logger.setLevel(logging.DEBUG)
 
-        logger.info(f"HistoryMatchingEngine initialized with {len(parameter_space.get_parameter_names())} parameters")
-        logger.info(f"  Emulator type: {emulator_factory.get_default_type()}")
-        logger.info(f"  Samples per wave: {n_samples}")
-        logger.info(f"  Max iterations: {max_iterations}")
+        # Log full configuration summary at the top of log.txt
+        param_names = parameter_space.get_parameter_names()
+        obs_targets = observations.get_all_targets()
+        logger.info(f"{'='*60}")
+        logger.info(f"HISTORY MATCHING ENGINE — CONFIGURATION")
+        logger.info(f"{'='*60}")
+        logger.info(f"  Emulator type:          {emulator_factory.get_default_type()}")
+        logger.info(f"  Parameters:             {len(param_names)}")
+        logger.info(f"  Observation targets:    {len(obs_targets)}")
+        logger.info(f"  Samples per wave:       {n_samples}")
+        logger.info(f"  Max iterations:         {max_iterations}")
         logger.info(f"  Implausibility threshold: {implausibility_threshold}")
-        logger.info(f"  Auto space reduction: {'enabled' if auto_reduce_space else 'disabled'}")
+        logger.info(f"  Auto space reduction:   {'enabled' if auto_reduce_space else 'disabled'}")
+        logger.info(f"  Random seed:            {random_seed}")
+        logger.info(f"  Oversample factor:      {oversample_factor}")
+        logger.info(f"  Max batch size:         {max_batch_size}")
         if self._run_dir:
-            logger.info(f"  Output directory: {self._run_dir}")
-            logger.info(f"  Run log: {self._run_dir / 'log.txt'}")
+            logger.info(f"  Output directory:       {self._run_dir}")
+            logger.info(f"  Run log:                {self._run_dir / 'log.txt'}")
+        logger.info(f"  Parameters: {param_names}")
+        logger.info(f"  Targets: {list(obs_targets.keys())}")
+        logger.info(f"{'='*60}")
 
     @property
     def state(self) -> EngineState:
