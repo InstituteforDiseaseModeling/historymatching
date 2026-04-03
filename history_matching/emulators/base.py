@@ -203,9 +203,12 @@ class BaseEmulator:
         residuals_df = pd.DataFrame( self.X_test_df )
         residuals_df['residual'] = residuals
 
-        # Draw plot
-        fig, axs = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
-        axs = np.atleast_1d(axs)
+        # Draw plot (wrap to max 5 columns)
+        max_cols = 5
+        n_cols = min(n_params, max_cols)
+        n_rows = int(np.ceil(n_params / n_cols))
+        fig, axs = plt.subplots( n_rows, n_cols, figsize=(4*n_cols, 4*n_rows), sharey=True )
+        axs = np.atleast_1d(axs).flatten()
         for i, param in enumerate(params):
             residuals_df.plot.scatter( x = param,
                                        y = 'residual',
@@ -213,6 +216,8 @@ class BaseEmulator:
                                        legend = False,
                                        ax = axs[i]
                                      )
+        for i in range(n_params, len(axs)):
+            axs[i].set_visible(False)
         fig.tight_layout()
         
         return
@@ -250,9 +255,12 @@ class BaseEmulator:
                                              |(predictions_df['true'] <predictions_df['prediction (low)' ])]    \
                               .rename( columns={'prediction':'prediction (failed)'} )
         
-        # Plot predictions
-        fig, axs = plt.subplots( 1, n_params, figsize=(4*n_params, 4), sharey=True )
-        axs = np.atleast_1d(axs)
+        # Plot predictions (wrap to max 5 columns)
+        max_cols = 5
+        n_cols = min(n_params, max_cols)
+        n_rows = int(np.ceil(n_params / n_cols))
+        fig, axs = plt.subplots( n_rows, n_cols, figsize=(4*n_cols, 4*n_rows), sharey=True )
+        axs = np.atleast_1d(axs).flatten()
         for i, param in enumerate(params):
             predictions_correct.plot( x=param, y='prediction (correct)', style='s', color='tab:green', ax=axs[i] )
             predictions_failed .plot( x=param, y='prediction (failed)' , style='o', color='tab:red'  , ax=axs[i] )
@@ -268,6 +276,8 @@ class BaseEmulator:
                            predictions_failed['prediction (high)'].values,
                            color = 'tab:red'
                           )
+        for i in range(n_params, len(axs)):
+            axs[i].set_visible(False)
         fig.tight_layout()
 
 
