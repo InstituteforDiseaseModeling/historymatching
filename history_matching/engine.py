@@ -1403,32 +1403,45 @@ class HistoryMatchingEngine:
         return plausible
 
     def _filter_samples_slow(self, candidates: pd.DataFrame, emulator_bank) -> pd.DataFrame:
-        """Standard GPflow-based implausibility filter (fallback for non-GPR emulators)."""
-        sample_implausibilities = []
+        """Implausibility filter with short-circuit evaluation for non-GPR emulators."""
+        import numpy as np
+
         param_cols = self._parameter_space.get_parameter_names()
-        candidates_clean = candidates[param_cols]
+        mask = np.ones(len(candidates), dtype=bool)
+        n_emulators = 0
 
         for iteration in reversed(emulator_bank.get_all_iterations()):
             emulators = emulator_bank.get_emulators_for_iteration(iteration)
             for feature_name, emulator in emulators.items():
+                if mask.sum() == 0:
+                    break
+                if not self._observations.has_feature(feature_name):
+                    continue
                 try:
-                    if not self._observations.has_feature(feature_name):
-                        continue
-                    predictions = emulator.predict(candidates_clean)
-                    feature_implausibility = self._observations.calculate_implausibility(
+                    active = candidates.loc[mask, param_cols]
+                    predictions = emulator.predict(active)
+                    feature_impl = self._observations.calculate_implausibility(
                         feature_name, predictions.get_mean(), predictions.get_variance()
                     )
-                    sample_implausibilities.append(feature_implausibility)
+                    failures = feature_impl > self._implausibility_threshold
+                    n_rejected = int(failures.sum())
+                    mask[mask] &= ~failures.values
+                    n_emulators += 1
+
+                    logger.debug(
+                        f"  {feature_name}: {len(active)} tested, "
+                        f"{n_rejected} rejected, {mask.sum()} surviving"
+                    )
                 except Exception as e:
                     logger.warning(f"Implausibility calc failed for '{feature_name}': {e}")
                     continue
 
-        if not sample_implausibilities:
-            return candidates
-
-        combined = pd.concat(sample_implausibilities, axis=1).max(axis=1)
-        combined.index = candidates.index
-        return candidates[combined <= self._implausibility_threshold]
+        plausible = candidates[mask]
+        logger.debug(
+            f"Slow filter: {len(candidates)} \u2192 {len(plausible)} "
+            f"({len(plausible)/len(candidates):.2%}) through {n_emulators} emulators"
+        )
+        return plausible
 
     def _run_simulation(self, samples: pd.DataFrame) -> pd.DataFrame:
         """Run simulation with parameter samples."""
