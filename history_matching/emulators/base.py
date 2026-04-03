@@ -281,15 +281,43 @@ class BaseEmulator:
         fig.tight_layout()
 
 
-        # Plot predicted vs. observed
-        fig_predobs, ax_predobs = plt.subplots( 1, 1, figsize=(4,4) )
-        predictions_correct.plot( x='true', y='prediction (correct)', style='o', label='correct', color='tab:green', ax=ax_predobs )
-        predictions_failed .plot( x='true', y='prediction (failed)' , style='o', label='failed' , color='tab:red'  , ax=ax_predobs )
-        maxy = int( predictions_df[ ['true', 'prediction'] ].max().max() )
-        ax_predobs.plot( range(maxy), range(maxy), linestyle='--', color='gray', alpha=0.5 )
-        ax_predobs.set_title( 'Prediction vs True Value' )
-        ax_predobs.set_xlabel( 'True value' )
-        ax_predobs.set_ylabel( 'Predicted' )
+        # Plot predicted vs. observed — train and test, with error bars
+        fig_predobs, ax_predobs = plt.subplots( 1, 1, figsize=(5, 5) )
+
+        # Test data with CI error bars
+        test_pred = predictions_df['prediction'].values
+        test_true = predictions_df['true'].values
+        test_low  = predictions_df['prediction (low)'].values
+        test_high = predictions_df['prediction (high)'].values
+        test_err  = np.array([test_pred - test_low, test_high - test_pred])
+        test_correct_mask = (test_true <= test_high) & (test_true >= test_low)
+
+        ax_predobs.errorbar(test_true[test_correct_mask], test_pred[test_correct_mask],
+                            yerr=test_err[:, test_correct_mask],
+                            fmt='o', color='tab:green', alpha=0.6, markersize=4,
+                            elinewidth=0.8, label='test (correct)')
+        ax_predobs.errorbar(test_true[~test_correct_mask], test_pred[~test_correct_mask],
+                            yerr=test_err[:, ~test_correct_mask],
+                            fmt='o', color='tab:red', alpha=0.6, markersize=4,
+                            elinewidth=0.8, label='test (failed)')
+
+        # Train data (no error bars — emulator interpolates training points)
+        train_true = self.y_train.flatten()
+        train_pred = self.y_train_pred_results.get_mean().values
+        ax_predobs.scatter(train_true, train_pred, marker='x', color='tab:blue',
+                           alpha=0.3, s=15, label='train')
+
+        # y=x reference line
+        lo = min(predictions_df[['true', 'prediction']].min().min(), train_true.min())
+        hi = max(predictions_df[['true', 'prediction']].max().max(), train_true.max())
+        margin = (hi - lo) * 0.05
+        ax_predobs.plot([lo - margin, hi + margin], [lo - margin, hi + margin],
+                        linestyle='--', color='gray', alpha=0.5, label='y = x')
+
+        ax_predobs.set_title('Prediction vs True Value')
+        ax_predobs.set_xlabel('True value')
+        ax_predobs.set_ylabel('Predicted')
+        ax_predobs.legend(fontsize=8)
         fig_predobs.tight_layout()
         
         
