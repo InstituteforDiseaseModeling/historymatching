@@ -249,7 +249,6 @@ def filter_nroy(
         if mask.sum() == 0:
             break
 
-        # Only predict on surviving points
         active_idx = np.where(mask)[0]
         active_X = candidates[active_idx]
 
@@ -259,14 +258,12 @@ def filter_nroy(
         obs_var = obs_std ** 2
         impl = np.abs(mean - obs_mean) / np.sqrt(var + obs_var)
 
-        # Mark failures
         failures = impl > threshold
         mask[active_idx[failures]] = False
 
-        n_surviving = mask.sum()
         logger.debug(
             f"  {feature_name}: {len(active_idx)} tested, "
-            f"{failures.sum()} rejected, {n_surviving} surviving"
+            f"{failures.sum()} rejected, {mask.sum()} surviving"
         )
 
     return mask

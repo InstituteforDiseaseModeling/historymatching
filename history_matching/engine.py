@@ -184,7 +184,7 @@ class HistoryMatchingEngine:
         random_seed: Optional[int] = None,
         auto_reduce_space: bool = False,
         oversample_factor: float = 1.1,
-        max_batch_size: int = 100000,
+        max_batch_size: int = 10000,
         output_dir: Optional[str] = "./hm_output",
         run_name: Optional[str] = None,
         n_jobs: int = 1,
