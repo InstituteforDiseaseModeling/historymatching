@@ -146,7 +146,7 @@ class FastGPRPredictor:
         kernel_var = float(model.kernel.variance.numpy())
         kernel_ls = model.kernel.lengthscales.numpy().astype(np.float64)
         noise_var = float(model.likelihood.variance.numpy())
-        mean_c = float(model.mean_function.c.numpy())
+        mean_c = float(model.mean_function.c.numpy().flat[0])
         X_train = model.data[0].numpy().astype(np.float64)
         Y_train = model.data[1].numpy().flatten().astype(np.float64)
 
