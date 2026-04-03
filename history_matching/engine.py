@@ -1022,12 +1022,14 @@ class HistoryMatchingEngine:
                 fracs = [r.nroy_fraction for r in all_results]
                 ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
                 for w, frac in zip(waves, fracs):
-                    ax.annotate(f'{frac:.1%}', (w, frac), textcoords='offset points',
-                                xytext=(0, 5), ha='center', fontsize=9)
+                    label = f'{frac:.2%}' if frac < 0.01 else f'{frac:.1%}'
+                    ax.annotate(label, (w, frac), textcoords='offset points',
+                                xytext=(0, 5), ha='center', fontsize=8)
                 ax.set_xlabel('Wave')
                 ax.set_ylabel('NROY fraction')
                 ax.set_title('Convergence')
-                ax.set_ylim(0, 1)
+                ax.set_yscale('log')
+                ax.set_ylim(min(fracs) * 0.5, 1)
                 ax.set_xticks(waves)
                 fig.tight_layout()
                 fig.savefig(wave_dir / "convergence.png", dpi=100, bbox_inches='tight')
