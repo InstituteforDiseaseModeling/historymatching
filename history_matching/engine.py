@@ -1463,6 +1463,7 @@ class HistoryMatchingEngine:
 
         Falls back to the standard GPflow path for non-GPR emulators.
         """
+        import numpy as np
         from .emulators.fast_predict import filter_nroy
 
         fast_predictors = self._build_fast_predictors(emulator_bank)
