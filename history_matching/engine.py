@@ -184,7 +184,7 @@ class HistoryMatchingEngine:
         random_seed: Optional[int] = None,
         auto_reduce_space: bool = False,
         oversample_factor: float = 1.1,
-        max_batch_size: int = 10000,
+        max_batch_size: int = 100000,
         output_dir: Optional[str] = "./hm_output",
         run_name: Optional[str] = None,
         n_jobs: int = 1,
@@ -1432,8 +1432,9 @@ class HistoryMatchingEngine:
             for feature_name, emulator in emulators.items():
                 if not self._observations.has_feature(feature_name):
                     continue
-                # Only works for GPR emulators with our normalization attributes
-                if not hasattr(emulator, '_x_min') or not hasattr(emulator, 'model'):
+                # Only works for GPR emulators (SE kernel with normalization)
+                from .emulators.gpr import GPR
+                if not isinstance(emulator, GPR):
                     continue
                 try:
                     fast = FastGPRPredictor.from_emulator(emulator)
