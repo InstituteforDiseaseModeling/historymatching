@@ -7,6 +7,7 @@ make adjustments, and revert changes if needed.
 
 import logging
 import pickle
+import time as _time
 import warnings
 from dataclasses import dataclass
 from dataclasses import field
@@ -173,10 +174,26 @@ class HistoryMatchingEngine:
                 run_name = datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S")
             self._run_dir = Path(output_dir) / run_name
 
-        logger.info(f"HistoryMatchingEngine initialized with {len(parameter_space.get_parameter_names())} parameters")
-        logger.info(f"Auto space reduction: {'enabled' if auto_reduce_space else 'disabled'}")
+        # Set up file logging to run directory
         if self._run_dir:
-            logger.info(f"Output directory: {self._run_dir}")
+            self._run_dir.mkdir(parents=True, exist_ok=True)
+            fh = logging.FileHandler(self._run_dir / "log.txt")
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(logging.Formatter(
+                '%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+            logger.addHandler(fh)
+            # Also capture emulator factory logs
+            logging.getLogger('history_matching.emulators').addHandler(fh)
+
+        logger.info(f"HistoryMatchingEngine initialized with {len(parameter_space.get_parameter_names())} parameters")
+        logger.info(f"  Emulator type: {emulator_factory.get_default_type()}")
+        logger.info(f"  Samples per wave: {n_samples}")
+        logger.info(f"  Max iterations: {max_iterations}")
+        logger.info(f"  Implausibility threshold: {implausibility_threshold}")
+        logger.info(f"  Auto space reduction: {'enabled' if auto_reduce_space else 'disabled'}")
+        if self._run_dir:
+            logger.info(f"  Output directory: {self._run_dir}")
+            logger.info(f"  Run log: {self._run_dir / 'log.txt'}")
 
     @property
     def state(self) -> EngineState:
@@ -277,17 +294,21 @@ class HistoryMatchingEngine:
                 f"or use engine.update_max_iterations({self._max_iterations + 5}) to extend the current run."
             )
 
-        logger.info(f"Starting iteration {self._progress.current_iteration + 1}")
+        wave_num = self._progress.current_iteration + 1
+        logger.info(f"{'='*60}")
+        logger.info(f"WAVE {wave_num} STARTING")
+        logger.info(f"{'='*60}")
         self._state = EngineState.RUNNING
+        wave_t0 = _time.time()
 
         try:
-            # Get samples for this iteration
+            # ── Phase 1: Get samples ─────────────────────────────────────
+            t0 = _time.time()
             if self._progress.current_iteration == 0:
-                # First iteration - generate samples from parameter space box
                 samples = self._generate_plausible_samples()
-                logger.info(f"Generated {len(samples)} samples for first iteration (acceptance rate: {self._progress.acceptance_rate:.3f})")
+                logger.info(f"[Wave {wave_num}] Phase 1/5 SAMPLING: generated {len(samples)} samples "
+                            f"(acceptance rate: {self._progress.acceptance_rate:.3f}) [{_time.time()-t0:.1f}s]")
             else:
-                # Use pre-computed samples from previous iteration's snapshot
                 previous_snapshot = self._snapshots[self._progress.current_iteration - 1]
                 samples = previous_snapshot.next_samples
                 if samples is None:
@@ -295,27 +316,35 @@ class HistoryMatchingEngine:
                         f"No pre-computed samples found from iteration {previous_snapshot.iteration}. "
                         f"This indicates an internal error - samples should have been computed during the previous step."
                     )
-                logger.info(f"Using {len(samples)} pre-computed samples from iteration {previous_snapshot.iteration}")
+                logger.info(f"[Wave {wave_num}] Phase 1/5 SAMPLING: using {len(samples)} pre-computed samples "
+                            f"from wave {previous_snapshot.iteration} [{_time.time()-t0:.1f}s]")
 
-            # Run simulation
+            # ── Phase 2: Run simulations ─────────────────────────────────
+            t0 = _time.time()
+            logger.info(f"[Wave {wave_num}] Phase 2/5 SIMULATION: running {len(samples)} simulations...")
             simulation_results = self._run_simulation(samples)
-            logger.debug(f"Simulation completed with {len(simulation_results.columns)} outputs")
+            logger.info(f"[Wave {wave_num}] Phase 2/5 SIMULATION: complete — {len(simulation_results.columns)} outputs "
+                        f"[{_time.time()-t0:.1f}s]")
 
-            # Select features to emulate
+            # ── Phase 3: Select features ─────────────────────────────────
+            t0 = _time.time()
             if features is None:
                 selected_features = self._select_features(simulation_results)
             else:
                 selected_features = features
+            logger.info(f"[Wave {wave_num}] Phase 3/5 FEATURE SELECTION: {selected_features} [{_time.time()-t0:.1f}s]")
 
-            logger.info(f"Selected features for emulation: {selected_features}")
-
-            # Create emulators
+            # ── Phase 4: Train emulators ─────────────────────────────────
+            t0 = _time.time()
+            logger.info(f"[Wave {wave_num}] Phase 4/5 EMULATOR TRAINING: training {len(selected_features)} emulators...")
             emulators = self._create_emulators(samples, simulation_results, selected_features)
-            logger.debug(f"Created {len(emulators)} emulators")
+            logger.info(f"[Wave {wave_num}] Phase 4/5 EMULATOR TRAINING: complete [{_time.time()-t0:.1f}s]")
 
-            # Compute samples for next iteration (for user inspection before commit)
+            # ── Phase 5: NROY sampling for next wave ─────────────────────
+            t0 = _time.time()
+            logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: finding {self._n_samples} plausible candidates for next wave...")
             next_iteration_samples = self._compute_next_iteration_samples(emulators)
-            logger.info(f"Computed {len(next_iteration_samples)} samples for next iteration")
+            logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: found {len(next_iteration_samples)} candidates [{_time.time()-t0:.1f}s]")
 
             # Determine parameter space for next iteration
             next_parameter_space = self._get_next_parameter_space(samples, emulators)
@@ -355,7 +384,7 @@ class HistoryMatchingEngine:
                 self._pending_snapshot.emulator_bank.add_emulator(iteration_result.iteration, feature, emulator)
 
             self._state = EngineState.PAUSED
-            logger.info(f"Iteration {iteration_result.iteration} completed. Awaiting commit or revert.")
+            logger.info(f"[Wave {wave_num}] ALL PHASES COMPLETE [{_time.time()-wave_t0:.1f}s total]. Committing...")
 
             return iteration_result
 
@@ -458,7 +487,8 @@ class HistoryMatchingEngine:
         self._call_iteration_callbacks(committed_result)
         self._call_progress_callbacks()
 
-        logger.info(f"Iteration {committed_result.iteration} committed.")
+        logger.info(f"[Wave {committed_result.iteration}] COMMITTED — diagnostics and checkpoint saved to {self._run_dir}")
+        logger.info(f"{'='*60}")
 
     def revert_step(self) -> None:
         """
@@ -1207,6 +1237,10 @@ class HistoryMatchingEngine:
         batch_seed = self._random_seed  # Incremented each batch for fresh LHS draws
         max_candidate_factor = self._settings.get('max_candidate_factor', 1000)
         max_candidates = self._n_samples * max_candidate_factor
+        last_pct_logged = -10
+        t0 = _time.time()
+
+        logger.info(f"  Plausible sampling: 0/{self._n_samples} (0%) — starting")
 
         # Initial batch size
         batch_size = min(int(self._n_samples * self._oversample_factor), self._max_batch_size)
@@ -1231,7 +1265,16 @@ class HistoryMatchingEngine:
             # Calculate acceptance rate for adaptive sizing
             current_acceptance_rate = len(plausible_samples) / total_candidates_generated
 
-            logger.info(
+            # Log at every 10% milestone
+            pct = int(100 * len(plausible_samples) / self._n_samples)
+            if pct >= last_pct_logged + 10:
+                last_pct_logged = pct - (pct % 10)
+                elapsed = _time.time() - t0
+                logger.info(
+                    f"  Plausible sampling: {len(plausible_samples)}/{self._n_samples} ({pct}%) "
+                    f"| {total_candidates_generated:,} tested | rate={current_acceptance_rate:.4%} [{elapsed:.0f}s]")
+
+            logger.debug(
                 f"  Sampling batch {batch_num}: {len(batch_plausible)}/{len(candidates)} accepted "
                 f"| {len(plausible_samples)}/{self._n_samples} collected "
                 f"| {total_candidates_generated:,} total candidates "
@@ -1458,6 +1501,10 @@ class HistoryMatchingEngine:
         max_candidate_factor = self._settings.get('max_candidate_factor', 1000)
         max_candidates = self._n_samples * max_candidate_factor
         batch_size = min(int(self._n_samples * self._oversample_factor), self._max_batch_size)
+        last_pct_logged = -10  # track last percentage milestone logged
+        t0 = _time.time()
+
+        logger.info(f"  NROY sampling: 0/{self._n_samples} (0%) — starting")
 
         while len(plausible_samples) < self._n_samples:
             candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=batch_seed)
@@ -1472,7 +1519,16 @@ class HistoryMatchingEngine:
             batch_num += 1
             current_acceptance_rate = len(plausible_samples) / total_candidates_generated
 
-            logger.info(
+            # Log at every 10% milestone
+            pct = int(100 * len(plausible_samples) / self._n_samples)
+            if pct >= last_pct_logged + 10:
+                last_pct_logged = pct - (pct % 10)
+                elapsed = _time.time() - t0
+                logger.info(
+                    f"  NROY sampling: {len(plausible_samples)}/{self._n_samples} ({pct}%) "
+                    f"| {total_candidates_generated:,} tested | rate={current_acceptance_rate:.4%} [{elapsed:.0f}s]")
+
+            logger.debug(
                 f"  Next-wave sampling batch {batch_num}: {len(batch_plausible)}/{len(candidates)} accepted "
                 f"| {len(plausible_samples)}/{self._n_samples} collected "
                 f"| {total_candidates_generated:,} total candidates "

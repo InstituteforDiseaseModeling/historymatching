@@ -52,7 +52,8 @@ class GPR(BaseEmulator):
 
         Predictions are un-standardized automatically in predict().
         """
-        logging.debug("... training emulator")
+        import time as _time
+        t0 = _time.time()
 
         x_raw = np.float64(self.X_train)
         y_raw = np.float64(self.y_train.reshape(-1, 1))
@@ -68,10 +69,14 @@ class GPR(BaseEmulator):
         if self._y_std < 1e-12:
             self._y_std = 1.0  # guard against constant output
 
+        n_train = x_raw.shape[0]
+        n_dims = x_raw.shape[1]
+        logging.info(f"    Training GPR: {n_train} points, {n_dims} dims")
+
         x_gpf = self._normalize_x(x_raw)
         y_gpf = (y_raw - self._y_mean) / self._y_std
-        n_dims = x_gpf.shape[1]
 
+        logging.info(f"    Building GPflow model and optimizing hyperparameters...")
         self.model = gpflow.models.GPR(
             (x_gpf, y_gpf),
             kernel=gpflow.kernels.SquaredExponential(
@@ -98,7 +103,10 @@ class GPR(BaseEmulator):
             )
 
         self.training_complete = True
-        logging.debug("     training complete")
+        ls = self.model.kernel.lengthscales.numpy()
+        noise = float(self.model.likelihood.variance.numpy())
+        logging.info(f"    GPR training complete — noise={noise:.4f}, "
+                     f"lengthscale range=[{ls.min():.3f}, {ls.max():.3f}] [{_time.time()-t0:.1f}s]")
 
         return
 

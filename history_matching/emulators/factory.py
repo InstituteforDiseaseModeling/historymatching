@@ -3,6 +3,7 @@ Emulator factory with strategy pattern for history matching.
 """
 
 from typing import Dict, Type, Optional, Any, List
+import time as _time
 import pandas as pd
 import logging
 
@@ -126,18 +127,23 @@ class EmulatorFactory:
                            f"Available features: {available}")
         
         # Create emulator for each feature
-        for feature in features:
+        for i, feature in enumerate(features, 1):
             try:
                 # Extract single feature as DataFrame
                 y_data = simulation_results[[feature]]
-                
+
                 # Create and train emulator
+                logger.info(f"  Emulator {i}/{len(features)} [{feature}]: creating ({len(samples)} samples, "
+                            f"{len(samples.columns)} params, type={emulator_type or self.default_type})...")
                 emulator = self.create_emulator(samples, y_data, emulator_type, **kwargs)
+                t0 = _time.time()
+                logger.info(f"  Emulator {i}/{len(features)} [{feature}]: training...")
                 emulator.train()
-                
+                elapsed = _time.time() - t0
+
                 emulators[feature] = emulator
-                logger.info(f"Successfully created and trained emulator for feature: {feature}")
-                
+                logger.info(f"  Emulator {i}/{len(features)} [{feature}]: trained [{elapsed:.1f}s]")
+
             except Exception as e:
                 logger.error(f"Failed to create emulator for feature '{feature}': {e}")
                 raise
