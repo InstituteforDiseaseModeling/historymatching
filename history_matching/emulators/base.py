@@ -128,6 +128,17 @@ class BaseEmulator:
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def get_hyperparameters(self) -> dict:
+        """Return emulator hyperparameters as a JSON-serializable dict.
+
+        Subclasses should include all fitted hyperparameters relevant to
+        understanding the emulator (e.g. lengthscales, noise variance,
+        regression coefficients).  Parameter names in the input space should
+        use the original column names where possible.
+        """
+        raise NotImplementedError
+
     
     def test(self):
         """Tests and runs diagnostics on the trained emulator."""

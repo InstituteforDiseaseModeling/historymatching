@@ -95,6 +95,22 @@ class GLM(BaseEmulator):
         )
 
     
+    def get_hyperparameters(self) -> dict:
+        """Return GLM hyperparameters as a JSON-serializable dict."""
+        if not self.training_complete:
+            return {}
+
+        param_names = list(self.X_df.columns) if self.X_df is not None else [f"x{i}" for i in range(self.X_train.shape[1])]
+        coeffs = self.results.params
+        return {
+            'type': 'glm',
+            'family': str(self.results.family),
+            'coefficients': {name: float(c) for name, c in zip(['intercept'] + param_names, coeffs)},
+            'deviance': float(self.results.deviance),
+            'n_train': int(len(self.X_train)),
+            'n_dims': int(self.X_train.shape[1]),
+        }
+
     def print_emulator_description(self):
         """Display detailed specifications (for example, emulator coefficients)
         for the trained emulator.

@@ -93,6 +93,22 @@ class LinearModel(BaseEmulator):
         )
 
     
+    def get_hyperparameters(self) -> dict:
+        """Return linear model hyperparameters as a JSON-serializable dict."""
+        if not self.training_complete:
+            return {}
+
+        param_names = list(self.X_df.columns) if self.X_df is not None else [f"x{i}" for i in range(self.X_train.shape[1])]
+        coeffs = self.results.params
+        return {
+            'type': 'linear',
+            'coefficients': {name: float(c) for name, c in zip(['intercept'] + param_names, coeffs)},
+            'r_squared': float(self.results.rsquared),
+            'r_squared_adj': float(self.results.rsquared_adj),
+            'n_train': int(len(self.X_train)),
+            'n_dims': int(self.X_train.shape[1]),
+        }
+
     def print_emulator_description(self):
         """Display detailed specifications (for example, emulator coefficients)
         for the trained emulator.
@@ -185,6 +201,21 @@ class LinearModelScipy(BaseEmulator):
         )
 
     
+    def get_hyperparameters(self) -> dict:
+        """Return linear model (scipy) hyperparameters as a JSON-serializable dict."""
+        if not self.training_complete:
+            return {}
+
+        param_names = list(self.X_df.columns) if self.X_df is not None else [f"x{i}" for i in range(self.X_train.shape[1])]
+        coeffs = self.regression_model.coef_.flatten()
+        return {
+            'type': 'linear_scipy',
+            'coefficients': {name: float(c) for name, c in zip(param_names, coeffs)},
+            'intercept': float(self.regression_model.intercept_.item()),
+            'n_train': int(len(self.X_train)),
+            'n_dims': int(self.X_train.shape[1]),
+        }
+
     def print_emulator_description(self):
         """Display detailed specifications (for example, emulator coefficients)
         for the trained emulator.

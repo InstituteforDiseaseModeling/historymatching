@@ -160,6 +160,29 @@ class GPR(BaseEmulator):
         )
 
 
+    def get_hyperparameters(self) -> dict:
+        """Return GPR hyperparameters as a JSON-serializable dict."""
+        if not self.training_complete:
+            return {}
+
+        param_names = list(self.X_df.columns) if self.X_df is not None else [f"x{i}" for i in range(self.X_train.shape[1])]
+        ls = self.model.kernel.lengthscales.numpy()
+        noise = float(self.model.likelihood.variance.numpy())
+        mean_const = float(self.model.mean_function.c.numpy())
+
+        return {
+            'type': 'gpr',
+            'noise_variance': noise,
+            'kernel_variance': float(self.model.kernel.variance.numpy()),
+            'lengthscales': {name: float(l) for name, l in zip(param_names, ls)},
+            'mean_function_constant': mean_const,
+            'optimizer_converged': bool(self.opt_logs.success),
+            'n_train': int(len(self.X_train)),
+            'n_dims': int(self.X_train.shape[1]),
+            'y_mean': self._y_mean,
+            'y_std': self._y_std,
+        }
+
     def print_emulator_description(self):
         """Display detailed specifications (for example, emulator coefficients)
         for the trained emulator.

@@ -998,9 +998,13 @@ class HistoryMatchingEngine:
             except Exception as e:
                 logger.warning(f"Failed to save diagnostics for '{feature}': {e}")
 
-            # Save metrics
+            # Save metrics + hyperparameters
             try:
                 metrics = result.get_emulator_quality_metrics().get(feature, {})
+                try:
+                    metrics['hyperparameters'] = emulator.get_hyperparameters()
+                except Exception:
+                    pass
                 with open(feat_dir / "metrics.json", "w") as f:
                     _json.dump(metrics, f, indent=2, default=float)
             except Exception as e:

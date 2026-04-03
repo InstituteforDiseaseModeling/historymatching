@@ -228,22 +228,46 @@ class BayesLinear(BaseEmulator):
             additional_data=additional,
         )
 
+    def get_hyperparameters(self) -> dict:
+        """Return Bayes Linear hyperparameters as a JSON-serializable dict."""
+        if not self.training_complete:
+            return {}
+
+        param_names = list(self.X_df.columns) if self.X_df is not None else [f"x{i}" for i in range(len(self._theta))]
+
+        # Un-standardize beta for display
+        beta_raw = self._beta_hat.copy()
+        beta_raw[0] = beta_raw[0] * self._y_std + self._y_mean
+        beta_raw[1:] = beta_raw[1:] * self._y_std
+
+        return {
+            'type': 'bayes_linear',
+            'nugget': float(self.nugget),
+            'sigma_sq': float(self._sigma2 * self._y_std ** 2),
+            'sigma_sq_standardized': float(self._sigma2),
+            'theta': {name: float(t) for name, t in zip(param_names, self._theta)},
+            'beta': {name: float(b) for name, b in zip(['intercept'] + param_names, beta_raw)},
+            'optimizer_converged': bool(self._opt_result.success),
+            'nll': float(self._opt_result.fun),
+            'n_train': int(len(self.X_train)),
+            'n_dims': int(len(self._theta)),
+        }
+
     def print_emulator_description(self):
         """Display Bayes Linear emulator specifications."""
-        if not self.training_complete:
+        hp = self.get_hyperparameters()
+        if not hp:
             print("      Emulator has not been trained yet.")
             return
 
-        # Un-standardize beta for display
-        beta_display = self._beta_hat.copy()
-        beta_display[0] = beta_display[0] * self._y_std + self._y_mean
-        beta_display[1:] = beta_display[1:] * self._y_std
-
         print("      Bayes Linear Emulator")
-        print(f"      Nugget:        {self.nugget}")
-        print(f"      sigma^2 (std): {self._sigma2:.6f}")
-        print(f"      sigma^2 (raw): {self._sigma2 * self._y_std**2:.6f}")
-        print(f"      theta:         {self._theta}")
-        print(f"      beta (raw):    {beta_display}")
-        print(f"      Optimizer:     {'converged' if self._opt_result.success else 'did NOT converge'}")
-        print(f"      NLL:           {self._opt_result.fun:.4f}")
+        print(f"      Nugget:        {hp['nugget']}")
+        print(f"      sigma^2:       {hp['sigma_sq']:.6f}")
+        print(f"      NLL:           {hp['nll']:.4f}")
+        print(f"      Optimizer:     {'converged' if hp['optimizer_converged'] else 'did NOT converge'}")
+        print(f"      theta (correlation lengths):")
+        for name, val in hp['theta'].items():
+            print(f"        {name}: {val:.4f}")
+        print(f"      beta (regression coefficients):")
+        for name, val in hp['beta'].items():
+            print(f"        {name}: {val:.6f}")
