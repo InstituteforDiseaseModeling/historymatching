@@ -135,6 +135,15 @@ class BayesLinear(BaseEmulator):
         # --- Optimize theta (correlation lengths) ---
         logger.info(f"    Optimizing theta ({d} correlation lengths, {n}x{n} Cholesky per eval)...")
         self._nll_eval_count = 0
+        self._nll_best = np.inf
+        self._opt_t0 = _time.time()
+
+        def _opt_callback(xk):
+            nll = self._concentrated_nll(xk, X_norm, residuals)
+            self._nll_best = min(self._nll_best, nll)
+            elapsed = _time.time() - self._opt_t0
+            logger.info(f"    L-BFGS-B iter {self._nll_eval_count}: NLL={self._nll_best:.4f} [{elapsed:.0f}s]")
+
         log_theta0 = np.zeros(d)  # initial guess: theta=1 in normalised space
         result = minimize(
             self._concentrated_nll,
@@ -143,14 +152,15 @@ class BayesLinear(BaseEmulator):
             method='L-BFGS-B',
             bounds=[(-4, 4)] * d,  # theta in [~0.018, ~55] — wide range
             options={'maxiter': 200},
-            callback=lambda xk: logger.debug(f"    theta optimizer step {self._nll_eval_count}"),
+            callback=_opt_callback,
         )
         self._theta = np.exp(result.x)
         self._opt_result = result
-        logger.info(f"    Theta optimization: {result.nit} iterations, {self._nll_eval_count} NLL evals [{_time.time()-t0:.1f}s]")
+        logger.info(f"    Theta optimization: {result.nit} L-BFGS iters, {self._nll_eval_count} NLL evals, "
+                    f"final NLL={result.fun:.4f} [{_time.time()-t0:.1f}s]")
 
         if not result.success:
-            logging.warning(
+            logger.warning(
                 "Bayes Linear theta optimization did not converge: %s. "
                 "The fitted model may still be usable.", result.message
             )
