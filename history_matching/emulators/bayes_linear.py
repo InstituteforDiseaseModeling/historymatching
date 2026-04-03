@@ -26,9 +26,11 @@ class BayesLinear(BaseEmulator):
     """Bayes Linear emulator with OLS trend and squared-exponential residual correlation."""
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
-                 test_fraction=0.25, nugget=1e-6):
+                 test_fraction=0.25, nugget=1e-6, ftol=1e-6, gtol=1e-4):
         super().__init__(x, y, test_fraction)
         self.nugget = nugget
+        self.ftol = ftol
+        self.gtol = gtol
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -151,7 +153,7 @@ class BayesLinear(BaseEmulator):
             args=(X_norm, residuals),
             method='L-BFGS-B',
             bounds=[(-4, 4)] * d,  # theta in [~0.018, ~55] — wide range
-            options={'maxiter': 200},
+            options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
             callback=_opt_callback,
         )
         self._theta = np.exp(result.x)
