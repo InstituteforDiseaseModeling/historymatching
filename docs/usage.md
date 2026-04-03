@@ -257,22 +257,4 @@ nroy = engine.get_nroy_samples()
 nroy = engine.get_nroy_samples(10000)
 ```
 
-## Parallel rejection sampling
 
-When the NROY fraction is small (high-dimensional problems), rejection sampling
-can be slow. Parallelize across CPU cores:
-
-```python
-# Set default parallelism via builder
-engine = builder.with_n_jobs(4).build()
-
-# Or override per-call
-nroy = engine.get_nroy_samples(10000, n_jobs=8)
-
-# -1 = all available cores
-engine = builder.with_n_jobs(-1).build()
-```
-
-Workers load emulators from disk (saved by auto-checkpointing) and filter
-LHS candidates independently. No GPU required — prediction is CPU-bound
-matrix multiplication.

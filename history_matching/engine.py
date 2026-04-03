@@ -30,82 +30,6 @@ from .sampling import SamplingStrategy
 logger = logging.getLogger(__name__)
 
 
-# ── Parallel NROY worker functions (module-level for multiprocessing) ─────
-
-_worker_emulator_bank = None
-_worker_param_space = None
-_worker_observations = None
-_worker_threshold = None
-
-
-def _nroy_worker_init(run_dir: str, param_bounds: dict, obs_targets: dict, threshold: float):
-    """Initializer for each worker process — loads emulators from disk once."""
-    global _worker_emulator_bank, _worker_param_space, _worker_observations, _worker_threshold
-    import numpy as np
-
-    _worker_param_space = ParameterSpace(param_bounds)
-    _worker_observations = ObservationData(obs_targets)
-    _worker_threshold = threshold
-
-    # Load emulators from all wave subdirectories
-    _worker_emulator_bank = EmulatorBank()
-    run_path = Path(run_dir)
-    for wave_dir in sorted(run_path.glob("wave*")):
-        wave_num = int(wave_dir.name.replace("wave", ""))
-        for feat_dir in wave_dir.iterdir():
-            if not feat_dir.is_dir():
-                continue
-            pkl = feat_dir / "emulator.pkl"
-            if pkl.exists():
-                with open(pkl, "rb") as f:
-                    emulator = pickle.load(f)
-                _worker_emulator_bank.add_emulator(wave_num, feat_dir.name, emulator)
-
-
-def _nroy_worker_batch(n_candidates: int, seed: int) -> pd.DataFrame:
-    """Worker function: generate LHS candidates and filter through emulators."""
-    from .sampling import SamplingStrategyFactory
-
-    sampler = SamplingStrategyFactory.create('lhs')
-    param_cols = _worker_param_space.get_parameter_names()
-    plausible_parts = []
-    batch_seed = seed
-    generated = 0
-
-    while generated < n_candidates:
-        batch_size = min(10000, n_candidates - generated)
-        candidates = sampler.generate_samples(_worker_param_space, batch_size, seed=batch_seed)
-        batch_seed += 1
-        generated += len(candidates)
-
-        # Filter through all emulators
-        sample_implausibilities = []
-        for iteration in _worker_emulator_bank.get_all_iterations():
-            emulators = _worker_emulator_bank.get_emulators_for_iteration(iteration)
-            for feature_name, emulator in emulators.items():
-                if not _worker_observations.has_feature(feature_name):
-                    continue
-                predictions = emulator.predict(candidates[param_cols])
-                impl = _worker_observations.calculate_implausibility(
-                    feature_name, predictions.get_mean(), predictions.get_variance()
-                )
-                sample_implausibilities.append(impl)
-
-        if not sample_implausibilities:
-            plausible_parts.append(candidates)
-            continue
-
-        combined = pd.concat(sample_implausibilities, axis=1).max(axis=1)
-        passed = candidates[combined <= _worker_threshold]
-
-        if len(passed) > 0:
-            plausible_parts.append(passed)
-
-    if not plausible_parts:
-        return pd.DataFrame()
-    return pd.concat(plausible_parts, ignore_index=True)
-
-
 class EngineState(Enum):
     """Possible states of the HistoryMatchingEngine."""
 
@@ -187,7 +111,6 @@ class HistoryMatchingEngine:
         max_batch_size: int = 10000,
         output_dir: Optional[str] = "./hm_output",
         run_name: Optional[str] = None,
-        n_jobs: int = 1,
         **kwargs,
     ):
         """
@@ -243,7 +166,6 @@ class HistoryMatchingEngine:
         self._simulation_function: Optional[Callable] = None
 
         # Output directory for checkpoints, emulators, and diagnostics
-        self._n_jobs = n_jobs
         self._run_dir: Optional[Path] = None
         if output_dir is not None:
             import datetime
@@ -825,7 +747,7 @@ class HistoryMatchingEngine:
         """Get all committed iteration results."""
         return [snapshot.result for snapshot in self._snapshots if snapshot.result is not None]
 
-    def get_nroy_samples(self, n: Optional[int] = None, n_jobs: Optional[int] = None) -> pd.DataFrame:
+    def get_nroy_samples(self, n: Optional[int] = None) -> pd.DataFrame:
         """
         Get NROY parameter samples — filtered through ALL committed emulators.
 
@@ -837,9 +759,6 @@ class HistoryMatchingEngine:
         Args:
             n: Number of NROY samples to return.  If None, returns the
                pre-computed set from the last committed wave.
-            n_jobs: Number of worker processes for parallel rejection sampling.
-                    None uses the engine default (set via builder).
-                    1 = serial.  -1 = all cores.
 
         Returns:
             DataFrame of NROY samples, or empty DataFrame if no iterations committed.
@@ -848,7 +767,6 @@ class HistoryMatchingEngine:
             results = engine.run()
             nroy = engine.get_nroy_samples()             # default size
             nroy = engine.get_nroy_samples(10000)         # larger draw
-            nroy = engine.get_nroy_samples(10000, n_jobs=4)  # parallel
         """
         if not self._snapshots:
             return pd.DataFrame()
@@ -856,16 +774,6 @@ class HistoryMatchingEngine:
         cached = self._snapshots[-1].next_samples
         if n is None or n <= len(cached):
             return cached.head(n) if n is not None else cached
-
-        if n_jobs is None:
-            n_jobs = self._n_jobs
-
-        if n_jobs == -1:
-            import os
-            n_jobs = os.cpu_count() or 1
-
-        if n_jobs > 1 and self._run_dir is not None:
-            return self._get_nroy_samples_parallel(n, n_jobs)
 
         return self._get_nroy_samples_serial(n)
 
@@ -903,62 +811,6 @@ class HistoryMatchingEngine:
                 batch_size = min(int(self._oversample_factor * remaining / rate), self._max_batch_size)
 
         return plausible.head(n)
-
-    def _get_nroy_samples_parallel(self, n: int, n_jobs: int) -> pd.DataFrame:
-        """Parallel rejection sampling using worker processes.
-
-        Each worker loads emulators from disk (no pickling of GPflow objects),
-        generates LHS batches, and filters through the full emulator bank.
-        Uses batch-then-check: each worker gets a fixed candidate budget,
-        results are collected and topped up if needed.
-        """
-        import multiprocessing as mp
-
-        # Estimate candidates per worker from last acceptance rate
-        last_nroy_frac = getattr(self, '_last_nroy_fraction', 0.1)
-        candidates_per_worker = int(n / max(last_nroy_frac, 0.001) / n_jobs * 1.5)
-        candidates_per_worker = max(candidates_per_worker, 1000)
-
-        param_bounds = {
-            p: self._parameter_space.get_bounds(p)
-            for p in self._parameter_space.get_parameter_names()
-        }
-        obs_targets = self._observations.get_all_targets()
-        threshold = self._implausibility_threshold
-
-        import sys
-        start_method = 'fork' if sys.platform != 'win32' else 'spawn'
-        ctx = mp.get_context(start_method)
-        all_plausible = []
-
-        with ctx.Pool(
-            processes=n_jobs,
-            initializer=_nroy_worker_init,
-            initargs=(str(self._run_dir), param_bounds, obs_targets, threshold),
-        ) as pool:
-            args = [
-                (candidates_per_worker, (self._random_seed or 0) + job_id * 10000)
-                for job_id in range(n_jobs)
-            ]
-            results = pool.starmap(_nroy_worker_batch, args)
-
-            for r in results:
-                if r is not None and len(r) > 0:
-                    all_plausible.append(r)
-
-        if not all_plausible:
-            logger.warning("Parallel NROY sampling returned no samples")
-            return pd.DataFrame()
-
-        combined = pd.concat(all_plausible, ignore_index=True)
-
-        # If we didn't get enough, top up serially
-        if len(combined) < n:
-            logger.info(f"Parallel got {len(combined)}/{n}, topping up serially")
-            extra = self._get_nroy_samples_serial(n - len(combined))
-            combined = pd.concat([combined, extra], ignore_index=True)
-
-        return combined.head(n)
 
     def get_pending_next_samples(self) -> Optional[pd.DataFrame]:
         """
@@ -1582,10 +1434,6 @@ class HistoryMatchingEngine:
         """
         Compute plausible parameter samples for the next iteration.
 
-        Uses parallel rejection sampling if n_jobs > 1 and an output directory
-        is configured (workers need emulators on disk).  Falls back to serial
-        otherwise.
-
         Args:
             current_emulators: Emulators created in the current iteration
 
@@ -1598,13 +1446,7 @@ class HistoryMatchingEngine:
         for feature, emulator in current_emulators.items():
             temp_bank.add_emulator(current_iteration, feature, emulator)
 
-        # Try parallel path
-        if self._n_jobs > 1 and self._run_dir is not None:
-            result = self._compute_next_samples_parallel(temp_bank, current_iteration)
-        else:
-            result = self._compute_next_samples_serial(temp_bank)
-
-        return result
+        return self._compute_next_samples_serial(temp_bank)
 
     def _compute_next_samples_serial(self, temp_bank: EmulatorBank) -> pd.DataFrame:
         """Serial rejection sampling for next-wave candidates."""
@@ -1656,89 +1498,6 @@ class HistoryMatchingEngine:
                 batch_size = min(batch_size * 2, self._max_batch_size)
 
         self._update_nroy_stats(len(plausible_samples), total_candidates_generated)
-        return plausible_samples.head(self._n_samples)
-
-    def _compute_next_samples_parallel(self, temp_bank: EmulatorBank, current_iteration: int) -> pd.DataFrame:
-        """Parallel rejection sampling for next-wave candidates.
-
-        Saves the temp emulator bank to a staging directory so workers can
-        load it, then dispatches n_jobs workers.
-        """
-        import multiprocessing as mp
-        import tempfile
-        import shutil
-
-        n_jobs = self._n_jobs if self._n_jobs != -1 else (mp.cpu_count() or 1)
-
-        # Save temp bank to a staging dir (includes this wave's new emulators)
-        staging_dir = Path(tempfile.mkdtemp(prefix="hm_staging_"))
-        try:
-            # Save each emulator as wave#/feature/emulator.pkl
-            for iteration in temp_bank.get_all_iterations():
-                emulators = temp_bank.get_emulators_for_iteration(iteration)
-                for feature, emulator in emulators.items():
-                    feat_dir = staging_dir / f"wave{iteration}" / feature
-                    feat_dir.mkdir(parents=True, exist_ok=True)
-                    with open(feat_dir / "emulator.pkl", "wb") as f:
-                        pickle.dump(emulator, f)
-
-            # Estimate candidates per worker
-            last_frac = getattr(self, '_last_nroy_fraction', 0.1)
-            total_candidates_needed = int(self._n_samples / max(last_frac, 0.001) * 1.5)
-            candidates_per_worker = max(total_candidates_needed // n_jobs, 1000)
-
-            param_bounds = {
-                p: self._parameter_space.get_bounds(p)
-                for p in self._parameter_space.get_parameter_names()
-            }
-            obs_targets = self._observations.get_all_targets()
-
-            logger.info(
-                f"  Parallel next-wave sampling: {n_jobs} workers × "
-                f"~{candidates_per_worker:,} candidates each"
-            )
-
-            # Use 'fork' on Linux/macOS for fast worker startup (avoids
-            # re-importing the entire module tree).  Fall back to 'spawn'
-            # only on Windows where fork is unavailable.
-            import sys
-            start_method = 'fork' if sys.platform != 'win32' else 'spawn'
-            ctx = mp.get_context(start_method)
-            with ctx.Pool(
-                processes=n_jobs,
-                initializer=_nroy_worker_init,
-                initargs=(str(staging_dir), param_bounds, obs_targets, self._implausibility_threshold),
-            ) as pool:
-                args = [
-                    (candidates_per_worker, (self._random_seed or 0) + job_id * 10000)
-                    for job_id in range(n_jobs)
-                ]
-                worker_results = pool.starmap(_nroy_worker_batch, args)
-
-            all_plausible = [r for r in worker_results if r is not None and len(r) > 0]
-
-        finally:
-            shutil.rmtree(staging_dir, ignore_errors=True)
-
-        if all_plausible:
-            plausible_samples = pd.concat(all_plausible, ignore_index=True)
-        else:
-            plausible_samples = pd.DataFrame()
-
-        total_generated = candidates_per_worker * n_jobs
-        self._update_nroy_stats(len(plausible_samples), total_generated)
-
-        if len(plausible_samples) < self._n_samples:
-            logger.info(
-                f"  Parallel got {len(plausible_samples)}/{self._n_samples}, "
-                f"topping up serially"
-            )
-            extra = self._compute_next_samples_serial(
-                # Rebuild temp bank (staging dir is gone)
-                self._emulator_bank  # serial uses existing bank — close enough for top-up
-            )
-            plausible_samples = pd.concat([plausible_samples, extra], ignore_index=True)
-
         return plausible_samples.head(self._n_samples)
 
     def _update_nroy_stats(self, n_plausible: int, n_generated: int) -> None:

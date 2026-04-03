@@ -103,18 +103,6 @@ if __name__ == '__main__':
     assert len(nroy200) >= 100
     print("PASS\n")
 
-    # ── Test 4: Parallel NROY ────────────────────────────────────────
-    print("=" * 60)
-    print("TEST 4: get_nroy_samples (parallel, n_jobs=2)")
-    print("=" * 60)
-
-    nroy_par = engine2.get_nroy_samples(n=200, n_jobs=2)
-    print(f"Parallel: {len(nroy_par)} samples")
-    assert len(nroy_par) >= 100
-    assert nroy_par['beta'].min() >= 0.3
-    assert nroy_par['beta'].max() <= 2.0
-    print("PASS\n")
-
     # ── Cleanup ──────────────────────────────────────────────────────
     shutil.rmtree(output_dir)
     print("=" * 60)
