@@ -375,6 +375,24 @@ class HistoryMatchingBuilder:
         self._settings['oversample_factor'] = factor
         return self
     
+    def with_max_batch_size(self, batch_size: int) -> 'HistoryMatchingBuilder':
+        """
+        Set maximum batch size for NROY rejection sampling.
+
+        Larger batches reduce the number of sampling rounds but use more memory.
+        Default: 10,000.
+
+        Args:
+            batch_size: Max candidates per sampling batch
+
+        Returns:
+            Self for method chaining
+        """
+        if batch_size < 100:
+            raise ValueError("Max batch size must be >= 100")
+        self._settings['max_batch_size'] = batch_size
+        return self
+
     def with_emulator_bank(self, bank: EmulatorBank) -> 'HistoryMatchingBuilder':
         """
         Use existing emulator bank (for resuming workflows).
