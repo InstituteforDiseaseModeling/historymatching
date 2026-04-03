@@ -10,6 +10,7 @@ from .base import BaseEmulator
 from .linear import LinearModel
 from .glm import GLM
 from .gpr import GPR
+from .bayes_linear import BayesLinear
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class EmulatorFactory:
         'glm': GLM,
         'gpr': GPR,
         'gaussian': GPR,  # alias for backward compatibility
+        'bayes_linear': BayesLinear,
     }
     
     def __init__(self, default_type: str = 'gpr', **default_kwargs):
@@ -311,14 +313,30 @@ def create_gpr_emulator(X: pd.DataFrame, y: pd.DataFrame, **kwargs) -> BaseEmula
 def create_glm_emulator(X: pd.DataFrame, y: pd.DataFrame, **kwargs) -> BaseEmulator:
     """
     Create a GLM emulator.
-    
+
     Args:
         X: Input data
         y: Output data
         **kwargs: Additional parameters
-        
+
     Returns:
         GLM emulator instance
     """
     factory = EmulatorFactory('glm')
+    return factory.create_emulator(X, y, **kwargs)
+
+
+def create_bayes_linear_emulator(X: pd.DataFrame, y: pd.DataFrame, **kwargs) -> BaseEmulator:
+    """
+    Create a Bayes Linear emulator.
+
+    Args:
+        X: Input data
+        y: Output data
+        **kwargs: Additional parameters (e.g. nugget)
+
+    Returns:
+        BayesLinear emulator instance
+    """
+    factory = EmulatorFactory('bayes_linear')
     return factory.create_emulator(X, y, **kwargs)

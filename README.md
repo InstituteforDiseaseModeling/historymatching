@@ -48,7 +48,7 @@ builder = hm.HistoryMatchingBuilder.from_data(
 )
 engine = builder \
     .with_sampling_strategy('lhs') \
-    .with_emulator_type('gpr') \
+    .with_emulator_type('bayes_linear') \  # or 'gpr', 'linear', 'glm'
     .with_samples_per_iteration(500) \
     .with_max_iterations(5) \
     .with_output_dir('./hm_output') \

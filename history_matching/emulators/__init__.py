@@ -5,4 +5,5 @@ from .base import BaseEmulator  # noqa: F401 isort: skip
 from .linear import LinearModel  # noqa: F401 isort: skip
 from .glm import GLM  # noqa: F401 isort: skip
 from .gpr import GPR  # noqa: F401 isort: skip
+from .bayes_linear import BayesLinear  # noqa: F401 isort: skip
 from .factory import EmulatorFactory  # noqa: F401 isort: skip

@@ -1,5 +1,13 @@
 # What's new
 
+## v1.2.0 (2025)
+
+### New features
+
+- **Bayes Linear emulator**: New `BayesLinear` emulator type (`'bayes_linear'`) inspired by the hmer R package. Uses an OLS regression trend plus squared-exponential correlated residuals with ARD correlation lengths. Pure numpy/scipy — no TensorFlow dependency. Good uncertainty quantification comparable to GPR, with faster training for moderate datasets.
+
+---
+
 ## v1.1.0 (2025)
 
 ### New features

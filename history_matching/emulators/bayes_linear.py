@@ -1,0 +1,224 @@
+"""
+Bayes Linear emulator inspired by the hmer R package.
+
+Uses a regression trend (OLS) plus a correlated residual process with
+squared-exponential kernel.  Hyperparameters (correlation lengths) are
+estimated by maximizing a concentrated log-likelihood on the residuals.
+
+Pure numpy/scipy -- no TensorFlow or GPflow dependency.
+"""
+
+import logging
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+from scipy.optimize import minimize
+from scipy.linalg import cho_factor, cho_solve
+
+from .base import BaseEmulator
+from .results import EmulationResults
+
+
+class BayesLinear(BaseEmulator):
+    """Bayes Linear emulator with OLS trend and squared-exponential residual correlation."""
+
+    def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
+                 test_fraction=0.25, nugget=1e-6):
+        super().__init__(x, y, test_fraction)
+        self.nugget = nugget
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _normalize_x(self, x):
+        """Normalize inputs to [0, 1] using training-set min/range."""
+        return (np.asarray(x, dtype=np.float64) - self._x_min) / self._x_range
+
+    @staticmethod
+    def _design_matrix(X):
+        """Build regression design matrix [1, x_1, ..., x_d]."""
+        n = X.shape[0]
+        return np.column_stack([np.ones(n), X])
+
+    @staticmethod
+    def _sq_exp_corr(X1, X2, theta):
+        """Squared-exponential correlation matrix between two point sets.
+
+        Parameters
+        ----------
+        X1 : (n, d)  X2 : (m, d)  theta : (d,) correlation lengths
+        Returns
+        -------
+        R : (n, m) correlation matrix
+        """
+        # Scaled squared distances: sum_i (x1_i - x2_i)^2 / theta_i^2
+        diff = X1[:, np.newaxis, :] - X2[np.newaxis, :, :]  # (n, m, d)
+        sq_dist = np.sum((diff / theta) ** 2, axis=2)        # (n, m)
+        return np.exp(-sq_dist)
+
+    def _concentrated_nll(self, log_theta, X_norm, residuals):
+        """Concentrated negative log-likelihood for theta optimisation.
+
+        With sigma^2 profiled out analytically, the NLL reduces to:
+            NLL(theta) = 0.5 * (n * log(sigma^2_hat) + log|R + nug*I|)
+        where sigma^2_hat = r^T (R + nug*I)^{-1} r / n.
+        """
+        theta = np.exp(log_theta)
+        n = len(residuals)
+        R = self._sq_exp_corr(X_norm, X_norm, theta)
+        R_nug = R + self.nugget * np.eye(n)
+
+        try:
+            L, lower = cho_factor(R_nug)
+        except np.linalg.LinAlgError:
+            return 1e10  # singular — reject this theta
+
+        alpha = cho_solve((L, lower), residuals)
+        sigma2_hat = float(residuals @ alpha) / n
+        if sigma2_hat <= 0:
+            return 1e10
+
+        # log|R_nug| = 2 * sum(log(diag(L)))
+        log_det = 2.0 * np.sum(np.log(np.diag(L)))
+        nll = 0.5 * (n * np.log(sigma2_hat) + log_det)
+        return nll
+
+    # ------------------------------------------------------------------
+    # BaseEmulator interface
+    # ------------------------------------------------------------------
+
+    def train(self):
+        """Train the Bayes Linear emulator.
+
+        Steps:
+        1. Normalize inputs to [0, 1], standardize outputs.
+        2. OLS regression for the trend.
+        3. Optimize correlation lengths theta via concentrated log-likelihood.
+        4. Pre-compute Cholesky factor and weight vector for fast prediction.
+        """
+        logging.debug("... training Bayes Linear emulator")
+
+        x_raw = np.asarray(self.X_train, dtype=np.float64)
+        y_raw = np.asarray(self.y_train, dtype=np.float64).ravel()
+
+        # --- Input normalization (min-max to unit box) ---
+        self._x_min = x_raw.min(axis=0)
+        self._x_range = x_raw.max(axis=0) - self._x_min
+        self._x_range = np.maximum(self._x_range, 1e-12)
+
+        # --- Output standardization (zero mean, unit variance) ---
+        self._y_mean = float(np.mean(y_raw))
+        self._y_std = float(np.std(y_raw))
+        if self._y_std < 1e-12:
+            self._y_std = 1.0
+
+        X_norm = self._normalize_x(x_raw)
+        y_std = (y_raw - self._y_mean) / self._y_std
+        n, d = X_norm.shape
+
+        # --- OLS trend ---
+        G = self._design_matrix(X_norm)  # (n, d+1)
+        GtG = G.T @ G
+        self._beta_hat = np.linalg.solve(GtG, G.T @ y_std)
+        residuals = y_std - G @ self._beta_hat
+
+        # --- Optimize theta (correlation lengths) ---
+        log_theta0 = np.zeros(d)  # initial guess: theta=1 in normalised space
+        result = minimize(
+            self._concentrated_nll,
+            log_theta0,
+            args=(X_norm, residuals),
+            method='L-BFGS-B',
+            bounds=[(-4, 4)] * d,  # theta in [~0.018, ~55] — wide range
+        )
+        self._theta = np.exp(result.x)
+        self._opt_result = result
+
+        if not result.success:
+            logging.warning(
+                "Bayes Linear theta optimization did not converge: %s. "
+                "The fitted model may still be usable.", result.message
+            )
+
+        # --- Build correlation matrix and pre-compute Cholesky ---
+        R = self._sq_exp_corr(X_norm, X_norm, self._theta)
+        R_nug = R + self.nugget * np.eye(n)
+        self._L, self._lower = cho_factor(R_nug)
+        self._alpha = cho_solve((self._L, self._lower), residuals)
+
+        # Estimate residual variance (sigma^2)
+        self._sigma2 = float(residuals @ self._alpha) / n
+
+        # Store normalised training inputs and residuals for prediction
+        self._X_train_norm = X_norm
+        self._residuals = residuals
+
+        self.training_complete = True
+        logging.debug("     Bayes Linear training complete")
+
+    def predict(self, x: pd.DataFrame) -> EmulationResults:
+        """Predict using the trained Bayes Linear emulator."""
+        logging.debug("... predicting with Bayes Linear emulator")
+
+        X_new = self._normalize_x(x)
+        n_new = X_new.shape[0]
+        G_new = self._design_matrix(X_new)
+
+        # --- Adjusted expectation ---
+        # E_D[f(x*)] = g(x*)^T beta + c(x*, X) @ alpha
+        c_new = self._sq_exp_corr(X_new, self._X_train_norm, self._theta)  # (n_new, n_train)
+        mean_z = G_new @ self._beta_hat + c_new @ self._alpha
+
+        # --- Adjusted variance ---
+        # Var_D[f(x*)] = sigma^2 * (1 - c(x*, X) @ C^{-1} @ c(X, x*))
+        v = cho_solve((self._L, self._lower), c_new.T)  # (n_train, n_new)
+        var_reduction = np.sum(c_new.T * v, axis=0)      # diagonal of c @ C^{-1} @ c^T
+        pred_var_z = np.maximum(self._sigma2 * (1.0 - var_reduction), 0.0)
+
+        # Observation variance adds sigma^2 * nugget (noise term)
+        obs_var_z = pred_var_z + self._sigma2 * self.nugget
+
+        # --- Un-standardize ---
+        ys, ym = self._y_std, self._y_mean
+        mean = mean_z * ys + ym
+        pred_var = pred_var_z * ys ** 2
+        obs_var = obs_var_z * ys ** 2
+
+        pred_std = np.sqrt(pred_var)
+        obs_std = np.sqrt(obs_var)
+
+        z = 1.96  # 95% CI
+        additional = pd.DataFrame({
+            'ci_obs_low': mean - z * obs_std,
+            'ci_obs_high': mean + z * obs_std,
+            'ci_pred_low': mean - z * pred_std,
+            'ci_pred_high': mean + z * pred_std,
+        }, index=x.index)
+
+        return EmulationResults(
+            mean=mean,
+            std=obs_std,
+            additional_data=additional,
+        )
+
+    def print_emulator_description(self):
+        """Display Bayes Linear emulator specifications."""
+        if not self.training_complete:
+            print("      Emulator has not been trained yet.")
+            return
+
+        # Un-standardize beta for display
+        beta_display = self._beta_hat.copy()
+        beta_display[0] = beta_display[0] * self._y_std + self._y_mean
+        beta_display[1:] = beta_display[1:] * self._y_std
+
+        print("      Bayes Linear Emulator")
+        print(f"      Nugget:        {self.nugget}")
+        print(f"      sigma^2 (std): {self._sigma2:.6f}")
+        print(f"      sigma^2 (raw): {self._sigma2 * self._y_std**2:.6f}")
+        print(f"      theta:         {self._theta}")
+        print(f"      beta (raw):    {beta_display}")
+        print(f"      Optimizer:     {'converged' if self._opt_result.success else 'did NOT converge'}")
+        print(f"      NLL:           {self._opt_result.fun:.4f}")

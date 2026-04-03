@@ -988,6 +988,7 @@ class HistoryMatchingEngine:
         try:
             all_results = self.get_all_results()
             if len(all_results) > 0:
+                import numpy as np
                 import matplotlib
                 matplotlib.use('Agg')
                 import matplotlib.pyplot as plt
