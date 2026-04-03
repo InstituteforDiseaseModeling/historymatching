@@ -1415,65 +1415,101 @@ class HistoryMatchingEngine:
         # Return exactly the requested number of samples
         return plausible_samples.head(self._n_samples)
 
+    def _build_fast_predictors(self, emulator_bank=None):
+        """Build FastGPRPredictor objects for all GPR emulators in the bank.
+
+        Returns a list of (FastGPRPredictor, obs_mean, obs_std, feature_name)
+        tuples suitable for filter_nroy().  Non-GPR emulators are skipped
+        (they fall back to the slow path).
+        """
+        from .emulators.fast_predict import FastGPRPredictor
+
+        bank = emulator_bank or self._emulator_bank
+        predictors = []
+
+        for iteration in bank.get_all_iterations():
+            emulators = bank.get_emulators_for_iteration(iteration)
+            for feature_name, emulator in emulators.items():
+                if not self._observations.has_feature(feature_name):
+                    continue
+                # Only works for GPR emulators with our normalization attributes
+                if not hasattr(emulator, '_x_min') or not hasattr(emulator, 'model'):
+                    continue
+                try:
+                    fast = FastGPRPredictor.from_emulator(emulator)
+                    obs_mean, obs_std = self._observations.get_target_for_feature(feature_name)
+                    predictors.append((fast, obs_mean, obs_std, feature_name))
+                except Exception as e:
+                    logger.warning(f"Could not build fast predictor for '{feature_name}': {e}")
+
+        return predictors
+
     def _filter_samples_by_implausibility(self, candidates: pd.DataFrame) -> pd.DataFrame:
-        """Filter candidate samples based on implausibility from existing emulators."""
+        """Filter candidate samples based on implausibility from existing emulators.
+
+        Uses numba-accelerated short-circuit filtering when GPR emulators are
+        available: points that fail one emulator are immediately dropped and
+        never tested against the rest.  Falls back to the GPflow path for
+        non-GPR emulators.
+        """
         if not self._emulator_bank.has_emulators():
             return candidates
 
-        # Calculate implausibility for each candidate sample
+        return self._filter_fast(candidates, self._emulator_bank)
+
+    def _filter_fast(self, candidates: pd.DataFrame, emulator_bank) -> pd.DataFrame:
+        """Fast NROY filter using numba predictors with short-circuit evaluation.
+
+        Falls back to the standard GPflow path for non-GPR emulators.
+        """
+        from .emulators.fast_predict import filter_nroy
+
+        fast_predictors = self._build_fast_predictors(emulator_bank)
+
+        if not fast_predictors:
+            # No GPR emulators — fall back to standard (slow) path
+            return self._filter_samples_slow(candidates, emulator_bank)
+
+        # Fast path: numba short-circuit filter
+        param_cols = self._parameter_space.get_parameter_names()
+        X = candidates[param_cols].values.astype(np.float64)
+
+        mask = filter_nroy(X, fast_predictors, threshold=self._implausibility_threshold)
+
+        plausible = candidates[mask]
+        logger.debug(
+            f"Fast filter: {len(candidates)} → {len(plausible)} "
+            f"({len(plausible)/len(candidates):.2%}) through {len(fast_predictors)} emulators"
+        )
+        return plausible
+
+    def _filter_samples_slow(self, candidates: pd.DataFrame, emulator_bank) -> pd.DataFrame:
+        """Standard GPflow-based implausibility filter (fallback for non-GPR emulators)."""
         sample_implausibilities = []
+        param_cols = self._parameter_space.get_parameter_names()
+        candidates_clean = candidates[param_cols]
 
-        # Get all emulators from the bank
-        for iteration in reversed(self._emulator_bank.get_all_iterations()):
-            emulators = self._emulator_bank.get_emulators_for_iteration(iteration)
-
+        for iteration in reversed(emulator_bank.get_all_iterations()):
+            emulators = emulator_bank.get_emulators_for_iteration(iteration)
             for feature_name, emulator in emulators.items():
                 try:
-                    # Check if feature exists in observations
                     if not self._observations.has_feature(feature_name):
-                        logger.warning(
-                            f"Skipping feature '{feature_name}' from iteration {iteration}: "
-                            f"not found in observation data. Available features: {self._observations.get_feature_names()}"
-                        )
                         continue
-
-                    # Get predictions from emulator
-                    predictions = emulator.predict(candidates)
-
-                    # Calculate implausibility for this feature (vectorized)
+                    predictions = emulator.predict(candidates_clean)
                     feature_implausibility = self._observations.calculate_implausibility(
                         feature_name, predictions.get_mean(), predictions.get_variance()
                     )
-
                     sample_implausibilities.append(feature_implausibility)
-
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to calculate implausibility for feature '{feature_name}' from iteration {iteration}: {e}. "
-                        f"This may indicate an issue with the emulator or observation data. Skipping this feature."
-                    )
+                    logger.warning(f"Implausibility calc failed for '{feature_name}': {e}")
                     continue
 
         if not sample_implausibilities:
-            logger.warning(
-                "No valid implausibility calculations could be performed. This may be due to:\n"
-                "  - Emulators failing to make predictions\n"
-                "  - Mismatch between emulated features and observation data\n"
-                "  - Invalid emulator states\n"
-                "Returning all candidate samples without filtering."
-            )
             return candidates
 
-        # Combine implausibilities (use maximum across features)
-        combined_implausibility = pd.concat(sample_implausibilities, axis=1).max(axis=1)
-
-        # Filter to plausible samples
-        plausible_mask = combined_implausibility <= self._implausibility_threshold
-        plausible_samples = candidates[plausible_mask]
-
-        logger.debug(f"Filtered {len(candidates)} candidates to {len(plausible_samples)} plausible samples")
-
-        return plausible_samples
+        combined = pd.concat(sample_implausibilities, axis=1).max(axis=1)
+        combined.index = candidates.index
+        return candidates[combined <= self._implausibility_threshold]
 
     def _run_simulation(self, samples: pd.DataFrame) -> pd.DataFrame:
         """Run simulation with parameter samples."""
@@ -1721,60 +1757,7 @@ class HistoryMatchingEngine:
         if not emulator_bank.has_emulators():
             return candidates
 
-        # Calculate implausibility for each candidate sample
-        sample_implausibilities = []
-
-        # Get all emulators from the bank
-        for iteration in reversed(emulator_bank.get_all_iterations()):
-            emulators = emulator_bank.get_emulators_for_iteration(iteration)
-
-            for feature_name, emulator in emulators.items():
-                try:
-                    # Check if feature exists in observations
-                    if not self._observations.has_feature(feature_name):
-                        logger.warning(
-                            f"Skipping feature '{feature_name}' from iteration {iteration}: "
-                            f"not found in observation data. Available features: {self._observations.get_feature_names()}"
-                        )
-                        continue
-
-                    # Get predictions from emulator
-                    predictions = emulator.predict(candidates)
-
-                    # Calculate implausibility for this feature (vectorized)
-                    feature_implausibility = self._observations.calculate_implausibility(
-                        feature_name, predictions.get_mean(), predictions.get_variance()
-                    )
-
-                    sample_implausibilities.append(feature_implausibility)
-
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to calculate implausibility for feature '{feature_name}' from iteration {iteration}: {e}. "
-                        f"This may indicate an issue with the emulator or observation data. Skipping this feature."
-                    )
-                    continue
-
-        if not sample_implausibilities:
-            logger.warning(
-                "No valid implausibility calculations could be performed for next iteration samples. "
-                "Returning all candidate samples without filtering."
-            )
-            return candidates
-
-        # Combine implausibilities (use maximum across features)
-        combined_implausibility = pd.concat(sample_implausibilities, axis=1).max(axis=1)
-
-        # Ensure indices align for boolean indexing
-        combined_implausibility.index = candidates.index
-
-        # Filter to plausible samples
-        plausible_mask = combined_implausibility <= self._implausibility_threshold
-        plausible_samples = candidates[plausible_mask]
-
-        logger.debug(f"Filtered {len(candidates)} candidates to {len(plausible_samples)} plausible samples for next iteration")
-
-        return plausible_samples
+        return self._filter_fast(candidates, emulator_bank)
 
     def _create_snapshot(self) -> IterationSnapshot:
         """Create snapshot of current state."""
