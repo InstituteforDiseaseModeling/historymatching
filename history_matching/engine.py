@@ -851,7 +851,7 @@ class HistoryMatchingEngine:
             method=method,
             seed=self._random_seed,
             **nroy_opts,
-        )
+        ).samples
 
     def _get_nroy_samples_serial(self, n: int) -> pd.DataFrame:
         """Serial rejection sampling for NROY candidates."""
@@ -1560,7 +1560,7 @@ class HistoryMatchingEngine:
         nroy_method = self._settings.get('nroy_method', 'ray_resample')
         nroy_opts = self._settings.get('nroy_options', {})
 
-        result = generate_nroy_design(
+        nroy_result = generate_nroy_design(
             n_points=self._n_samples,
             parameter_space=self._parameter_space,
             emulator_bank=temp_bank,
@@ -1573,11 +1573,8 @@ class HistoryMatchingEngine:
             **nroy_opts,
         )
 
-        # NROY fraction from stage 1 LHS acceptance (attached by generate_nroy_design)
-        lhs_accepted = getattr(result, '_lhs_accepted', len(result))
-        lhs_tested = getattr(result, '_lhs_tested', len(result))
-        self._update_nroy_stats(lhs_accepted, lhs_tested)
-        return result
+        self._update_nroy_stats(nroy_result.lhs_accepted, nroy_result.lhs_tested)
+        return nroy_result.samples
 
     def _compute_next_samples_serial(self, temp_bank: EmulatorBank) -> pd.DataFrame:
         """Serial rejection sampling for next-wave candidates (legacy, unused)."""

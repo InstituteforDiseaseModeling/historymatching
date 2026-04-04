@@ -276,7 +276,7 @@ class TestEmulatorFactory:
     def test_available_emulators(self):
         """Test getting list of available emulator types."""
         available = EmulatorFactory.available_emulators()
-        expected = ['linear', 'glm', 'gpr', 'gaussian']
+        expected = ['linear', 'glm', 'gpr', 'gaussian', 'bayes_linear']
         
         assert set(available) == set(expected)
     

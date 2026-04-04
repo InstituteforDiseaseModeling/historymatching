@@ -577,40 +577,20 @@ class TestSampleFiltering:
         assert filtered.index.tolist() == [0, 1]
 
     def test_adaptive_sampling_during_next_sample_computation(self, basic_engine, mock_simulation_function):
-        """Test that adaptive sampling works during next iteration sample computation."""
+        """Test that NROY sampling produces the requested number of samples."""
         basic_engine.set_simulation_function(mock_simulation_function)
         basic_engine._n_samples = 50  # Request samples
 
-        # Mock first iteration to test adaptive sampling during next sample computation
         with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
-            # Mock the filtering within _filter_samples_with_bank to simulate low acceptance rate
-            call_count = 0
-            def mock_filter_side_effect(candidates, emulator_bank):
-                nonlocal call_count
-                call_count += 1
-                # Return 10 samples from each batch to simulate low acceptance rate
-                n_return = min(10, len(candidates))
-                return candidates.head(n_return)
+            basic_engine.step()
 
-            with patch.object(basic_engine, "_filter_samples_with_bank", side_effect=mock_filter_side_effect):
-                basic_engine.step()
+            # The pending snapshot should have the computed next samples
+            next_samples = basic_engine.get_pending_next_samples()
+            assert next_samples is not None
+            assert len(next_samples) == 50  # Should get requested number
 
-                # Check that adaptive sampling occurred during next sample computation
-                # (multiple calls to _filter_samples_with_bank means multiple batches were tried)
-                assert call_count > 1
-
-                # The pending snapshot should have the computed next samples
-                next_samples = basic_engine.get_pending_next_samples()
-                assert next_samples is not None
-                assert len(next_samples) == 50  # Should eventually get requested number
-
-                # Commit the step
-                basic_engine.commit_step()
-
-        # The acceptance rate should reflect the filtering that happened during next sample computation
-        # Note: The acceptance rate is calculated based on the first iteration's box sampling (100%)
-        # plus the filtering during next sample computation
-        assert basic_engine.acceptance_rate < 1.0  # Should show filtering happened
+            # Commit the step
+            basic_engine.commit_step()

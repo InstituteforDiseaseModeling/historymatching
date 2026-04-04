@@ -30,6 +30,17 @@ logger = logging.getLogger(__name__)
 # Public API
 # ---------------------------------------------------------------------------
 
+class NROYResult:
+    """Container for NROY sampling results with stats."""
+    def __init__(self, samples: pd.DataFrame, lhs_accepted: int, lhs_tested: int):
+        self.samples = samples
+        self.lhs_accepted = lhs_accepted
+        self.lhs_tested = lhs_tested
+
+    def __len__(self):
+        return len(self.samples)
+
+
 def generate_nroy_design(
     n_points: int,
     parameter_space: ParameterSpace,
@@ -55,7 +66,7 @@ def generate_nroy_design(
     maximin_reps: int = 1000,
     # Safety
     max_candidates: int = 4_000_000,
-) -> pd.DataFrame:
+) -> NROYResult:
     """Generate NROY parameter samples filtered through all emulators.
 
     Parameters
@@ -96,14 +107,15 @@ def generate_nroy_design(
                             threshold, param_names)
 
     if method == 'lhs':
-        return _lhs_reject_loop(
+        samples = _lhs_reject_loop(
             n_points, parameter_space, sampling_strategy, filter_nroy,
             seed=seed, max_candidates=max_candidates,
         )
+        return NROYResult(samples, len(samples), len(samples))
 
     # ── ray_resample: 4-stage pipeline ────────────────────────────────
     t0 = _time.time()
-    pool = pd.DataFrame(columns=param_names)
+    pool = pd.DataFrame({c: pd.Series(dtype='float64') for c in param_names})
 
     # Stage 1: LHS rejection — also determines if we need the fancy stuff
     n_lhs = max(n_points, lhs_factor * n_dims)
@@ -123,11 +135,8 @@ def generate_nroy_design(
 
     if len(pool) >= n_points:
         # LHS alone found enough — use pure LHS (no boundary bias)
-        result = pool.head(n_points).reset_index(drop=True)
-        result._lhs_accepted = len(lhs_nroy)
-        result._lhs_tested = n_lhs
         logger.info(f"  LHS sufficient ({lhs_rate:.1%} acceptance) — skipping ray/importance stages")
-        return result
+        return NROYResult(pool.head(n_points).reset_index(drop=True), len(lhs_nroy), n_lhs)
 
     if lhs_rate > lhs_fallback_rate:
         # Acceptance is high enough that brute-force LHS is fast and unbiased
@@ -137,17 +146,15 @@ def generate_nroy_design(
             seed=(seed + 1 if seed is not None else None), max_candidates=max_candidates,
         )
         pool = pd.concat([pool, fallback], ignore_index=True)
-        result = pool.head(n_points).reset_index(drop=True)
-        result._lhs_accepted = len(lhs_nroy)
-        result._lhs_tested = n_lhs
-        return result
+        return NROYResult(pool.head(n_points).reset_index(drop=True), len(lhs_nroy), n_lhs)
 
     if len(pool) < 2:
         logger.warning("  Stage 1 found <2 NROY points — falling back to pure LHS rejection")
-        return _lhs_reject_loop(
+        samples = _lhs_reject_loop(
             n_points, parameter_space, sampling_strategy, filter_nroy,
             seed=seed, max_candidates=max_candidates,
         )
+        return NROYResult(samples, len(lhs_nroy), n_lhs)
 
     # Stage 2: ray sampling
     t1 = _time.time()
@@ -162,14 +169,16 @@ def generate_nroy_design(
                 f"pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
 
     if len(pool) >= n_points:
-        return _maximin_thin(pool, n_points, maximin_reps, rng)
+        result = _maximin_thin(pool, n_points, maximin_reps, rng)
+        return NROYResult(result, len(lhs_nroy), n_lhs)
 
     if len(pool) < 2:
         logger.warning("  Stages 1-2 found <2 NROY points — falling back to pure LHS rejection")
-        return _lhs_reject_loop(
+        samples = _lhs_reject_loop(
             n_points, parameter_space, sampling_strategy, filter_nroy,
             seed=seed, max_candidates=max_candidates,
         )
+        return NROYResult(samples, len(lhs_nroy), n_lhs)
 
     # Stage 3: importance sampling
     t2 = _time.time()
@@ -188,7 +197,6 @@ def generate_nroy_design(
                 f"pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
 
     # Stage 4: maximin thinning
-    lhs_a, lhs_t = pool._lhs_accepted, pool._lhs_tested
     if len(pool) > n_points:
         t3 = _time.time()
         result = _maximin_thin(pool, n_points, maximin_reps, rng)
@@ -200,9 +208,7 @@ def generate_nroy_design(
 
     total = _time.time() - t0
     logger.info(f"  NROY pipeline complete: {len(result)} points [{total:.1f}s]")
-    result._lhs_accepted = lhs_a
-    result._lhs_tested = lhs_t
-    return result
+    return NROYResult(result, len(lhs_nroy), n_lhs)
 
 
 # ---------------------------------------------------------------------------
@@ -330,7 +336,7 @@ def _ray_sample(
         all_ray_pts.append(ray_pts)
 
     if not all_ray_pts:
-        return pd.DataFrame(columns=param_names)
+        return pd.DataFrame({c: pd.Series(dtype='float64') for c in param_names})
 
     ray_candidates = pd.DataFrame(
         np.vstack(all_ray_pts), columns=param_names)
@@ -373,7 +379,7 @@ def _importance_sample(
     # Scale by eigenvalues for PCA-oriented proposals
     std_pca = np.sqrt(np.maximum(eigvals, 1e-12))
 
-    collected = pd.DataFrame(columns=param_names)
+    collected = pd.DataFrame({c: pd.Series(dtype='float64') for c in param_names})
     total_proposed = 0
 
     for batch_num in range(max_batches):
@@ -475,12 +481,12 @@ def _filter_nroy(
             try:
                 active = candidates.loc[mask, param_cols]
                 predictions = emulator.predict(active)
-                pred_mean = np.asarray(predictions.get_mean(), dtype=np.float64)
-                pred_var = np.asarray(predictions.get_variance(), dtype=np.float64)
+                pred_mean = predictions.get_mean()
+                pred_var = predictions.get_variance()
                 feature_impl = observations.calculate_implausibility(
                     feature_name, pred_mean, pred_var
                 )
-                failures = np.asarray(feature_impl > threshold)
+                failures = np.asarray(feature_impl > threshold, dtype=bool).ravel()
                 mask[mask] &= ~failures
             except Exception as e:
                 logger.warning(f"Filter failed for '{feature_name}': {e}")
