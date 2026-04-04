@@ -475,11 +475,13 @@ def _filter_nroy(
             try:
                 active = candidates.loc[mask, param_cols]
                 predictions = emulator.predict(active)
+                pred_mean = np.asarray(predictions.get_mean(), dtype=np.float64)
+                pred_var = np.asarray(predictions.get_variance(), dtype=np.float64)
                 feature_impl = observations.calculate_implausibility(
-                    feature_name, predictions.get_mean(), predictions.get_variance()
+                    feature_name, pred_mean, pred_var
                 )
-                failures = feature_impl > threshold
-                mask[mask] &= ~failures.values
+                failures = np.asarray(feature_impl > threshold)
+                mask[mask] &= ~failures
             except Exception as e:
                 logger.warning(f"Filter failed for '{feature_name}': {e}")
                 continue
