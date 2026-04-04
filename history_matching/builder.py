@@ -410,14 +410,15 @@ class HistoryMatchingBuilder:
         """Set NROY sampling method.
 
         Args:
-            method: ``'lhs'`` (default) for pure LHS rejection sampling,
-                or ``'ray_resample'`` which starts with LHS and escalates to
+            method: ``'auto'`` (default) — LHS rejection first, auto-escalates to
                 ray + importance sampling if LHS can't find enough points.
+                ``'lhs'`` — pure LHS rejection only, never escalates.
+                ``'ray'`` — small LHS for seed points, then always ray + importance.
 
         Returns:
             Self for method chaining
         """
-        valid = ('ray_resample', 'lhs')
+        valid = ('auto', 'lhs', 'ray')
         if method not in valid:
             raise ValueError(f"Unknown NROY method '{method}'. Valid: {valid}")
         self._settings['nroy_method'] = method

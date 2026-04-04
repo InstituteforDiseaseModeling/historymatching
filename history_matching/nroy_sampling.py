@@ -48,7 +48,7 @@ def generate_nroy_design(
     observations: ObservationData,
     threshold: float = 3.5,
     sampling_strategy: Optional[SamplingStrategy] = None,
-    method: str = 'lhs',
+    method: str = 'auto',
     seed: Optional[int] = None,
     # Stage 1: LHS rejection
     lhs_factor: int = 10,
@@ -106,30 +106,41 @@ def generate_nroy_design(
         return _filter_nroy(candidates_df, emulator_bank, observations,
                             threshold, param_names)
 
-    # ── Step 1: LHS rejection (always the primary method) ───────────
     t0 = _time.time()
-    lhs_result = _lhs_reject_loop(
-        n_points, parameter_space, sampling_strategy, filter_nroy,
-        seed=seed, max_candidates=max_candidates,
-    )
-    elapsed = _time.time() - t0
-    n_lhs_found = len(lhs_result)
-    logger.info(f"  LHS rejection: {n_lhs_found}/{n_points} [{elapsed:.1f}s]")
 
-    if n_lhs_found >= n_points:
-        _log_summary(n_points, n_lhs_found, 0, 0, elapsed)
-        return NROYResult(lhs_result.head(n_points), n_lhs_found, max_candidates)
+    if method == 'ray':
+        # ── Ray mode: small LHS for seed, then straight to ray+importance ─
+        n_seed = max(n_points, lhs_factor * n_dims)
+        logger.info(f"  LHS seed: generating {n_seed} candidates...")
+        seed_candidates = sampling_strategy.generate_samples(
+            parameter_space, n_seed, seed=seed)
+        lhs_result = filter_nroy(seed_candidates)
+        n_lhs_found = len(lhs_result)
+        logger.info(f"  LHS seed: {n_lhs_found}/{n_seed} ({_pct(n_lhs_found, n_seed)})")
+    else:
+        # ── LHS / auto: full LHS rejection loop ──────────────────────
+        lhs_result = _lhs_reject_loop(
+            n_points, parameter_space, sampling_strategy, filter_nroy,
+            seed=seed, max_candidates=max_candidates,
+        )
+        n_lhs_found = len(lhs_result)
+        elapsed = _time.time() - t0
+        logger.info(f"  LHS rejection: {n_lhs_found}/{n_points} [{elapsed:.1f}s]")
 
-    # ── Step 2: LHS fell short ────────────────────────────────────
-    if method == 'lhs':
-        # User explicitly requested LHS only — return what we have
-        logger.warning(
-            f"  LHS found only {n_lhs_found}/{n_points} NROY samples. "
-            f"The NROY space may be near-empty.")
-        return NROYResult(lhs_result, n_lhs_found, max_candidates)
+        if n_lhs_found >= n_points:
+            _log_summary(n_points, n_lhs_found, 0, 0, elapsed)
+            return NROYResult(lhs_result.head(n_points), n_lhs_found, max_candidates)
 
-    # ── Step 3: Escalate to ray_resample using LHS points as seed ─
-    logger.info(f"  ESCALATING: LHS found {n_lhs_found}/{n_points} — switching to ray + importance sampling")
+        if method == 'lhs':
+            logger.warning(
+                f"  LHS found only {n_lhs_found}/{n_points} NROY samples. "
+                f"The NROY space may be near-empty.")
+            _log_summary(n_points, n_lhs_found, 0, 0, _time.time() - t0)
+            return NROYResult(lhs_result, n_lhs_found, max_candidates)
+
+    # ── Escalate to ray + importance sampling ─────────────────────
+    logger.info(f"  {'RAY MODE' if method == 'ray' else 'ESCALATING'}: "
+                f"{n_lhs_found} LHS seed points → ray + importance sampling")
     pool = lhs_result.copy()
     n_from_lhs = len(pool)
     n_from_ray = 0

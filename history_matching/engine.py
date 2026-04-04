@@ -824,10 +824,10 @@ class HistoryMatchingEngine:
         Args:
             n: Number of NROY samples to return.  If None, returns the
                pre-computed set from the last committed wave.
-            method: NROY sampling method: ``'ray_resample'``, ``'lhs'``, or
-               None (uses engine default from ``with_nroy_method()``).
-               For unbiased final samples (e.g. trajectory selection),
-               use ``method='lhs'``.
+            method: NROY sampling method: ``'auto'`` (LHS first, escalates
+               to ray+importance if needed), ``'lhs'`` (pure rejection only),
+               or None (uses engine default). For unbiased final samples
+               (e.g. trajectory selection), use ``method='lhs'``.
             **kwargs: Extra options passed to ``generate_nroy_design()``:
                ``n_lines``, ``points_per_line`` (ray_resample);
                ``max_candidates`` (lhs); ``imp_scale``, ``maximin_reps``, etc.
@@ -840,7 +840,7 @@ class HistoryMatchingEngine:
             nroy = engine.get_nroy_samples()                    # cached from last wave
             nroy = engine.get_nroy_samples(10000)               # larger draw (default method)
             nroy = engine.get_nroy_samples(5000, method='lhs')  # unbiased for posterior
-            nroy = engine.get_nroy_samples(5000, method='ray_resample',
+            nroy = engine.get_nroy_samples(5000, method='auto',
                                            n_lines=40, points_per_line=100)
         """
         if not self._snapshots:
@@ -1574,7 +1574,7 @@ class HistoryMatchingEngine:
 
         from .nroy_sampling import generate_nroy_design
 
-        nroy_method = self._settings.get('nroy_method', 'lhs')
+        nroy_method = self._settings.get('nroy_method', 'auto')
         nroy_opts = self._settings.get('nroy_options', {})
 
         nroy_result = generate_nroy_design(
