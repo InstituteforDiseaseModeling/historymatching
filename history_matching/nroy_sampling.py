@@ -49,6 +49,8 @@ def generate_nroy_design(
     imp_target_rate: Tuple[float, float] = (0.10, 0.225),
     imp_batch_size: int = 1000,
     imp_max_batches: int = 200,
+    # Auto-fallback to pure LHS when acceptance is above this rate
+    lhs_fallback_rate: float = 0.10,
     # Stage 4: maximin thinning
     maximin_reps: int = 1000,
     # Safety
@@ -103,7 +105,7 @@ def generate_nroy_design(
     t0 = _time.time()
     pool = pd.DataFrame(columns=param_names)
 
-    # Stage 1: LHS rejection
+    # Stage 1: LHS rejection — also determines if we need the fancy stuff
     n_lhs = max(n_points, lhs_factor * n_dims)
     logger.info(f"  Stage 1 (LHS rejection): generating {n_lhs} candidates...")
     lhs_candidates = sampling_strategy.generate_samples(
@@ -117,8 +119,25 @@ def generate_nroy_design(
     logger.info(f"  Stage 1 (LHS rejection): {len(lhs_nroy)}/{n_lhs} "
                 f"({_pct(len(lhs_nroy), n_lhs)}) [{elapsed:.1f}s]")
 
+    lhs_rate = len(lhs_nroy) / n_lhs if n_lhs > 0 else 0
+
     if len(pool) >= n_points:
-        result = _maximin_thin(pool, n_points, maximin_reps, rng)
+        # LHS alone found enough — use pure LHS (no boundary bias)
+        result = pool.head(n_points).reset_index(drop=True)
+        result._lhs_accepted = len(lhs_nroy)
+        result._lhs_tested = n_lhs
+        logger.info(f"  LHS sufficient ({lhs_rate:.1%} acceptance) — skipping ray/importance stages")
+        return result
+
+    if lhs_rate > lhs_fallback_rate:
+        # Acceptance is high enough that brute-force LHS is fast and unbiased
+        logger.info(f"  LHS acceptance {lhs_rate:.1%} > {lhs_fallback_rate:.0%} — using pure LHS (faster, no bias)")
+        fallback = _lhs_reject_loop(
+            n_points - len(pool), parameter_space, sampling_strategy, filter_nroy,
+            seed=(seed + 1 if seed is not None else None), max_candidates=max_candidates,
+        )
+        pool = pd.concat([pool, fallback], ignore_index=True)
+        result = pool.head(n_points).reset_index(drop=True)
         result._lhs_accepted = len(lhs_nroy)
         result._lhs_tested = n_lhs
         return result

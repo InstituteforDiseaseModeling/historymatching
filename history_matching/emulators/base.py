@@ -215,18 +215,15 @@ class BaseEmulator:
         residuals_df['residual'] = residuals
 
         # Draw plot (wrap to max 5 columns)
-        max_cols = 5
-        n_cols = min(n_params, max_cols)
+        max_cols = min(5, n_params)
+        n_cols = max(1, max_cols)
         n_rows = int(np.ceil(n_params / n_cols))
-        fig, axs = plt.subplots( n_rows, n_cols, figsize=(4*n_cols, 4*n_rows), sharey=True )
-        axs = np.atleast_1d(axs).flatten()
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 3.5*n_rows),
+                                sharey=True, squeeze=False)
+        axs = axs.flatten()
         for i, param in enumerate(params):
-            residuals_df.plot.scatter( x = param,
-                                       y = 'residual',
-                                       title = 'Residuals',
-                                       legend = False,
-                                       ax = axs[i]
-                                     )
+            residuals_df.plot.scatter(x=param, y='residual', title='Residuals',
+                                     legend=False, ax=axs[i])
         for i in range(n_params, len(axs)):
             axs[i].set_visible(False)
         fig.tight_layout()
@@ -267,11 +264,12 @@ class BaseEmulator:
                               .rename( columns={'prediction':'prediction (failed)'} )
         
         # Plot predictions (wrap to max 5 columns)
-        max_cols = 5
-        n_cols = min(n_params, max_cols)
+        max_cols = min(5, n_params)
+        n_cols = max(1, max_cols)
         n_rows = int(np.ceil(n_params / n_cols))
-        fig, axs = plt.subplots( n_rows, n_cols, figsize=(4*n_cols, 4*n_rows), sharey=True )
-        axs = np.atleast_1d(axs).flatten()
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 3.5*n_rows),
+                                sharey=True, squeeze=False)
+        axs = axs.flatten()
         for i, param in enumerate(params):
             predictions_correct.plot( x=param, y='prediction (correct)', style='s', color='tab:green', ax=axs[i] )
             predictions_failed .plot( x=param, y='prediction (failed)' , style='o', color='tab:red'  , ax=axs[i] )

@@ -794,35 +794,64 @@ class HistoryMatchingEngine:
         """Get all committed iteration results."""
         return [snapshot.result for snapshot in self._snapshots if snapshot.result is not None]
 
-    def get_nroy_samples(self, n: Optional[int] = None) -> pd.DataFrame:
+    def get_nroy_samples(self, n: Optional[int] = None,
+                         method: Optional[str] = None, **kwargs) -> pd.DataFrame:
         """
         Get NROY parameter samples — filtered through ALL committed emulators.
 
         By default returns the pre-computed samples from the last wave (size =
-        ``samples_per_iteration``).  Pass ``n`` to draw a fresh, larger set by
-        rejection-sampling from the full prior against the current emulator bank.
-        No new simulations are run — only emulator predictions are used.
+        ``samples_per_iteration``).  Pass ``n`` to draw a fresh, larger set
+        filtered through the current emulator bank.  No new simulations are
+        run — only emulator predictions are used.
 
         Args:
             n: Number of NROY samples to return.  If None, returns the
                pre-computed set from the last committed wave.
+            method: NROY sampling method: ``'ray_resample'``, ``'lhs'``, or
+               None (uses engine default from ``with_nroy_method()``).
+               For unbiased final samples (e.g. trajectory selection),
+               use ``method='lhs'``.
+            **kwargs: Extra options passed to ``generate_nroy_design()``:
+               ``n_lines``, ``points_per_line`` (ray_resample);
+               ``max_candidates`` (lhs); ``imp_scale``, ``maximin_reps``, etc.
 
         Returns:
             DataFrame of NROY samples, or empty DataFrame if no iterations committed.
 
         Example:
             results = engine.run()
-            nroy = engine.get_nroy_samples()             # default size
-            nroy = engine.get_nroy_samples(10000)         # larger draw
+            nroy = engine.get_nroy_samples()                    # cached from last wave
+            nroy = engine.get_nroy_samples(10000)               # larger draw (default method)
+            nroy = engine.get_nroy_samples(5000, method='lhs')  # unbiased for posterior
+            nroy = engine.get_nroy_samples(5000, method='ray_resample',
+                                           n_lines=40, points_per_line=100)
         """
         if not self._snapshots:
             return pd.DataFrame()
 
         cached = self._snapshots[-1].next_samples
-        if n is None or n <= len(cached):
-            return cached.head(n) if n is not None else cached
+        if n is None and method is None:
+            return cached
+        if n is not None and method is None and n <= len(cached):
+            return cached.head(n)
 
-        return self._get_nroy_samples_serial(n)
+        from .nroy_sampling import generate_nroy_design
+
+        n = n or self._n_samples
+        method = method or self._settings.get('nroy_method', 'ray_resample')
+        nroy_opts = {**self._settings.get('nroy_options', {}), **kwargs}
+
+        return generate_nroy_design(
+            n_points=n,
+            parameter_space=self._parameter_space,
+            emulator_bank=self._emulator_bank,
+            observations=self._observations,
+            threshold=self._implausibility_threshold,
+            sampling_strategy=self._sampling_strategy,
+            method=method,
+            seed=self._random_seed,
+            **nroy_opts,
+        )
 
     def _get_nroy_samples_serial(self, n: int) -> pd.DataFrame:
         """Serial rejection sampling for NROY candidates."""

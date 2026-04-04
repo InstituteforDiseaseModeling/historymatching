@@ -435,6 +435,8 @@ class HistoryMatchingBuilder:
         - ``imp_scale`` (float, default 1.0): Initial importance sampling scale
         - ``imp_target_rate`` (tuple, default (0.10, 0.225)): Target acceptance range
         - ``maximin_reps`` (int, default 1000): Random subsets for maximin thinning
+        - ``lhs_fallback_rate`` (float, default 0.10): If LHS acceptance exceeds this,
+          skip ray/importance stages (pure LHS is faster and unbiased at high acceptance)
 
         Returns:
             Self for method chaining
