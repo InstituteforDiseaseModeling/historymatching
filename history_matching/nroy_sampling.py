@@ -117,6 +117,7 @@ def generate_nroy_design(
     logger.info(f"  LHS rejection: {n_lhs_found}/{n_points} [{elapsed:.1f}s]")
 
     if n_lhs_found >= n_points:
+        _log_summary(n_points, n_lhs_found, 0, 0, elapsed)
         return NROYResult(lhs_result.head(n_points), n_lhs_found, max_candidates)
 
     # ── Step 2: LHS fell short ────────────────────────────────────
@@ -128,32 +129,42 @@ def generate_nroy_design(
         return NROYResult(lhs_result, n_lhs_found, max_candidates)
 
     # ── Step 3: Escalate to ray_resample using LHS points as seed ─
-    logger.info(f"  LHS insufficient ({n_lhs_found}/{n_points}) — "
-                f"escalating to ray + importance sampling...")
+    logger.info(f"  ESCALATING: LHS found {n_lhs_found}/{n_points} — switching to ray + importance sampling")
     pool = lhs_result.copy()
+    n_from_lhs = len(pool)
+    n_from_ray = 0
+    n_from_imp = 0
 
     if len(pool) < 2:
         logger.warning(
-            f"  Cannot run ray/importance sampling with <2 seed points. "
+            f"  Cannot run ray/importance with <2 seed points. "
             f"Returning {len(pool)} LHS points.")
+        _log_summary(n_points, n_from_lhs, 0, 0, _time.time() - t0)
         return NROYResult(pool, n_lhs_found, max_candidates)
 
     rng = np.random.default_rng(seed)
 
-    # Ray sampling
+    # Ray sampling — scale effort based on how far short we are
     t1 = _time.time()
-    logger.info(f"  Ray sampling: {n_lines} rays × {points_per_line} pts "
-                f"(seeded with {len(pool)} LHS points)...")
+    shortfall_ratio = n_points / max(len(pool), 1)  # how many x more points we need
+    scaled_n_lines = min(int(n_lines * max(shortfall_ratio, 1)), 200)
+    scaled_ppl = min(int(points_per_line * max(shortfall_ratio, 1)), 500)
+    logger.info(f"  Ray sampling: {scaled_n_lines} rays × {scaled_ppl} pts "
+                f"(scaled {shortfall_ratio:.0f}x for shortfall, "
+                f"seeded with {len(pool)} points)...")
     ray_nroy = _ray_sample(
         pool, parameter_space, filter_nroy, rng,
-        n_lines=n_lines, points_per_line=points_per_line,
+        n_lines=scaled_n_lines, points_per_line=scaled_ppl,
     )
-    pool = pd.concat([pool, ray_nroy], ignore_index=True)
-    elapsed = _time.time() - t1
-    logger.info(f"  Ray sampling: +{len(ray_nroy)}, pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
+    n_from_ray = len(ray_nroy)
+    if len(ray_nroy) > 0:
+        pool = pd.concat([pool, ray_nroy], ignore_index=True)
+    logger.info(f"  Ray sampling: +{n_from_ray}, pool={len(pool)}/{n_points} "
+                f"[{_time.time()-t1:.1f}s]")
 
     if len(pool) >= n_points:
         result = _maximin_thin(pool, n_points, maximin_reps, rng)
+        _log_summary(n_points, n_from_lhs, n_from_ray, 0, _time.time() - t0)
         return NROYResult(result, n_lhs_found, max_candidates)
 
     # Importance sampling
@@ -170,9 +181,11 @@ def generate_nroy_design(
             batch_size=imp_batch_size,
             max_batches=imp_max_batches,
         )
-        pool = pd.concat([pool, imp_nroy], ignore_index=True)
+        n_from_imp = len(imp_nroy)
+        if len(imp_nroy) > 0:
+            pool = pd.concat([pool, imp_nroy], ignore_index=True)
         elapsed = _time.time() - t2
-        logger.info(f"  Importance sampling: +{len(imp_nroy)}, "
+        logger.info(f"  Importance sampling: +{n_from_imp}, "
                     f"pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
 
     # Maximin thinning if we overshot
@@ -180,13 +193,12 @@ def generate_nroy_design(
         pool = _maximin_thin(pool, n_points, maximin_reps, rng)
 
     total = _time.time() - t0
+    _log_summary(n_points, n_from_lhs, n_from_ray, n_from_imp, total)
+
     if len(pool) < n_points:
         logger.warning(
-            f"  NROY sampling found only {len(pool)}/{n_points} points after all methods "
-            f"(LHS + ray + importance). The NROY space is near-empty — the model may "
-            f"be over-constrained. [{total:.1f}s]")
-    else:
-        logger.info(f"  NROY sampling complete: {len(pool)} points [{total:.1f}s]")
+            f"  NROY INSUFFICIENT: {len(pool)}/{n_points} after all methods. "
+            f"The NROY space is near-empty — the model may be over-constrained.")
 
     return NROYResult(pool, n_lhs_found, max_candidates)
 
@@ -481,3 +493,19 @@ def _filter_nroy(
 
 def _pct(n: int, total: int) -> str:
     return f"{100 * n / total:.1f}%" if total > 0 else "0%"
+
+
+def _log_summary(n_target: int, n_lhs: int, n_ray: int, n_imp: int, elapsed: float):
+    """Log a clear summary of where NROY points came from."""
+    total = n_lhs + n_ray + n_imp
+    parts = []
+    if n_lhs > 0:
+        parts.append(f"LHS={n_lhs}")
+    if n_ray > 0:
+        parts.append(f"ray={n_ray}")
+    if n_imp > 0:
+        parts.append(f"importance={n_imp}")
+    breakdown = ", ".join(parts) if parts else "none"
+    status = "OK" if total >= n_target else "INSUFFICIENT"
+    logger.info(f"  NROY SUMMARY: {min(total, n_target)}/{n_target} [{status}] — "
+                f"sources: {breakdown} [{elapsed:.1f}s]")
