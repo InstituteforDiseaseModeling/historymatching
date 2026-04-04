@@ -48,7 +48,7 @@ def generate_nroy_design(
     observations: ObservationData,
     threshold: float = 3.5,
     sampling_strategy: Optional[SamplingStrategy] = None,
-    method: str = 'ray_resample',
+    method: str = 'lhs',
     seed: Optional[int] = None,
     # Stage 1: LHS rejection
     lhs_factor: int = 10,
@@ -106,109 +106,89 @@ def generate_nroy_design(
         return _filter_nroy(candidates_df, emulator_bank, observations,
                             threshold, param_names)
 
-    if method == 'lhs':
-        samples = _lhs_reject_loop(
-            n_points, parameter_space, sampling_strategy, filter_nroy,
-            seed=seed, max_candidates=max_candidates,
-        )
-        return NROYResult(samples, len(samples), len(samples))
-
-    # ── ray_resample: 4-stage pipeline ────────────────────────────────
+    # ── Step 1: LHS rejection (always the primary method) ───────────
     t0 = _time.time()
-    pool = pd.DataFrame({c: pd.Series(dtype='float64') for c in param_names})
-
-    # Stage 1: LHS rejection — also determines if we need the fancy stuff
-    n_lhs = max(n_points, lhs_factor * n_dims)
-    logger.info(f"  Stage 1 (LHS rejection): generating {n_lhs} candidates...")
-    lhs_candidates = sampling_strategy.generate_samples(
-        parameter_space, n_lhs, seed=seed)
-    lhs_nroy = filter_nroy(lhs_candidates)
-    pool = pd.concat([pool, lhs_nroy], ignore_index=True)
-    # Stash LHS stats for convergence tracking (read by engine)
-    pool._lhs_accepted = len(lhs_nroy)
-    pool._lhs_tested = n_lhs
+    lhs_result = _lhs_reject_loop(
+        n_points, parameter_space, sampling_strategy, filter_nroy,
+        seed=seed, max_candidates=max_candidates,
+    )
     elapsed = _time.time() - t0
-    logger.info(f"  Stage 1 (LHS rejection): {len(lhs_nroy)}/{n_lhs} "
-                f"({_pct(len(lhs_nroy), n_lhs)}) [{elapsed:.1f}s]")
+    n_lhs_found = len(lhs_result)
+    logger.info(f"  LHS rejection: {n_lhs_found}/{n_points} [{elapsed:.1f}s]")
 
-    lhs_rate = len(lhs_nroy) / n_lhs if n_lhs > 0 else 0
+    if n_lhs_found >= n_points:
+        return NROYResult(lhs_result.head(n_points), n_lhs_found, max_candidates)
 
-    if len(pool) >= n_points:
-        # LHS alone found enough — use pure LHS (no boundary bias)
-        logger.info(f"  LHS sufficient ({lhs_rate:.1%} acceptance) — skipping ray/importance stages")
-        return NROYResult(pool.head(n_points).reset_index(drop=True), len(lhs_nroy), n_lhs)
+    # ── Step 2: LHS fell short ────────────────────────────────────
+    if method == 'lhs':
+        # User explicitly requested LHS only — return what we have
+        logger.warning(
+            f"  LHS found only {n_lhs_found}/{n_points} NROY samples. "
+            f"The NROY space may be near-empty.")
+        return NROYResult(lhs_result, n_lhs_found, max_candidates)
 
-    if lhs_rate > lhs_fallback_rate:
-        # Acceptance is high enough that brute-force LHS is fast and unbiased
-        logger.info(f"  LHS acceptance {lhs_rate:.1%} > {lhs_fallback_rate:.0%} — using pure LHS (faster, no bias)")
-        fallback = _lhs_reject_loop(
-            n_points - len(pool), parameter_space, sampling_strategy, filter_nroy,
-            seed=(seed + 1 if seed is not None else None), max_candidates=max_candidates,
-        )
-        pool = pd.concat([pool, fallback], ignore_index=True)
-        return NROYResult(pool.head(n_points).reset_index(drop=True), len(lhs_nroy), n_lhs)
+    # ── Step 3: Escalate to ray_resample using LHS points as seed ─
+    logger.info(f"  LHS insufficient ({n_lhs_found}/{n_points}) — "
+                f"escalating to ray + importance sampling...")
+    pool = lhs_result.copy()
 
     if len(pool) < 2:
-        logger.warning("  Stage 1 found <2 NROY points — falling back to pure LHS rejection")
-        samples = _lhs_reject_loop(
-            n_points, parameter_space, sampling_strategy, filter_nroy,
-            seed=seed, max_candidates=max_candidates,
-        )
-        return NROYResult(samples, len(lhs_nroy), n_lhs)
+        logger.warning(
+            f"  Cannot run ray/importance sampling with <2 seed points. "
+            f"Returning {len(pool)} LHS points.")
+        return NROYResult(pool, n_lhs_found, max_candidates)
 
-    # Stage 2: ray sampling
+    rng = np.random.default_rng(seed)
+
+    # Ray sampling
     t1 = _time.time()
-    logger.info(f"  Stage 2 (ray sampling): {n_lines} rays × {points_per_line} pts...")
+    logger.info(f"  Ray sampling: {n_lines} rays × {points_per_line} pts "
+                f"(seeded with {len(pool)} LHS points)...")
     ray_nroy = _ray_sample(
         pool, parameter_space, filter_nroy, rng,
         n_lines=n_lines, points_per_line=points_per_line,
     )
     pool = pd.concat([pool, ray_nroy], ignore_index=True)
     elapsed = _time.time() - t1
-    logger.info(f"  Stage 2 (ray sampling): +{len(ray_nroy)} NROY points, "
-                f"pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
+    logger.info(f"  Ray sampling: +{len(ray_nroy)}, pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
 
     if len(pool) >= n_points:
         result = _maximin_thin(pool, n_points, maximin_reps, rng)
-        return NROYResult(result, len(lhs_nroy), n_lhs)
+        return NROYResult(result, n_lhs_found, max_candidates)
 
-    if len(pool) < 2:
-        logger.warning("  Stages 1-2 found <2 NROY points — falling back to pure LHS rejection")
-        samples = _lhs_reject_loop(
-            n_points, parameter_space, sampling_strategy, filter_nroy,
-            seed=seed, max_candidates=max_candidates,
+    # Importance sampling
+    if len(pool) >= 2:
+        t2 = _time.time()
+        remaining = n_points - len(pool)
+        logger.info(f"  Importance sampling: need {remaining} more "
+                    f"(proposals centered on {len(pool)} pool points)...")
+        imp_nroy = _importance_sample(
+            pool, parameter_space, filter_nroy, rng,
+            n_target=remaining,
+            scale=imp_scale,
+            target_rate=imp_target_rate,
+            batch_size=imp_batch_size,
+            max_batches=imp_max_batches,
         )
-        return NROYResult(samples, len(lhs_nroy), n_lhs)
+        pool = pd.concat([pool, imp_nroy], ignore_index=True)
+        elapsed = _time.time() - t2
+        logger.info(f"  Importance sampling: +{len(imp_nroy)}, "
+                    f"pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
 
-    # Stage 3: importance sampling
-    t2 = _time.time()
-    logger.info(f"  Stage 3 (importance sampling): target {n_points - len(pool)} more...")
-    imp_nroy = _importance_sample(
-        pool, parameter_space, filter_nroy, rng,
-        n_target=n_points - len(pool),
-        scale=imp_scale,
-        target_rate=imp_target_rate,
-        batch_size=imp_batch_size,
-        max_batches=imp_max_batches,
-    )
-    pool = pd.concat([pool, imp_nroy], ignore_index=True)
-    elapsed = _time.time() - t2
-    logger.info(f"  Stage 3 (importance sampling): +{len(imp_nroy)} NROY points, "
-                f"pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
-
-    # Stage 4: maximin thinning
+    # Maximin thinning if we overshot
     if len(pool) > n_points:
-        t3 = _time.time()
-        result = _maximin_thin(pool, n_points, maximin_reps, rng)
-        elapsed = _time.time() - t3
-        logger.info(f"  Stage 4 (maximin thinning): {len(result)} selected "
-                    f"from {len(pool)} pool [{elapsed:.1f}s]")
-    else:
-        result = pool.head(n_points)
+        pool = _maximin_thin(pool, n_points, maximin_reps, rng)
 
     total = _time.time() - t0
-    logger.info(f"  NROY pipeline complete: {len(result)} points [{total:.1f}s]")
-    return NROYResult(result, len(lhs_nroy), n_lhs)
+    if len(pool) < n_points:
+        logger.warning(
+            f"  NROY sampling found only {len(pool)}/{n_points} points after all methods "
+            f"(LHS + ray + importance). The NROY space is near-empty — the model may "
+            f"be over-constrained. [{total:.1f}s]")
+    else:
+        logger.info(f"  NROY sampling complete: {len(pool)} points [{total:.1f}s]")
+
+    return NROYResult(pool, n_lhs_found, max_candidates)
 
 
 # ---------------------------------------------------------------------------

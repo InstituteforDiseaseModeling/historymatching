@@ -410,9 +410,9 @@ class HistoryMatchingBuilder:
         """Set NROY sampling method.
 
         Args:
-            method: ``'ray_resample'`` (default) for the 4-stage pipeline
-                (LHS → ray sampling → importance sampling → maximin thinning),
-                or ``'lhs'`` for pure LHS rejection sampling.
+            method: ``'lhs'`` (default) for pure LHS rejection sampling,
+                or ``'ray_resample'`` which starts with LHS and escalates to
+                ray + importance sampling if LHS can't find enough points.
 
         Returns:
             Self for method chaining

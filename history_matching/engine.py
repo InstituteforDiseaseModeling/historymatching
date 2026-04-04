@@ -155,6 +155,7 @@ class HistoryMatchingEngine:
         self._snapshots: list[IterationSnapshot] = []
         self._pending_result: Optional[IterationResult] = None
         self._pending_snapshot: Optional[IterationSnapshot] = None
+        self._nroy_exhausted: bool = False
 
         # Callbacks and hooks
         self._iteration_callbacks: list[Callable] = []
@@ -362,6 +363,18 @@ class HistoryMatchingEngine:
             logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: finding {self._n_samples} plausible candidates for next wave...")
             next_iteration_samples = self._compute_next_iteration_samples(emulators)
             logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: found {len(next_iteration_samples)} candidates [{_time.time()-t0:.1f}s]")
+
+            # Check: did we get enough samples for a meaningful next wave?
+            min_samples = max(2 * len(self._parameter_space.get_parameter_names()), 20)
+            if len(next_iteration_samples) < min_samples:
+                feature_list = ', '.join(selected_features)
+                logger.warning(
+                    f"[Wave {wave_num}] NROY space collapsed: only {len(next_iteration_samples)} "
+                    f"samples found (need {min_samples}+). This wave emulated [{feature_list}]. "
+                    f"The model may be over-constrained — consider relaxing the implausibility "
+                    f"threshold or increasing observation uncertainty (model discrepancy).")
+                # Flag to stop after committing this wave
+                self._nroy_exhausted = True
 
             # Determine parameter space for next iteration
             next_parameter_space = self._get_next_parameter_space(samples, emulators)
@@ -747,6 +760,10 @@ class HistoryMatchingEngine:
 
                 if auto_commit:
                     self.commit_step()
+                    if getattr(self, '_nroy_exhausted', False):
+                        logger.info("Stopping: NROY space exhausted after this wave.")
+                        self._state = EngineState.COMPLETED
+                        break
                 else:
                     break  # Let user decide
 
@@ -1557,7 +1574,7 @@ class HistoryMatchingEngine:
 
         from .nroy_sampling import generate_nroy_design
 
-        nroy_method = self._settings.get('nroy_method', 'ray_resample')
+        nroy_method = self._settings.get('nroy_method', 'lhs')
         nroy_opts = self._settings.get('nroy_options', {})
 
         nroy_result = generate_nroy_design(
