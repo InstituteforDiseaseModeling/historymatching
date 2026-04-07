@@ -116,6 +116,7 @@ def generate_nroy_design(
             parameter_space, n_seed, seed=seed)
         lhs_result = filter_nroy(seed_candidates)
         n_lhs_found = len(lhs_result)
+        lhs_tested = n_seed
         logger.info(f"  LHS seed: {n_lhs_found}/{n_seed} ({_pct(n_lhs_found, n_seed)})")
     else:
         # ── LHS / auto: full LHS rejection loop ──────────────────────
@@ -124,19 +125,20 @@ def generate_nroy_design(
             seed=seed, max_candidates=max_candidates,
         )
         n_lhs_found = len(lhs_result)
+        lhs_tested = lhs_result.attrs.get('total_generated', max_candidates)
         elapsed = _time.time() - t0
         logger.info(f"  LHS rejection: {n_lhs_found}/{n_points} [{elapsed:.1f}s]")
 
         if n_lhs_found >= n_points:
             _log_summary(n_points, n_lhs_found, 0, 0, elapsed)
-            return NROYResult(lhs_result.head(n_points), n_lhs_found, max_candidates)
+            return NROYResult(lhs_result.head(n_points), n_lhs_found, lhs_tested)
 
         if method == 'lhs':
             logger.warning(
                 f"  LHS found only {n_lhs_found}/{n_points} NROY samples. "
                 f"The NROY space may be near-empty.")
             _log_summary(n_points, n_lhs_found, 0, 0, _time.time() - t0)
-            return NROYResult(lhs_result, n_lhs_found, max_candidates)
+            return NROYResult(lhs_result, n_lhs_found, lhs_tested)
 
     # ── Escalate to ray + importance sampling ─────────────────────
     logger.info(f"  {'RAY MODE' if method == 'ray' else 'ESCALATING'}: "
@@ -151,7 +153,7 @@ def generate_nroy_design(
             f"  Cannot run ray/importance with <2 seed points. "
             f"Returning {len(pool)} LHS points.")
         _log_summary(n_points, n_from_lhs, 0, 0, _time.time() - t0)
-        return NROYResult(pool, n_lhs_found, max_candidates)
+        return NROYResult(pool, n_lhs_found, lhs_tested)
 
     rng = np.random.default_rng(seed)
 
@@ -176,7 +178,7 @@ def generate_nroy_design(
     if len(pool) >= n_points:
         result = _maximin_thin(pool, n_points, maximin_reps, rng)
         _log_summary(n_points, n_from_lhs, n_from_ray, 0, _time.time() - t0)
-        return NROYResult(result, n_lhs_found, max_candidates)
+        return NROYResult(result, n_lhs_found, lhs_tested)
 
     # Importance sampling
     if len(pool) >= 2:
@@ -211,7 +213,7 @@ def generate_nroy_design(
             f"  NROY INSUFFICIENT: {len(pool)}/{n_points} after all methods. "
             f"The NROY space is near-empty — the model may be over-constrained.")
 
-    return NROYResult(pool, n_lhs_found, max_candidates)
+    return NROYResult(pool, n_lhs_found, lhs_tested)
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +277,9 @@ def _lhs_reject_loop(
         else:
             batch_size = min(batch_size * 2, max_batch_size)
 
-    return plausible.head(n_points)
+    result = plausible.head(n_points)
+    result.attrs['total_generated'] = total_generated
+    return result
 
 
 # ---------------------------------------------------------------------------
