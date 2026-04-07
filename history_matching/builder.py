@@ -226,7 +226,7 @@ class HistoryMatchingBuilder:
             self._feature_selection_strategy = selection
         elif isinstance(selection, dict):
             # Automatic feature selection with configuration
-            method = selection.get('method', 'fano')
+            method = selection.get('method', 'mean_sq_z')
             max_features = selection.get('max_features', 1)
             threshold = selection.get('threshold', None)
             correlation_threshold = selection.get('correlation_threshold', 0.8)
