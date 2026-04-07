@@ -133,7 +133,7 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
     features for emulation. Based on the existing feature_selection function.
     """
     
-    def __init__(self, method: str = 'fano', threshold: Optional[float] = None,
+    def __init__(self, method: str = 'mean_sq_z', threshold: Optional[float] = None,
                  cooldown_period: int = 5, correlation_threshold: float = 0.8,
                  max_features: int = 1):
         """
@@ -203,8 +203,14 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
                 metric_values = z_data.mean().abs()
             elif self.method == 'std':
                 metric_values = z_data.std()
+            elif self.method in ('mean_sq_z', 'msz'):
+                # Mean squared z-score: E[z²] = bias² + variance
+                # Combines distance-from-target and spread in one metric.
+                # Scale-invariant (z-scores). No tuning parameters.
+                metric_values = (z_data ** 2).mean()
             else:
-                raise ValueError(f"Unknown feature selection method: {self.method}. Supported: 'fano', 'var', 'mean', 'std'")
+                raise ValueError(f"Unknown feature selection method: {self.method}. "
+                                 f"Supported: 'mean_sq_z', 'fano', 'var', 'mean', 'std'")
         except Exception as e:
             warnings.warn(f"Failed to calculate {self.method} statistics: {e}. "
                          f"Falling back to variance of z-scores.")
@@ -394,7 +400,7 @@ class MultiFeatureSelection(FeatureSelectionStrategy):
     This is a convenience wrapper around AutoFeatureSelection with max_features > 1.
     """
     
-    def __init__(self, n_features: int = 2, method: str = 'fano', 
+    def __init__(self, n_features: int = 2, method: str = 'mean_sq_z',
                  correlation_threshold: float = 0.5):
         """
         Initialize multi-feature selection.

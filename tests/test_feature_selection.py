@@ -231,7 +231,7 @@ class TestAutoFeatureSelection:
     def test_initialization_default_params(self):
         """Test initialization with default parameters."""
         selector = AutoFeatureSelection()
-        assert selector.method == 'fano'
+        assert selector.method == 'mean_sq_z'
         assert selector.threshold is None
         assert selector.cooldown_period == 5
         assert selector.correlation_threshold == 0.8
@@ -545,7 +545,7 @@ class TestMultiFeatureSelection:
         """Test initialization with default parameters."""
         selector = MultiFeatureSelection()
         assert selector.auto_selector.max_features == 2
-        assert selector.auto_selector.method == 'fano'
+        assert selector.auto_selector.method == 'mean_sq_z'
         assert selector.auto_selector.correlation_threshold == 0.5
     
     def test_initialization_custom_params(self):

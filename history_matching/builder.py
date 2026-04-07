@@ -525,8 +525,8 @@ class HistoryMatchingBuilder:
         
         # Default feature selection strategy
         if self._feature_selection_strategy is None:
-            self._feature_selection_strategy = AutoFeatureSelection(method='fano', max_features=1)
-            warnings.warn("No feature selection specified. Using automatic selection with Fano factor.")
+            self._feature_selection_strategy = AutoFeatureSelection(method='mean_sq_z', max_features=1)
+            warnings.warn("No feature selection specified. Using automatic selection with mean squared z-score.")
         
         # Default emulator factory
         if self._emulator_factory is None:
