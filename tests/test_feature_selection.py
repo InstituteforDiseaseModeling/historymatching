@@ -233,7 +233,7 @@ class TestAutoFeatureSelection:
         selector = AutoFeatureSelection()
         assert selector.method == 'mean_sq_z'
         assert selector.threshold is None
-        assert selector.cooldown_period == 5
+        assert selector.cooldown_period == 1
         assert selector.correlation_threshold == 0.8
         assert selector.max_features == 1
     

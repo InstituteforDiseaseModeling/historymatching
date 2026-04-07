@@ -4,9 +4,12 @@ Feature selection strategy implementations for history matching.
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Union
+import logging
 import numpy as np
 import pandas as pd
 import warnings
+
+logger = logging.getLogger(__name__)
 
 from .observation_data import ObservationData
 
@@ -134,7 +137,7 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
     """
     
     def __init__(self, method: str = 'mean_sq_z', threshold: Optional[float] = None,
-                 cooldown_period: int = 5, correlation_threshold: float = 0.8,
+                 cooldown_period: int = 1, correlation_threshold: float = 0.8,
                  max_features: int = 1):
         """
         Initialize automatic feature selection.
@@ -228,9 +231,16 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
         
         # Rank features by metric (descending order for most metrics)
         ranked_features = metric_values.abs().sort_values(ascending=False)
-        
+
+        # Log top candidates and cooldown state
+        top_n = min(5, len(ranked_features))
+        top_str = ", ".join(f"{f}={ranked_features[f]:.2f}" for f in ranked_features.index[:top_n])
+        logger.info(f"  Feature ranking ({self.method}): {top_str}")
+        if self.history:
+            logger.info(f"  Cooldown (skip): {self.history}")
+
         selected_features = []
-        
+
         # Select features that meet criteria
         for feature_name in ranked_features.index:
             if len(selected_features) >= self.max_features:
@@ -290,7 +300,13 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
         if not selected_features:
             best_feature = ranked_features.index[0]
             selected_features = [best_feature]
-            warnings.warn(f"No features met selection criteria. Using best feature: {best_feature}")
+            logger.warning(f"  No features met selection criteria — forcing best: {best_feature}")
+
+        for f in selected_features:
+            score = ranked_features.get(f, float('nan'))
+            mean_z = z_data[f].mean() if f in z_data.columns else float('nan')
+            std_z = z_data[f].std() if f in z_data.columns else float('nan')
+            logger.info(f"  SELECTED: {f} (score={score:.2f}, mean_z={mean_z:.2f}, std_z={std_z:.2f})")
         
         # Update instance history
         self.history.extend(selected_features)

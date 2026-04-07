@@ -186,9 +186,11 @@ class HistoryMatchingEngine:
                 '%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
             logger.addHandler(fh)
             logger.setLevel(logging.DEBUG)
-            emulator_logger = logging.getLogger('history_matching.emulators')
-            emulator_logger.addHandler(fh)
-            emulator_logger.setLevel(logging.DEBUG)
+            # Attach file handler to sub-loggers
+            for sub in ('emulators', 'feature_selection', 'nroy_sampling'):
+                sub_logger = logging.getLogger(f'history_matching.{sub}')
+                sub_logger.addHandler(fh)
+                sub_logger.setLevel(logging.DEBUG)
 
         # Log full configuration summary at the top of log.txt
         param_names = parameter_space.get_parameter_names()
