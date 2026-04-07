@@ -305,7 +305,6 @@ class IterationResult:
                 this one).  Needed for the convergence plot.
         """
         import matplotlib
-        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
 
         wave_dir = os.path.join(fig_dir, f"wave{self.iteration}")

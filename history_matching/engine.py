@@ -1036,7 +1036,6 @@ class HistoryMatchingEngine:
                 if not getattr(emulator, 'testing_complete', False):
                     emulator.test()
                 import matplotlib
-                matplotlib.use('Agg')
                 emulator.plot_diagnostics()
                 import matplotlib.pyplot as plt
                 for i, fig_num in enumerate(plt.get_fignums()[-4:]):  # plot_diagnostics creates up to 4 figs
@@ -1063,7 +1062,6 @@ class HistoryMatchingEngine:
             all_results = self.get_all_results()
             if len(all_results) > 0:
                 import matplotlib
-                matplotlib.use('Agg')
                 import matplotlib.pyplot as plt
                 fig, ax = plt.subplots(figsize=(7, 4))
                 waves = [r.iteration for r in all_results]
@@ -1091,7 +1089,6 @@ class HistoryMatchingEngine:
             if len(all_results) > 0:
                 import numpy as np
                 import matplotlib
-                matplotlib.use('Agg')
                 import matplotlib.pyplot as plt
 
                 targets = self._observations.get_all_targets()
@@ -1170,7 +1167,6 @@ class HistoryMatchingEngine:
             all_results = self.get_all_results()
             if len(all_results) >= 2:
                 import matplotlib
-                matplotlib.use('Agg')
                 import matplotlib.pyplot as plt
 
                 param_names = self._parameter_space.get_parameter_names()
