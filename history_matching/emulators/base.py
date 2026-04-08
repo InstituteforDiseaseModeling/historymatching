@@ -542,46 +542,31 @@ class BaseEmulator:
                        threshold are deemed as non-implausible.
         """
        
-        # Compute Z-values
-        data_train = self.X_train_df.copy()
-        data_train['output (true)'] = self.y_train.flatten()
-        data_train['implausibility'] = self.get_implausibility( self.X_train_df, target, target_var, model_var ).values
-        data_train['predicted'] = self.y_train_pred_results.get_mean().values
-        # Try to get confidence intervals from additional data, fallback to computed ones
-        train_additional = self.y_train_pred_results.get_additional_data()
-        if train_additional is not None and 'ci_obs_high' in train_additional.columns:
-            data_train['predicted_obs_var' ] = ( ( train_additional['ci_obs_high'] - train_additional['ci_obs_low'] )/3 )**2
-            data_train['predicted_pred_var'] = ( ( train_additional['ci_pred_high'] - train_additional['ci_pred_low'] )/3 )**2
-        else:
-            # Use standard deviation as fallback
-            train_std = self.y_train_pred_results.get_std()
-            data_train['predicted_obs_var'] = train_std**2
-            data_train['predicted_pred_var'] = train_std**2
-        data_train['error'] = self.y_train.flatten() - self.y_train_pred_results.get_mean().values
-        data_train['Z_noisy'] = data_train['error'].div( np.sqrt( data_train['predicted_obs_var' ] ) )
-        data_train['Z_noiseless'] = data_train['error'].div( np.sqrt( data_train['predicted_pred_var' ] ) )
-        data_train_implausible    = data_train[ data_train['implausibility']> threshold ]
-        data_train_nonimplausible = data_train[ data_train['implausibility']<=threshold ]
+        # Compute Z-values for train and test splits
+        def _compute_zscore_data(X_df, y_true, pred_results, target, target_var, model_var, threshold):
+            data = X_df.copy()
+            data['output (true)'] = y_true.flatten()
+            data['implausibility'] = self.get_implausibility( X_df, target, target_var, model_var ).values
+            data['predicted'] = pred_results.get_mean().values
+            additional = pred_results.get_additional_data()
+            if additional is not None and 'ci_obs_high' in additional.columns:
+                data['predicted_obs_var' ] = ( ( additional['ci_obs_high'] - additional['ci_obs_low'] )/3 )**2
+                data['predicted_pred_var'] = ( ( additional['ci_pred_high'] - additional['ci_pred_low'] )/3 )**2
+            else:
+                std = pred_results.get_std()
+                data['predicted_obs_var'] = std**2
+                data['predicted_pred_var'] = std**2
+            data['error'] = y_true.flatten() - pred_results.get_mean().values
+            data['Z_noisy'] = data['error'].div( np.sqrt( data['predicted_obs_var' ] ) )
+            data['Z_noiseless'] = data['error'].div( np.sqrt( data['predicted_pred_var' ] ) )
+            implausible    = data[ data['implausibility']> threshold ]
+            nonimplausible = data[ data['implausibility']<=threshold ]
+            return data, implausible, nonimplausible
 
-        data_test = self.X_test_df.copy()
-        data_test['output (true)'] = self.y_test.flatten()
-        data_test['implausibility'] = self.get_implausibility( self.X_test_df, target, target_var, model_var ).values
-        data_test['predicted'] = self.y_test_pred_results.get_mean().values
-        # Try to get confidence intervals from additional data, fallback to computed ones
-        test_additional = self.y_test_pred_results.get_additional_data()
-        if test_additional is not None and 'ci_obs_high' in test_additional.columns:
-            data_test['predicted_obs_var' ] = ( ( test_additional['ci_obs_high'] - test_additional['ci_obs_low'] )/3 )**2
-            data_test['predicted_pred_var'] = ( ( test_additional['ci_pred_high'] - test_additional['ci_pred_low'] )/3 )**2
-        else:
-            # Use standard deviation as fallback
-            test_std = self.y_test_pred_results.get_std()
-            data_test['predicted_obs_var'] = test_std**2
-            data_test['predicted_pred_var'] = test_std**2
-        data_test['error'] = self.y_test.flatten() - self.y_test_pred_results.get_mean().values
-        data_test['Z_noisy'] = data_test['error'].div( np.sqrt( data_test['predicted_obs_var' ] ) )
-        data_test['Z_noiseless'] = data_test['error'].div( np.sqrt( data_test['predicted_pred_var' ] ) )
-        data_test_implausible    = data_test[ data_test['implausibility']> threshold ]
-        data_test_nonimplausible = data_test[ data_test['implausibility']<=threshold ]
+        data_train, data_train_implausible, data_train_nonimplausible = _compute_zscore_data(
+            self.X_train_df, self.y_train, self.y_train_pred_results, target, target_var, model_var, threshold)
+        data_test, data_test_implausible, data_test_nonimplausible = _compute_zscore_data(
+            self.X_test_df, self.y_test, self.y_test_pred_results, target, target_var, model_var, threshold)
 
         # Draw plots
         fig_z, axs_z = plt.subplots( 2, 1, figsize=(10,8), sharex=True )

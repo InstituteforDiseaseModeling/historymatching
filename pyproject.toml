@@ -42,18 +42,18 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "numpy",
-    "pandas",
-    "matplotlib",
-    "statsmodels",
-    "scipy",
-    "scikit-learn",
-    "setuptools<81",  # gpflow requires pkg_resources, removed in setuptools 81+
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+    "statsmodels>=0.14",
+    "scipy>=1.11",
+    "scikit-learn>=1.3",
+    "setuptools>=30.3.0,<81",  # gpflow requires pkg_resources, removed in setuptools 81+
     "tensorflow>=2.18",
     "tf-keras",
-    "gpflow",
-    "bokeh",
-    "numexpr!=2.8.5", # until RE string issue gets fixed
+    "gpflow>=2.9",
+    "bokeh>=3.0",
+    "numexpr>=2.8,!=2.8.5", # until RE string issue gets fixed
 ]
 
 [project.optional-dependencies]

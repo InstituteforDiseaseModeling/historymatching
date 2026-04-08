@@ -51,8 +51,8 @@ class TestDataFactory:
         data = []
         for i, feature in enumerate(features):
             mean_val = 10.0 + i * 5.0  # 10, 15, 20, ...
-            var_val = 1.0 + i * 0.5   # 1.0, 1.5, 2.0, ...
-            data.append([feature, mean_val, var_val])
+            std_val = 1.0 + i * 0.5   # 1.0, 1.5, 2.0, ...
+            data.append([feature, mean_val, std_val])
             
         return pd.DataFrame(data, columns=OBSERVATIONS_COLUMNS)
     

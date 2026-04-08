@@ -69,7 +69,7 @@ def parameter_space():
 def observations():
     """Create test observations."""
     return ObservationData({
-        "output1": (5.0, 1.0),  # (mean, variance)
+        "output1": (5.0, 1.0),  # (mean, std)
         "output2": (10.0, 4.0),
         "output3": (0.5, 0.01)
     })

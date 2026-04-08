@@ -47,9 +47,9 @@ class TestFeatureSelectionStrategy:
         })
         
         observations = ObservationData({
-            'feature1': (2.5, 0.5**2),  # (mean, variance)
-            'feature2': (2.0, 0.3**2),
-            'feature3': (25.0, 5.0**2)
+            'feature1': (2.5, 0.5),  # (mean, std)
+            'feature2': (2.0, 0.3),
+            'feature3': (25.0, 5.0)
         })
         
         return simulation_results, observations
@@ -151,9 +151,9 @@ class TestManualFeatureSelection:
         })
         
         observations = ObservationData({
-            'infections': (200, 50**2),  # (mean, variance)
-            'deaths': (20, 5**2),
-            'hospitalizations': (100, 25**2)
+            'infections': (200, 50),  # (mean, std)
+            'deaths': (20, 5),
+            'hospitalizations': (100, 25)
         })
         
         return simulation_results, observations
@@ -219,11 +219,11 @@ class TestAutoFeatureSelection:
         simulation_results['correlated'] = simulation_results['high_var'] * 0.9 + np.random.normal(0, 1, 100)
         
         observations = ObservationData({
-            'high_var': (0, 5**2),  # (mean, variance)
-            'low_var': (0, 1**2),
-            'high_mean': (100, 10**2),
-            'low_mean': (1, 2**2),
-            'correlated': (0, 5**2)
+            'high_var': (0, 5),  # (mean, std)
+            'low_var': (0, 1),
+            'high_mean': (100, 10),
+            'low_mean': (1, 2),
+            'correlated': (0, 5)
         })
         
         return simulation_results, observations
@@ -386,7 +386,7 @@ class TestAutoFeatureSelection:
     def test_select_features_no_common_features(self):
         """Test behavior when no common features exist."""
         simulation_results = pd.DataFrame({'sim_only': [1, 2, 3]})
-        observations = ObservationData({'obs_only': (1, 0.1**2)})  # (mean, variance)
+        observations = ObservationData({'obs_only': (1, 0.1)})  # (mean, std)
         
         selector = AutoFeatureSelection()
         
@@ -424,9 +424,9 @@ class TestInteractiveFeatureSelection:
         })
         
         observations = ObservationData({
-            'infections': (200, 50**2),  # (mean, variance)
-            'deaths': (20, 5**2),
-            'hospitalizations': (100, 25**2)
+            'infections': (200, 50),  # (mean, std)
+            'deaths': (20, 5),
+            'hospitalizations': (100, 25)
         })
         
         return simulation_results, observations
@@ -533,10 +533,10 @@ class TestMultiFeatureSelection:
         })
         
         observations = ObservationData({
-            'feature1': (0, 1**2),  # (mean, variance)
-            'feature2': (0, 1**2),
-            'feature3': (0, 1**2),
-            'feature4': (0, 1**2)
+            'feature1': (0, 1.0),  # (mean, std)
+            'feature2': (0, 1.0),
+            'feature3': (0, 1.0),
+            'feature4': (0, 1.0)
         })
         
         return simulation_results, observations
@@ -597,11 +597,11 @@ class TestFeatureSelectionIntegration:
         })
         
         observations = ObservationData({
-            'infections': (1000, 100**2),  # (mean, variance)
-            'deaths': (50, 10**2),
-            'hospitalizations': (200, 50**2),
-            'incidence_rate': (0.3, 0.1**2),
-            'reproduction_number': (1.0, 0.3**2)
+            'infections': (1000, 100),  # (mean, std)
+            'deaths': (50, 10),
+            'hospitalizations': (200, 50),
+            'incidence_rate': (0.3, 0.1),
+            'reproduction_number': (1.0, 0.3)
         })
         
         return simulation_results, observations
@@ -652,7 +652,7 @@ class TestFeatureSelectionIntegration:
         """Test feature selection with edge cases."""
         # Single feature case
         single_feature_results = pd.DataFrame({'only_feature': [1, 2, 3, 4, 5]})
-        single_feature_obs = ObservationData({'only_feature': (3, 1**2)})  # (mean, variance)
+        single_feature_obs = ObservationData({'only_feature': (3, 1.0)})  # (mean, std)
         
         selector = AutoFeatureSelection(max_features=2)
         selected = selector.select_features(single_feature_results, single_feature_obs, iteration=1)
@@ -665,9 +665,9 @@ class TestFeatureSelectionIntegration:
             'feat3': [1.0] * 10
         })
         identical_obs = ObservationData({
-            'feat1': (1, 0.1**2),  # (mean, variance)
-            'feat2': (1, 0.1**2),
-            'feat3': (1, 0.1**2)
+            'feat1': (1, 0.1),  # (mean, std)
+            'feat2': (1, 0.1),
+            'feat3': (1, 0.1)
         })
         
         selector = AutoFeatureSelection(method='var', max_features=2)
