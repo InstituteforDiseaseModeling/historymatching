@@ -1667,7 +1667,7 @@ class HistoryMatchingEngine:
             self._progress.total_samples_accepted / self._progress.total_samples_generated
             if self._progress.total_samples_generated > 0 else 1.0
         )
-        logger.debug(f"NROY fraction: {self._last_nroy_fraction:.3f}")
+        logger.debug(f"NROY fraction: {self._last_nroy_fraction:.6f}")
 
     def _filter_samples_with_bank(self, candidates: pd.DataFrame, emulator_bank: EmulatorBank) -> pd.DataFrame:
         """Filter candidate samples using a specific emulator bank."""
