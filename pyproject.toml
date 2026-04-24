@@ -48,10 +48,10 @@ dependencies = [
     "statsmodels>=0.14",
     "scipy>=1.11",
     "scikit-learn>=1.3",
-    "setuptools>=30.3.0,<81",  # gpflow requires pkg_resources, removed in setuptools 81+
+    "setuptools>=30.3.0,<82",  # gpflow requires pkg_resources, removed in setuptools 82+
     "tensorflow>=2.18",
     "tf-keras",
-    "gpflow>=2.9",
+    "gpflow>=2.5",  # 2.5+ stable API; >=2.9 conflicts with tensorflow>=2.18
     "bokeh>=3.0",
     "numexpr>=2.8,!=2.8.5", # until RE string issue gets fixed
 ]
