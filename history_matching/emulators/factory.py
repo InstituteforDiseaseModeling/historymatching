@@ -132,10 +132,20 @@ class EmulatorFactory:
                 # Extract single feature as DataFrame
                 y_data = simulation_results[[feature]]
 
+                # Drop NaN rows (keeping X/Y positionally aligned)
+                valid_mask = y_data[feature].notna()
+                if not valid_mask.all():
+                    n_dropped = int((~valid_mask).sum())
+                    logger.warning(f"  Feature '{feature}': dropping {n_dropped}/{len(y_data)} NaN rows before training")
+                    y_data = y_data.loc[valid_mask].reset_index(drop=True)
+                    x_data = samples.loc[valid_mask.values].reset_index(drop=True)
+                else:
+                    x_data = samples
+
                 # Create and train emulator
-                logger.info(f"  Emulator {i}/{len(features)} [{feature}]: creating ({len(samples)} samples, "
-                            f"{len(samples.columns)} params, type={emulator_type or self.default_type})...")
-                emulator = self.create_emulator(samples, y_data, emulator_type, **kwargs)
+                logger.info(f"  Emulator {i}/{len(features)} [{feature}]: creating ({len(x_data)} samples, "
+                            f"{len(x_data.columns)} params, type={emulator_type or self.default_type})...")
+                emulator = self.create_emulator(x_data, y_data, emulator_type, **kwargs)
                 t0 = _time.time()
                 logger.info(f"  Emulator {i}/{len(features)} [{feature}]: training...")
                 emulator.train()
