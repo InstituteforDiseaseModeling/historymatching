@@ -30,6 +30,138 @@ from .sampling import SamplingStrategy
 
 logger = logging.getLogger(__name__)
 
+# Show all parameters in pairplot when n_params <= this; otherwise show the top N most-constrained.
+_PAIRPLOT_MAX_PARAMS = 15
+
+
+def _compute_variance_reduction(
+    nroy_samples: pd.DataFrame,
+    parameter_space: "ParameterSpace",
+) -> tuple:
+    """
+    PCA-based variance reduction analysis for NROY samples.
+
+    Normalizes samples to the [0, 1]^d unit cube using prior bounds, fits PCA,
+    and computes per-PC variance reduction relative to a uniform prior.
+
+    Variance reduction per PC:
+        reduction = 1 - (NROY_variance_along_PC / prior_variance)
+        0.0 → direction as wide as the prior (unconstrained)
+        1.0 → direction fully collapsed (fully constrained)
+
+    Returns:
+        reduction  : np.ndarray (n_params,), sorted most-constrained first
+        components : np.ndarray (n_params, n_params), PCA loadings (rows), same order
+        param_names: list[str], parameter names
+    """
+    import numpy as np
+    from sklearn.decomposition import PCA
+
+    param_names = parameter_space.get_parameter_names()
+    X = np.empty((len(nroy_samples), len(param_names)))
+    for j, name in enumerate(param_names):
+        lo, hi = parameter_space.get_bounds(name)
+        X[:, j] = (nroy_samples[name].to_numpy() - lo) / (hi - lo)
+
+    prior_var = 1.0 / 12.0  # Uniform[0, 1] → variance = 1/12
+
+    pca = PCA(n_components=len(param_names))
+    pca.fit(X)
+
+    reduction = np.clip(1.0 - pca.explained_variance_ / prior_var, 0.0, 1.0)
+    order = np.argsort(reduction)[::-1]
+    return reduction[order], pca.components_[order], param_names
+
+
+def _marginal_variance_reduction(
+    nroy_samples: pd.DataFrame,
+    parameter_space: "ParameterSpace",
+) -> dict:
+    """
+    Per-parameter marginal variance reduction vs uniform prior.
+
+    Simpler than the PCA-based version: just compares the marginal variance of
+    each parameter in the NROY cloud to the prior variance. Useful for ranking
+    which parameters to show in a pairplot.
+
+    Returns:
+        dict mapping param_name → reduction in [0, 1]
+    """
+    import numpy as np
+
+    prior_var = 1.0 / 12.0
+    result = {}
+    for name in parameter_space.get_parameter_names():
+        lo, hi = parameter_space.get_bounds(name)
+        x = (nroy_samples[name].to_numpy() - lo) / (hi - lo)
+        nroy_var = float(np.var(x))
+        result[name] = float(np.clip(1.0 - nroy_var / prior_var, 0.0, 1.0))
+    return result
+
+
+def _plot_constrained_dims(
+    nroy_samples: pd.DataFrame,
+    parameter_space: "ParameterSpace",
+    wave_label: str,
+    out_path: "Path",
+    n_top: int = 5,
+) -> None:
+    """
+    Save a constrained-directions diagnostic plot for a single HM wave.
+
+    Top panel: variance reduction spectrum (most-constrained PCs first).
+    Lower panels: loading bar charts for the top-N most-constrained PCs,
+    showing |loading| as bar height and sign as colour (red = positive,
+    blue = negative).
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    reduction, components, param_names = _compute_variance_reduction(nroy_samples, parameter_space)
+    n_params = len(param_names)
+    n_top = min(n_top, n_params)
+
+    fig, axes = plt.subplots(
+        1 + n_top, 1,
+        figsize=(max(10, n_params * 0.55), 4 + 2.5 * n_top),
+        gridspec_kw={"height_ratios": [2.5] + [1.5] * n_top},
+    )
+    fig.suptitle(
+        f"Constrained directions — {wave_label}\n"
+        "Variance reduction = 1 − NROY_var / prior_var  "
+        "(bar height = |loading|, red = positive, blue = negative)",
+        fontsize=10,
+    )
+
+    # ── Spectrum ─────────────────────────────────────────────────────────────
+    ax = axes[0]
+    colors = ["firebrick" if r > 0.5 else "steelblue" for r in reduction]
+    ax.bar(np.arange(n_params), reduction * 100, color=colors, edgecolor="none")
+    ax.axhline(50, color="k", lw=0.8, ls="--", label="50% reduction")
+    ax.set_ylabel("Variance reduction (%)")
+    ax.set_xlabel("PC index (sorted most-constrained first)")
+    ax.set_ylim(0, 105)
+    ax.legend(fontsize=8)
+    ax.set_xticks(np.arange(n_params))
+    ax.set_xticklabels([f"PC{i + 1}" for i in range(n_params)], fontsize=7, rotation=45)
+
+    # ── Loadings for top-N constrained PCs ───────────────────────────────────
+    for k in range(n_top):
+        ax = axes[k + 1]
+        loadings = components[k]
+        bar_colors = ["firebrick" if v > 0 else "steelblue" for v in loadings]
+        ax.bar(np.arange(n_params), np.abs(loadings), color=bar_colors, edgecolor="none")
+        ax.axhline(0, color="k", lw=0.5)
+        ax.set_ylabel("|Loading|")
+        ax.set_title(f"PC{k + 1} — {reduction[k] * 100:.1f}% reduction", fontsize=9)
+        ax.set_xticks(np.arange(n_params))
+        ax.set_xticklabels(param_names, fontsize=6.5, rotation=45, ha="right")
+        ax.set_ylim(0, 1.05)
+
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=120, bbox_inches="tight")
+    plt.close(fig)
+
 
 class EngineState(Enum):
     """Possible states of the HistoryMatchingEngine."""
@@ -1162,38 +1294,49 @@ class HistoryMatchingEngine:
         except Exception as e:
             logger.warning(f"Failed to save z-scores plot: {e}")
 
+        # ── Wave-level: constrained-directions diagnostic ────────────────
+        try:
+            snapshot = self._snapshots[-1]
+            if snapshot.next_samples is not None and len(snapshot.next_samples) >= 10:
+                _plot_constrained_dims(
+                    nroy_samples=snapshot.next_samples,
+                    parameter_space=self._parameter_space,
+                    wave_label=f"wave{result.iteration}",
+                    out_path=wave_dir / "constrained_dims.png",
+                )
+        except Exception as e:
+            logger.warning(f"Failed to save constrained-dims plot: {e}")
+
         # ── Wave-level: parameter space pair plot ────────────────────────
         try:
             all_results = self.get_all_results()
             if len(all_results) >= 2:
-                import matplotlib
                 import matplotlib.pyplot as plt
 
                 param_names = self._parameter_space.get_parameter_names()
+                n_all = len(param_names)
 
-                # Pick top 8 most relevant params by shortest ARD lengthscale
-                # across all emulators in this wave
-                ls_min = {}
-                for feat, emul in result.emulators.items():
-                    model = getattr(emul, 'model', None)
-                    if model is None or not hasattr(model, 'kernel'):
-                        continue
-                    try:
-                        ls = model.kernel.lengthscales.numpy()
-                        if ls.ndim == 0:
-                            continue
-                        names = (list(emul.X_train_df.columns) if hasattr(emul, 'X_train_df')
-                                 else param_names[:len(ls)])
-                        for n, v in zip(names, ls):
-                            if n not in ls_min or v < ls_min[n]:
-                                ls_min[n] = v
-                    except Exception:
-                        pass
-
-                if len(ls_min) > 0:
-                    sorted_params = sorted(ls_min, key=ls_min.get)[:8]
+                # Select parameters to show.  If the problem is small enough, show
+                # everything.  Otherwise rank by marginal variance reduction — the
+                # params whose NROY range has shrunk most relative to the prior.
+                # This is better than ARD lengthscales, which reflect emulator
+                # sensitivity to the current wave's target features rather than
+                # overall constraint across all waves.
+                snapshot = self._snapshots[-1]
+                if n_all <= _PAIRPLOT_MAX_PARAMS:
+                    sorted_params = param_names
+                    subtitle_note = f"all {n_all} parameters"
+                elif snapshot.next_samples is not None and len(snapshot.next_samples) >= 10:
+                    reduction_map = _marginal_variance_reduction(
+                        snapshot.next_samples, self._parameter_space
+                    )
+                    sorted_params = sorted(
+                        reduction_map, key=reduction_map.get, reverse=True
+                    )[:_PAIRPLOT_MAX_PARAMS]
+                    subtitle_note = f"top {len(sorted_params)} most-constrained parameters"
                 else:
-                    sorted_params = param_names[:8]
+                    sorted_params = param_names[:_PAIRPLOT_MAX_PARAMS]
+                    subtitle_note = f"first {len(sorted_params)} parameters"
 
                 n_pars = len(sorted_params)
                 n_show = min(len(all_results), 3)
@@ -1238,8 +1381,7 @@ class HistoryMatchingEngine:
                         ax.spines['right'].set_visible(False)
 
                 wave_labels = ' \u2192 '.join(str(r.iteration) for r in show_results)
-                fig.suptitle(f'Parameter space: Waves {wave_labels}\n'
-                             f'({n_pars} most relevant parameters by ARD)',
+                fig.suptitle(f'Parameter space: Waves {wave_labels}\n({subtitle_note})',
                              fontsize=13, fontweight='bold', y=1.02)
                 fig.tight_layout()
                 fig.savefig(wave_dir / "pairplot.png", dpi=150, bbox_inches='tight')
