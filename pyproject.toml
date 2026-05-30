@@ -46,7 +46,7 @@ dependencies = [
     "scipy>=1.11",
     "scikit-learn>=1.3",
     "setuptools>=30.3.0,<82",  # gpflow requires pkg_resources, removed in setuptools 82+
-    "tensorflow>=2.19",
+    "tensorflow>=2.18",
     "tf-keras",
     "gpflow>=2.5",  # 2.5+ stable API
     "bokeh>=3.0",
@@ -65,7 +65,6 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",
-    "ruff>=0.1.0",
 ]
 docs = [
     "mkdocs>=1.5",
@@ -85,52 +84,6 @@ Repository = "https://github.com/InstituteforDiseaseModeling/historymatching"
 [tool.setuptools.packages.find]
 include = ["historymatching*"]
 
-[tool.ruff]
-extend-exclude = ["static", "ci/templates", "examples"]
-line-length = 200
-src = ["historymatching", "tests"]
-target-version = "py39"
-
-[tool.ruff.lint]
-ignore = [
-    "RUF001", # ruff-specific rules ambiguous-unicode-character-string
-    "S101", # flake8-bandit assert
-    "S308", # flake8-bandit suspicious-mark-safe-usage
-    "S603", # `subprocess` without `shell=True`
-    "S607", # starting a process with a partial path
-]
-select = [
-    "B", # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "DTZ", # flake8-datetimez
-    "E", # pycodestyle errors
-    "EXE", # flake8-executable
-    "F", # pyflakes
-    "I", # isort
-    "INT", # flake8-gettext
-    "PIE", # flake8-pie
-    "PLC", # pylint convention
-    "PLE", # pylint errors
-    "PT", # flake8-pytest-style
-    "PTH", # flake8-use-pathlib
-    "Q", # flake8-quotes
-    "RSE", # flake8-raise
-    "RUF", # ruff-specific rules
-    "S", # flake8-bandit
-    "UP", # pyupgrade
-    "W", # pycodestyle warnings
-]
-
-[tool.ruff.lint.per-file-ignores]
-
-[tool.ruff.lint.flake8-pytest-style]
-fixture-parentheses = false
-mark-parentheses = false
-
-[tool.ruff.lint.isort]
-forced-separate = ["conftest"]
-force-single-line = true
-
 [tool.pytest.ini_options]
 norecursedirs = ["migrations"]
 python_files = ["test_*.py", "*_test.py", "tests.py"]
@@ -144,9 +97,3 @@ filterwarnings = [
     "ignore::UserWarning:historymatching",
     "ignore:pkg_resources is deprecated as an API:UserWarning",
 ]
-
-[tool.black]
-line-length = 200
-target-version = ["py39"]
-skip-string-normalization = true
-ignore = ".venv"
