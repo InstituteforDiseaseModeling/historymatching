@@ -30,6 +30,31 @@ On Apple Silicon Macs, optionally install Metal GPU acceleration:
 pip install -e ".[mac]"
 ```
 
+### Installation via uv
+
+[uv](https://docs.astral.sh/uv/) is a fast Python package and project manager that can serve as a drop-in replacement for `pip`. To install with uv:
+
+```bash
+git clone https://github.com/InstituteforDiseaseModeling/historymatching
+cd historymatching
+uv pip install -e .
+```
+
+The optional dependency groups work the same way:
+
+```bash
+uv pip install -e ".[notebooks,dev]"
+uv pip install -e ".[mac]"  # Metal GPU acceleration on Apple Silicon
+```
+
+uv is especially helpful on macOS. The TensorFlow and GPflow dependency tree (including the pinned `setuptools<81` and `tf-keras` requirements) can be slow and error-prone to resolve with `pip`, and uv's resolver handles it quickly and reliably. uv can also manage the Python interpreter itself, which makes it easy to get a supported version (3.9-3.12) without touching the system Python that macOS ships with:
+
+```bash
+uv python install 3.12
+uv venv --python 3.12
+uv pip install -e ".[notebooks,dev,mac]"
+```
+
 ## Quick start
 
 ```python
