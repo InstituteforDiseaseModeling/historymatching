@@ -23,8 +23,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-import history_matching as hm
-from model import SIR, generate_observed_data
+import historymatching as hm
+from model import SIR
 
 %matplotlib inline
 np.random.seed(42)
@@ -47,70 +47,57 @@ print(f"  beta (transmission rate): {beta_true}")
 print(f"  gamma (recovery rate):    {gamma_true}")
 print(f"  R0 (basic reproduction number): {beta_true/gamma_true:.2f}")
 
-incidence_obs, true_model = generate_observed_data(
-    beta_true=beta_true,
-    gamma_true=gamma_true,
+model = SIR(
+    beta=beta_true,
+    gamma=gamma_true,
     population_size=population_size,
     n_seed_infections=n_seed_infections,
 )
+incidence_obs = model.run()
 
-true_model.plot("True Outbreak (Synthetic Observed Data)")
+model.plot("True Outbreak (Synthetic Observed Data)")
 
-plt.figure(figsize=(8, 4))
-incidence_obs.plot(style="o-", markersize=4)
-plt.xlabel("Days")
-plt.ylabel("Daily Incidence")
-plt.title("Observed Daily Incidence Data")
-plt.grid(True, alpha=0.3)
-plt.show()
-
-print(f"Peak incidence:  {incidence_obs.max():.0f} cases/day")
-print(f"Total cases:     {incidence_obs.sum():.0f}")
+print(f"Peak incidence:  {incidence_obs.max():n} cases/day")
+print(f"Total cases:     {incidence_obs.sum():n}")
 print(f"Attack rate:     {incidence_obs.sum()/population_size:.1%}")
 ```
 
 ## Define Simulation Function
 
-History matching requires a function that takes a DataFrame of parameter samples
-and returns a DataFrame of simulation outputs.
+History matching requires a function that takes a list or dataframe of parameter samples
+and returns a list or dataframe of simulation outputs.
 
 ```{python}
-def sir_simulation_function(samples: pd.DataFrame) -> pd.DataFrame:
-    """Run SIR model for each row of parameter samples.
-
-    Injects rand_seed for deterministic outputs — the engine filters it
-    out before emulation but stores it on result.samples.
-    """
-    df = samples.copy()
-    if 'rand_seed' not in df.columns:
-        df['rand_seed'] = np.random.default_rng(42).integers(0, 2**31, size=len(df))
-
+def run_sir(samples):
+    """ Run SIR model for each row of parameter samples """
     results = []
-    for _, row in df.iterrows():
+    for row in samples:
         model = SIR(
             beta=row["beta"],
             gamma=row["gamma"],
             s0=population_size - n_seed_infections,
             i0=n_seed_infections,
-            seed=int(row["rand_seed"]),
         )
-        incidence = model.get_incidence()
-        result = {f"incidence_{i}": incidence[i] for i in range(len(incidence))}
-        result["peak_incidence"] = incidence.max()
-        result["total_cases"] = incidence.sum()
-        result["attack_rate"] = incidence.sum() / population_size
+        incidence = model.run()
+        result = dict(
+            incidence = incidence,
+            peak_incidence = incidence.max(),
+            total_cases = incidence.sum(),
+            attack_rate = incidence.sum() / population_size
+        )
         results.append(result)
-    return pd.DataFrame(results)
+    return results
 
 # Quick sanity check
-test = sir_simulation_function(pd.DataFrame({"beta": [1.0, 1.5], "gamma": [0.3, 0.5]}))
-print(f"Simulation output shape: {test.shape}")
-print(f"Output columns (first 5): {list(test.columns[:5])}...")
+samples = pd.DataFrame({"beta": [1.0, 1.5], "gamma": [0.3, 0.5]}).to_dict('records')
+test = run_sir(samples)
+print(f"Simulation output shape: {len(test)}")
+print(f"Output keys: {list(test[0].keys())}...")
 ```
 
-## Configure History Matching Engine
+## Configure History Matching
 
-Use the builder pattern to set up the engine. We define:
+First we set up the engine. We define:
 - **parameter_bounds**: the search space for calibration
 - **observations**: the target data as (mean, std) pairs
 
@@ -121,30 +108,31 @@ parameter_bounds = {
 }
 
 observations = {
-    "peak_incidence":   (incidence_obs.max(),          50),
-    "total_cases":      (incidence_obs.sum(),          200),
-    "incidence_5":      (incidence_obs.iloc[5],         30),
-    "incidence_10":     (incidence_obs.iloc[10],        40),
-    "incidence_15":     (incidence_obs.iloc[15],        20),
+    "peak_incidence": (incidence_obs.max(),  50),
+    "total_cases":    (incidence_obs.sum(), 200),
+    "incidence": {
+        5:  (incidence_obs.iloc[5],  30),
+        10: (incidence_obs.iloc[10], 40),
+        15: (incidence_obs.iloc[15], 20),
+    }
 }
 
-builder = hm.HistoryMatchingBuilder.from_data(parameter_bounds, observations)
-engine = (builder
-    .with_sampling_strategy("lhs")
-    .with_emulator_type("gpr")
-    .with_samples_per_iteration(500)
-    .with_max_iterations(4)
-    .with_implausibility_threshold(3.0)
-    .with_random_seed(123)
-    .build()
+hmatch = hm.HistoryMatch(
+    function=run_sir,
+    parameter_bounds=parameter_bounds,
+    observations=observations,
+    sampling_strategy="lhs",
+    emulator_type="gpr",
+    n_samples=500,
+    max_iterations=4,
+    implausibility_threshold=3.0,
+    random_seed=123,
 )
 
-engine.set_simulation_function(sir_simulation_function)
-
-print(f"Engine ready. Parameters: {engine.parameter_space.get_parameter_names()}")
+print(f"Engine ready. Parameters: {hmatch.get_parameter_names()}")
 print(f"Observations: {list(observations.keys())}")
-print(f"Samples per iteration: {engine._n_samples}")
-print(f"Max iterations: {engine._max_iterations}")
+print(f"Samples per iteration: {hmatch.n_samples}")
+print(f"Max iterations: {hmatch.max_iterations}")
 ```
 
 ## Run Automated History Matching
@@ -152,98 +140,56 @@ print(f"Max iterations: {engine._max_iterations}")
 ```{python}
 print("Running automated history matching...")
 
-results = engine.run()
+hmatch.run()
 
 print(f"\nHistory matching completed!")
-print(f"  Iterations run:          {len(results)}")
-print(f"  Final acceptance rate:   {engine.acceptance_rate:.3f}")
-print(f"  Total samples generated: {engine.progress.total_samples_generated}")
-print(f"  Total samples accepted:  {engine.progress.total_samples_accepted}")
-print(f"  Emulators trained:       {engine.progress.total_emulators_trained}")
+print(f"  Iterations run:          {len(hmatch)}")
+print(f"  Final acceptance rate:   {hmatch.acceptance_rate:.3f}")
+print(f"  Total samples generated: {hmatch.samples_generated}")
+print(f"  Total samples accepted:  {hmatch.samples_accepted}")
+print(f"  Emulators trained:       {hmatch.emulators_trained}")
 
 print("\nIteration Summary:")
-for i, result in enumerate(results, 1):
-    s = result.samples
+for i, result, samples in hmatch.enumerate():
     print(
-        f"  Iteration {i}: {len(s)} samples, "
+        f"  Iteration {i}: {len(samples)} samples, "
         f"NROY fraction {result.nroy_fraction:.1%}, "
         f"features {result.selected_features}  "
-        f"beta=[{s['beta'].min():.2f}, {s['beta'].max():.2f}]  "
-        f"gamma=[{s['gamma'].min():.2f}, {s['gamma'].max():.2f}]"
+        f"beta=[{samples['beta'].min():.2f}, {samples['beta'].max():.2f}]  "
+        f"gamma=[{samples['gamma'].min():.2f}, {samples['gamma'].max():.2f}]"
     )
 ```
 
 ## Analyze Results
 
 ```{python}
-final_samples = engine.get_nroy_samples()
+final_samples = hmatch.get_nroy_samples()
+final_beta = final_samples["beta"]
+final_gamma = final_samples["gamma"]
 
 print(f"Final plausible samples: {len(final_samples)}")
-print(f"  beta  range: [{final_samples['beta'].min():.3f}, {final_samples['beta'].max():.3f}]  (true: {beta_true})")
-print(f"  gamma range: [{final_samples['gamma'].min():.3f}, {final_samples['gamma'].max():.3f}]  (true: {gamma_true})")
-print(f"  beta  median: {final_samples['beta'].median():.3f}")
-print(f"  gamma median: {final_samples['gamma'].median():.3f}")
+print(f"  beta  range: [{final_beta.min():.3f}, {final_beta.max():.3f}]  (true: {beta_true})")
+print(f"  gamma range: [{final_gamma.min():.3f}, {final_gamma.max():.3f}]  (true: {gamma_true})")
+print(f"  beta  median: {final_beta.median():.3f}")
+print(f"  gamma median: {final_gamma.median():.3f}")
 
-beta_ok  = final_samples["beta"].min()  <= beta_true  <= final_samples["beta"].max()
-gamma_ok = final_samples["gamma"].min() <= gamma_true <= final_samples["gamma"].max()
+beta_ok  = final_beta.min()  <= beta_true  <= final_beta.max()
+gamma_ok = final_gamma.min() <= gamma_true <= final_gamma.max()
 print(f"\nTrue beta  in plausible region: {'Yes' if beta_ok  else 'No'}")
 print(f"True gamma in plausible region: {'Yes' if gamma_ok else 'No'}")
 ```
 
 ```{python}
-fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-# Scatter: final plausible parameter space
-ax = axes[0, 0]
-ax.scatter(final_samples["beta"], final_samples["gamma"], alpha=0.6, s=20, color="green")
-ax.axvline(beta_true,  color="red", linestyle="--", linewidth=2, label=f"True beta = {beta_true}")
-ax.axhline(gamma_true, color="red", linestyle="--", linewidth=2, label=f"True gamma = {gamma_true}")
-ax.set_xlabel("beta (transmission rate)")
-ax.set_ylabel("gamma (recovery rate)")
-ax.set_title("Final Plausible Parameter Space")
-ax.legend()
-ax.grid(True, alpha=0.3)
-
-# Beta distribution
-ax = axes[0, 1]
-ax.hist(final_samples["beta"], bins=20, alpha=0.7, color="blue", density=True)
-ax.axvline(beta_true, color="red", linestyle="--", linewidth=2, label=f"True beta = {beta_true}")
-ax.axvline(final_samples["beta"].median(), color="green", linestyle="-", linewidth=2,
-           label=f"Estimated = {final_samples['beta'].median():.2f}")
-ax.set_xlabel("beta")
-ax.set_ylabel("Density")
-ax.set_title("beta Distribution")
-ax.legend()
-ax.grid(True, alpha=0.3)
-
-# Gamma distribution
-ax = axes[1, 0]
-ax.hist(final_samples["gamma"], bins=20, alpha=0.7, color="orange", density=True)
-ax.axvline(gamma_true, color="red", linestyle="--", linewidth=2, label=f"True gamma = {gamma_true}")
-ax.axvline(final_samples["gamma"].median(), color="green", linestyle="-", linewidth=2,
-           label=f"Estimated = {final_samples['gamma'].median():.2f}")
-ax.set_xlabel("gamma")
-ax.set_ylabel("Density")
-ax.set_title("gamma Distribution")
-ax.legend()
-ax.grid(True, alpha=0.3)
-
-# R0 distribution
-ax = axes[1, 1]
-R0_samples = final_samples["beta"] / final_samples["gamma"]
-R0_true = beta_true / gamma_true
-ax.hist(R0_samples, bins=20, alpha=0.7, color="purple", density=True)
-ax.axvline(R0_true, color="red", linestyle="--", linewidth=2, label=f"True R0 = {R0_true:.2f}")
-ax.axvline(R0_samples.median(), color="green", linestyle="-", linewidth=2,
-           label=f"Estimated R0 = {R0_samples.median():.2f}")
-ax.set_xlabel("R0 (basic reproduction number)")
-ax.set_ylabel("Density")
-ax.set_title("R0 Distribution")
-ax.legend()
-ax.grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.show()
+fig, axes = hmatch.plot_nroy_parameters(
+    fig_kwargs={"figsize": (8, 6)},
+    derived = {'R0': lambda df: df['beta'] / df['gamma']},
+    true_parameters = {
+        'beta': beta_true, 
+        'gamma': gamma_true, 
+        'R0': beta_true/gamma_true
+    },
+    show=True,
+)
 ```
 
 ## Validate Results with Forward Simulation
@@ -296,7 +242,7 @@ print(f"Best RMSE: {np.min(rmse_values):.1f}")
 
 ## Multiple Emulators Per Wave
 
-By default `with_feature_selection` uses automatic Fano-factor selection capped at
+By default `feature_selection` uses automatic Fano-factor selection capped at
 **one feature per wave**.  You can raise that cap — or specify features explicitly —
 to train several emulators in a single wave.  Each emulator targets one observable,
 and implausibility is computed per-emulator then maximised across all of them, so a
@@ -304,38 +250,29 @@ sample must pass *every* constraint simultaneously.
 
 ### Automated mode: raise the cap
 
-```python
-builder = hm.HistoryMatchingBuilder.from_data(parameter_bounds, observations)
-engine = (builder
-    .with_sampling_strategy("lhs")
-    .with_emulator_type("gpr")
-    .with_feature_selection({"method": "fano", "max_features": 3})   # ← up to 3 per wave
-    .with_samples_per_iteration(500)
-    .with_max_iterations(4)
-    .with_implausibility_threshold(3.0)
-    .with_random_seed(123)
-    .build()
+```{python}
+hmatch = hm.HistoryMatching(
+    function=run_sir,
+    parameter_bounds=parameter_bounds,
+    observations=observations,
+    sampling_strategy="lhs",
+    emulator_type="gpr",
+    feature_selection={"method": "fano", "max_features": 3},   # ← up to 3 per wave
+    n_samples=500,
+    max_iterations=4,
+    implausibility_threshold=3.0,
+    random_seed=123
 )
-engine.set_simulation_function(sir_simulation_function)
-results = engine.run()
+results = hmatch.run()
 ```
 
-### Inspecting per-feature quality after `engine.run()`
+### Inspecting per-feature quality after `hmatch.run()`
 
-`IterationResult.get_emulator_quality_metrics()` returns one entry per emulated
+`HistoryMatching.print_emulator_quality_metrics()` returns one entry per emulated
 feature.  Use it to check whether each emulator was worth including:
 
 ```{python}
-print("Per-feature emulator quality across all waves:")
-print(f"{'Wave':<6} {'Feature':<20} {'R²':>6}  {'MSE':>10}  {'n_train':>8}")
-print("-" * 56)
-for result in results:
-    metrics = result.get_emulator_quality_metrics()
-    for feature, m in metrics.items():
-        r2  = m.get("r2_score",      float("nan"))
-        mse = m.get("mse",           float("nan"))
-        n   = m.get("training_size", "?")
-        print(f"{result.iteration:<6} {feature:<20} {r2:>6.3f}  {mse:>10.4g}  {n:>8}")
+hmatch.print_emulator_quality_metrics()
 ```
 
 In the automated workflow there is no opportunity to drop a poor emulator mid-wave —
@@ -352,12 +289,7 @@ figure, and a `metrics.json` file:
 import tempfile, os
 
 diag_dir = tempfile.mkdtemp(prefix="hm_diagnostics_")
-for result in results:
-    result.save_diagnostics(diag_dir, all_results=results)
-
-print(f"Diagnostics saved to {diag_dir}/")
-for f in sorted(os.listdir(diag_dir)):
-    print(f"  {f}")
+hmatch.save_diagnostics(diag_dir, verbose=True)
 ```
 
 ## Summary

@@ -3,8 +3,8 @@
 ## Development setup
 
 ```bash
-git clone https://github.com/InstituteforDiseaseModeling/history_matching
-cd history_matching
+git clone https://github.com/InstituteforDiseaseModeling/historymatching
+cd historymatching
 pip install -e ".[dev]"
 ```
 

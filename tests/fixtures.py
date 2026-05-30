@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 from typing import List, Optional, Callable, Dict, Tuple
 
-from history_matching.utils import PARAMETER_SPACE_COLUMNS, OBSERVATIONS_COLUMNS
-from history_matching.emulators.base import BaseEmulator
+from historymatching.utils import PARAMETER_SPACE_COLUMNS, OBSERVATIONS_COLUMNS
+from historymatching.emulators.base import BaseEmulator
 
 
 class TestDataFactory:

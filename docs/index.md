@@ -1,6 +1,6 @@
 # History Matching
 
-[![Tests](https://github.com/InstituteforDiseaseModeling/history_matching/actions/workflows/tests.yml/badge.svg)](https://github.com/InstituteforDiseaseModeling/history_matching/actions)
+[![Tests](https://github.com/InstituteforDiseaseModeling/historymatching/actions/workflows/tests.yml/badge.svg)](https://github.com/InstituteforDiseaseModeling/historymatching/actions)
 
 History Matching is a Python library for Bayesian History Matching — an iterative algorithm for calibrating computational models against observed data. It is designed for problems where simulations are expensive and exhaustive parameter sweeps are impractical.
 
@@ -21,7 +21,7 @@ See [Installation](installation.md) for full details including optional dependen
 ## Quick start
 
 ```python
-import history_matching as hm
+import historymatching as hm
 
 # Configure and build the engine
 engine = (hm.HistoryMatchingBuilder
@@ -51,7 +51,7 @@ See the [Usage guide](usage.md) for a complete walkthrough, or jump into the [Tu
 
 ## Contributing
 
-Questions or comments can be directed to the project's [GitHub](https://github.com/InstituteforDiseaseModeling/history_matching) page.
+Questions or comments can be directed to the project's [GitHub](https://github.com/InstituteforDiseaseModeling/historymatching) page.
 
 ## Disclaimer
 

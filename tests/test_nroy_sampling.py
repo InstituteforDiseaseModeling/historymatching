@@ -6,16 +6,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from history_matching.nroy_sampling import (
+from historymatching.nroy_sampling import (
     NROYResult,
     generate_nroy_design,
     _lhs_reject_loop,
 )
-from history_matching.emulator_bank import EmulatorBank
-from history_matching.observation_data import ObservationData
-from history_matching.parameter_space import ParameterSpace
-from history_matching.emulators.base import BaseEmulator
-from history_matching.emulators.results import EmulationResults
+from historymatching.emulator_bank import EmulatorBank
+from historymatching.observation_data import ObservationData
+from historymatching.parameter_space import ParameterSpace
+from historymatching.emulators.base import BaseEmulator
+from historymatching.emulators.results import EmulationResults
 
 
 class PassthroughEmulator(BaseEmulator):
@@ -124,7 +124,7 @@ class TestNROYFractionReporting:
         """_lhs_reject_loop should attach total_generated to the result."""
         param_space = ParameterSpace({"x1": (0.0, 1.0), "x2": (0.0, 1.0)})
 
-        from history_matching.sampling import SamplingStrategyFactory
+        from historymatching.sampling import SamplingStrategyFactory
         strategy = SamplingStrategyFactory.create('lhs')
 
         # filter_fn that accepts everything

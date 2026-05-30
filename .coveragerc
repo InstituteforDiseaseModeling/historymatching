@@ -6,7 +6,7 @@ source =
 [run]
 branch = true
 source =
-    history_matching
+    historymatching
     tests
 parallel = true
 

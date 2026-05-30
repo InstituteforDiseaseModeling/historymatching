@@ -9,7 +9,7 @@ numba's thread pool.
 Typical speedup: 200–500× over GPflow predict_f for large batches.
 
 Usage:
-    from history_matching.emulators.fast_predict import FastGPRPredictor
+    from historymatching.emulators.fast_predict import FastGPRPredictor
 
     # Build from a trained GPR emulator
     fast = FastGPRPredictor.from_emulator(emulator)
@@ -18,7 +18,7 @@ Usage:
     mean, var = fast.predict(X_test)
 
     # Or use the short-circuit NROY filter
-    from history_matching.emulators.fast_predict import filter_nroy
+    from historymatching.emulators.fast_predict import filter_nroy
     mask = filter_nroy(candidates, predictors, obs_targets, threshold=3.5)
 """
 

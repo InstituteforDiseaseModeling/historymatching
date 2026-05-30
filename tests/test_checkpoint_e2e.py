@@ -5,7 +5,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'docs', 'tutorials'))
 from model import SIR, generate_observed_data
-import history_matching as hm
+import historymatching as hm
 
 POPULATION = 5_000
 SEED_INFECTIONS = 50

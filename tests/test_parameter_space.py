@@ -8,8 +8,8 @@ import pandas as pd
 import tempfile
 import os
 
-from history_matching.parameter_space import ParameterSpace
-from history_matching.utils import PARAMETER_SPACE_COLUMNS
+from historymatching.parameter_space import ParameterSpace
+from historymatching.utils import PARAMETER_SPACE_COLUMNS
 from fixtures import TestDataFactory, TestAssertions, TestConstants
 
 
