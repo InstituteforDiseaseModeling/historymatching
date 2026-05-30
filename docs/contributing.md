@@ -14,14 +14,6 @@ pip install -e ".[dev]"
 pytest tests/
 ```
 
-## Code style
-
-This project uses [Ruff](https://docs.astral.sh/ruff/) for linting. Run checks with:
-
-```bash
-ruff check .
-```
-
 ## Pull requests
 
 1. Create a feature branch from `main`
