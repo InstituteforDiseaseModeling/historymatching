@@ -46,7 +46,7 @@ dependencies = [
     "scipy>=1.11",
     "scikit-learn>=1.3",
     "setuptools>=30.3.0,<82",  # gpflow requires pkg_resources, removed in setuptools 82+
-    "tensorflow>=2.19",
+    "tensorflow>=2.18",
     "tf-keras",
     "gpflow>=2.5",  # 2.5+ stable API
     "bokeh>=3.0",
