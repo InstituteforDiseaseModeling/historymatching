@@ -27,17 +27,16 @@ def run_sir(samples):
 def make_engine(output_dir):
     obs_peak = float(obs_incidence.max())
     obs_ar = float(obs_incidence.sum() / POPULATION)
-    engine = (hm.HistoryMatchingBuilder.from_data(
+    builder = hm.HistoryMatchingBuilder.from_data(
         parameter_bounds={'beta': (0.3, 2.0), 'gamma': (0.1, 0.8)},
         observations={'peak_incidence': (obs_peak, obs_peak*0.10),
                       'attack_rate': (obs_ar, obs_ar*0.05)})
-        .with_emulator_type('gpr')
-        .with_samples_per_iteration(100)
-        .with_max_iterations(2)
-        .with_output_dir(output_dir)
-        .with_run_name('test_run')
-        .build()
-    )
+    builder.emulator_type = 'gpr'
+    builder.n_samples = 100
+    builder.max_iterations = 2
+    builder.output_dir = output_dir
+    builder.run_name = 'test_run'
+    engine = builder.build()
     engine.set_simulation_function(run_sir)
     return engine
 

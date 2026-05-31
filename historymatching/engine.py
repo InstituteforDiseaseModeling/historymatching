@@ -265,21 +265,21 @@ class HistoryMatchingEngine:
             **kwargs: Additional settings
         """
         # Core components
-        self._parameter_space = parameter_space  # Always keep original space
-        self._observations = observations
-        self._sampling_strategy = sampling_strategy
-        self._feature_selection_strategy = feature_selection_strategy
-        self._emulator_factory = emulator_factory
-        self._emulator_bank = emulator_bank or EmulatorBank()
+        self.parameter_space = parameter_space  # Always keep original space
+        self.observations = observations
+        self.sampling_strategy = sampling_strategy
+        self.feature_selection_strategy = feature_selection_strategy
+        self.emulator_factory = emulator_factory
+        self.emulator_bank = emulator_bank if emulator_bank is not None else EmulatorBank()
 
         # Workflow configuration
-        self._n_samples = n_samples
-        self._implausibility_threshold = implausibility_threshold
-        self._max_iterations = max_iterations
-        self._random_seed = random_seed
-        self._auto_reduce_space = auto_reduce_space
-        self._oversample_factor = oversample_factor
-        self._max_batch_size = max_batch_size
+        self.n_samples = n_samples
+        self.implausibility_threshold = implausibility_threshold
+        self.max_iterations = max_iterations
+        self.random_seed = random_seed
+        self.auto_reduce_space = auto_reduce_space
+        self.oversample_factor = oversample_factor
+        self.max_batch_size = max_batch_size
 
         # Engine state
         self._state = EngineState.INITIALIZED
@@ -294,7 +294,7 @@ class HistoryMatchingEngine:
         self._progress_callbacks: list[Callable] = []
 
         # Additional settings
-        self._settings = kwargs
+        self.settings = kwargs
 
         # Simulation function (to be provided by user)
         self._simulation_function: Optional[Callable] = None
@@ -363,11 +363,6 @@ class HistoryMatchingEngine:
         return self._progress.current_iteration
 
     @property
-    def parameter_space(self) -> ParameterSpace:
-        """Original parameter space (never reduced unless explicitly enabled)."""
-        return self._parameter_space
-
-    @property
     def acceptance_rate(self) -> float:
         """Current acceptance rate for sample filtering."""
         return self._progress.acceptance_rate
@@ -395,6 +390,47 @@ class HistoryMatchingEngine:
         """Add callback to be called on progress updates."""
         self._progress_callbacks.append(callback)
 
+    def validate(self):
+        """
+        Validate the engine's configuration.
+
+        Checks that the required components are present and that all numeric and
+        enumerated options are within their valid ranges.  Called automatically at
+        the start of :meth:`run` and :meth:`step` (configuration attributes are
+        public and may be changed after construction); may also be called directly.
+
+        Raises:
+            ValueError: If any required component is missing or an option is invalid.
+        """
+        if self.parameter_space is None:
+            raise ValueError("Parameter space is required.")
+        if self.observations is None:
+            raise ValueError("Observations are required.")
+        if self.sampling_strategy is None:
+            raise ValueError("Sampling strategy is required.")
+        if self.feature_selection_strategy is None:
+            raise ValueError("Feature selection strategy is required.")
+        if self.emulator_factory is None:
+            raise ValueError("Emulator factory is required.")
+
+        if self.n_samples <= 0:
+            raise ValueError("Number of samples must be positive")
+        if self.max_iterations <= 0:
+            raise ValueError("Max iterations must be positive")
+        if self.implausibility_threshold <= 0:
+            raise ValueError("Implausibility threshold must be positive")
+        if self.oversample_factor < 1.0:
+            raise ValueError("Oversample factor must be >= 1.0")
+        if self.max_batch_size < 100:
+            raise ValueError("Max batch size must be >= 100")
+
+        convergence_threshold = self.settings.get('convergence_threshold')
+        if convergence_threshold is not None and not (0.0 <= convergence_threshold <= 1.0):
+            raise ValueError("Convergence threshold must be between 0.0 and 1.0")
+        nroy_method = self.settings.get('nroy_method')
+        if nroy_method is not None and nroy_method not in ('auto', 'lhs', 'ray'):
+            raise ValueError(f"Unknown NROY method '{nroy_method}'. Valid: ('auto', 'lhs', 'ray')")
+
     def step(self, features: Optional[list[str]] = None) -> IterationResult:
         """
         Execute a single history matching iteration.
@@ -407,8 +443,10 @@ class HistoryMatchingEngine:
 
         Raises:
             RuntimeError: If engine is not in a valid state for stepping
-            ValueError: If simulation function is not set
+            ValueError: If simulation function is not set or configuration is invalid
         """
+        self.validate()
+
         if self._state not in [EngineState.INITIALIZED, EngineState.PAUSED]:
             if self._state == EngineState.RUNNING:
                 raise RuntimeError(
@@ -417,7 +455,7 @@ class HistoryMatchingEngine:
                 )
             elif self._state == EngineState.COMPLETED:
                 raise RuntimeError(
-                    f"Engine has completed all {self._max_iterations} iterations. "
+                    f"Engine has completed all {self.max_iterations} iterations. "
                     "Use get_all_results() to access results or create a new engine instance to continue."
                 )
             elif self._state == EngineState.ERROR:
@@ -439,11 +477,11 @@ class HistoryMatchingEngine:
                 "a DataFrame with simulation results."
             )
 
-        if self._progress.current_iteration >= self._max_iterations:
+        if self._progress.current_iteration >= self.max_iterations:
             raise RuntimeError(
-                f"Maximum iterations limit reached ({self._max_iterations} iterations completed). "
+                f"Maximum iterations limit reached ({self.max_iterations} iterations completed). "
                 f"To run more iterations, create a new engine with a higher max_iterations value, "
-                f"or use engine.update_max_iterations({self._max_iterations + 5}) to extend the current run."
+                f"or use engine.update_max_iterations({self.max_iterations + 5}) to extend the current run."
             )
 
         wave_num = self._progress.current_iteration + 1
@@ -494,12 +532,12 @@ class HistoryMatchingEngine:
 
             # ── Phase 5: NROY sampling for next wave ─────────────────────
             t0 = _time.time()
-            logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: finding {self._n_samples} plausible candidates for next wave...")
+            logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: finding {self.n_samples} plausible candidates for next wave...")
             next_iteration_samples = self._compute_next_iteration_samples(emulators)
             logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: found {len(next_iteration_samples)} candidates [{_time.time()-t0:.1f}s]")
 
             # Check: did we get enough samples for a meaningful next wave?
-            min_samples = max(2 * len(self._parameter_space.get_parameter_names()), 20)
+            min_samples = max(2 * len(self.parameter_space.get_parameter_names()), 20)
             if len(next_iteration_samples) < min_samples:
                 feature_list = ', '.join(selected_features)
                 logger.warning(
@@ -521,7 +559,7 @@ class HistoryMatchingEngine:
             # Create iteration result
             iteration_result = IterationResult(
                 iteration=self._progress.current_iteration + 1,
-                parameter_space=self._parameter_space,  # Current parameter space for this iteration
+                parameter_space=self.parameter_space,  # Current parameter space for this iteration
                 samples=samples,
                 simulation_results=simulation_results,
                 selected_features=selected_features,
@@ -535,7 +573,7 @@ class HistoryMatchingEngine:
             self._pending_snapshot = IterationSnapshot(
                 iteration=self._progress.current_iteration + 1,
                 parameter_space=next_parameter_space,
-                emulator_bank=self._emulator_bank.copy(),  # Copy current state
+                emulator_bank=self.emulator_bank.copy(),  # Copy current state
                 result=iteration_result,
                 next_samples=next_iteration_samples,  # Store pre-computed samples for next iteration
                 total_samples_generated=self._progress.total_samples_generated,
@@ -618,11 +656,11 @@ class HistoryMatchingEngine:
                 )
 
         # Apply changes
-        self._emulator_bank = self._pending_snapshot.emulator_bank
+        self.emulator_bank = self._pending_snapshot.emulator_bank
 
         # Update parameter space only if auto-reduction is enabled
-        if self._auto_reduce_space:
-            self._parameter_space = self._pending_snapshot.parameter_space
+        if self.auto_reduce_space:
+            self.parameter_space = self._pending_snapshot.parameter_space
 
         # Update progress
         self._progress.current_iteration += 1
@@ -639,7 +677,7 @@ class HistoryMatchingEngine:
         self._pending_snapshot = None
 
         # Update state
-        if self._progress.current_iteration >= self._max_iterations:
+        if self._progress.current_iteration >= self.max_iterations:
             self._state = EngineState.COMPLETED
         else:
             self._state = EngineState.PAUSED
@@ -760,20 +798,20 @@ class HistoryMatchingEngine:
         if isinstance(features, list):
             from .feature_selection import ManualFeatureSelection
 
-            self._feature_selection_strategy = ManualFeatureSelection(features)
+            self.feature_selection_strategy = ManualFeatureSelection(features)
         else:
-            self._feature_selection_strategy = features
+            self.feature_selection_strategy = features
 
-        logger.info(f"Feature selection strategy updated: {self._feature_selection_strategy.get_strategy_name()}")
+        logger.info(f"Feature selection strategy updated: {self.feature_selection_strategy.get_strategy_name()}")
 
     def update_sampling_strategy(self, strategy: SamplingStrategy):
         """Update sampling strategy for next iteration."""
-        self._sampling_strategy = strategy
+        self.sampling_strategy = strategy
         logger.info(f"Sampling strategy updated: {strategy.get_strategy_name()}")
 
     def update_emulator_type(self, emulator_type: str, **kwargs):
         """Update emulator factory configuration."""
-        self._emulator_factory = EmulatorFactory(default_type=emulator_type, **kwargs)
+        self.emulator_factory = EmulatorFactory(default_type=emulator_type, **kwargs)
         logger.info(f"Emulator factory updated: {emulator_type}")
 
     def update_max_iterations(self, max_iterations: int):
@@ -793,7 +831,7 @@ class HistoryMatchingEngine:
                 f"New limit must be greater than {self._progress.current_iteration}."
             )
 
-        self._max_iterations = max_iterations
+        self.max_iterations = max_iterations
 
         # Update state if we were completed but now have room for more iterations
         if self._state == EngineState.COMPLETED and self._progress.current_iteration < max_iterations:
@@ -811,7 +849,7 @@ class HistoryMatchingEngine:
         summary = [
             "=== History Matching Engine Status ===",
             f"State: {self._state.value}",
-            f"Progress: {self._progress.current_iteration}/{self._max_iterations} iterations",
+            f"Progress: {self._progress.current_iteration}/{self.max_iterations} iterations",
         ]
 
         if self._progress.current_iteration > 0:
@@ -851,8 +889,10 @@ class HistoryMatchingEngine:
             List of IterationResult objects for all iterations
 
         Raises:
-            ValueError: If simulation function is not set
+            ValueError: If simulation function is not set or configuration is invalid
         """
+        self.validate()
+
         if self._simulation_function is None:
             raise ValueError(
                 "Cannot start automated run: no simulation function has been configured. "
@@ -878,7 +918,7 @@ class HistoryMatchingEngine:
                     f"Starting fresh (existing output will be overwritten)."
                 )
 
-        logger.info(f"Starting automated run with {self._max_iterations} max iterations")
+        logger.info(f"Starting automated run with {self.max_iterations} max iterations")
 
         results = self.get_all_results()  # includes any resumed waves
 
@@ -887,7 +927,7 @@ class HistoryMatchingEngine:
 
             self._progress.start_time = time.time()
 
-            while self._progress.current_iteration < self._max_iterations and self._state not in [EngineState.COMPLETED, EngineState.ERROR]:
+            while self._progress.current_iteration < self.max_iterations and self._state not in [EngineState.COMPLETED, EngineState.ERROR]:
                 # Run iteration
                 result = self.step()
                 results.append(result)
@@ -909,7 +949,7 @@ class HistoryMatchingEngine:
             self._progress.end_time = time.time()
 
             # Only set to COMPLETED if we actually finished all iterations
-            if self._state != EngineState.ERROR and self._progress.current_iteration >= self._max_iterations:
+            if self._state != EngineState.ERROR and self._progress.current_iteration >= self.max_iterations:
                 self._state = EngineState.COMPLETED
 
             logger.info(f"Automated run completed. {len(results)} iterations executed.")
@@ -919,7 +959,7 @@ class HistoryMatchingEngine:
             failed_iteration = len(results) + 1
 
             error_msg = (
-                f"Automated run failed at iteration {failed_iteration} of {self._max_iterations}: {e}\n\n"
+                f"Automated run failed at iteration {failed_iteration} of {self.max_iterations}: {e}\n\n"
                 f"Progress before failure:\n"
                 f"  - Completed iterations: {len(results)}\n"
                 f"  - Total samples generated: {self._progress.total_samples_generated:,}\n"
@@ -988,19 +1028,19 @@ class HistoryMatchingEngine:
 
         from .nroy_sampling import generate_nroy_design
 
-        n = n or self._n_samples
-        method = method or self._settings.get('nroy_method', 'ray_resample')
-        nroy_opts = {**self._settings.get('nroy_options', {}), **kwargs}
+        n = n or self.n_samples
+        method = method or self.settings.get('nroy_method', 'ray_resample')
+        nroy_opts = {**self.settings.get('nroy_options', {}), **kwargs}
 
         return generate_nroy_design(
             n_points=n,
-            parameter_space=self._parameter_space,
-            emulator_bank=self._emulator_bank,
-            observations=self._observations,
-            threshold=self._implausibility_threshold,
-            sampling_strategy=self._sampling_strategy,
+            parameter_space=self.parameter_space,
+            emulator_bank=self.emulator_bank,
+            observations=self.observations,
+            threshold=self.implausibility_threshold,
+            sampling_strategy=self.sampling_strategy,
             method=method,
-            seed=self._random_seed,
+            seed=self.random_seed,
             **nroy_opts,
         ).samples
 
@@ -1008,13 +1048,13 @@ class HistoryMatchingEngine:
         """Serial rejection sampling for NROY candidates."""
         plausible = pd.DataFrame()
         total_generated = 0
-        batch_size = min(int(n * self._oversample_factor), self._max_batch_size)
-        batch_seed = self._random_seed
-        max_candidates = n * self._settings.get('max_candidate_factor', 1000)
+        batch_size = min(int(n * self.oversample_factor), self.max_batch_size)
+        batch_seed = self.random_seed
+        max_candidates = n * self.settings.get('max_candidate_factor', 1000)
 
         while len(plausible) < n:
-            candidates = self._sampling_strategy.generate_samples(
-                self._parameter_space, batch_size, seed=batch_seed,
+            candidates = self.sampling_strategy.generate_samples(
+                self.parameter_space, batch_size, seed=batch_seed,
             )
             if batch_seed is not None:
                 batch_seed += 1
@@ -1035,7 +1075,7 @@ class HistoryMatchingEngine:
             remaining = n - len(plausible)
             rate = len(plausible) / total_generated if total_generated > 0 else 0.01
             if rate > 0:
-                batch_size = min(int(self._oversample_factor * remaining / rate), self._max_batch_size)
+                batch_size = min(int(self.oversample_factor * remaining / rate), self.max_batch_size)
 
         return plausible.head(n)
 
@@ -1065,17 +1105,17 @@ class HistoryMatchingEngine:
     def save_checkpoint(self, filepath: Path) -> None:
         """Save engine state to checkpoint file."""
         checkpoint_data = {
-            "parameter_space": self._parameter_space,
-            "observations": self._observations,
-            "emulator_bank": self._emulator_bank,
+            "parameter_space": self.parameter_space,
+            "observations": self.observations,
+            "emulator_bank": self.emulator_bank,
             "progress": self._progress,
             "snapshots": self._snapshots,
-            "settings": self._settings,
-            "max_iterations": self._max_iterations,
-            "implausibility_threshold": self._implausibility_threshold,
-            "n_samples": self._n_samples,
-            "auto_reduce_space": self._auto_reduce_space,
-            "oversample_factor": self._oversample_factor,
+            "settings": self.settings,
+            "max_iterations": self.max_iterations,
+            "implausibility_threshold": self.implausibility_threshold,
+            "n_samples": self.n_samples,
+            "auto_reduce_space": self.auto_reduce_space,
+            "oversample_factor": self.oversample_factor,
         }
 
         with open(filepath, "wb") as f:
@@ -1120,7 +1160,7 @@ class HistoryMatchingEngine:
         with open(filepath, "rb") as f:
             data = pickle.load(f)
 
-        self._emulator_bank = data["emulator_bank"]
+        self.emulator_bank = data["emulator_bank"]
         self._progress = data["progress"]
         self._snapshots = data["snapshots"]
         self._state = EngineState.PAUSED
@@ -1223,7 +1263,7 @@ class HistoryMatchingEngine:
                 import matplotlib
                 import matplotlib.pyplot as plt
 
-                targets = self._observations.get_all_targets()
+                targets = self.observations.get_all_targets()
                 target_names = [k for k in targets if k in result.simulation_results.columns]
 
                 if len(target_names) > 0 and len(all_results) > 0:
@@ -1300,7 +1340,7 @@ class HistoryMatchingEngine:
             if snapshot.next_samples is not None and len(snapshot.next_samples) >= 10:
                 _plot_constrained_dims(
                     nroy_samples=snapshot.next_samples,
-                    parameter_space=self._parameter_space,
+                    parameter_space=self.parameter_space,
                     wave_label=f"wave{result.iteration}",
                     out_path=wave_dir / "constrained_dims.png",
                 )
@@ -1313,7 +1353,7 @@ class HistoryMatchingEngine:
             if len(all_results) >= 2:
                 import matplotlib.pyplot as plt
 
-                param_names = self._parameter_space.get_parameter_names()
+                param_names = self.parameter_space.get_parameter_names()
                 n_all = len(param_names)
 
                 # Select parameters to show.  If the problem is small enough, show
@@ -1328,7 +1368,7 @@ class HistoryMatchingEngine:
                     subtitle_note = f"all {n_all} parameters"
                 elif snapshot.next_samples is not None and len(snapshot.next_samples) >= 10:
                     reduction_map = _marginal_variance_reduction(
-                        snapshot.next_samples, self._parameter_space
+                        snapshot.next_samples, self.parameter_space
                     )
                     sorted_params = sorted(
                         reduction_map, key=reduction_map.get, reverse=True
@@ -1408,15 +1448,15 @@ class HistoryMatchingEngine:
         if not config_path.exists():
             try:
                 config = {
-                    'parameters': self._parameter_space.get_parameter_names(),
+                    'parameters': self.parameter_space.get_parameter_names(),
                     'parameter_bounds': {
-                        p: list(self._parameter_space.get_bounds(p))
-                        for p in self._parameter_space.get_parameter_names()
+                        p: list(self.parameter_space.get_bounds(p))
+                        for p in self.parameter_space.get_parameter_names()
                     },
-                    'observations': self._observations.get_all_targets(),
-                    'n_samples': self._n_samples,
-                    'max_iterations': self._max_iterations,
-                    'implausibility_threshold': self._implausibility_threshold,
+                    'observations': self.observations.get_all_targets(),
+                    'n_samples': self.n_samples,
+                    'max_iterations': self.max_iterations,
+                    'implausibility_threshold': self.implausibility_threshold,
                 }
                 with open(config_path, "w") as f:
                     _json.dump(config, f, indent=2, default=str)
@@ -1432,9 +1472,9 @@ class HistoryMatchingEngine:
         For first iteration, returns unfiltered samples.
         For subsequent iterations, proposes candidates and filters based on implausibility.
         """
-        if not self._emulator_bank.has_emulators():
+        if not self.emulator_bank.has_emulators():
             # First iteration - no filtering needed
-            samples = self._sampling_strategy.generate_samples(self._parameter_space, self._n_samples, seed=self._random_seed)
+            samples = self.sampling_strategy.generate_samples(self.parameter_space, self.n_samples, seed=self.random_seed)
             self._progress.total_samples_generated += len(samples)
             self._progress.acceptance_rate = 1.0
             return samples
@@ -1443,20 +1483,20 @@ class HistoryMatchingEngine:
         plausible_samples = pd.DataFrame()
         total_candidates_generated = 0
         batch_num = 0
-        batch_seed = self._random_seed  # Incremented each batch for fresh LHS draws
-        max_candidate_factor = self._settings.get('max_candidate_factor', 1000)
-        max_candidates = self._n_samples * max_candidate_factor
+        batch_seed = self.random_seed  # Incremented each batch for fresh LHS draws
+        max_candidate_factor = self.settings.get('max_candidate_factor', 1000)
+        max_candidates = self.n_samples * max_candidate_factor
         last_pct_logged = -10
         t0 = _time.time()
 
-        logger.info(f"  Plausible sampling: 0/{self._n_samples} (0%) — starting")
+        logger.info(f"  Plausible sampling: 0/{self.n_samples} (0%) — starting")
 
         # Initial batch size
-        batch_size = min(int(self._n_samples * self._oversample_factor), self._max_batch_size)
+        batch_size = min(int(self.n_samples * self.oversample_factor), self.max_batch_size)
 
-        while len(plausible_samples) < self._n_samples:
+        while len(plausible_samples) < self.n_samples:
             # Generate candidate samples (fresh seed each batch)
-            candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=batch_seed)
+            candidates = self.sampling_strategy.generate_samples(self.parameter_space, batch_size, seed=batch_seed)
             if batch_seed is not None:
                 batch_seed += 1
 
@@ -1475,50 +1515,50 @@ class HistoryMatchingEngine:
             current_acceptance_rate = len(plausible_samples) / total_candidates_generated
 
             # Log at every 10% milestone
-            pct = int(100 * len(plausible_samples) / self._n_samples)
+            pct = int(100 * len(plausible_samples) / self.n_samples)
             if pct >= last_pct_logged + 10:
                 last_pct_logged = pct - (pct % 10)
                 elapsed = _time.time() - t0
                 logger.info(
-                    f"  Plausible sampling: {len(plausible_samples)}/{self._n_samples} ({pct}%) "
+                    f"  Plausible sampling: {len(plausible_samples)}/{self.n_samples} ({pct}%) "
                     f"| {total_candidates_generated:,} tested | rate={current_acceptance_rate:.4%} [{elapsed:.0f}s]")
 
             logger.debug(
                 f"  Sampling batch {batch_num}: {len(batch_plausible)}/{len(candidates)} accepted "
-                f"| {len(plausible_samples)}/{self._n_samples} collected "
+                f"| {len(plausible_samples)}/{self.n_samples} collected "
                 f"| {total_candidates_generated:,} total candidates "
                 f"| rate={current_acceptance_rate:.4%}"
             )
 
             # If we have enough samples, break
-            if len(plausible_samples) >= self._n_samples:
+            if len(plausible_samples) >= self.n_samples:
                 break
 
             # Safety valve: stop after generating too many candidates
             if total_candidates_generated >= max_candidates:
                 logger.warning(
                     f"Reached candidate limit ({max_candidates:,}) with only "
-                    f"{len(plausible_samples)}/{self._n_samples} plausible samples "
+                    f"{len(plausible_samples)}/{self.n_samples} plausible samples "
                     f"(acceptance rate: {current_acceptance_rate:.4%}).  "
                     f"Proceeding with {len(plausible_samples)} samples.  "
-                    f"Adjust with .with_setting('max_candidate_factor', N)."
+                    f"Adjust via builder.settings['max_candidate_factor'] = N (or engine.settings)."
                 )
                 break
 
             # Calculate next batch size adaptively
-            remaining_needed = self._n_samples - len(plausible_samples)
+            remaining_needed = self.n_samples - len(plausible_samples)
             if current_acceptance_rate > 0:
-                batch_size = min(int(self._oversample_factor * remaining_needed / current_acceptance_rate), self._max_batch_size)
+                batch_size = min(int(self.oversample_factor * remaining_needed / current_acceptance_rate), self.max_batch_size)
             else:
                 # If no samples accepted yet, increase batch size
-                batch_size = min(batch_size * 2, self._max_batch_size)
+                batch_size = min(batch_size * 2, self.max_batch_size)
 
         # Update global progress tracking
         self._progress.total_samples_generated += total_candidates_generated
         self._progress.acceptance_rate = len(plausible_samples) / total_candidates_generated if total_candidates_generated > 0 else 1.0
 
         # Return exactly the requested number of samples
-        return plausible_samples.head(self._n_samples)
+        return plausible_samples.head(self.n_samples)
 
     def _build_fast_predictors(self, emulator_bank=None):
         """Build FastGPRPredictor objects for all GPR emulators in the bank.
@@ -1529,13 +1569,13 @@ class HistoryMatchingEngine:
         """
         from .emulators.fast_predict import FastGPRPredictor
 
-        bank = emulator_bank or self._emulator_bank
+        bank = emulator_bank or self.emulator_bank
         predictors = []
 
         for iteration in bank.get_all_iterations():
             emulators = bank.get_emulators_for_iteration(iteration)
             for feature_name, emulator in emulators.items():
-                if not self._observations.has_feature(feature_name):
+                if not self.observations.has_feature(feature_name):
                     continue
                 # Only works for GPR emulators (SE kernel with normalization)
                 from .emulators.gpr import GPR
@@ -1543,7 +1583,7 @@ class HistoryMatchingEngine:
                     continue
                 try:
                     fast = FastGPRPredictor.from_emulator(emulator)
-                    obs_mean, obs_std = self._observations.get_target_for_feature(feature_name)
+                    obs_mean, obs_std = self.observations.get_target_for_feature(feature_name)
                     predictors.append((fast, obs_mean, obs_std, feature_name))
                 except Exception as e:
                     logger.warning(f"Could not build fast predictor for '{feature_name}': {e}")
@@ -1558,10 +1598,10 @@ class HistoryMatchingEngine:
         never tested against the rest.  Falls back to the GPflow path for
         non-GPR emulators.
         """
-        if not self._emulator_bank.has_emulators():
+        if not self.emulator_bank.has_emulators():
             return candidates
 
-        return self._filter_fast(candidates, self._emulator_bank)
+        return self._filter_fast(candidates, self.emulator_bank)
 
     def _filter_fast(self, candidates: pd.DataFrame, emulator_bank) -> pd.DataFrame:
         """Fast NROY filter using numba predictors with short-circuit evaluation.
@@ -1578,10 +1618,10 @@ class HistoryMatchingEngine:
             return self._filter_samples_slow(candidates, emulator_bank)
 
         # Fast path: numba short-circuit filter
-        param_cols = self._parameter_space.get_parameter_names()
+        param_cols = self.parameter_space.get_parameter_names()
         X = candidates[param_cols].values.astype(np.float64)
 
-        mask = filter_nroy(X, fast_predictors, threshold=self._implausibility_threshold)
+        mask = filter_nroy(X, fast_predictors, threshold=self.implausibility_threshold)
 
         plausible = candidates[mask]
         logger.debug(
@@ -1594,7 +1634,7 @@ class HistoryMatchingEngine:
         """Implausibility filter with short-circuit evaluation for non-GPR emulators."""
         import numpy as np
 
-        param_cols = self._parameter_space.get_parameter_names()
+        param_cols = self.parameter_space.get_parameter_names()
         mask = np.ones(len(candidates), dtype=bool)
         n_emulators = 0
 
@@ -1603,15 +1643,15 @@ class HistoryMatchingEngine:
             for feature_name, emulator in emulators.items():
                 if mask.sum() == 0:
                     break
-                if not self._observations.has_feature(feature_name):
+                if not self.observations.has_feature(feature_name):
                     continue
                 try:
                     active = candidates.loc[mask, param_cols]
                     predictions = emulator.predict(active)
-                    feature_impl = self._observations.calculate_implausibility(
+                    feature_impl = self.observations.calculate_implausibility(
                         feature_name, predictions.get_mean(), predictions.get_variance()
                     )
-                    failures = feature_impl > self._implausibility_threshold
+                    failures = feature_impl > self.implausibility_threshold
                     n_rejected = int(failures.sum())
                     mask[mask] &= ~failures.values
                     n_emulators += 1
@@ -1637,7 +1677,7 @@ class HistoryMatchingEngine:
 
     def _select_features(self, simulation_results: pd.DataFrame) -> list[str]:
         """Select features to emulate using configured strategy."""
-        return self._feature_selection_strategy.select_features(simulation_results, self._observations, self._progress.current_iteration + 1)
+        return self.feature_selection_strategy.select_features(simulation_results, self.observations, self._progress.current_iteration + 1)
 
     def _create_emulators(self, samples: pd.DataFrame, simulation_results: pd.DataFrame, features: list[str]) -> dict[str, Any]:
         """Create and train emulators for selected features.
@@ -1646,9 +1686,9 @@ class HistoryMatchingEngine:
         columns (e.g. ``rand_seed``) added by the simulation function are
         excluded so they don't become spurious input dimensions.
         """
-        param_cols = self._parameter_space.get_parameter_names()
+        param_cols = self.parameter_space.get_parameter_names()
         samples_clean = samples[param_cols]
-        return self._emulator_factory.create_emulators_for_features(samples_clean, simulation_results, features)
+        return self.emulator_factory.create_emulators_for_features(samples_clean, simulation_results, features)
 
     def _get_next_parameter_space(self, samples: pd.DataFrame, emulators: dict[str, Any]) -> ParameterSpace:
         """
@@ -1657,44 +1697,44 @@ class HistoryMatchingEngine:
         By default, returns the original parameter space.
         If auto_reduce_space is enabled, constrains to plausible samples.
         """
-        if not self._auto_reduce_space:
-            return self._parameter_space  # Keep original space
+        if not self.auto_reduce_space:
+            return self.parameter_space  # Keep original space
 
         # Calculate implausibilities and constrain space
         implausibilities = []
 
         for feature_name, emulator in emulators.items():
             # Get predictions (only parameter columns, not metadata like rand_seed)
-            param_cols = self._parameter_space.get_parameter_names()
+            param_cols = self.parameter_space.get_parameter_names()
             predictions = emulator.predict(samples[param_cols])
 
             # Calculate implausibility for this feature (vectorized)
-            feature_implausibility = self._observations.calculate_implausibility(feature_name, predictions.get_mean(), predictions.get_variance())
+            feature_implausibility = self.observations.calculate_implausibility(feature_name, predictions.get_mean(), predictions.get_variance())
             implausibilities.append(feature_implausibility)
 
         if not implausibilities:
-            return self._parameter_space
+            return self.parameter_space
 
         # Combine implausibilities (use maximum)
         combined_implausibility = pd.concat(implausibilities, axis=1).max(axis=1)
 
         # Find plausible samples
-        plausible_mask = combined_implausibility <= self._implausibility_threshold
+        plausible_mask = combined_implausibility <= self.implausibility_threshold
         plausible_samples = samples[plausible_mask]
 
         if len(plausible_samples) == 0:
             warnings.warn(
-                f"No plausible samples found with implausibility threshold {self._implausibility_threshold}. "
+                f"No plausible samples found with implausibility threshold {self.implausibility_threshold}. "
                 f"Parameter space will not be reduced this iteration. Consider:\n"
-                f"  - Increasing the implausibility threshold (current: {self._implausibility_threshold})\n"
-                f"  - Generating more samples per iteration (current: {self._n_samples})\n"
+                f"  - Increasing the implausibility threshold (current: {self.implausibility_threshold})\n"
+                f"  - Generating more samples per iteration (current: {self.n_samples})\n"
                 f"  - Checking if your simulation is producing reasonable outputs\n"
                 f"  - Reviewing your observation data for inconsistencies", stacklevel=2
             )
-            return self._parameter_space
+            return self.parameter_space
 
         # Create new parameter space constrained to plausible samples
-        return self._parameter_space.constrain_to_samples(plausible_samples)
+        return self.parameter_space.constrain_to_samples(plausible_samples)
 
     def _compute_next_iteration_samples(self, current_emulators: dict[str, Any]) -> pd.DataFrame:
         """
@@ -1707,26 +1747,26 @@ class HistoryMatchingEngine:
             DataFrame of plausible samples for next iteration
         """
         # Create a temporary emulator bank with current emulators for filtering
-        temp_bank = self._emulator_bank.copy()
+        temp_bank = self.emulator_bank.copy()
         current_iteration = self._progress.current_iteration + 1
         for feature, emulator in current_emulators.items():
             temp_bank.add_emulator(current_iteration, feature, emulator)
 
         from .nroy_sampling import generate_nroy_design
 
-        nroy_method = self._settings.get('nroy_method', 'auto')
-        nroy_opts = self._settings.get('nroy_options', {})
+        nroy_method = self.settings.get('nroy_method', 'auto')
+        nroy_opts = self.settings.get('nroy_options', {})
 
         nroy_result = generate_nroy_design(
-            n_points=self._n_samples,
-            parameter_space=self._parameter_space,
+            n_points=self.n_samples,
+            parameter_space=self.parameter_space,
             emulator_bank=temp_bank,
-            observations=self._observations,
-            threshold=self._implausibility_threshold,
-            sampling_strategy=self._sampling_strategy,
+            observations=self.observations,
+            threshold=self.implausibility_threshold,
+            sampling_strategy=self.sampling_strategy,
             method=nroy_method,
-            seed=self._random_seed,
-            max_candidates=self._n_samples * self._settings.get('max_candidate_factor', 1000),
+            seed=self.random_seed,
+            max_candidates=self.n_samples * self.settings.get('max_candidate_factor', 1000),
             **nroy_opts,
         )
 
@@ -1738,17 +1778,17 @@ class HistoryMatchingEngine:
         plausible_samples = pd.DataFrame()
         total_candidates_generated = 0
         batch_num = 0
-        batch_seed = self._random_seed
-        max_candidate_factor = self._settings.get('max_candidate_factor', 1000)
-        max_candidates = self._n_samples * max_candidate_factor
-        batch_size = min(int(self._n_samples * self._oversample_factor), self._max_batch_size)
+        batch_seed = self.random_seed
+        max_candidate_factor = self.settings.get('max_candidate_factor', 1000)
+        max_candidates = self.n_samples * max_candidate_factor
+        batch_size = min(int(self.n_samples * self.oversample_factor), self.max_batch_size)
         last_pct_logged = -10  # track last percentage milestone logged
         t0 = _time.time()
 
-        logger.info(f"  NROY sampling: 0/{self._n_samples} (0%) — starting")
+        logger.info(f"  NROY sampling: 0/{self.n_samples} (0%) — starting")
 
-        while len(plausible_samples) < self._n_samples:
-            candidates = self._sampling_strategy.generate_samples(self._parameter_space, batch_size, seed=batch_seed)
+        while len(plausible_samples) < self.n_samples:
+            candidates = self.sampling_strategy.generate_samples(self.parameter_space, batch_size, seed=batch_seed)
             if batch_seed is not None:
                 batch_seed += 1
 
@@ -1761,42 +1801,42 @@ class HistoryMatchingEngine:
             current_acceptance_rate = len(plausible_samples) / total_candidates_generated
 
             # Log at every 10% milestone
-            pct = int(100 * len(plausible_samples) / self._n_samples)
+            pct = int(100 * len(plausible_samples) / self.n_samples)
             if pct >= last_pct_logged + 10:
                 last_pct_logged = pct - (pct % 10)
                 elapsed = _time.time() - t0
                 logger.info(
-                    f"  NROY sampling: {len(plausible_samples)}/{self._n_samples} ({pct}%) "
+                    f"  NROY sampling: {len(plausible_samples)}/{self.n_samples} ({pct}%) "
                     f"| {total_candidates_generated:,} tested | rate={current_acceptance_rate:.4%} [{elapsed:.0f}s]")
 
             logger.debug(
                 f"  Next-wave sampling batch {batch_num}: {len(batch_plausible)}/{len(candidates)} accepted "
-                f"| {len(plausible_samples)}/{self._n_samples} collected "
+                f"| {len(plausible_samples)}/{self.n_samples} collected "
                 f"| {total_candidates_generated:,} total candidates "
                 f"| rate={current_acceptance_rate:.4%}"
             )
 
-            if len(plausible_samples) >= self._n_samples:
+            if len(plausible_samples) >= self.n_samples:
                 break
 
             if total_candidates_generated >= max_candidates:
                 logger.warning(
                     f"Reached candidate limit ({max_candidates:,}) with only "
-                    f"{len(plausible_samples)}/{self._n_samples} plausible samples "
+                    f"{len(plausible_samples)}/{self.n_samples} plausible samples "
                     f"(acceptance rate: {current_acceptance_rate:.4%}).  "
                     f"Proceeding with {len(plausible_samples)} samples.  "
-                    f"Adjust with .with_setting('max_candidate_factor', N)."
+                    f"Adjust via builder.settings['max_candidate_factor'] = N (or engine.settings)."
                 )
                 break
 
-            remaining_needed = self._n_samples - len(plausible_samples)
+            remaining_needed = self.n_samples - len(plausible_samples)
             if current_acceptance_rate > 0:
-                batch_size = min(int(self._oversample_factor * remaining_needed / current_acceptance_rate), self._max_batch_size)
+                batch_size = min(int(self.oversample_factor * remaining_needed / current_acceptance_rate), self.max_batch_size)
             else:
-                batch_size = min(batch_size * 2, self._max_batch_size)
+                batch_size = min(batch_size * 2, self.max_batch_size)
 
         self._update_nroy_stats(len(plausible_samples), total_candidates_generated)
-        return plausible_samples.head(self._n_samples)
+        return plausible_samples.head(self.n_samples)
 
     def _update_nroy_stats(self, n_plausible: int, n_generated: int) -> None:
         """Update NROY fraction and cumulative progress after rejection sampling."""
@@ -1820,7 +1860,7 @@ class HistoryMatchingEngine:
 
     def _create_snapshot(self) -> IterationSnapshot:
         """Create snapshot of current state."""
-        return IterationSnapshot(iteration=self._progress.current_iteration, parameter_space=self._parameter_space, emulator_bank=self._emulator_bank.copy())
+        return IterationSnapshot(iteration=self._progress.current_iteration, parameter_space=self.parameter_space, emulator_bank=self.emulator_bank.copy())
 
     def _check_convergence(self) -> bool:
         """Check if convergence criteria are met.
@@ -1828,11 +1868,11 @@ class HistoryMatchingEngine:
         Returns True only when the acceptance rate (fraction of LHS candidates
         passing the emulator filter) drops below the configurable threshold.
 
-        The threshold is set via ``HistoryMatchingBuilder.with_convergence_threshold()``
+        The threshold is set via ``builder.convergence_threshold``
         and defaults to 0.01 (1%).  Setting the threshold to 0.0 disables early
         stopping entirely.
         """
-        threshold = self._settings.get('convergence_threshold', 0.0)
+        threshold = self.settings.get('convergence_threshold', 0.0)
         if threshold <= 0:
             return False  # Early stopping disabled
 
@@ -1868,9 +1908,9 @@ class HistoryMatchingEngine:
         return (
             f"HistoryMatchingEngine(\n"
             f"  state={self._state.value},\n"
-            f"  iteration={self._progress.current_iteration}/{self._max_iterations},\n"
+            f"  iteration={self._progress.current_iteration}/{self.max_iterations},\n"
             f"  acceptance_rate={self._progress.acceptance_rate:.3f},\n"
             f"  emulators_trained={self._progress.total_emulators_trained},\n"
-            f"  auto_reduce_space={self._auto_reduce_space}\n"
+            f"  auto_reduce_space={self.auto_reduce_space}\n"
             f")"
         )

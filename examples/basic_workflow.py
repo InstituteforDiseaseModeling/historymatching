@@ -95,13 +95,12 @@ def main():
     print("\nBuilding history matching engine...")
 
     builder = hm.HistoryMatchingBuilder.from_data(parameter_bounds, observations)
-    engine = builder \
-        .with_sampling_strategy('lhs') \
-        .with_emulator_type('gpr') \
-        .with_samples_per_iteration(1000) \
-        .with_max_iterations(5) \
-        .with_random_seed(42) \
-        .build()
+    builder.sampling_strategy = 'lhs'
+    builder.emulator_type = 'gpr'
+    builder.n_samples = 1000
+    builder.max_iterations = 5
+    builder.random_seed = 42
+    engine = builder.build()
 
     print(f" Engine created: {engine}")
 
@@ -162,12 +161,11 @@ def interactive_example():
 
     # Build engine with more explicit configuration
     builder = hm.HistoryMatchingBuilder.from_data(parameter_bounds, observations)
-    engine = builder \
-        .with_sampling_strategy('lhs') \
-        .with_feature_selection(['peak_infections']) \
-        .with_emulator_type('linear') \
-        .with_samples_per_iteration(500) \
-        .build()
+    builder.sampling_strategy = 'lhs'
+    builder.feature_selection = ['peak_infections']
+    builder.emulator_type = 'linear'
+    builder.n_samples = 500
+    engine = builder.build()
 
     engine.set_simulation_function(simple_epidemic_model)
 
@@ -241,16 +239,15 @@ def advanced_configuration_example():
         parameter_df,
         observations_df,
     )
-    builder \
-        .with_sampling_strategy({'type': 'lhs', 'criterion': 'maximin', 'iterations': 10}) \
-        .with_feature_selection({'method': 'fano', 'max_features': 2, 'correlation_threshold': 0.7}) \
-        .with_emulator_type('gpr') \
-        .with_samples_per_iteration(800) \
-        .with_max_iterations(8) \
-        .with_implausibility_threshold(2.8) \
-        .with_space_reduction(True) \
-        .with_oversample_factor(4.0) \
-        .with_random_seed(123)
+    builder.sampling_strategy = {'type': 'lhs', 'criterion': 'maximin', 'iterations': 10}
+    builder.feature_selection = {'method': 'fano', 'max_features': 2, 'correlation_threshold': 0.7}
+    builder.emulator_type = 'gpr'
+    builder.n_samples = 800
+    builder.max_iterations = 8
+    builder.implausibility_threshold = 2.8
+    builder.auto_reduce_space = True
+    builder.oversample_factor = 4.0
+    builder.random_seed = 123
 
     # Preview configuration before building
     print(f"\n Configuration preview:")
@@ -267,9 +264,9 @@ def advanced_configuration_example():
     engine = builder.build()
 
     print(f"\n Advanced engine built:")
-    print(f" Space reduction: {'enabled' if engine._auto_reduce_space else 'disabled'}")
-    print(f" Oversample factor: {engine._oversample_factor}")
-    print(f" Implausibility threshold: {engine._implausibility_threshold}")
+    print(f" Space reduction: {'enabled' if engine.auto_reduce_space else 'disabled'}")
+    print(f" Oversample factor: {engine.oversample_factor}")
+    print(f" Implausibility threshold: {engine.implausibility_threshold}")
 
     print(f"\n Advanced configuration example completed!")
     return engine

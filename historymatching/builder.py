@@ -3,6 +3,9 @@ HistoryMatchingBuilder for streamlined configuration and setup.
 
 Provides a clean, intuitive API for configuring history matching workflows
 without requiring deep knowledge of the underlying components.
+
+Configuration is done via plain public attributes (e.g. ``builder.n_samples = 500``);
+``build()`` validates the configuration and constructs a HistoryMatchingEngine.
 """
 
 from typing import Optional, Union, Dict, Any, List
@@ -18,13 +21,18 @@ from .emulators.factory import EmulatorFactory
 from .engine import HistoryMatchingEngine
 
 
+# Valid NROY sampling methods (shared with validate()).
+_VALID_NROY_METHODS = ('auto', 'lhs', 'ray')
+
+
 class HistoryMatchingBuilder:
     """
     Builder for creating HistoryMatchingEngine instances with streamlined configuration.
-    
-    Provides intuitive constructor options and smart defaults to make history matching
-    accessible without requiring deep knowledge of internal components.
-    
+
+    Configure the builder by assigning to its public attributes, then call
+    :meth:`build`.  Friendly values (strings, lists, dicts) are accepted for the
+    strategy attributes and coerced into the underlying objects at build time.
+
     Examples:
         # Quick start with minimal configuration
         builder = HistoryMatchingBuilder.from_data(
@@ -32,95 +40,120 @@ class HistoryMatchingBuilder:
             observations={'output1': (10.0, 1.0)}  # (target, std)
         )
         engine = builder.build()
-        
-        # More control with custom strategies
+
+        # More control via plain attribute assignment
         builder = HistoryMatchingBuilder.from_dataframes(
             parameter_space_df=param_df,
             observations_df=obs_df,
-            sampling_strategy='lhs',
-            feature_selection=['output1', 'output2']
         )
-        engine = builder.with_emulator_type('gpr').build()
+        builder.emulator_type = 'gpr'
+        builder.n_samples = 500
+        builder.feature_selection = ['output1', 'output2']
+        engine = builder.build()
+
+    Attributes:
+        parameter_space: ParameterSpace (set via the ``from_*`` constructors).
+        observations: ObservationData (set via the ``from_*`` constructors).
+        sampling_strategy: ``'lhs'`` / ``'grid'`` / ``'random'``, a SamplingStrategy
+            instance, or a config dict.  ``None`` -> Latin Hypercube default.
+        feature_selection: feature name list, strategy name, FeatureSelectionStrategy
+            instance, or config dict.  ``None`` -> automatic mean-sq-z default.
+        emulator_type: ``'gpr'`` (default) / ``'glm'`` / ``'linear'``.
+        emulator_factory: a pre-built EmulatorFactory (overrides ``emulator_type``).
+        emulator_bank: a pre-populated EmulatorBank (for resuming workflows).
+        n_samples: samples generated per iteration (default 1000).
+        implausibility_threshold: implausibility cutoff, typically 2.5-4.0 (default 3.0).
+        max_iterations: maximum iterations to run (default 10).
+        random_seed: seed for reproducibility (default None).
+        output_dir: directory for checkpoints/diagnostics; ``None`` disables disk output.
+        run_name: subdirectory under ``output_dir`` (auto-generated if None).
+        auto_reduce_space: enable automatic parameter-space reduction (engine default if None).
+        oversample_factor: oversampling factor for filtering, >= 1.0 (engine default if None).
+        max_batch_size: max candidates per NROY sampling batch, >= 100 (engine default if None).
+        convergence_threshold: acceptance-rate floor for early stopping, in [0, 1].
+        nroy_method: ``'auto'`` / ``'lhs'`` / ``'ray'``.
+        nroy_options: dict of NROY tuning options passed to ``generate_nroy_design()``.
+        settings: dict of additional custom settings forwarded to the engine.
     """
-    
+
     def __init__(self):
-        """Initialize empty builder. Use class methods for construction."""
-        self._parameter_space: Optional[ParameterSpace] = None
-        self._observations: Optional[ObservationData] = None
-        self._sampling_strategy: Optional[SamplingStrategy] = None
-        self._feature_selection_strategy: Optional[FeatureSelectionStrategy] = None
-        self._emulator_factory: Optional[EmulatorFactory] = None
-        self._emulator_bank: Optional[EmulatorBank] = None
-        
-        # Configuration options
-        self._n_samples: int = 1000
-        self._implausibility_threshold: float = 3.0
-        self._max_iterations: int = 10
-        self._random_seed: Optional[int] = None
+        """Initialize a builder with default configuration. Use the ``from_*`` class methods to supply data."""
+        # Domain objects (populated by the from_* constructors)
+        self.parameter_space: Optional[ParameterSpace] = None
+        self.observations: Optional[ObservationData] = None
+
+        # Strategy configuration — friendly values, coerced at build()
+        self.sampling_strategy: Union[str, SamplingStrategy, Dict[str, Any], None] = None
+        self.feature_selection: Union[str, List[str], FeatureSelectionStrategy, Dict[str, Any], None] = None
+        self.emulator_type: Optional[str] = None
+        self.emulator_factory: Optional[EmulatorFactory] = None
+        self.emulator_bank: Optional[EmulatorBank] = None
+
+        # Workflow configuration
+        self.n_samples: int = 1000
+        self.implausibility_threshold: float = 3.0
+        self.max_iterations: int = 10
+        self.random_seed: Optional[int] = None
 
         # Output / checkpoint
-        self._output_dir: str = "./hm_output"
-        self._run_name: Optional[str] = None     # auto-generated if None
+        self.output_dir: Optional[str] = "./hm_output"
+        self.run_name: Optional[str] = None  # auto-generated if None
 
-        # Additional settings
-        self._settings: Dict[str, Any] = {}
-    
+        # Optional engine knobs (None -> use the engine's own default)
+        self.auto_reduce_space: Optional[bool] = None
+        self.oversample_factor: Optional[float] = None
+        self.max_batch_size: Optional[int] = None
+        self.convergence_threshold: Optional[float] = None
+        self.nroy_method: Optional[str] = None
+        self.nroy_options: Optional[Dict[str, Any]] = None
+
+        # Additional custom settings forwarded verbatim to the engine
+        self.settings: Dict[str, Any] = {}
+
     @classmethod
-    def from_data(cls, 
-                  parameter_bounds: Dict[str, tuple], 
+    def from_data(cls,
+                  parameter_bounds: Dict[str, tuple],
                   observations: Dict[str, tuple],
                   **kwargs) -> 'HistoryMatchingBuilder':
         """
         Create builder from simple data structures.
-        
+
         Args:
             parameter_bounds: Dict mapping parameter names to (min, max) tuples
             observations: Dict mapping feature names to (target, std) tuples
-            **kwargs: Additional configuration options
-            
+            **kwargs: Additional configuration options (set as builder attributes)
+
         Returns:
             Configured HistoryMatchingBuilder instance
         """
         builder = cls()
-        
-        # Create parameter space
-        builder._parameter_space = ParameterSpace(parameter_bounds)
-        
-        # Create observations (std is used directly now)
-        builder._observations = ObservationData(observations)
-        
-        # Apply additional configuration
+        builder.parameter_space = ParameterSpace(parameter_bounds)
+        builder.observations = ObservationData(observations)
         builder._apply_kwargs(kwargs)
-        
         return builder
-    
-    @classmethod 
+
+    @classmethod
     def from_dataframes(cls,
                        parameter_space_df: pd.DataFrame,
                        observations_df: pd.DataFrame,
                        **kwargs) -> 'HistoryMatchingBuilder':
         """
         Create builder from pandas DataFrames.
-        
+
         Args:
             parameter_space_df: DataFrame with parameter space definition
             observations_df: DataFrame with observation data
-            **kwargs: Additional configuration options
-            
+            **kwargs: Additional configuration options (set as builder attributes)
+
         Returns:
             Configured HistoryMatchingBuilder instance
         """
         builder = cls()
-        
-        # Create domain objects
-        builder._parameter_space = ParameterSpace(parameter_space_df)
-        builder._observations = ObservationData(observations_df)
-        
-        # Apply additional configuration
+        builder.parameter_space = ParameterSpace(parameter_space_df)
+        builder.observations = ObservationData(observations_df)
         builder._apply_kwargs(kwargs)
-        
         return builder
-    
+
     @classmethod
     def from_existing(cls,
                      parameter_space: ParameterSpace,
@@ -128,448 +161,196 @@ class HistoryMatchingBuilder:
                      **kwargs) -> 'HistoryMatchingBuilder':
         """
         Create builder from existing domain objects.
-        
+
         Args:
             parameter_space: Pre-configured ParameterSpace
             observations: Pre-configured ObservationData
-            **kwargs: Additional configuration options
-            
+            **kwargs: Additional configuration options (set as builder attributes)
+
         Returns:
             Configured HistoryMatchingBuilder instance
         """
         builder = cls()
-        builder._parameter_space = parameter_space
-        builder._observations = observations
-        
-        # Apply additional configuration
+        builder.parameter_space = parameter_space
+        builder.observations = observations
         builder._apply_kwargs(kwargs)
-        
         return builder
-    
+
+    # Keyword-argument names recognised by the from_* constructors and mapped
+    # directly onto builder attributes; anything else is stored in ``settings``.
+    _KNOWN_KWARGS = (
+        'sampling_strategy', 'feature_selection', 'emulator_type', 'emulator_factory',
+        'emulator_bank', 'n_samples', 'max_iterations', 'implausibility_threshold',
+        'random_seed', 'output_dir', 'run_name', 'auto_reduce_space', 'oversample_factor',
+        'max_batch_size', 'convergence_threshold', 'nroy_method', 'nroy_options',
+    )
+
     def _apply_kwargs(self, kwargs: Dict[str, Any]):
-        """Apply keyword arguments to builder configuration."""
-        # Sampling configuration
-        if 'sampling_strategy' in kwargs:
-            self.with_sampling_strategy(kwargs['sampling_strategy'])
-        
-        # Feature selection configuration
-        if 'feature_selection' in kwargs:
-            self.with_feature_selection(kwargs['feature_selection'])
-        
-        # Emulator configuration
-        if 'emulator_type' in kwargs:
-            self.with_emulator_type(kwargs['emulator_type'])
-        
-        # Workflow parameters
-        if 'n_samples' in kwargs:
-            self.with_samples_per_iteration(kwargs['n_samples'])
-        
-        if 'max_iterations' in kwargs:
-            self.with_max_iterations(kwargs['max_iterations'])
-        
-        if 'implausibility_threshold' in kwargs:
-            self.with_implausibility_threshold(kwargs['implausibility_threshold'])
-        
-        if 'random_seed' in kwargs:
-            self.with_random_seed(kwargs['random_seed'])
-        
-        if 'auto_reduce_space' in kwargs:
-            self.with_space_reduction(kwargs['auto_reduce_space'])
-        
-        if 'oversample_factor' in kwargs:
-            self.with_oversample_factor(kwargs['oversample_factor'])
-        
-        # Store additional settings
-        excluded_keys = {
-            'sampling_strategy', 'feature_selection', 'emulator_type',
-            'n_samples', 'max_iterations', 'implausibility_threshold', 'random_seed',
-            'auto_reduce_space', 'oversample_factor'
-        }
-        self._settings.update({k: v for k, v in kwargs.items() if k not in excluded_keys})
-    
-    def with_sampling_strategy(self, strategy: Union[str, SamplingStrategy, Dict[str, Any]]) -> 'HistoryMatchingBuilder':
+        """Apply keyword arguments to builder configuration.
+
+        Recognised keys are set as attributes; everything else goes into ``settings``.
         """
-        Configure sampling strategy.
-        
-        Args:
-            strategy: Strategy name, strategy instance, or dict with type and parameters
-            
-        Returns:
-            Self for method chaining
-        """
+        for key, value in kwargs.items():
+            if key in self._KNOWN_KWARGS:
+                setattr(self, key, value)
+            else:
+                self.settings[key] = value
+
+    # ------------------------------------------------------------------ #
+    # Coercion helpers — turn friendly config values into objects.
+    # ------------------------------------------------------------------ #
+    def _coerce_sampling(self) -> SamplingStrategy:
+        strategy = self.sampling_strategy
+        if strategy is None:
+            warnings.warn("No sampling strategy specified. Using Latin Hypercube Sampling.")
+            return SamplingStrategyFactory.create('lhs')
         if isinstance(strategy, str):
-            self._sampling_strategy = SamplingStrategyFactory.create(strategy)
-        elif isinstance(strategy, SamplingStrategy):
-            self._sampling_strategy = strategy
-        elif isinstance(strategy, dict):
-            strategy_type = strategy.pop('type', 'lhs')
-            self._sampling_strategy = SamplingStrategyFactory.create(strategy_type, **strategy)
-        else:
-            raise ValueError(f"Invalid sampling strategy type: {type(strategy)}")
-        
-        return self
-    
-    def with_feature_selection(self, selection: Union[str, List[str], FeatureSelectionStrategy, Dict[str, Any]]) -> 'HistoryMatchingBuilder':
-        """
-        Configure feature selection strategy.
-        
-        Args:
-            selection: Feature list, strategy name, strategy instance, or config dict
-            
-        Returns:
-            Self for method chaining
-        """
+            return SamplingStrategyFactory.create(strategy)
+        if isinstance(strategy, SamplingStrategy):
+            return strategy
+        if isinstance(strategy, dict):
+            opts = dict(strategy)  # copy so we don't mutate the caller's dict
+            strategy_type = opts.pop('type', 'lhs')
+            return SamplingStrategyFactory.create(strategy_type, **opts)
+        raise ValueError(f"Invalid sampling strategy type: {type(strategy)}")
+
+    def _coerce_feature_selection(self) -> FeatureSelectionStrategy:
+        selection = self.feature_selection
+        if selection is None:
+            warnings.warn("No feature selection specified. Using automatic selection with mean squared z-score.")
+            return AutoFeatureSelection(method='mean_sq_z', max_features=1)
         if isinstance(selection, (str, list)):
-            # Manual feature selection
-            self._feature_selection_strategy = ManualFeatureSelection(selection)
-        elif isinstance(selection, FeatureSelectionStrategy):
-            self._feature_selection_strategy = selection
-        elif isinstance(selection, dict):
-            # Automatic feature selection with configuration
-            method = selection.get('method', 'mean_sq_z')
-            max_features = selection.get('max_features', 1)
-            threshold = selection.get('threshold', None)
-            correlation_threshold = selection.get('correlation_threshold', 0.8)
-            
-            self._feature_selection_strategy = AutoFeatureSelection(
-                method=method,
-                threshold=threshold,
-                max_features=max_features,
-                correlation_threshold=correlation_threshold
+            return ManualFeatureSelection(selection)
+        if isinstance(selection, FeatureSelectionStrategy):
+            return selection
+        if isinstance(selection, dict):
+            return AutoFeatureSelection(
+                method=selection.get('method', 'mean_sq_z'),
+                threshold=selection.get('threshold', None),
+                max_features=selection.get('max_features', 1),
+                correlation_threshold=selection.get('correlation_threshold', 0.8),
             )
-        else:
-            raise ValueError(f"Invalid feature selection type: {type(selection)}")
-        
-        return self
-    
-    def with_emulator_type(self, emulator_type: str, **kwargs) -> 'HistoryMatchingBuilder':
+        raise ValueError(f"Invalid feature selection type: {type(selection)}")
+
+    def _coerce_emulator_factory(self) -> EmulatorFactory:
+        if self.emulator_factory is not None:
+            return self.emulator_factory
+        if self.emulator_type is not None:
+            return EmulatorFactory(default_type=self.emulator_type)
+        warnings.warn("No emulator type specified. Using Gaussian Process Regression (GPR).")
+        return EmulatorFactory(default_type='gpr')
+
+    def validate(self):
         """
-        Configure emulator factory.
-        
-        Args:
-            emulator_type: Type of emulator ('linear', 'gpr', 'glm')
-            **kwargs: Additional parameters for emulator factory
-            
-        Returns:
-            Self for method chaining
+        Validate the current configuration.
+
+        Checks that the required components are present and that all numeric and
+        enumerated options are within their valid ranges.  Called automatically by
+        :meth:`build`; may also be called directly.
+
+        Raises:
+            ValueError: If any required component is missing or an option is invalid.
         """
-        self._emulator_factory = EmulatorFactory(default_type=emulator_type, **kwargs)
-        return self
-    
-    def with_emulator_factory(self, factory: EmulatorFactory) -> 'HistoryMatchingBuilder':
-        """
-        Use custom emulator factory.
-        
-        Args:
-            factory: Pre-configured EmulatorFactory instance
-            
-        Returns:
-            Self for method chaining
-        """
-        self._emulator_factory = factory
-        return self
-    
-    def with_samples_per_iteration(self, n_samples: int) -> 'HistoryMatchingBuilder':
-        """
-        Set number of samples per iteration.
-        
-        Args:
-            n_samples: Number of samples to generate per iteration
-            
-        Returns:
-            Self for method chaining
-        """
-        if n_samples <= 0:
+        if self.parameter_space is None:
+            raise ValueError("Parameter space is required. Use from_data(), from_dataframes(), or from_existing().")
+        if self.observations is None:
+            raise ValueError("Observations are required. Use from_data(), from_dataframes(), or from_existing().")
+
+        if self.n_samples <= 0:
             raise ValueError("Number of samples must be positive")
-        self._n_samples = n_samples
-        return self
-    
-    def with_max_iterations(self, max_iterations: int) -> 'HistoryMatchingBuilder':
-        """
-        Set maximum number of iterations.
-        
-        Args:
-            max_iterations: Maximum iterations to run
-            
-        Returns:
-            Self for method chaining
-        """
-        if max_iterations <= 0:
+        if self.max_iterations <= 0:
             raise ValueError("Max iterations must be positive")
-        self._max_iterations = max_iterations
-        return self
-    
-    def with_implausibility_threshold(self, threshold: float) -> 'HistoryMatchingBuilder':
-        """
-        Set implausibility threshold for parameter space reduction.
-        
-        Args:
-            threshold: Implausibility threshold (typically 2.5-4.0)
-            
-        Returns:
-            Self for method chaining
-        """
-        if threshold <= 0:
+        if self.implausibility_threshold <= 0:
             raise ValueError("Implausibility threshold must be positive")
-        self._implausibility_threshold = threshold
-        return self
-    
-    def with_random_seed(self, seed: int) -> 'HistoryMatchingBuilder':
-        """
-        Set random seed for reproducibility.
-        
-        Args:
-            seed: Random seed
-            
-        Returns:
-            Self for method chaining
-        """
-        self._random_seed = seed
-        return self
-    
-    def with_convergence_threshold(self, threshold: float) -> 'HistoryMatchingBuilder':
-        """
-        Set the acceptance-rate threshold for early stopping.
 
-        When the cumulative fraction of candidate samples that pass the
-        emulator implausibility filter drops below *threshold*, the engine
-        stops and returns the results collected so far.
-
-        Args:
-            threshold: Acceptance-rate floor (default 0.01 = 1%).
-                       Set to 0.0 to disable early stopping entirely.
-
-        Returns:
-            Self for method chaining
-        """
-        if threshold < 0 or threshold > 1:
-            raise ValueError("Convergence threshold must be between 0.0 and 1.0")
-        self._settings['convergence_threshold'] = threshold
-        return self
-
-    def with_space_reduction(self, auto_reduce: bool) -> 'HistoryMatchingBuilder':
-        """
-        Enable or disable automatic parameter space reduction.
-        
-        Args:
-            auto_reduce: Whether to automatically reduce parameter space based on implausibility
-            
-        Returns:
-            Self for method chaining
-        """
-        self._settings['auto_reduce_space'] = auto_reduce
-        return self
-    
-    def with_oversample_factor(self, factor: float) -> 'HistoryMatchingBuilder':
-        """
-        Set oversampling factor for sample filtering.
-        
-        Args:
-            factor: Factor by which to oversample when filtering (e.g., 2.0 means generate 2x samples)
-            
-        Returns:
-            Self for method chaining
-        """
-        if factor < 1.0:
+        if self.oversample_factor is not None and self.oversample_factor < 1.0:
             raise ValueError("Oversample factor must be >= 1.0")
-        self._settings['oversample_factor'] = factor
-        return self
-    
-    def with_max_batch_size(self, batch_size: int) -> 'HistoryMatchingBuilder':
-        """
-        Set maximum batch size for NROY rejection sampling.
-
-        Larger batches reduce the number of sampling rounds but use more memory.
-        Default: 10,000.
-
-        Args:
-            batch_size: Max candidates per sampling batch
-
-        Returns:
-            Self for method chaining
-        """
-        if batch_size < 100:
+        if self.max_batch_size is not None and self.max_batch_size < 100:
             raise ValueError("Max batch size must be >= 100")
-        self._settings['max_batch_size'] = batch_size
-        return self
+        if self.convergence_threshold is not None and not (0.0 <= self.convergence_threshold <= 1.0):
+            raise ValueError("Convergence threshold must be between 0.0 and 1.0")
+        if self.nroy_method is not None and self.nroy_method not in _VALID_NROY_METHODS:
+            raise ValueError(f"Unknown NROY method '{self.nroy_method}'. Valid: {_VALID_NROY_METHODS}")
 
-    def with_emulator_bank(self, bank: EmulatorBank) -> 'HistoryMatchingBuilder':
-        """
-        Use existing emulator bank (for resuming workflows).
-        
-        Args:
-            bank: Pre-configured EmulatorBank with existing emulators
-            
-        Returns:
-            Self for method chaining
-        """
-        self._emulator_bank = bank
-        return self
-    
-    def with_nroy_method(self, method: str) -> 'HistoryMatchingBuilder':
-        """Set NROY sampling method.
+    def _engine_settings(self) -> Dict[str, Any]:
+        """Collect optional engine keyword arguments (skipping unset ``None`` knobs)."""
+        extra = dict(self.settings)
+        for key in ('auto_reduce_space', 'oversample_factor', 'max_batch_size',
+                    'convergence_threshold', 'nroy_method', 'nroy_options'):
+            value = getattr(self, key)
+            if value is not None:
+                extra[key] = value
+        return extra
 
-        Args:
-            method: ``'auto'`` (default) — LHS rejection first, auto-escalates to
-                ray + importance sampling if LHS can't find enough points.
-                ``'lhs'`` — pure LHS rejection only, never escalates.
-                ``'ray'`` — small LHS for seed points, then always ray + importance.
-
-        Returns:
-            Self for method chaining
-        """
-        valid = ('auto', 'lhs', 'ray')
-        if method not in valid:
-            raise ValueError(f"Unknown NROY method '{method}'. Valid: {valid}")
-        self._settings['nroy_method'] = method
-        return self
-
-    def with_nroy_options(self, **kwargs) -> 'HistoryMatchingBuilder':
-        """Tune NROY sampling parameters.
-
-        Keyword arguments are passed to ``generate_nroy_design()``.
-        Useful options include:
-
-        - ``lhs_factor`` (int, default 10): LHS candidates = max(n_points, lhs_factor × n_dims)
-        - ``n_lines`` (int, default 20): Number of ray pairs for ray sampling
-        - ``points_per_line`` (int, default 50): Points sampled per ray
-        - ``imp_scale`` (float, default 1.0): Initial importance sampling scale
-        - ``imp_target_rate`` (tuple, default (0.10, 0.225)): Target acceptance range
-        - ``maximin_reps`` (int, default 1000): Random subsets for maximin thinning
-        - ``lhs_fallback_rate`` (float, default 0.10): If LHS acceptance exceeds this,
-          skip ray/importance stages (pure LHS is faster and unbiased at high acceptance)
-
-        Returns:
-            Self for method chaining
-        """
-        opts = self._settings.get('nroy_options', {})
-        opts.update(kwargs)
-        self._settings['nroy_options'] = opts
-        return self
-
-    def with_output_dir(self, path: Optional[str]) -> 'HistoryMatchingBuilder':
-        """Set the output directory for checkpoints, emulators, and diagnostics.
-
-        Pass ``None`` to disable all disk output.  Default: ``"./hm_output"``.
-        """
-        self._output_dir = path
-        return self
-
-    def with_run_name(self, name: str) -> 'HistoryMatchingBuilder':
-        """Set the run name (subdirectory under output_dir).
-
-        Default: auto-generated ``run_YYYYMMDD_HHMMSS``.
-        """
-        self._run_name = name
-        return self
-
-    def with_setting(self, key: str, value: Any) -> 'HistoryMatchingBuilder':
-        """
-        Add custom setting.
-        
-        Args:
-            key: Setting name
-            value: Setting value
-            
-        Returns:
-            Self for method chaining
-        """
-        self._settings[key] = value
-        return self
-    
     def build(self) -> 'HistoryMatchingEngine':
         """
-        Build the HistoryMatchingEngine with current configuration.
-        
+        Build the HistoryMatchingEngine with the current configuration.
+
+        Validates the configuration, coerces friendly config values into their
+        underlying objects (applying defaults with a warning where unset), and
+        constructs the engine.
+
         Returns:
             Configured HistoryMatchingEngine ready for execution
-            
+
         Raises:
-            ValueError: If required components are missing
+            ValueError: If required components are missing or options are invalid
         """
-        # Validate required components
-        if self._parameter_space is None:
-            raise ValueError("Parameter space is required. Use from_data(), from_dataframes(), or from_existing().")
-        
-        if self._observations is None:
-            raise ValueError("Observations are required. Use from_data(), from_dataframes(), or from_existing().")
-        
-        # Apply smart defaults
-        self._apply_defaults()
-        
-        # Create engine
+        self.validate()
+
         engine = HistoryMatchingEngine(
-            parameter_space=self._parameter_space,
-            observations=self._observations,
-            sampling_strategy=self._sampling_strategy,
-            feature_selection_strategy=self._feature_selection_strategy,
-            emulator_factory=self._emulator_factory,
-            emulator_bank=self._emulator_bank,
-            n_samples=self._n_samples,
-            implausibility_threshold=self._implausibility_threshold,
-            max_iterations=self._max_iterations,
-            random_seed=self._random_seed,
-            output_dir=self._output_dir,
-            run_name=self._run_name,
-            **self._settings
+            parameter_space=self.parameter_space,
+            observations=self.observations,
+            sampling_strategy=self._coerce_sampling(),
+            feature_selection_strategy=self._coerce_feature_selection(),
+            emulator_factory=self._coerce_emulator_factory(),
+            emulator_bank=self.emulator_bank if self.emulator_bank is not None else EmulatorBank(),
+            n_samples=self.n_samples,
+            implausibility_threshold=self.implausibility_threshold,
+            max_iterations=self.max_iterations,
+            random_seed=self.random_seed,
+            output_dir=self.output_dir,
+            run_name=self.run_name,
+            **self._engine_settings(),
         )
-        
         return engine
-    
-    def _apply_defaults(self):
-        """Apply smart defaults for unspecified components."""
-        # Default sampling strategy
-        if self._sampling_strategy is None:
-            self._sampling_strategy = SamplingStrategyFactory.create('lhs')
-            warnings.warn("No sampling strategy specified. Using Latin Hypercube Sampling.")
-        
-        # Default feature selection strategy
-        if self._feature_selection_strategy is None:
-            self._feature_selection_strategy = AutoFeatureSelection(method='mean_sq_z', max_features=1)
-            warnings.warn("No feature selection specified. Using automatic selection with mean squared z-score.")
-        
-        # Default emulator factory
-        if self._emulator_factory is None:
-            self._emulator_factory = EmulatorFactory(default_type='gpr')
-            warnings.warn("No emulator type specified. Using Gaussian Process Regression (GPR).")
-        
-        # Default emulator bank
-        if self._emulator_bank is None:
-            self._emulator_bank = EmulatorBank()
-    
+
     def preview_configuration(self) -> Dict[str, Any]:
         """
         Preview the current configuration without building.
-        
+
         Returns:
             Dict with configuration summary
         """
-        # Apply defaults temporarily for preview
-        temp_sampling = self._sampling_strategy or SamplingStrategyFactory.create('lhs')
-        temp_feature_selection = self._feature_selection_strategy or AutoFeatureSelection()
-        temp_emulator_factory = self._emulator_factory or EmulatorFactory()
-        
+        # Resolve via the real coercion helpers so the preview matches build(),
+        # suppressing the "using default" warnings those emit for unset options.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            temp_sampling = self._coerce_sampling()
+            temp_feature = self._coerce_feature_selection()
+            emulator_type = self._coerce_emulator_factory().get_default_type()
+
         return {
             'parameter_space': {
-                'parameters': self._parameter_space.get_parameter_names() if self._parameter_space else None,
-                'n_parameters': len(self._parameter_space.get_parameter_names()) if self._parameter_space else 0
+                'parameters': self.parameter_space.get_parameter_names() if self.parameter_space else None,
+                'n_parameters': len(self.parameter_space.get_parameter_names()) if self.parameter_space else 0
             },
             'observations': {
-                'features': self._observations.get_feature_names() if self._observations else None,
-                'n_features': len(self._observations.get_feature_names()) if self._observations else 0
+                'features': self.observations.get_feature_names() if self.observations else None,
+                'n_features': len(self.observations.get_feature_names()) if self.observations else 0
             },
             'sampling_strategy': temp_sampling.get_strategy_name(),
-            'feature_selection_strategy': temp_feature_selection.get_strategy_name(),
-            'emulator_type': temp_emulator_factory.get_default_type(),
+            'feature_selection_strategy': temp_feature.get_strategy_name(),
+            'emulator_type': emulator_type,
             'workflow_settings': {
-                'n_samples': self._n_samples,
-                'max_iterations': self._max_iterations,
-                'implausibility_threshold': self._implausibility_threshold,
-                'random_seed': self._random_seed
+                'n_samples': self.n_samples,
+                'max_iterations': self.max_iterations,
+                'implausibility_threshold': self.implausibility_threshold,
+                'random_seed': self.random_seed
             },
-            'additional_settings': self._settings
+            'additional_settings': self._engine_settings()
         }
-    
+
     def __repr__(self) -> str:
         """String representation of builder state."""
         config = self.preview_configuration()

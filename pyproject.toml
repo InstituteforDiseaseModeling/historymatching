@@ -96,4 +96,9 @@ filterwarnings = [
     "ignore::UserWarning:gpflow",
     "ignore::UserWarning:historymatching",
     "ignore:pkg_resources is deprecated as an API:UserWarning",
+    # requests warns at import (via TensorFlow) when transitive urllib3/chardet
+    # versions are newer than it officially supports.  It's a benign third-party
+    # warning; match by message so we don't import RequestsDependencyWarning
+    # (importing it re-triggers the warning under the "error" filter).
+    "ignore:urllib3 .* doesn't match a supported version:Warning",
 ]

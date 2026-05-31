@@ -116,10 +116,10 @@ class TestHistoryMatchingEngine:
         assert engine.state == EngineState.INITIALIZED
         assert engine.current_iteration == 0
         assert engine.parameter_space is parameter_space
-        assert engine._observations is observations
-        assert engine._n_samples == 1000  # default
-        assert engine._auto_reduce_space is False  # default
-        assert engine._oversample_factor == 1.1  # default
+        assert engine.observations is observations
+        assert engine.n_samples == 1000  # default
+        assert engine.auto_reduce_space is False  # default
+        assert engine.oversample_factor == 1.1  # default
 
     def test_engine_initialization_with_options(self, parameter_space, observations):
         """Test engine initialization with custom options."""
@@ -136,11 +136,11 @@ class TestHistoryMatchingEngine:
             random_seed=42
         )
 
-        assert engine._n_samples == 500
-        assert engine._auto_reduce_space is True
-        assert engine._oversample_factor == 3.0
-        assert engine._max_iterations == 5
-        assert engine._random_seed == 42
+        assert engine.n_samples == 500
+        assert engine.auto_reduce_space is True
+        assert engine.oversample_factor == 3.0
+        assert engine.max_iterations == 5
+        assert engine.random_seed == 42
 
     def test_set_simulation_function(self, basic_engine, mock_simulation_function):
         """Test setting simulation function."""
@@ -165,7 +165,7 @@ class TestHistoryMatchingEngine:
         basic_engine.set_simulation_function(mock_simulation_function)
 
         # Mock emulator factory to return mock emulators
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -183,7 +183,7 @@ class TestHistoryMatchingEngine:
         basic_engine.set_simulation_function(mock_simulation_function)
 
         # Run step
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -205,7 +205,7 @@ class TestHistoryMatchingEngine:
         basic_engine.set_simulation_function(mock_simulation_function)
 
         # Run step
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -234,7 +234,7 @@ class TestHistoryMatchingEngine:
         basic_engine.set_simulation_function(mock_simulation_function)
 
         # First iteration - mock to include next sample computation
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -254,7 +254,7 @@ class TestHistoryMatchingEngine:
 
         # Second iteration should use pre-computed samples (no filtering at start)
         with patch.object(basic_engine, "_filter_samples_by_implausibility") as mock_filter:
-            with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+            with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
                 mock_emulator2 = MockEmulator("output1")
                 mock_create.return_value = {"output1": mock_emulator2}
 
@@ -269,28 +269,28 @@ class TestHistoryMatchingEngine:
         """Test updating strategies."""
         # Update feature selection
         basic_engine.update_feature_selection(["output1", "output2"])
-        assert isinstance(basic_engine._feature_selection_strategy, ManualFeatureSelection)
+        assert isinstance(basic_engine.feature_selection_strategy, ManualFeatureSelection)
 
         # Update with strategy object
         auto_strategy = AutoFeatureSelection(method="var")
         basic_engine.update_feature_selection(auto_strategy)
-        assert basic_engine._feature_selection_strategy is auto_strategy
+        assert basic_engine.feature_selection_strategy is auto_strategy
 
         # Update sampling strategy
         new_sampling = LatinHypercubeSampling()
         basic_engine.update_sampling_strategy(new_sampling)
-        assert basic_engine._sampling_strategy is new_sampling
+        assert basic_engine.sampling_strategy is new_sampling
 
         # Update emulator type
         basic_engine.update_emulator_type("gpr", kernel="rbf")
-        assert basic_engine._emulator_factory.get_default_type() == "gpr"
+        assert basic_engine.emulator_factory.get_default_type() == "gpr"
 
     def test_automated_run(self, basic_engine, mock_simulation_function):
         """Test automated run."""
         basic_engine.set_simulation_function(mock_simulation_function)
-        basic_engine._max_iterations = 3
+        basic_engine.max_iterations = 3
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -306,7 +306,7 @@ class TestHistoryMatchingEngine:
         """Test automated run without auto-commit."""
         basic_engine.set_simulation_function(mock_simulation_function)
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -319,9 +319,9 @@ class TestHistoryMatchingEngine:
     def test_max_iterations_limit(self, basic_engine, mock_simulation_function):
         """Test maximum iterations limit."""
         basic_engine.set_simulation_function(mock_simulation_function)
-        basic_engine._max_iterations = 2
+        basic_engine.max_iterations = 2
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -339,7 +339,7 @@ class TestHistoryMatchingEngine:
         """Test getting iteration results."""
         basic_engine.set_simulation_function(mock_simulation_function)
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -370,7 +370,7 @@ class TestHistoryMatchingEngine:
         basic_engine.add_iteration_callback(iteration_callback)
         basic_engine.add_progress_callback(progress_callback)
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -387,7 +387,7 @@ class TestHistoryMatchingEngine:
 
         initial_space = basic_engine.parameter_space
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -411,7 +411,7 @@ class TestHistoryMatchingEngine:
 
         engine.set_simulation_function(mock_simulation_function)
 
-        with patch.object(engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(engine.emulator_factory, "create_emulators_for_features") as mock_create:
             # Use our MockEmulator with custom prediction
             mock_emulator = MockEmulator("output1")
             # Override the predict method to return high values that will be implausible
@@ -428,7 +428,7 @@ class TestHistoryMatchingEngine:
             mock_emulator.predict = custom_predict
             mock_create.return_value = {"output1": mock_emulator}
 
-            with patch.object(engine, "_observations") as mock_obs:
+            with patch.object(engine, "observations") as mock_obs:
                 # Mock implausibility calculation to return high values for some samples
                 def mock_calculate_implausibility(feature_name, means, variances):
                     n_samples = len(means)
@@ -448,7 +448,7 @@ class TestHistoryMatchingEngine:
         basic_engine.set_simulation_function(mock_simulation_function)
 
         # Run an iteration
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -505,7 +505,7 @@ class TestWorkflowProgress:
         """Test that progress is updated correctly."""
         basic_engine.set_simulation_function(mock_simulation_function)
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -534,7 +534,7 @@ class TestSampleFiltering:
         """Test that first iteration doesn't filter samples."""
         basic_engine.set_simulation_function(mock_simulation_function)
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 
@@ -564,10 +564,10 @@ class TestSampleFiltering:
         predictions.get_variance = lambda: predictions["var"]
         mock_emulator.predict = MagicMock(return_value=predictions)
 
-        basic_engine._emulator_bank.add_emulator(1, "output1", mock_emulator)
+        basic_engine.emulator_bank.add_emulator(1, "output1", mock_emulator)
 
         # Mock observations to return specific implausibilities
-        with patch.object(basic_engine._observations, "calculate_implausibility") as mock_calc:
+        with patch.object(basic_engine.observations, "calculate_implausibility") as mock_calc:
             mock_calc.return_value = pd.Series([1.0, 2.0, 5.0])  # Last one is implausible
 
             filtered = basic_engine._filter_samples_by_implausibility(candidates)
@@ -579,9 +579,9 @@ class TestSampleFiltering:
     def test_adaptive_sampling_during_next_sample_computation(self, basic_engine, mock_simulation_function):
         """Test that NROY sampling produces the requested number of samples."""
         basic_engine.set_simulation_function(mock_simulation_function)
-        basic_engine._n_samples = 50  # Request samples
+        basic_engine.n_samples = 50  # Request samples
 
-        with patch.object(basic_engine._emulator_factory, "create_emulators_for_features") as mock_create:
+        with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
             mock_create.return_value = {"output1": mock_emulator}
 

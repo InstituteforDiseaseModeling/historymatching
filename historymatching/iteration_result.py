@@ -297,7 +297,7 @@ class IterationResult:
           - ``metrics.json`` — R², MSE, training size, ARD lengthscales
 
         For z-scores-vs-targets and pair plots, use the engine's auto-output
-        (``builder.with_output_dir(...)``), which has access to observations.
+        (``builder.output_dir``), which has access to observations.
 
         Args:
             fig_dir: Directory to save figures into (created if needed).
