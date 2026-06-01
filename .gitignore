@@ -1,3 +1,6 @@
+# Custom
+uv.lock
+
 *.py[cod]
 __pycache__
 
