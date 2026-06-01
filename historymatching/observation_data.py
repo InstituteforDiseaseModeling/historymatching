@@ -228,6 +228,34 @@ class ObservationData:
         """
         return self._observations.reset_index(drop=True).copy()
 
+    def summary(self) -> str:
+        """Human-readable table of observation targets.
+
+        Returns:
+            A multi-line string listing each feature's ``mean ± std`` target.
+        """
+        lines = [f"ObservationData: {len(self)} features"]
+        for f in self.get_feature_names():
+            mean, std = self.get_target_for_feature(f)
+            lines.append(f"  {f:<20} {mean:.4g} ± {std:.4g}")
+        return "\n".join(lines)
+
+    def plot_targets(self, *, ax=None):
+        """Plot observation targets as means with ±1σ error bars.
+
+        Args:
+            ax: Existing Matplotlib axes to draw into.
+
+        Returns:
+            The Matplotlib ``Axes`` containing the plot.
+        """
+        from . import plotting
+        return plotting.plot_targets(self.get_all_targets(), ax=ax)
+
+    def _repr_html_(self) -> str:
+        """Rich table representation for Jupyter notebooks."""
+        return self.to_dataframe().to_html(index=False)
+
     def __len__(self) -> int:
         """Return number of observed features."""
         return len(self._observations)

@@ -13,6 +13,7 @@ from .parameter_space import ParameterSpace
 from .observation_data import ObservationData
 from .emulator_bank import EmulatorBank
 from .emulators.base import BaseEmulator
+from . import plotting
 
 
 @dataclass(frozen=True)
@@ -58,22 +59,29 @@ class IterationResult:
             
         return self.emulators[feature]
         
-    def plot_emulator_diagnostics(self, feature: str, **kwargs):
+    def plot_emulator_diagnostics(self, feature: str):
         """
-        Plot diagnostics for a specific emulator.
-        
+        Plot full diagnostics for a specific emulator (predicted-vs-actual,
+        residuals, error distributions).
+
+        The emulator is tested automatically if it has not been already.
+
         Args:
             feature: Feature name
-            **kwargs: Additional arguments passed to emulator's plot method
+
+        Returns:
+            The list of Matplotlib figures created, or ``None`` if the emulator
+            does not support plotting.
         """
         emulator = self.get_emulator_for_feature(feature)
-        
+
         if hasattr(emulator, 'plot_diagnostics'):
-            emulator.plot_diagnostics(**kwargs)
-        elif hasattr(emulator, 'plot'):
-            emulator.plot(**kwargs)
+            if hasattr(emulator, 'testing_complete') and not emulator.testing_complete:
+                emulator.test()
+            return emulator.plot_diagnostics()
         else:
             print(f"Emulator for feature '{feature}' does not support plotting")
+            return None
             
     def calculate_space_reduction(self, original_space: ParameterSpace) -> float:
         """
@@ -197,7 +205,104 @@ class IterationResult:
             'average_emulator_r2': avg_r2,
             'emulator_metrics': emulator_metrics
         }
-        
+
+    def summary(self) -> str:
+        """Human-readable one-block summary of this wave.
+
+        Returns:
+            A short multi-line string with the sample count, NROY fraction,
+            emulated features, and emulator count — the per-wave report users
+            otherwise reassemble by hand after :meth:`step`.
+        """
+        avg_r2 = self.summary_statistics().get('average_emulator_r2')
+        r2_str = f"{avg_r2:.3f}" if avg_r2 is not None else "n/a"
+        return (f"Wave {self.iteration}: "
+                f"{len(self.samples)} samples | "
+                f"NROY fraction {self.nroy_fraction:.1%} | "
+                f"features {self.selected_features} | "
+                f"{len(self.emulators)} emulators (avg R²={r2_str})")
+
+    def quality_table(self) -> pd.DataFrame:
+        """Per-feature emulator quality as a tidy table.
+
+        Returns:
+            A DataFrame indexed by feature with columns ``r2``, ``mse`` and
+            ``n_train`` — a sortable, copy-pasteable view of
+            :meth:`get_emulator_quality_metrics`.  Renders nicely in notebooks.
+        """
+        metrics = self.get_emulator_quality_metrics()
+        rows = []
+        for feature in self.selected_features:
+            m = metrics.get(feature, {})
+            rows.append({
+                "feature": feature,
+                "r2": m.get("r2_score", float("nan")),
+                "mse": m.get("mse", float("nan")),
+                "n_train": m.get("training_size", None),
+            })
+        return pd.DataFrame(rows).set_index("feature")
+
+    def plot_convergence(self, all_results: list, *, ax=None, log: bool = True):
+        """Plot the NROY fraction across waves up to and including this one.
+
+        Args:
+            all_results: List of :class:`IterationResult` objects (with
+                ``.iteration`` and ``.nroy_fraction``).
+            ax: Existing Matplotlib axes to draw into.
+            log: Use a logarithmic y-axis.
+
+        Returns:
+            The Matplotlib ``Axes`` containing the plot.
+        """
+        return plotting.plot_convergence(
+            [r.iteration for r in all_results],
+            [r.nroy_fraction for r in all_results], ax=ax, log=log)
+
+    def plot_emulator_quality(self, *, ax=None):
+        """Bar chart of per-feature emulator R² for this wave.
+
+        Args:
+            ax: Existing Matplotlib axes to draw into.
+
+        Returns:
+            The Matplotlib ``Axes`` containing the plot.
+        """
+        return plotting.plot_emulator_quality(self.get_emulator_quality_metrics(), ax=ax)
+
+    def plot_predicted_vs_actual(self, feature: str, *, ax=None):
+        """Predicted-vs-actual scatter for one feature's emulator.
+
+        Args:
+            feature: Feature whose emulator to plot.
+            ax: Existing Matplotlib axes to draw into.
+
+        Returns:
+            The Matplotlib ``Axes`` containing the plot.
+        """
+        emulator = self.get_emulator_for_feature(feature)
+        return emulator.plot_predicted_vs_actual(ax=ax, title=f"{feature}: predicted vs actual")
+
+    def plot_all_emulator_diagnostics(self):
+        """Show full diagnostic figures for every emulator trained this wave.
+
+        Calls each emulator's :meth:`plot_diagnostics` (predicted-vs-actual,
+        residuals, error distributions).  Returns nothing; figures render
+        inline.
+        """
+        for feature, emulator in self.emulators.items():
+            if not getattr(emulator, 'testing_complete', False):
+                try:
+                    emulator.test()
+                except Exception:
+                    continue
+            print(f"── {feature} ──")
+            emulator.plot_diagnostics()
+
+    def __str__(self) -> str:
+        """Human-readable string representation."""
+        return self.summary()
+
+
     def export_emulators(self, directory_path: str):
         """
         Save emulators to specified directory.
@@ -344,27 +449,12 @@ class IterationResult:
                 axes = [axes]
 
             # ── Panel 1: Predicted vs actual ──────────────────────────
-            ax = axes[0]
-            y_true = emulator.y_test.flatten()
-            y_pred = emulator.y_test_pred.flatten()
-            ax.scatter(y_true, y_pred, s=12, alpha=0.6, edgecolors='none')
-            lo = min(y_true.min(), y_pred.min())
-            hi = max(y_true.max(), y_pred.max())
-            margin = (hi - lo) * 0.05 or 1.0
-            ax.plot([lo - margin, hi + margin], [lo - margin, hi + margin],
-                    '--', color='grey', linewidth=0.8, alpha=0.6)
-            ax.set_xlim(lo - margin, hi + margin)
-            ax.set_ylim(lo - margin, hi + margin)
-            ax.set_xlabel('Simulation (true)', fontsize=9)
-            ax.set_ylabel('Emulator (predicted)', fontsize=9)
-
             em = getattr(emulator, 'emulator_metrics', {})
-            r2  = em.get('R2', float('nan'))
-            mse = em.get('MSE', float('nan'))
-            n_train = len(emulator.X_train) if emulator.X_train is not None else '?'
-            ax.set_title(f"Predicted vs Actual\nR²={r2:.3f}  MSE={mse:.3g}  n={n_train}",
-                         fontsize=9)
-            ax.set_aspect('equal', adjustable='box')
+            n_train = len(emulator.X_train) if emulator.X_train is not None else None
+            plotting.plot_predicted_vs_actual(
+                emulator.y_test.flatten(), emulator.y_test_pred.flatten(),
+                ax=axes[0], r2=em.get('R2'), mse=em.get('MSE'),
+                n_train=n_train, title="Predicted vs actual")
 
             # ── Panel 2: ARD lengthscales ─────────────────────────────
             if has_ard:
@@ -394,26 +484,11 @@ class IterationResult:
 
         # ── Wave summary: NROY convergence ────────────────────────────
         if all_results is not None and len(all_results) > 0:
-            fig, ax = plt.subplots(figsize=(7, 4))
-            waves = [r.iteration for r in all_results]
-            fracs = [r.nroy_fraction for r in all_results]
-
-            ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
-            for w, f in zip(waves, fracs):
-                ax.annotate(f"{f:.1%}", (w, f),
-                            textcoords='offset points', xytext=(0, 6),
-                            ha='center', fontsize=8)
-            ax.set_xlabel('Wave', fontsize=10)
-            ax.set_ylabel('Non-implausible fraction', fontsize=10)
-            ax.set_title('NROY Convergence', fontsize=11, fontweight='bold')
-            ax.set_ylim(0, min(1.0, max(fracs) * 1.3) if fracs else 1.0)
-            ax.set_xticks(waves)
-            for spine in ['top', 'right']:
-                ax.spines[spine].set_visible(False)
-            ax.grid(axis='y', alpha=0.3)
+            ax = self.plot_convergence(all_results)
+            fig = ax.figure
             fig.tight_layout()
-            path = os.path.join(wave_dir, "convergence.png")
-            fig.savefig(path, dpi=150, bbox_inches='tight')
+            fig.savefig(os.path.join(wave_dir, "convergence.png"),
+                        dpi=150, bbox_inches='tight')
             plt.close(fig)
 
         # ── Save metrics JSON ─────────────────────────────────────────
@@ -444,12 +519,6 @@ class IterationResult:
         if self.execution_time_seconds < 0:
             raise ValueError(f"Execution time must be non-negative, got {self.execution_time_seconds}")
             
-    def __str__(self) -> str:
-        """Human-readable string representation."""
-        return (f"IterationResult(iteration={self.iteration}, "
-                f"features={self.selected_features}, "
-                f"nroy_fraction={self.nroy_fraction:.3f})")
-                
     def __repr__(self) -> str:
         """Developer string representation."""
         return (f"IterationResult(iteration={self.iteration}, "

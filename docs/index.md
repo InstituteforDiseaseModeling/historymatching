@@ -23,28 +23,31 @@ See [Installation](installation.md) for full details including optional dependen
 ```python
 import historymatching as hm
 
-# Configure and build the engine
-engine = (hm.HistoryMatchingBuilder
-    .from_data(
-        parameter_bounds={
-            'beta': (0.1, 0.5),
-            'gamma': (0.01, 0.1),
-        },
-        observations={
-            'peak_infected': (150.0, 20.0),  # (mean, std)
-            'total_cases': (500.0, 50.0),
-        },
-    )
-    .with_sampling_strategy('lhs')
-    .with_emulator_type('gpr')
-    .with_samples_per_iteration(500)
-    .with_max_iterations(5)
-    .build()
+# Configure the builder by assigning to its attributes, then build the engine.
+builder = hm.HistoryMatchingBuilder.from_data(
+    parameter_bounds={
+        'beta': (0.1, 0.5),
+        'gamma': (0.01, 0.1),
+    },
+    observations={
+        'peak_infected': (150.0, 20.0),  # (mean, std)
+        'total_cases': (500.0, 50.0),
+    },
 )
+builder.sampling_strategy = 'lhs'
+builder.emulator_type = 'gpr'
+builder.n_samples = 500
+builder.max_iterations = 5
+engine = builder.build()
 
 # Provide a simulation function and run
 engine.set_simulation_function(my_model)
 results = engine.run()
+
+# Summarise and visualise
+print(engine.summary())
+engine.plot_nroy()          # corner plot of the plausible parameter region
+engine.plot_convergence()   # NROY fraction per wave
 ```
 
 See the [Usage guide](usage.md) for a complete walkthrough, or jump into the [Tutorials](tutorials.md).

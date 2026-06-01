@@ -287,6 +287,20 @@ class EmulatorBank:
             }
         }
         
+    def summary(self) -> str:
+        """Human-readable inventory of which feature was emulated in each wave.
+
+        Returns:
+            A multi-line string listing the emulated features per iteration.
+        """
+        stats = self.get_summary_statistics()
+        lines = [f"EmulatorBank: {stats['total_emulators']} emulators "
+                 f"across {stats['total_iterations']} waves"]
+        for iteration in self.get_all_iterations():
+            feats = list(self.get_emulators_for_iteration(iteration).keys())
+            lines.append(f"  Wave {iteration}: {feats}")
+        return "\n".join(lines)
+
     def __len__(self) -> int:
         """Return total number of emulators across all iterations."""
         return sum(len(emulators) for emulators in self._emulators.values())

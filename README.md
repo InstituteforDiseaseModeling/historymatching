@@ -60,7 +60,8 @@ uv pip install -e ".[notebooks,dev,mac]"
 ```python
 import historymatching as hm
 
-# Configure the engine
+# Configure the engine. The builder is configured by assigning to its
+# attributes; every setting is optional and has a sensible default.
 builder = hm.HistoryMatchingBuilder.from_data(
     parameter_bounds={
         'beta': (0.1, 0.5),
@@ -71,14 +72,13 @@ builder = hm.HistoryMatchingBuilder.from_data(
         'total_cases': (500.0, 50.0),
     },
 )
-engine = builder \
-    .with_sampling_strategy('lhs') \
-    .with_emulator_type('bayes_linear') \  # or 'gpr', 'linear', 'glm'
-    .with_samples_per_iteration(500) \
-    .with_max_iterations(5) \
-    .with_output_dir('./hm_output') \
-    .with_run_name('my_calibration') \
-    .build()
+builder.sampling_strategy = 'lhs'
+builder.emulator_type = 'gpr'          # or 'bayes_linear', 'linear', 'glm'
+builder.n_samples = 500
+builder.max_iterations = 5
+builder.output_dir = './hm_output'
+builder.run_name = 'my_calibration'
+engine = builder.build()
 
 # Provide a simulation function and run
 engine.set_simulation_function(my_model)
@@ -87,6 +87,11 @@ results = engine.run()
 # Emulators, diagnostics, and checkpoints are saved automatically to
 # hm_output/my_calibration/wave1/, wave2/, etc.
 
+# Inspect and visualise the result
+print(engine.summary())            # NROY ranges + per-wave convergence
+engine.plot_convergence()          # NROY fraction per wave
+engine.plot_nroy()                 # corner plot of the plausible region
+
 # Get NROY samples (filtered through ALL emulators)
 nroy = engine.get_nroy_samples(10000)
 ```
@@ -94,26 +99,27 @@ nroy = engine.get_nroy_samples(10000)
 ### Resume from checkpoint
 
 ```python
-engine = builder.with_run_name('my_calibration').build()
+builder.run_name = 'my_calibration'
+engine = builder.build()
 engine.set_simulation_function(my_model)
 results = engine.run(resume=True)  # continues from last committed wave
 ```
 
 ### NROY sampling methods
 
-The default `ray_resample` method uses a 4-stage pipeline (LHS → ray sampling → importance sampling → maximin thinning) that efficiently explores small NROY regions:
+The default `auto` method uses a multi-stage pipeline (LHS rejection, escalating to ray sampling + PCA-oriented importance sampling + maximin thinning) that efficiently explores small NROY regions:
 
 ```python
-engine = builder \
-    .with_nroy_method('ray_resample') \  # default; or 'lhs' for pure rejection
-    .with_nroy_options(n_lines=30, points_per_line=100) \  # optional tuning
-    .build()
+builder.nroy_method = 'auto'   # default; or 'ray', or 'lhs' for pure rejection
+builder.nroy_options = {'n_lines': 30, 'points_per_line': 100}  # optional tuning
+engine = builder.build()
 ```
 
 For simple problems, pure LHS rejection is fine:
 
 ```python
-engine = builder.with_nroy_method('lhs').build()
+builder.nroy_method = 'lhs'
+engine = builder.build()
 ```
 
 ## Documentation

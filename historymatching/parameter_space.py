@@ -259,6 +259,40 @@ class ParameterSpace:
         """
         return self._parameters.reset_index(drop=True).copy()
 
+    def summary(self) -> str:
+        """Human-readable table of parameters and their bounds.
+
+        Returns:
+            A multi-line string listing each parameter's ``[min, max]`` and width.
+        """
+        lines = [f"ParameterSpace: {len(self)} parameters"]
+        for p in self.get_parameter_names():
+            lo, hi = self.get_bounds(p)
+            lines.append(f"  {p:<20} [{lo:.4g}, {hi:.4g}]   width {hi - lo:.4g}")
+        return "\n".join(lines)
+
+    def plot_bounds(self, *, reference: "ParameterSpace" = None, ax=None):
+        """Plot each parameter's bounds as a horizontal range.
+
+        Args:
+            reference: Optional original/prior ``ParameterSpace`` to normalise
+                against, so shrinkage relative to the prior is visible.
+            ax: Existing Matplotlib axes to draw into.
+
+        Returns:
+            The Matplotlib ``Axes`` containing the plot.
+        """
+        from . import plotting
+        bounds = {p: self.get_bounds(p) for p in self.get_parameter_names()}
+        ref = None
+        if reference is not None:
+            ref = {p: reference.get_bounds(p) for p in reference.get_parameter_names()}
+        return plotting.plot_parameter_bounds(bounds, reference=ref, ax=ax)
+
+    def _repr_html_(self) -> str:
+        """Rich table representation for Jupyter notebooks."""
+        return self.to_dataframe().to_html(index=False)
+
     def __len__(self) -> int:
         """Return number of parameters."""
         return len(self._parameters)

@@ -27,6 +27,7 @@ from .parameter_space import ParameterSpace
 from .emulators.factory import EmulatorFactory
 from .feature_selection import FeatureSelectionStrategy
 from .sampling import SamplingStrategy
+from . import plotting
 
 logger = logging.getLogger(__name__)
 
@@ -34,131 +35,29 @@ logger = logging.getLogger(__name__)
 _PAIRPLOT_MAX_PARAMS = 15
 
 
-def _compute_variance_reduction(
-    nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
-) -> tuple:
-    """
-    PCA-based variance reduction analysis for NROY samples.
-
-    Normalizes samples to the [0, 1]^d unit cube using prior bounds, fits PCA,
-    and computes per-PC variance reduction relative to a uniform prior.
-
-    Variance reduction per PC:
-        reduction = 1 - (NROY_variance_along_PC / prior_variance)
-        0.0 → direction as wide as the prior (unconstrained)
-        1.0 → direction fully collapsed (fully constrained)
-
-    Returns:
-        reduction  : np.ndarray (n_params,), sorted most-constrained first
-        components : np.ndarray (n_params, n_params), PCA loadings (rows), same order
-        param_names: list[str], parameter names
-    """
-    import numpy as np
-    from sklearn.decomposition import PCA
-
-    param_names = parameter_space.get_parameter_names()
-    X = np.empty((len(nroy_samples), len(param_names)))
-    for j, name in enumerate(param_names):
-        lo, hi = parameter_space.get_bounds(name)
-        X[:, j] = (nroy_samples[name].to_numpy() - lo) / (hi - lo)
-
-    prior_var = 1.0 / 12.0  # Uniform[0, 1] → variance = 1/12
-
-    pca = PCA(n_components=len(param_names))
-    pca.fit(X)
-
-    reduction = np.clip(1.0 - pca.explained_variance_ / prior_var, 0.0, 1.0)
-    order = np.argsort(reduction)[::-1]
-    return reduction[order], pca.components_[order], param_names
+def _bounds_from_space(parameter_space):
+    """Helper: {name: (lo, hi)} bounds dict from a ParameterSpace."""
+    return {p: parameter_space.get_bounds(p)
+            for p in parameter_space.get_parameter_names()}
 
 
-def _marginal_variance_reduction(
-    nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
-) -> dict:
-    """
-    Per-parameter marginal variance reduction vs uniform prior.
-
-    Simpler than the PCA-based version: just compares the marginal variance of
-    each parameter in the NROY cloud to the prior variance. Useful for ranking
-    which parameters to show in a pairplot.
-
-    Returns:
-        dict mapping param_name → reduction in [0, 1]
-    """
-    import numpy as np
-
-    prior_var = 1.0 / 12.0
-    result = {}
-    for name in parameter_space.get_parameter_names():
-        lo, hi = parameter_space.get_bounds(name)
-        x = (nroy_samples[name].to_numpy() - lo) / (hi - lo)
-        nroy_var = float(np.var(x))
-        result[name] = float(np.clip(1.0 - nroy_var / prior_var, 0.0, 1.0))
-    return result
+def _compute_variance_reduction(nroy_samples, parameter_space):
+    """PCA variance reduction of an NROY cloud (delegates to plotting)."""
+    return plotting.variance_reduction(nroy_samples, _bounds_from_space(parameter_space))
 
 
-def _plot_constrained_dims(
-    nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
-    wave_label: str,
-    out_path: "Path",
-    n_top: int = 5,
-) -> None:
-    """
-    Save a constrained-directions diagnostic plot for a single HM wave.
+def _marginal_variance_reduction(nroy_samples, parameter_space):
+    """Per-parameter marginal variance reduction (delegates to plotting)."""
+    return plotting.marginal_variance_reduction(nroy_samples, _bounds_from_space(parameter_space))
 
-    Top panel: variance reduction spectrum (most-constrained PCs first).
-    Lower panels: loading bar charts for the top-N most-constrained PCs,
-    showing |loading| as bar height and sign as colour (red = positive,
-    blue = negative).
-    """
+
+def _plot_constrained_dims(nroy_samples, parameter_space, wave_label, out_path, n_top=5):
+    """Save the constrained-directions diagnostic for one wave to disk."""
     import matplotlib.pyplot as plt
-    import numpy as np
-
-    reduction, components, param_names = _compute_variance_reduction(nroy_samples, parameter_space)
-    n_params = len(param_names)
-    n_top = min(n_top, n_params)
-
-    fig, axes = plt.subplots(
-        1 + n_top, 1,
-        figsize=(max(10, n_params * 0.55), 4 + 2.5 * n_top),
-        gridspec_kw={"height_ratios": [2.5] + [1.5] * n_top},
-    )
-    fig.suptitle(
-        f"Constrained directions — {wave_label}\n"
-        "Variance reduction = 1 − NROY_var / prior_var  "
-        "(bar height = |loading|, red = positive, blue = negative)",
-        fontsize=10,
-    )
-
-    # ── Spectrum ─────────────────────────────────────────────────────────────
-    ax = axes[0]
-    colors = ["firebrick" if r > 0.5 else "steelblue" for r in reduction]
-    ax.bar(np.arange(n_params), reduction * 100, color=colors, edgecolor="none")
-    ax.axhline(50, color="k", lw=0.8, ls="--", label="50% reduction")
-    ax.set_ylabel("Variance reduction (%)")
-    ax.set_xlabel("PC index (sorted most-constrained first)")
-    ax.set_ylim(0, 105)
-    ax.legend(fontsize=8)
-    ax.set_xticks(np.arange(n_params))
-    ax.set_xticklabels([f"PC{i + 1}" for i in range(n_params)], fontsize=7, rotation=45)
-
-    # ── Loadings for top-N constrained PCs ───────────────────────────────────
-    for k in range(n_top):
-        ax = axes[k + 1]
-        loadings = components[k]
-        bar_colors = ["firebrick" if v > 0 else "steelblue" for v in loadings]
-        ax.bar(np.arange(n_params), np.abs(loadings), color=bar_colors, edgecolor="none")
-        ax.axhline(0, color="k", lw=0.5)
-        ax.set_ylabel("|Loading|")
-        ax.set_title(f"PC{k + 1} — {reduction[k] * 100:.1f}% reduction", fontsize=9)
-        ax.set_xticks(np.arange(n_params))
-        ax.set_xticklabels(param_names, fontsize=6.5, rotation=45, ha="right")
-        ax.set_ylim(0, 1.05)
-
-    plt.tight_layout()
+    axes = plotting.plot_constrained_dims(
+        nroy_samples, _bounds_from_space(parameter_space),
+        n_top=n_top, title=f"Constrained directions — {wave_label}")
+    fig = axes[0].figure
     fig.savefig(out_path, dpi=120, bbox_inches="tight")
     plt.close(fig)
 
@@ -763,9 +662,8 @@ class HistoryMatchingEngine:
         Example:
             result = engine.step()
 
-            for f in result.selected_features:
-                metrics = result.get_emulator_quality_metrics()
-                print(f"{f}: R²={metrics[f]['r2']:.3f}")
+            # Inspect per-feature fit quality (R² / MSE / n_train)
+            print(result.quality_table())
 
             # Drop any emulator with a poor fit before committing
             engine.drop_emulator_from_pending('feature_c')
@@ -874,6 +772,210 @@ class HistoryMatchingEngine:
             summary.append("✅ All iterations completed successfully")
 
         return "\n".join(summary)
+
+    # ------------------------------------------------------------------ #
+    # Post-run summaries and plots
+    #
+    # The plot_* methods return Matplotlib axes (or arrays of axes) so they
+    # render inline in notebooks and can be further customised or saved.
+    # They draw the same figures the engine writes to ``run_dir`` after each
+    # wave — see :meth:`_save_wave_output`, which now calls these methods.
+    # ------------------------------------------------------------------ #
+    def _bounds(self) -> dict:
+        """Return ``{name: (lo, hi)}`` for the current parameter space."""
+        return _bounds_from_space(self.parameter_space)
+
+    def nroy_bounds(self, samples: Optional[pd.DataFrame] = None) -> dict:
+        """Per-parameter ``(min, max)`` range of the surviving NROY cloud.
+
+        Args:
+            samples: NROY samples to summarise; defaults to
+                :meth:`get_nroy_samples`.
+
+        Returns:
+            ``{parameter: (min, max)}`` over the NROY samples.
+        """
+        samples = self.get_nroy_samples() if samples is None else samples
+        return {p: (float(samples[p].min()), float(samples[p].max()))
+                for p in self.parameter_space.get_parameter_names()
+                if p in samples.columns}
+
+    def nroy_summary(self, samples: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+        """Per-parameter summary of the NROY cloud and its space reduction.
+
+        Args:
+            samples: NROY samples to summarise; defaults to
+                :meth:`get_nroy_samples`.
+
+        Returns:
+            A DataFrame with one row per parameter and columns ``min``, ``max``,
+            ``median``, ``q05``, ``q95``, and ``reduction`` — the factor by
+            which the parameter's range shrank relative to the prior bounds.
+        """
+        samples = self.get_nroy_samples() if samples is None else samples
+        rows = []
+        for p in self.parameter_space.get_parameter_names():
+            if p not in samples.columns:
+                continue
+            col = samples[p]
+            lo, hi = self.parameter_space.get_bounds(p)
+            width = (col.max() - col.min())
+            rows.append({
+                "parameter": p,
+                "min": float(col.min()),
+                "max": float(col.max()),
+                "median": float(col.median()),
+                "q05": float(col.quantile(0.05)),
+                "q95": float(col.quantile(0.95)),
+                "reduction": float((hi - lo) / width) if width > 0 else float("inf"),
+            })
+        return pd.DataFrame(rows).set_index("parameter")
+
+    def summary(self, samples: Optional[pd.DataFrame] = None) -> str:
+        """Human-readable summary of the completed run.
+
+        Folds together the per-wave NROY fractions, the surviving parameter
+        ranges and their space-reduction factors, and the engine's progress
+        totals — the report users otherwise reassemble by hand after
+        :meth:`run`.
+
+        Args:
+            samples: NROY samples for the parameter-range section; defaults to
+                :meth:`get_nroy_samples`.
+
+        Returns:
+            A multi-line summary string.
+        """
+        results = self.get_all_results()
+        lines = ["=== History Matching Summary ===",
+                 f"Waves completed:   {len(results)}/{self.max_iterations}",
+                 f"Emulators trained: {self._progress.total_emulators_trained}",
+                 f"Samples generated: {self._progress.total_samples_generated:,}",
+                 f"Samples accepted:  {self._progress.total_samples_accepted:,}",
+                 f"Acceptance rate:   {self._progress.acceptance_rate:.3%}"]
+        if results:
+            lines.append("")
+            lines.append("NROY fraction per wave:")
+            for r in results:
+                feats = ", ".join(r.selected_features)
+                lines.append(f"  Wave {r.iteration}: {r.nroy_fraction:>8.3%}   features: {feats}")
+        samples = self.get_nroy_samples() if samples is None else samples
+        if samples is not None and len(samples) > 0:
+            lines.append("")
+            lines.append(f"Plausible (NROY) parameter ranges  [{len(samples)} samples]:")
+            summary = self.nroy_summary(samples)
+            for p, row in summary.iterrows():
+                lines.append(f"  {p:<20} [{row['min']:.4g}, {row['max']:.4g}]"
+                             f"   median {row['median']:.4g}   ({row['reduction']:.1f}× narrower)")
+        return "\n".join(lines)
+
+    def plot_convergence(self, *, ax=None, log: bool = True):
+        """Plot the NROY fraction at each wave (the convergence diagnostic).
+
+        Args:
+            ax: Existing Matplotlib axes to draw into.
+            log: Use a logarithmic y-axis (recommended).
+
+        Returns:
+            The Matplotlib ``Axes`` containing the plot.
+        """
+        results = self.get_all_results()
+        if not results:
+            raise RuntimeError("No committed waves yet — run at least one iteration first.")
+        return plotting.plot_convergence(
+            [r.iteration for r in results], [r.nroy_fraction for r in results],
+            ax=ax, log=log)
+
+    def plot_nroy(self, *, params=None, truth=None, samples=None, prior=None,
+                  max_params: int = _PAIRPLOT_MAX_PARAMS, axes=None):
+        """Corner plot of the non-implausible (NROY) parameter cloud.
+
+        Marginals on the diagonal, pairwise scatter below.  This is the headline
+        result of a run — the shape of the parameter region consistent with the
+        observations.
+
+        Args:
+            params: Parameters to show; defaults to all (capped at
+                ``max_params``, ranked by how much each was constrained).
+            truth: Optional ``{name: value}`` of known true values, drawn as
+                crosshairs (handy for synthetic-recovery checks).
+            samples: NROY samples to plot; defaults to :meth:`get_nroy_samples`.
+            prior: Optional background cloud (e.g. the first wave's samples) to
+                show how much the region shrank.
+            max_params: Cap on parameters shown.
+            axes: Existing ``(p, p)`` axes array to draw into.
+
+        Returns:
+            The 2-D array of ``Axes``.
+        """
+        samples = self.get_nroy_samples() if samples is None else samples
+        if samples is None or len(samples) == 0:
+            raise RuntimeError("No NROY samples available — run at least one iteration first.")
+        bounds = self._bounds()
+        if params is None and len(bounds) > max_params and len(samples) >= 10:
+            mvr = plotting.marginal_variance_reduction(samples, bounds)
+            params = sorted(mvr, key=mvr.get, reverse=True)[:max_params]
+        return plotting.plot_pairplot(samples, params=params, truth=truth,
+                                      prior=prior, bounds=bounds,
+                                      max_params=max_params, axes=axes)
+
+    def plot_marginals(self, *, params=None, truth=None, samples=None,
+                       prior=None, axes=None):
+        """Plot a posterior marginal histogram for each parameter.
+
+        Args:
+            params: Parameters to show; defaults to all.
+            truth: Optional ``{name: value}`` true values (dashed lines).
+            samples: NROY samples; defaults to :meth:`get_nroy_samples`.
+            prior: Optional background cloud to overlay.
+            axes: Existing axes array to draw into.
+
+        Returns:
+            A flat array of ``Axes``.
+        """
+        samples = self.get_nroy_samples() if samples is None else samples
+        if samples is None or len(samples) == 0:
+            raise RuntimeError("No NROY samples available — run at least one iteration first.")
+        return plotting.plot_marginals(samples, params=params, truth=truth,
+                                       bounds=self._bounds(), prior=prior, axes=axes)
+
+    def plot_zscores(self, *, ax=None):
+        """Plot standardised simulation outputs against every target, by wave.
+
+        Shows whether each emulated/observed feature is converging to its target
+        within the implausibility band as waves progress.
+
+        Args:
+            ax: Existing axes to draw into.
+
+        Returns:
+            The Matplotlib ``Axes`` containing the plot.
+        """
+        results = self.get_all_results()
+        if not results:
+            raise RuntimeError("No committed waves yet — run at least one iteration first.")
+        waves = [{"iteration": r.iteration, "sim_results": r.simulation_results,
+                  "selected_features": r.selected_features} for r in results]
+        return plotting.plot_zscores_vs_targets(
+            waves, self.observations.get_all_targets(), ax=ax,
+            threshold=self.implausibility_threshold)
+
+    def plot_constrained_dims(self, *, samples=None, n_top: int = 5, axes=None):
+        """Plot the parameter-space directions history matching constrained most.
+
+        Args:
+            samples: NROY samples; defaults to :meth:`get_nroy_samples`.
+            n_top: Number of most-constrained principal components to detail.
+            axes: Existing axes array to draw into.
+
+        Returns:
+            The array of ``Axes``.
+        """
+        samples = self.get_nroy_samples() if samples is None else samples
+        if samples is None or len(samples) < 10:
+            raise RuntimeError("Need at least 10 NROY samples for the constrained-directions plot.")
+        return plotting.plot_constrained_dims(samples, self._bounds(),
+                                              n_top=n_top, axes=axes)
 
     def run(self, auto_commit: bool = True, resume: bool = False) -> list[IterationResult]:
         """
@@ -1003,7 +1105,7 @@ class HistoryMatchingEngine:
                or None (uses engine default). For unbiased final samples
                (e.g. trajectory selection), use ``method='lhs'``.
             **kwargs: Extra options passed to ``generate_nroy_design()``:
-               ``n_lines``, ``points_per_line`` (ray_resample);
+               ``n_lines``, ``points_per_line`` (ray);
                ``max_candidates`` (lhs); ``imp_scale``, ``maximin_reps``, etc.
 
         Returns:
@@ -1029,7 +1131,7 @@ class HistoryMatchingEngine:
         from .nroy_sampling import generate_nroy_design
 
         n = n or self.n_samples
-        method = method or self.settings.get('nroy_method', 'ray_resample')
+        method = method or self.settings.get('nroy_method', 'auto')
         nroy_opts = {**self.settings.get('nroy_options', {}), **kwargs}
 
         return generate_nroy_design(
@@ -1203,17 +1305,16 @@ class HistoryMatchingEngine:
             except Exception as e:
                 logger.warning(f"Failed to save emulator for '{feature}': {e}")
 
-            # Save diagnostics figure
+            # Save diagnostics figures (plot_diagnostics returns the figures it
+            # creates, so we save exactly those rather than scraping pyplot state)
             try:
                 if not getattr(emulator, 'testing_complete', False):
                     emulator.test()
-                import matplotlib
-                emulator.plot_diagnostics()
                 import matplotlib.pyplot as plt
-                for i, fig_num in enumerate(plt.get_fignums()[-4:]):  # plot_diagnostics creates up to 4 figs
-                    plt.figure(fig_num)
-                    plt.savefig(feat_dir / f"diagnostics_{i}.png", dpi=100, bbox_inches='tight')
-                    plt.close(fig_num)
+                figs = emulator.plot_diagnostics() or []
+                for i, fig in enumerate(figs):
+                    fig.savefig(feat_dir / f"diagnostics_{i}.png", dpi=100, bbox_inches='tight')
+                    plt.close(fig)
             except Exception as e:
                 logger.warning(f"Failed to save diagnostics for '{feature}': {e}")
 
@@ -1229,27 +1330,12 @@ class HistoryMatchingEngine:
             except Exception as e:
                 logger.warning(f"Failed to save metrics for '{feature}': {e}")
 
-        # ── Wave-level: convergence + NROY samples ───────────────────────
+        # ── Wave-level: convergence ──────────────────────────────────────
         try:
-            all_results = self.get_all_results()
-            if len(all_results) > 0:
-                import matplotlib
-                import matplotlib.pyplot as plt
-                fig, ax = plt.subplots(figsize=(7, 4))
-                waves = [r.iteration for r in all_results]
-                fracs = [r.nroy_fraction for r in all_results]
-                ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
-                for w, frac in zip(waves, fracs):
-                    label = f'{frac:.2%}' if frac < 0.01 else f'{frac:.1%}'
-                    ax.annotate(label, (w, frac), textcoords='offset points',
-                                xytext=(0, 5), ha='center', fontsize=8)
-                ax.set_xlabel('Wave')
-                ax.set_ylabel('NROY fraction')
-                ax.set_title('Convergence')
-                ax.set_yscale('log')
-                ax.set_ylim(min(fracs) * 0.5, 1)
-                ax.set_xticks(waves)
-                fig.tight_layout()
+            import matplotlib.pyplot as plt
+            if self.get_all_results():
+                ax = self.plot_convergence()
+                fig = ax.figure
                 fig.savefig(wave_dir / "convergence.png", dpi=100, bbox_inches='tight')
                 plt.close(fig)
         except Exception as e:
@@ -1257,80 +1343,14 @@ class HistoryMatchingEngine:
 
         # ── Wave-level: z-scores vs ALL targets ─────────────────────────
         try:
-            all_results = self.get_all_results()
-            if len(all_results) > 0:
-                import numpy as np
-                import matplotlib
-                import matplotlib.pyplot as plt
-
-                targets = self.observations.get_all_targets()
-                target_names = [k for k in targets if k in result.simulation_results.columns]
-
-                if len(target_names) > 0 and len(all_results) > 0:
-                    # Collect which features were emulated in which wave
-                    emulated = {}
-                    for r in all_results:
-                        for feat in r.selected_features:
-                            emulated.setdefault(feat, []).append(r.iteration)
-
-                    n_targets = len(target_names)
-                    n_waves = len(all_results)
-                    cmap = plt.get_cmap('plasma')
-                    bar_width = 0.8 / n_waves
-
-                    fig, ax = plt.subplots(figsize=(max(14, n_targets * 0.7), 7))
-                    ymin_data, ymax_data = 0, 0
-
-                    for wi, r in enumerate(all_results):
-                        sims = r.simulation_results
-                        for ti, key in enumerate(target_names):
-                            if key not in sims.columns:
-                                continue
-                            obs_mean, obs_std = targets[key]
-                            z = (sims[key].dropna() - obs_mean) / obs_std
-                            x_pos = ti + (wi - n_waves / 2 + 0.5) * bar_width
-                            color = cmap(wi / n_waves)
-                            q05, q25, med, q75, q95 = np.percentile(z, [5, 25, 50, 75, 95])
-                            ymin_data = min(ymin_data, q05)
-                            ymax_data = max(ymax_data, q95)
-                            ax.plot([x_pos, x_pos], [q05, q95],
-                                    color=color, linewidth=1.2, alpha=0.5, solid_capstyle='round')
-                            ax.plot([x_pos, x_pos], [q25, q75],
-                                    color=color, linewidth=3.5, alpha=0.7, solid_capstyle='round')
-                            ax.plot(x_pos, med, 'o', color=color, markersize=4, zorder=5)
-
-                    for wi, r in enumerate(all_results):
-                        ax.plot([], [], color=cmap(wi / n_waves), linewidth=3.5, label=f'Wave {r.iteration}')
-
-                    ax.axhline(0, color='#d44d4d', lw=1.5, ls='--', alpha=0.7, label='Target')
-                    ax.axhline(3.5, color='green', lw=0.8, ls=':', alpha=0.4)
-                    ax.axhline(-3.5, color='green', lw=0.8, ls=':', alpha=0.4)
-                    ax.axhspan(-3.5, 3.5, color='green', alpha=0.03)
-
-                    margin = max(abs(ymin_data), abs(ymax_data)) * 1.15
-                    if margin > 0:
-                        ax.set_ylim(-margin, margin)
-
-                    for ti, key in enumerate(target_names):
-                        if key in emulated:
-                            wlist = ','.join(str(w) for w in emulated[key])
-                            ax.annotate(f'\u2605w{wlist}', (ti, -margin * 0.93), ha='center',
-                                        fontsize=7, color='#2a7f3f', fontweight='bold')
-
-                    ax.set_xticks(range(n_targets))
-                    ax.set_xticklabels([k.replace('_', '\n') for k in target_names],
-                                       fontsize=8, rotation=45, ha='right')
-                    ax.set_ylabel('(Sim \u2212 Target) / Target \u03c3', fontsize=12)
-                    ax.set_title('NROY z-scores across waves \u2014 thick=IQR, thin=5th\u201395th pctl, dot=median\n'
-                                 'Green \u2605 = target was emulated in that wave', fontsize=13)
-                    ax.legend(fontsize=9, loc='upper center', bbox_to_anchor=(0.5, -0.18),
-                              ncol=min(n_waves + 1, 8), framealpha=0.9)
-                    ax.spines['top'].set_visible(False)
-                    ax.spines['right'].set_visible(False)
-                    ax.grid(axis='y', alpha=0.2)
-                    fig.tight_layout()
-                    fig.savefig(wave_dir / "zscores_vs_targets.png", dpi=150, bbox_inches='tight')
-                    plt.close(fig)
+            import matplotlib.pyplot as plt
+            targets = self.observations.get_all_targets()
+            if self.get_all_results() and any(
+                    k in result.simulation_results.columns for k in targets):
+                ax = self.plot_zscores()
+                fig = ax.figure
+                fig.savefig(wave_dir / "zscores_vs_targets.png", dpi=150, bbox_inches="tight")
+                plt.close(fig)
         except Exception as e:
             logger.warning(f"Failed to save z-scores plot: {e}")
 
@@ -1349,82 +1369,28 @@ class HistoryMatchingEngine:
 
         # ── Wave-level: parameter space pair plot ────────────────────────
         try:
+            import matplotlib.pyplot as plt
             all_results = self.get_all_results()
+            snapshot = self._snapshots[-1]
+            nroy = snapshot.next_samples
             if len(all_results) >= 2:
-                import matplotlib.pyplot as plt
-
-                param_names = self.parameter_space.get_parameter_names()
-                n_all = len(param_names)
-
-                # Select parameters to show.  If the problem is small enough, show
-                # everything.  Otherwise rank by marginal variance reduction — the
-                # params whose NROY range has shrunk most relative to the prior.
-                # This is better than ARD lengthscales, which reflect emulator
-                # sensitivity to the current wave's target features rather than
-                # overall constraint across all waves.
-                snapshot = self._snapshots[-1]
-                if n_all <= _PAIRPLOT_MAX_PARAMS:
-                    sorted_params = param_names
-                    subtitle_note = f"all {n_all} parameters"
-                elif snapshot.next_samples is not None and len(snapshot.next_samples) >= 10:
-                    reduction_map = _marginal_variance_reduction(
-                        snapshot.next_samples, self.parameter_space
-                    )
-                    sorted_params = sorted(
-                        reduction_map, key=reduction_map.get, reverse=True
-                    )[:_PAIRPLOT_MAX_PARAMS]
-                    subtitle_note = f"top {len(sorted_params)} most-constrained parameters"
+                prior = all_results[0].samples  # first-wave (~prior) cloud
+                # The NROY cloud can collapse to an empty/degenerate DataFrame in
+                # over-constrained runs; fall back to the latest wave's actual
+                # samples so the diagnostic is still written.
+                if nroy is not None and len(nroy) > 0:
+                    cloud, note = nroy, "(blue = current NROY, grey = wave 1)"
                 else:
-                    sorted_params = param_names[:_PAIRPLOT_MAX_PARAMS]
-                    subtitle_note = f"first {len(sorted_params)} parameters"
-
-                n_pars = len(sorted_params)
-                n_show = min(len(all_results), 3)
-                show_indices = np.linspace(0, len(all_results) - 1, n_show, dtype=int)
-                show_results = [all_results[i] for i in show_indices]
-
-                cmap = plt.get_cmap('plasma')
-                fig, axes = plt.subplots(n_pars, n_pars, figsize=(2.2 * n_pars, 2.2 * n_pars))
-                if n_pars == 1:
-                    axes = np.array([[axes]])
-
-                for i, p1 in enumerate(sorted_params):
-                    for j, p2 in enumerate(sorted_params):
-                        ax = axes[i][j]
-                        if i == j:
-                            for si, r in enumerate(show_results):
-                                if p1 in r.samples.columns:
-                                    ax.hist(r.samples[p1], bins=25, density=True, alpha=0.5,
-                                            color=cmap(si / n_show), edgecolor='none',
-                                            label=f'W{r.iteration}')
-                            if i == 0:
-                                ax.legend(fontsize=6)
-                        elif i > j:
-                            for si, r in enumerate(show_results):
-                                if p2 in r.samples.columns and p1 in r.samples.columns:
-                                    alpha = 0.15 + 0.35 * (si / max(n_show - 1, 1))
-                                    ax.scatter(r.samples[p2], r.samples[p1], s=2, alpha=alpha,
-                                               color=cmap(si / n_show), edgecolors='none')
-                        else:
-                            ax.set_visible(False)
-
-                        if j == 0 and i > 0:
-                            ax.set_ylabel(p1.replace('_', '\n'), fontsize=6)
-                        else:
-                            ax.set_ylabel('')
-                        if i == n_pars - 1:
-                            ax.set_xlabel(p2.replace('_', '\n'), fontsize=6)
-                        else:
-                            ax.set_xlabel('')
-                        ax.tick_params(labelsize=4)
-                        ax.spines['top'].set_visible(False)
-                        ax.spines['right'].set_visible(False)
-
-                wave_labels = ' \u2192 '.join(str(r.iteration) for r in show_results)
-                fig.suptitle(f'Parameter space: Waves {wave_labels}\n({subtitle_note})',
-                             fontsize=13, fontweight='bold', y=1.02)
+                    cloud = all_results[-1].samples
+                    note = ("(NROY cloud empty/over-constrained; "
+                            "blue = last wave samples, grey = wave 1)")
+                axes = self.plot_nroy(samples=cloud, prior=prior)
+                fig = axes[0, 0].figure
+                fig.suptitle(
+                    f"NROY parameter cloud after wave {result.iteration}\n{note}",
+                    fontsize=13, fontweight="bold")
                 fig.tight_layout()
-                fig.savefig(wave_dir / "pairplot.png", dpi=150, bbox_inches='tight')
+                fig.savefig(wave_dir / "pairplot.png", dpi=150, bbox_inches="tight")
                 plt.close(fig)
         except Exception as e:
             logger.warning(f"Failed to save pair plot: {e}")
