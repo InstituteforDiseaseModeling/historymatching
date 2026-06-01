@@ -84,8 +84,10 @@ def generate_nroy_design(
     sampling_strategy : SamplingStrategy, optional
         Strategy for generating initial LHS candidates. Defaults to LHS maximin.
     method : str
-        ``'ray_resample'`` (default) for the 4-stage pipeline, or
-        ``'lhs'`` for pure rejection sampling.
+        ``'auto'`` (default) runs LHS rejection and escalates to the
+        ray + importance-sampling pipeline only if LHS underfills;
+        ``'lhs'`` does pure rejection sampling; ``'ray'`` seeds with a
+        small LHS draw then goes straight to ray + importance sampling.
     seed : int, optional
         Random seed for reproducibility.
 

@@ -389,8 +389,9 @@ class TestAutoFeatureSelection:
         observations = ObservationData({'obs_only': (1, 0.1)})  # (mean, std)
         
         selector = AutoFeatureSelection()
-        
-        with pytest.raises(ValueError, match="No common features"):
+
+        # The error names the mismatch so a beginner can fix it.
+        with pytest.raises(ValueError, match="None of the simulator's output columns match"):
             selector.select_features(simulation_results, observations, iteration=1)
     
     def test_reset_history(self):

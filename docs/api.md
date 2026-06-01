@@ -2,13 +2,11 @@
 
 Documentation is generated from the `historymatching` package using [mkdocstrings](https://mkdocstrings.github.io/).
 
-## Builder
+## History matching
 
-::: historymatching.HistoryMatchingBuilder
+The single public entry point. Configure and run an entire workflow through one `HistoryMatching(...)` constructor call.
 
-## Engine
-
-::: historymatching.HistoryMatchingEngine
+::: historymatching.HistoryMatching
 
 ## Domain objects
 

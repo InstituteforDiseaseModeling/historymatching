@@ -51,7 +51,7 @@ pip install -e ".[notebooks,test]"
 import historymatching as hm
 
 # Configure the engine
-builder = hm.HistoryMatchingBuilder.from_data(
+engine = hm.HistoryMatching(
     parameter_bounds={
         'beta': (0.1, 0.5),
         'gamma': (0.01, 0.1),
@@ -60,18 +60,16 @@ builder = hm.HistoryMatchingBuilder.from_data(
         'peak_infected': (150.0, 20.0),  # (mean, std)
         'total_cases': (500.0, 50.0),
     },
+    function=my_model,                  # the simulation function
+    sampling_strategy='lhs',
+    emulator_type='gpr',                # or 'linear', 'glm'
+    n_samples=500,
+    max_iterations=5,
+    output_dir='./hm_output',
+    run_name='my_calibration',
 )
-engine = builder \
-    .with_sampling_strategy('lhs') \
-    .with_emulator_type('bayes_linear') \  # or 'gpr', 'linear', 'glm'
-    .with_samples_per_iteration(500) \
-    .with_max_iterations(5) \
-    .with_output_dir('./hm_output') \
-    .with_run_name('my_calibration') \
-    .build()
 
-# Provide a simulation function and run
-engine.set_simulation_function(my_model)
+# Run
 results = engine.run()
 
 # Emulators, diagnostics, and checkpoints are saved automatically to
@@ -84,8 +82,12 @@ nroy = engine.get_nroy_samples(10000)
 ### Resume from checkpoint
 
 ```python
-engine = builder.with_run_name('my_calibration').build()
-engine.set_simulation_function(my_model)
+engine = hm.HistoryMatching(
+    parameter_bounds=parameter_bounds,
+    observations=observations,
+    function=my_model,
+    run_name='my_calibration',
+)
 results = engine.run(resume=True)  # continues from last committed wave
 ```
 
@@ -94,16 +96,24 @@ results = engine.run(resume=True)  # continues from last committed wave
 The default `ray_resample` method uses a 4-stage pipeline (LHS → ray sampling → importance sampling → maximin thinning) that efficiently explores small NROY regions:
 
 ```python
-engine = builder \
-    .with_nroy_method('ray_resample') \  # default; or 'lhs' for pure rejection
-    .with_nroy_options(n_lines=30, points_per_line=100) \  # optional tuning
-    .build()
+engine = hm.HistoryMatching(
+    parameter_bounds=parameter_bounds,
+    observations=observations,
+    function=my_model,
+    nroy_method='ray_resample',           # default; or 'lhs' for pure rejection
+    nroy_options=dict(n_lines=30, points_per_line=100),  # optional tuning
+)
 ```
 
 For simple problems, pure LHS rejection is fine:
 
 ```python
-engine = builder.with_nroy_method('lhs').build()
+engine = hm.HistoryMatching(
+    parameter_bounds=parameter_bounds,
+    observations=observations,
+    function=my_model,
+    nroy_method='lhs',
+)
 ```
 
 ## Documentation

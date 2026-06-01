@@ -1,5 +1,5 @@
 """
-IterationResult domain object for history matching.
+IterationResult — the result of a single history matching wave.
 """
 
 from dataclasses import dataclass
@@ -10,317 +10,172 @@ import numpy as np
 import pandas as pd
 
 from .parameter_space import ParameterSpace
-from .observation_data import ObservationData
-from .emulator_bank import EmulatorBank
 from .emulators.base import BaseEmulator
 
 
 @dataclass(frozen=True)
 class IterationResult:
     """
-    Immutable result object from a single history matching iteration.
+    Immutable result from one history matching wave (iteration).
 
-    Contains all data and results from one iteration, including samples,
-    simulation results, trained emulators, and convergence diagnostics.
+    Holds the parameter samples run this wave, the simulator outputs, the
+    outputs that were emulated, the trained emulators, and the fraction of
+    parameter space still plausible (``nroy_fraction``).
 
-    The NROY set is not stored here — it is defined implicitly by the
-    emulator bank.  To obtain NROY samples, generate fresh candidates
-    and filter them through the engine's emulator bank.  The final wave's
-    ``samples`` + ``simulation_results`` can be fed directly into
-    trajectory selection (likelihood + resampling).
+    The NROY (Not Ruled Out Yet) set itself is not stored here — it is defined
+    implicitly by the emulator bank.  Use :meth:`HistoryMatching.get_nroy_samples`
+    to draw plausible samples.  The final wave's ``samples`` +
+    ``simulation_results`` can be fed directly into trajectory selection.
     """
 
     iteration: int
     parameter_space: ParameterSpace
     samples: pd.DataFrame
     simulation_results: pd.DataFrame
-    selected_features: List[str]
+    emulated_outputs: List[str]
     emulators: Dict[str, BaseEmulator]
     nroy_fraction: float
     execution_time_seconds: float
-    
-    def get_emulator_for_feature(self, feature: str) -> BaseEmulator:
+
+    def get_emulator(self, output: str) -> BaseEmulator:
         """
-        Get emulator for a specific feature.
-        
+        Get the emulator trained for a specific output this wave.
+
         Args:
-            feature: Feature name
-            
+            output: Name of the emulated output.
+
         Returns:
-            Emulator instance
-            
+            Emulator instance.
+
         Raises:
-            KeyError: If feature not found
+            KeyError: If no emulator was trained for that output this wave.
         """
-        if feature not in self.emulators:
-            available_features = list(self.emulators.keys())
-            raise KeyError(f"Feature '{feature}' not found. Available features: {available_features}")
-            
-        return self.emulators[feature]
-        
-    def plot_emulator_diagnostics(self, feature: str, **kwargs):
+        if output not in self.emulators:
+            available = list(self.emulators.keys())
+            raise KeyError(f"No emulator for output '{output}'. Emulated this wave: {available}")
+
+        return self.emulators[output]
+
+    def plot_emulator_diagnostics(self, output: str, **kwargs):
         """
-        Plot diagnostics for a specific emulator.
-        
+        Plot diagnostics for a specific output's emulator.
+
         Args:
-            feature: Feature name
-            **kwargs: Additional arguments passed to emulator's plot method
+            output: Name of the emulated output.
+            **kwargs: Additional arguments passed to the emulator's plot method.
         """
-        emulator = self.get_emulator_for_feature(feature)
-        
+        emulator = self.get_emulator(output)
+
         if hasattr(emulator, 'plot_diagnostics'):
             emulator.plot_diagnostics(**kwargs)
         elif hasattr(emulator, 'plot'):
             emulator.plot(**kwargs)
         else:
-            print(f"Emulator for feature '{feature}' does not support plotting")
-            
-    def calculate_space_reduction(self, original_space: ParameterSpace) -> float:
-        """
-        Calculate parameter space reduction factor.
+            print(f"Emulator for output '{output}' does not support plotting")
 
-        Args:
-            original_space: Original parameter space before constraints
-
-        Returns:
-            Space reduction factor (higher means more reduction)
-        """
-        if self.nroy_fraction == 0:
-            return float('inf')  # Complete reduction
-
-        # Calculate volume-based reduction if we have bounds
-        try:
-            volume_fraction = self.parameter_space.volume_fraction_remaining(original_space)
-            return 1.0 / volume_fraction if volume_fraction > 0 else float('inf')
-        except:
-            # Fall back to point-based reduction
-            return 1.0 / self.nroy_fraction
-            
-    def get_implausibility_scores(self, observations: ObservationData, 
-                                 model_discrepancy: float = 0.0) -> pd.DataFrame:
-        """
-        Calculate implausibility scores for all sample points.
-        
-        Args:
-            observations: ObservationData instance for comparison
-            model_discrepancy: Additional model uncertainty
-            
-        Returns:
-            DataFrame with samples and their implausibility scores
-        """
-        # Start with samples DataFrame
-        result_df = self.samples.copy()
-        
-        # Add implausibility scores for each feature
-        for feature in self.selected_features:
-            if feature in self.emulators and observations.has_feature(feature):
-                emulator = self.emulators[feature]
-                
-                # Get predictions for all samples
-                predictions = emulator.predict(self.samples)
-                
-                # Calculate implausibilities (vectorized)
-                implausibilities = observations.calculate_implausibility(
-                    feature, predictions.get_mean(), predictions.get_variance(), model_discrepancy
-                )
-                    
-                result_df[f'implausibility_{feature}'] = implausibilities
-                
-        # Calculate maximum implausibility across all features
-        impl_columns = [col for col in result_df.columns if col.startswith('implausibility_')]
-        if impl_columns:
-            result_df['max_implausibility'] = result_df[impl_columns].max(axis=1)
-            
-        return result_df
-        
     def get_emulator_quality_metrics(self) -> Dict[str, Dict[str, float]]:
         """
-        Get quality metrics for all trained emulators.
-        
+        Quality metrics for each emulated output.
+
         Returns:
-            Dict mapping feature names to their quality metrics
+            Dict mapping each output name to a metrics dict with keys
+            ``r2`` (test R²), ``mse`` (test MSE), and ``n_train`` (training points).
+            A key is absent if that metric could not be computed.
         """
         metrics = {}
-        
-        for feature, emulator in self.emulators.items():
-            feature_metrics = {}
 
-            # Ensure emulator has been tested (lazy — test() is not called
-            # by the engine automatically, only train() is).
+        for output, emulator in self.emulators.items():
+            m: Dict[str, float] = {}
+
+            # Ensure the emulator has been tested (the engine only train()s).
             if hasattr(emulator, 'test') and not getattr(emulator, 'testing_complete', False):
                 try:
                     emulator.test()
                 except Exception:
-                    pass  # Testing may fail; metrics will remain absent
+                    pass  # Testing may fail; metrics will simply be absent.
 
-            # Pull metrics from emulator_metrics dict (populated by test())
             em_metrics = getattr(emulator, 'emulator_metrics', {})
             if 'R2' in em_metrics:
-                feature_metrics['r2_score'] = float(em_metrics['R2'])
+                m['r2'] = float(em_metrics['R2'])
             if 'MSE' in em_metrics:
-                feature_metrics['mse'] = float(em_metrics['MSE'])
+                m['mse'] = float(em_metrics['MSE'])
+            if getattr(emulator, 'X_train', None) is not None:
+                m['n_train'] = len(emulator.X_train)
 
-            # Try to get training data size
-            if hasattr(emulator, 'X_train') and emulator.X_train is not None:
-                feature_metrics['training_size'] = len(emulator.X_train)
+            metrics[output] = m
 
-            # Store completion status
-            feature_metrics['training_complete'] = getattr(emulator, 'training_complete', False)
-            feature_metrics['testing_complete'] = getattr(emulator, 'testing_complete', False)
-            
-            metrics[feature] = feature_metrics
-            
         return metrics
-        
-    def summary_statistics(self) -> Dict[str, Any]:
+
+    def summary(self) -> Dict[str, Any]:
         """
-        Get summary statistics for this iteration.
-        
-        Returns:
-            Dict with key metrics and statistics
+        A summary of this wave as a plain dict (handy for logging/inspection).
         """
         emulator_metrics = self.get_emulator_quality_metrics()
-        
-        # Calculate average R² if available
-        r2_scores = [metrics.get('r2_score') for metrics in emulator_metrics.values() 
-                    if 'r2_score' in metrics]
-        avg_r2 = np.mean(r2_scores) if r2_scores else None
-        
+        r2_scores = [m['r2'] for m in emulator_metrics.values() if 'r2' in m]
+        avg_r2 = float(np.mean(r2_scores)) if r2_scores else None
+
         return {
             'iteration': self.iteration,
             'n_samples': len(self.samples),
-            'n_features': len(self.selected_features),
-            'selected_features': self.selected_features,
+            'n_outputs': len(self.emulated_outputs),
+            'emulated_outputs': list(self.emulated_outputs),
             'nroy_fraction': self.nroy_fraction,
             'execution_time_seconds': self.execution_time_seconds,
             'parameter_count': len(self.parameter_space),
             'average_emulator_r2': avg_r2,
-            'emulator_metrics': emulator_metrics
+            'emulator_metrics': emulator_metrics,
         }
-        
-    def export_emulators(self, directory_path: str):
-        """
-        Save emulators to specified directory.
-        
-        Args:
-            directory_path: Directory to save emulators
-        """
-        # Create emulator bank and add this iteration's emulators
-        bank = EmulatorBank()
-        for feature, emulator in self.emulators.items():
-            bank.add_emulator(self.iteration, feature, emulator)
-            
-        # Save to directory
-        bank.save_to_directory(directory_path)
-        
-    def export_results(self, file_path: str, format: str = 'json'):
-        """
-        Export key results to file.
-        
-        Args:
-            file_path: Path for output file
-            format: Output format ('json' or 'csv')
-        """
-        summary = self.summary_statistics()
-        
-        if format.lower() == 'json':
-            # Convert numpy types for JSON serialization
-            def convert_types(obj):
-                if isinstance(obj, np.integer):
-                    return int(obj)
-                elif isinstance(obj, np.floating):
-                    return float(obj)
-                elif isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                return obj
-                
-            # Deep convert all values
-            def deep_convert(d):
-                if isinstance(d, dict):
-                    return {k: deep_convert(v) for k, v in d.items()}
-                elif isinstance(d, list):
-                    return [deep_convert(v) for v in d]
-                else:
-                    return convert_types(d)
-                    
-            summary_clean = deep_convert(summary)
-            
-            with open(file_path, 'w') as f:
-                json.dump(summary_clean, f, indent=2)
-                
-        elif format.lower() == 'csv':
-            # Flatten the summary for CSV
-            flat_data = []
-            
-            # Basic metrics
-            basic_metrics = {k: v for k, v in summary.items() 
-                           if not isinstance(v, (dict, list))}
-            flat_data.append(basic_metrics)
-            
-            # Save as single-row CSV
-            df = pd.DataFrame(flat_data)
-            df.to_csv(file_path, index=False)
-            
-        else:
-            raise ValueError(f"Unsupported format: {format}. Use 'json' or 'csv'")
-            
-    def export_samples_and_results(self, directory_path: str):
-        """
-        Export samples and simulation results to CSV files.
-        
-        Args:
-            directory_path: Directory to save files
-        """
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path)
-            
-        # Export samples
-        samples_file = os.path.join(directory_path, f"iteration_{self.iteration}_samples.csv")
-        self.samples.to_csv(samples_file, index=False)
-        
-        # Export simulation results
-        results_file = os.path.join(directory_path, f"iteration_{self.iteration}_simulation_results.csv")
-        self.simulation_results.to_csv(results_file, index=False)
-        
-            
-    def save_diagnostics(self, fig_dir: str, all_results: Optional[list] = None) -> None:
-        """Save per-wave emulator diagnostic figures and metrics summary.
 
-        Creates ``{fig_dir}/wave{N}/`` with:
+    def save(self, directory: str, all_results: Optional[list] = None) -> str:
+        """
+        Save everything about this wave to ``{directory}/wave{N}/``.
 
-        Per emulator (``{feature}_diagnostics.png``):
-          - **Predicted vs actual** scatter with 1:1 line and R²/MSE annotation
-          - **ARD lengthscales** bar chart (GPR only)
-
-        Wave-level summaries:
-          - ``convergence.png`` — NROY fraction across waves
-          - ``metrics.json`` — R², MSE, training size, ARD lengthscales
-
-        For z-scores-vs-targets and pair plots, use the engine's auto-output
-        (``builder.output_dir``), which has access to observations.
+        Writes the parameter ``samples.csv`` and ``simulation_results.csv``, a
+        pickle of each emulator under ``emulators/``, per-output diagnostic
+        figures (predicted-vs-actual, and ARD lengthscales for GPR), a
+        ``metrics.json``, and — when ``all_results`` is supplied — a
+        ``convergence.png`` showing the plausible fraction across waves.
 
         Args:
-            fig_dir: Directory to save figures into (created if needed).
-            all_results: List of all IterationResult objects so far (including
-                this one).  Needed for the convergence plot.
+            directory: Parent directory; a ``wave{N}/`` subfolder is created.
+            all_results: Optional list of all waves so far, used for the
+                convergence plot.
+
+        Returns:
+            The path to the ``wave{N}/`` directory that was written.
         """
-        import matplotlib
+        import pickle
+        import matplotlib  # noqa: F401  (ensure a backend is selected)
         import matplotlib.pyplot as plt
 
-        wave_dir = os.path.join(fig_dir, f"wave{self.iteration}")
+        wave_dir = os.path.join(directory, f"wave{self.iteration}")
         os.makedirs(wave_dir, exist_ok=True)
+
+        # ── Raw data ──────────────────────────────────────────────────
+        self.samples.to_csv(os.path.join(wave_dir, "samples.csv"), index=False)
+        self.simulation_results.to_csv(
+            os.path.join(wave_dir, "simulation_results.csv"), index=False)
+
+        # ── Emulators (pickled) ───────────────────────────────────────
+        em_dir = os.path.join(wave_dir, "emulators")
+        os.makedirs(em_dir, exist_ok=True)
+        for output, emulator in self.emulators.items():
+            try:
+                with open(os.path.join(em_dir, f"{output}.pkl"), "wb") as f:
+                    pickle.dump(emulator, f)
+            except Exception:
+                pass  # Some emulators may not pickle; skip rather than fail the save.
 
         all_metrics = self.get_emulator_quality_metrics()
 
-        for feature, emulator in self.emulators.items():
-            # Ensure tested
+        # ── Per-output diagnostic figures ─────────────────────────────
+        for output, emulator in self.emulators.items():
             if not getattr(emulator, 'testing_complete', False):
                 try:
                     emulator.test()
                 except Exception:
                     continue
 
-            # Extract ARD lengthscales (if GPR)
             ard_ls = None
             ard_names = None
             model = getattr(emulator, 'model', None)
@@ -333,7 +188,7 @@ class IterationResult:
                                      [f"dim_{i}" for i in range(len(ls))])
                         ard_ls = ls
                         ls_dict = {n: float(v) for n, v in zip(ard_names, ls)}
-                        all_metrics.setdefault(feature, {})['ard_lengthscales'] = ls_dict
+                        all_metrics.setdefault(output, {})['ard_lengthscales'] = ls_dict
                 except Exception:
                     pass
 
@@ -343,7 +198,7 @@ class IterationResult:
             if ncols == 1:
                 axes = [axes]
 
-            # ── Panel 1: Predicted vs actual ──────────────────────────
+            # Panel 1: predicted vs actual
             ax = axes[0]
             y_true = emulator.y_test.flatten()
             y_pred = emulator.y_test_pred.flatten()
@@ -359,14 +214,14 @@ class IterationResult:
             ax.set_ylabel('Emulator (predicted)', fontsize=9)
 
             em = getattr(emulator, 'emulator_metrics', {})
-            r2  = em.get('R2', float('nan'))
+            r2 = em.get('R2', float('nan'))
             mse = em.get('MSE', float('nan'))
             n_train = len(emulator.X_train) if emulator.X_train is not None else '?'
             ax.set_title(f"Predicted vs Actual\nR²={r2:.3f}  MSE={mse:.3g}  n={n_train}",
                          fontsize=9)
             ax.set_aspect('equal', adjustable='box')
 
-            # ── Panel 2: ARD lengthscales ─────────────────────────────
+            # Panel 2: ARD lengthscales (GPR only)
             if has_ard:
                 ax2 = axes[1]
                 order = np.argsort(ard_ls)
@@ -376,8 +231,7 @@ class IterationResult:
                           for v in sorted_ls]
                 ax2.barh(range(len(sorted_ls)), sorted_ls, color=colors, height=0.7)
                 ax2.set_yticks(range(len(sorted_ls)))
-                ax2.set_yticklabels([n.replace('_', '\n') for n in sorted_names],
-                                    fontsize=6)
+                ax2.set_yticklabels([n.replace('_', '\n') for n in sorted_names], fontsize=6)
                 ax2.set_xlabel('Lengthscale (shorter = more relevant)', fontsize=8)
                 ax2.set_title('ARD Lengthscales', fontsize=9)
 
@@ -385,74 +239,76 @@ class IterationResult:
                 for spine in ['top', 'right']:
                     ax.spines[spine].set_visible(False)
 
-            fig.suptitle(f"Wave {self.iteration} — {feature}",
+            fig.suptitle(f"Wave {self.iteration} — {output}",
                          fontsize=11, fontweight='bold', y=1.02)
             fig.tight_layout()
-            path = os.path.join(wave_dir, f"{feature}_diagnostics.png")
-            fig.savefig(path, dpi=150, bbox_inches='tight')
+            fig.savefig(os.path.join(wave_dir, f"{output}_diagnostics.png"),
+                        dpi=150, bbox_inches='tight')
             plt.close(fig)
 
-        # ── Wave summary: NROY convergence ────────────────────────────
-        if all_results is not None and len(all_results) > 0:
+        # ── Convergence across waves ──────────────────────────────────
+        if all_results:
             fig, ax = plt.subplots(figsize=(7, 4))
             waves = [r.iteration for r in all_results]
             fracs = [r.nroy_fraction for r in all_results]
-
             ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
-            for w, f in zip(waves, fracs):
-                ax.annotate(f"{f:.1%}", (w, f),
-                            textcoords='offset points', xytext=(0, 6),
-                            ha='center', fontsize=8)
+            for w, frac in zip(waves, fracs):
+                ax.annotate(f"{frac:.1%}", (w, frac), textcoords='offset points',
+                            xytext=(0, 6), ha='center', fontsize=8)
             ax.set_xlabel('Wave', fontsize=10)
-            ax.set_ylabel('Non-implausible fraction', fontsize=10)
-            ax.set_title('NROY Convergence', fontsize=11, fontweight='bold')
+            ax.set_ylabel('Fraction of space remaining (NROY)', fontsize=10)
+            ax.set_title('Convergence', fontsize=11, fontweight='bold')
             ax.set_ylim(0, min(1.0, max(fracs) * 1.3) if fracs else 1.0)
             ax.set_xticks(waves)
             for spine in ['top', 'right']:
                 ax.spines[spine].set_visible(False)
             ax.grid(axis='y', alpha=0.3)
             fig.tight_layout()
-            path = os.path.join(wave_dir, "convergence.png")
-            fig.savefig(path, dpi=150, bbox_inches='tight')
+            fig.savefig(os.path.join(wave_dir, "convergence.png"), dpi=150, bbox_inches='tight')
             plt.close(fig)
 
-        # ── Save metrics JSON ─────────────────────────────────────────
-        metrics_path = os.path.join(wave_dir, "metrics.json")
-        with open(metrics_path, 'w') as f:
+        # ── Metrics ───────────────────────────────────────────────────
+        with open(os.path.join(wave_dir, "metrics.json"), 'w') as f:
             json.dump(all_metrics, f, indent=2, default=float)
 
+        return wave_dir
+
     def __post_init__(self):
-        """Validate the iteration result after creation."""
-        # Validate iteration number
+        """Validate the result after creation."""
         if self.iteration < 1:
             raise ValueError(f"Iteration must be >= 1, got {self.iteration}")
-            
-        # Validate data consistency
+
         if len(self.samples) != len(self.simulation_results):
             raise ValueError("Samples and simulation results must have same length")
-            
-        # Validate fractions
+
         if not 0.0 <= self.nroy_fraction <= 1.0:
             raise ValueError(f"NROY fraction must be between 0 and 1, got {self.nroy_fraction}")
-            
-        # Validate features
-        for feature in self.selected_features:
-            if feature not in self.emulators:
-                raise ValueError(f"Selected feature '{feature}' missing from emulators")
-                
-        # Validate execution time
+
+        for output in self.emulated_outputs:
+            if output not in self.emulators:
+                raise ValueError(f"Emulated output '{output}' missing from emulators")
+
         if self.execution_time_seconds < 0:
             raise ValueError(f"Execution time must be non-negative, got {self.execution_time_seconds}")
-            
+
+    def _precomputed_r2(self) -> List[float]:
+        """Test-R² values already computed (no side effects), for repr/str."""
+        out = []
+        for em in self.emulators.values():
+            r2 = getattr(em, 'emulator_metrics', {}).get('R2')
+            if r2 is not None:
+                out.append(float(r2))
+        return out
+
     def __str__(self) -> str:
-        """Human-readable string representation."""
-        return (f"IterationResult(iteration={self.iteration}, "
-                f"features={self.selected_features}, "
-                f"nroy_fraction={self.nroy_fraction:.3f})")
-                
+        return (f"Wave {self.iteration}: {len(self.samples)} samples, "
+                f"outputs {self.emulated_outputs}, "
+                f"plausible {self.nroy_fraction:.1%} of space remaining (NROY)")
+
     def __repr__(self) -> str:
-        """Developer string representation."""
-        return (f"IterationResult(iteration={self.iteration}, "
-                f"n_samples={len(self.samples)}, "
-                f"features={len(self.selected_features)}, "
-                f"nroy_fraction={self.nroy_fraction:.3f})")
+        outs = list(self.emulated_outputs)
+        out_repr = repr(outs[0]) if len(outs) == 1 else repr(outs)
+        r2s = self._precomputed_r2()
+        r2_str = f", emulator R²={min(r2s):.2f}" if r2s else ""
+        return (f"IterationResult(wave {self.iteration}: {len(self.samples)} samples, "
+                f"output {out_repr}, plausible {self.nroy_fraction:.1%} remaining (NROY){r2_str})")

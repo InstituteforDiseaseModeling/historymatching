@@ -271,6 +271,11 @@ class ParameterSpace:
         return self._parameters.equals(other._parameters)
 
     def __repr__(self) -> str:
-        """String representation."""
-        params = self.get_parameter_names()
-        return f"ParameterSpace({len(params)} parameters: {params})"
+        """String representation showing each parameter's bounds."""
+        names = self.get_parameter_names()
+        shown = names[:6]
+        items = ", ".join(
+            f"{n}=[{self.get_bounds(n)[0]:g}, {self.get_bounds(n)[1]:g}]" for n in shown
+        )
+        more = f", +{len(names) - len(shown)} more" if len(names) > len(shown) else ""
+        return f"ParameterSpace({len(names)} parameters: {items}{more})"

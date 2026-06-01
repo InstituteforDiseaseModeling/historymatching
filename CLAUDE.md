@@ -47,8 +47,7 @@ uv run pytest tests/ -x -q    # fail fast, quiet
 ```
 historymatching/         # flat package — everything at the top level
     __init__.py           # re-exports all public API; users just: import historymatching as hm
-    engine.py             # HistoryMatchingEngine — runs the iterative loop
-    builder.py            # HistoryMatchingBuilder — fluent API for configuring an engine
+    engine.py             # HistoryMatching — single public class; configures and runs the iterative loop (HistoryMatchingEngine is a back-compat alias)
     parameter_space.py    # ParameterSpace — wraps parameter bounds (DataFrame)
     observation_data.py   # ObservationData — wraps target observations (mean, std)
     emulator_bank.py      # EmulatorBank — stores trained emulators by iteration and feature
@@ -75,16 +74,13 @@ tests/
 ```python
 import historymatching as hm
 
-engine = (hm.HistoryMatchingBuilder
-    .from_data(
-        parameter_bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
-        observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
-    )
-    .with_emulator_type('gpr')
-    .with_samples_per_iteration(500)
-    .build()
+engine = hm.HistoryMatching(
+    parameter_bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
+    observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
+    function=my_simulator,
+    emulator_type='gpr',
+    n_samples=500,
 )
-engine.set_simulation_function(my_simulator)
 results = engine.run()
 ```
 

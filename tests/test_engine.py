@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from historymatching.engine import EngineState
-from historymatching.engine import HistoryMatchingEngine
+from historymatching.engine import HistoryMatching
 from historymatching.engine import WorkflowProgress
 from historymatching.iteration_result import IterationResult
 from historymatching.observation_data import ObservationData
@@ -90,13 +90,14 @@ def mock_simulation_function():
 @pytest.fixture
 def basic_engine(parameter_space, observations):
     """Create basic engine for testing."""
-    return HistoryMatchingEngine(
-        parameter_space=parameter_space,
+    return HistoryMatching(
+        parameter_bounds=parameter_space,
         observations=observations,
         sampling_strategy=RandomSampling(),
-        feature_selection_strategy=ManualFeatureSelection(["output1"]),
+        feature_selection=ManualFeatureSelection(["output1"]),
         emulator_factory=EmulatorFactory("linear"),
-        n_samples=50  # Small for testing
+        n_samples=50,  # Small for testing
+        output_dir=None,
     )
 
 
@@ -105,12 +106,13 @@ class TestHistoryMatchingEngine:
 
     def test_engine_initialization(self, parameter_space, observations):
         """Test basic engine initialization."""
-        engine = HistoryMatchingEngine(
-            parameter_space=parameter_space,
+        engine = HistoryMatching(
+            parameter_bounds=parameter_space,
             observations=observations,
             sampling_strategy=RandomSampling(),
-            feature_selection_strategy=ManualFeatureSelection(["output1"]),
-            emulator_factory=EmulatorFactory("linear")
+            feature_selection=ManualFeatureSelection(["output1"]),
+            emulator_factory=EmulatorFactory("linear"),
+            output_dir=None,
         )
 
         assert engine.state == EngineState.INITIALIZED
@@ -123,17 +125,18 @@ class TestHistoryMatchingEngine:
 
     def test_engine_initialization_with_options(self, parameter_space, observations):
         """Test engine initialization with custom options."""
-        engine = HistoryMatchingEngine(
-            parameter_space=parameter_space,
+        engine = HistoryMatching(
+            parameter_bounds=parameter_space,
             observations=observations,
             sampling_strategy=RandomSampling(),
-            feature_selection_strategy=ManualFeatureSelection(["output1"]),
+            feature_selection=ManualFeatureSelection(["output1"]),
             emulator_factory=EmulatorFactory("linear"),
             n_samples=500,
             auto_reduce_space=True,
             oversample_factor=3.0,
             max_iterations=5,
-            random_seed=42
+            random_seed=42,
+            output_dir=None,
         )
 
         assert engine.n_samples == 500
@@ -144,17 +147,17 @@ class TestHistoryMatchingEngine:
 
     def test_set_simulation_function(self, basic_engine, mock_simulation_function):
         """Test setting simulation function."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
         assert basic_engine._simulation_function is mock_simulation_function
 
     def test_step_without_simulation_function(self, basic_engine):
         """Test stepping without simulation function raises error."""
-        with pytest.raises(ValueError, match="No simulation function has been configured"):
+        with pytest.raises(ValueError, match="No simulator function has been configured"):
             basic_engine.step()
 
     def test_step_invalid_state(self, basic_engine, mock_simulation_function):
         """Test stepping in invalid state."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
         basic_engine._state = EngineState.RUNNING
 
         with pytest.raises(RuntimeError, match="Engine is currently running iteration"):
@@ -162,7 +165,7 @@ class TestHistoryMatchingEngine:
 
     def test_first_iteration_step(self, basic_engine, mock_simulation_function):
         """Test first iteration step."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         # Mock emulator factory to return mock emulators
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
@@ -174,13 +177,13 @@ class TestHistoryMatchingEngine:
         assert isinstance(result, IterationResult)
         assert result.iteration == 1
         assert len(result.samples) == 50
-        assert "output1" in result.selected_features
+        assert "output1" in result.emulated_outputs
         assert basic_engine.state == EngineState.PAUSED
         assert basic_engine._pending_result is result
 
     def test_commit_step(self, basic_engine, mock_simulation_function):
         """Test committing a step."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         # Run step
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
@@ -202,7 +205,7 @@ class TestHistoryMatchingEngine:
 
     def test_revert_step(self, basic_engine, mock_simulation_function):
         """Test reverting a step."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         # Run step
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
@@ -231,7 +234,7 @@ class TestHistoryMatchingEngine:
 
     def test_second_iteration_with_precomputed_samples(self, basic_engine, mock_simulation_function):
         """Test that second iteration uses pre-computed samples from first iteration."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         # First iteration - mock to include next sample computation
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
@@ -266,28 +269,31 @@ class TestHistoryMatchingEngine:
         assert len(result2.samples) == 30
 
     def test_update_strategies(self, basic_engine):
-        """Test updating strategies."""
-        # Update feature selection
-        basic_engine.update_feature_selection(["output1", "output2"])
-        assert isinstance(basic_engine.feature_selection_strategy, ManualFeatureSelection)
+        """Reconfiguring mid-run via coercing property setters."""
+        # Feature selection: friendly list is coerced to ManualFeatureSelection
+        basic_engine.feature_selection = ["output1", "output2"]
+        assert isinstance(basic_engine.feature_selection, ManualFeatureSelection)
 
-        # Update with strategy object
+        # ...or assign a strategy object directly
         auto_strategy = AutoFeatureSelection(method="var")
-        basic_engine.update_feature_selection(auto_strategy)
-        assert basic_engine.feature_selection_strategy is auto_strategy
+        basic_engine.feature_selection = auto_strategy
+        assert basic_engine.feature_selection is auto_strategy
 
-        # Update sampling strategy
+        # Sampling strategy: object or friendly name
         new_sampling = LatinHypercubeSampling()
-        basic_engine.update_sampling_strategy(new_sampling)
+        basic_engine.sampling_strategy = new_sampling
         assert basic_engine.sampling_strategy is new_sampling
+        basic_engine.sampling_strategy = "grid"
+        assert "Grid" in basic_engine.sampling_strategy.get_strategy_name()
 
-        # Update emulator type
-        basic_engine.update_emulator_type("gpr", kernel="rbf")
+        # Emulator type by string
+        basic_engine.emulator_type = "gpr"
+        assert basic_engine.emulator_type == "gpr"
         assert basic_engine.emulator_factory.get_default_type() == "gpr"
 
     def test_automated_run(self, basic_engine, mock_simulation_function):
         """Test automated run."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
         basic_engine.max_iterations = 3
 
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
@@ -304,7 +310,7 @@ class TestHistoryMatchingEngine:
 
     def test_automated_run_no_auto_commit(self, basic_engine, mock_simulation_function):
         """Test automated run without auto-commit."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
@@ -318,7 +324,7 @@ class TestHistoryMatchingEngine:
 
     def test_max_iterations_limit(self, basic_engine, mock_simulation_function):
         """Test maximum iterations limit."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
         basic_engine.max_iterations = 2
 
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
@@ -337,7 +343,7 @@ class TestHistoryMatchingEngine:
 
     def test_get_iteration_results(self, basic_engine, mock_simulation_function):
         """Test getting iteration results."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
@@ -362,7 +368,7 @@ class TestHistoryMatchingEngine:
 
     def test_callbacks(self, basic_engine, mock_simulation_function):
         """Test iteration and progress callbacks."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         # Add callbacks
         iteration_callback = MagicMock()
@@ -383,7 +389,7 @@ class TestHistoryMatchingEngine:
 
     def test_space_reduction_disabled_by_default(self, basic_engine, mock_simulation_function):
         """Test that space reduction is disabled by default."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         initial_space = basic_engine.parameter_space
 
@@ -399,17 +405,18 @@ class TestHistoryMatchingEngine:
 
     def test_space_reduction_enabled(self, parameter_space, observations, mock_simulation_function):
         """Test space reduction when enabled."""
-        engine = HistoryMatchingEngine(
-            parameter_space=parameter_space,
+        engine = HistoryMatching(
+            parameter_bounds=parameter_space,
             observations=observations,
             sampling_strategy=RandomSampling(),
-            feature_selection_strategy=ManualFeatureSelection(["output1"]),
+            feature_selection=ManualFeatureSelection(["output1"]),
             emulator_factory=EmulatorFactory("linear"),
             n_samples=50,
-            auto_reduce_space=True  # Enable space reduction
+            auto_reduce_space=True,  # Enable space reduction
+            output_dir=None,
         )
 
-        engine.set_simulation_function(mock_simulation_function)
+        engine.function = mock_simulation_function
 
         with patch.object(engine.emulator_factory, "create_emulators_for_features") as mock_create:
             # Use our MockEmulator with custom prediction
@@ -445,7 +452,7 @@ class TestHistoryMatchingEngine:
 
     def test_checkpoint_save_load(self, basic_engine, mock_simulation_function):
         """Test saving and loading checkpoints."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         # Run an iteration
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
@@ -463,10 +470,10 @@ class TestHistoryMatchingEngine:
             basic_engine.save_checkpoint(checkpoint_path)
 
             # Load checkpoint
-            loaded_engine = HistoryMatchingEngine.load_checkpoint(
+            loaded_engine = HistoryMatching.load_checkpoint(
                 checkpoint_path,
                 sampling_strategy=RandomSampling(),
-                feature_selection_strategy=ManualFeatureSelection(["output1"]),
+                feature_selection=ManualFeatureSelection(["output1"]),
                 emulator_factory=EmulatorFactory("linear")
             )
 
@@ -482,10 +489,10 @@ class TestHistoryMatchingEngine:
         """Test string representation."""
         repr_str = repr(basic_engine)
 
-        assert "HistoryMatchingEngine" in repr_str
+        assert "HistoryMatching(" in repr_str
         assert "state=initialized" in repr_str
-        assert "iteration=0" in repr_str
-        assert "auto_reduce_space=False" in repr_str
+        assert "wave 0/" in repr_str
+        assert "simulator=NOT SET" in repr_str
 
 
 class TestWorkflowProgress:
@@ -503,7 +510,7 @@ class TestWorkflowProgress:
 
     def test_progress_updates(self, basic_engine, mock_simulation_function):
         """Test that progress is updated correctly."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
@@ -532,7 +539,7 @@ class TestSampleFiltering:
 
     def test_first_iteration_no_filtering(self, basic_engine, mock_simulation_function):
         """Test that first iteration doesn't filter samples."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
 
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
             mock_emulator = MockEmulator("output1")
@@ -578,7 +585,7 @@ class TestSampleFiltering:
 
     def test_adaptive_sampling_during_next_sample_computation(self, basic_engine, mock_simulation_function):
         """Test that NROY sampling produces the requested number of samples."""
-        basic_engine.set_simulation_function(mock_simulation_function)
+        basic_engine.function = mock_simulation_function
         basic_engine.n_samples = 50  # Request samples
 
         with patch.object(basic_engine.emulator_factory, "create_emulators_for_features") as mock_create:
