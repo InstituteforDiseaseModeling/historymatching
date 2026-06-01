@@ -74,7 +74,7 @@ extra_css:
 plugins:
   - mkdocs-jupyter:
       include: ["**/*.ipynb"]
-      execute: false
+      execute: true
       allow_errors: true
       include_source: true
       kernel_name: python3
