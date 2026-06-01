@@ -57,28 +57,28 @@ def my_model(samples: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(results)
 ```
 
-## Building an engine
+## Creating an engine
 
-All history matching workflows start by constructing a `HistoryMatchingEngine` through the builder. The builder uses a fluent interface — each `.with_*()` call configures one aspect of the workflow and returns the builder itself, so calls can be chained. When configuration is complete, `.build()` validates the settings and returns a ready-to-use engine.
+All history matching workflows start by constructing a `HistoryMatching` engine. Everything is configured in a single constructor call — pass the parameter bounds and observations positionally, then any options as keyword arguments. Every keyword argument is optional and has a sensible default.
 
 ```python
-builder = hm.HistoryMatchingBuilder.from_data(
+engine = hm.HistoryMatching(
     parameter_bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
     observations={'peak_infected': (150.0, 20.0)},
+    function=my_model,                                       # the simulation function
+    sampling_strategy={'type': 'lhs', 'criterion': 'maximin'},  # How to sample
+    feature_selection={'method': 'fano', 'max_features': 3},    # Which outputs to emulate
+    emulator_type='gpr',                                     # Statistical surrogate type
+    n_samples=500,                                           # Samples per iteration
+    max_iterations=10,                                       # Stopping criterion
+    implausibility_threshold=3.0,                            # Implausibility cutoff
+    random_seed=42,                                          # Reproducibility
 )
-builder.with_sampling_strategy({'type': 'lhs', 'criterion': 'maximin'})  # How to sample
-builder.with_feature_selection({'method': 'fano', 'max_features': 3})    # Which outputs to emulate
-builder.with_emulator_type('gpr')                # Statistical surrogate type
-builder.with_samples_per_iteration(500)          # Samples per iteration
-builder.with_max_iterations(10)                  # Stopping criterion
-builder.with_implausibility_threshold(3.0)       # Implausibility cutoff
-builder.with_random_seed(42)                     # Reproducibility
-engine = builder.build()                         # Validate and create engine
 ```
 
-Every `.with_*()` call is optional — the builder provides sensible defaults (LHS sampling, auto feature selection, GPR emulator, 1000 samples, 10 iterations, threshold of 3.0).
+Every keyword argument is optional — the constructor provides sensible defaults (LHS sampling, auto feature selection, GPR emulator, 1000 samples, 10 iterations, threshold of 3.0).
 
-You can also build from DataFrames:
+You can also build from DataFrames — just pass them in place of the dicts:
 
 ```python
 param_df = pd.DataFrame({
@@ -93,17 +93,16 @@ obs_df = pd.DataFrame({
     'std': [20.0, 50.0],
 })
 
-builder = hm.HistoryMatchingBuilder.from_dataframes(param_df, obs_df)
+engine = hm.HistoryMatching(param_df, obs_df, function=my_model)
 ```
 
 ## Running the workflow
 
 ### Automated execution
 
-Run all iterations automatically:
+Run all iterations automatically (the simulation function was passed as `function=my_model` above; you can also set it later with `engine.function = my_model`):
 
 ```python
-engine.set_simulation_function(my_model)
 results = engine.run()
 
 # Inspect results
@@ -159,12 +158,12 @@ The library includes three emulator types:
 | `'glm'` | Generalized linear relationships | Fast | Limited |
 | `'gpr'` | Nonlinear relationships, small-medium data | Slower | Excellent |
 
-Select via the builder:
+Select via the `emulator_type` argument:
 
 ```python
-builder.with_emulator_type('gpr')   # Gaussian Process Regression (default)
-builder.with_emulator_type('linear') # Linear regression
-builder.with_emulator_type('glm')    # Generalized linear model
+hm.HistoryMatching(..., emulator_type='gpr')    # Gaussian Process Regression (default)
+hm.HistoryMatching(..., emulator_type='linear') # Linear regression
+hm.HistoryMatching(..., emulator_type='glm')    # Generalized linear model
 ```
 
 ## Sampling strategies
@@ -188,12 +187,12 @@ builder.with_emulator_type('glm')    # Generalized linear model
 By default the engine saves emulators, diagnostics, and checkpoints after each wave:
 
 ```python
-engine = builder \
-    .with_output_dir('./hm_output')       # default; None disables all disk output
-    .with_run_name('my_calibration')      # default: auto-generated timestamp
-    .build()
-
-engine.set_simulation_function(my_model)
+engine = hm.HistoryMatching(
+    parameter_bounds, observations,
+    function=my_model,
+    output_dir='./hm_output',       # default; None disables all disk output
+    run_name='my_calibration',      # default: auto-generated timestamp
+)
 results = engine.run()
 
 print(engine.run_dir)
@@ -224,8 +223,11 @@ hm_output/my_calibration/
 ### Resume from checkpoint
 
 ```python
-engine = builder.with_run_name('my_calibration').build()
-engine.set_simulation_function(my_model)
+engine = hm.HistoryMatching(
+    parameter_bounds, observations,
+    function=my_model,
+    run_name='my_calibration',
+)
 results = engine.run(resume=True)   # loads checkpoint.pkl, continues
 ```
 
@@ -236,13 +238,13 @@ For finer control, save and load checkpoints explicitly:
 ```python
 engine.save_checkpoint('checkpoint.pkl')
 
-loaded = hm.HistoryMatchingEngine.load_checkpoint(
+loaded = hm.HistoryMatching.load_checkpoint(
     'checkpoint.pkl',
     sampling_strategy=hm.SamplingStrategyFactory.create('lhs'),
     feature_selection_strategy=hm.AutoFeatureSelection(method='fano'),
     emulator_factory=hm.EmulatorFactory('gpr'),
 )
-loaded.set_simulation_function(my_model)
+loaded.function = my_model
 ```
 
 ## NROY samples and trajectory selection

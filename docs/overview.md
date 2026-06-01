@@ -16,7 +16,7 @@ The parameter space shrinks with each iteration until it converges on the region
 
 ## Key features
 
-- **Builder pattern**: Fluent API for configuring workflows via `HistoryMatchingBuilder`
+- **Single-constructor API**: Configure an entire workflow in one `HistoryMatching(...)` call
 - **Interactive engine**: Step-by-step control with `step()` / `commit_step()` / `revert_step()`, or fully automated execution with `run()`
 - **Multiple emulators**: Linear, GLM, and Gaussian Process Regression (GPflow-based with ARD kernels)
 - **Pluggable strategies**: Swap sampling (LHS, grid, random), feature selection (auto Fano-factor, manual), and emulator types at any point
@@ -26,15 +26,12 @@ The parameter space shrinks with each iteration until it converges on the region
 ## Architecture
 
 ```
-HistoryMatchingBuilder          # Configure the workflow
+HistoryMatching                 # Configure and execute the workflow
     ├── ParameterSpace          # Parameter bounds
     ├── ObservationData         # Target observations (mean, std)
     ├── SamplingStrategy        # How to generate samples (LHS, grid, random)
     ├── FeatureSelectionStrategy # Which outputs to emulate (auto, manual)
-    └── EmulatorFactory         # Which emulator to use (linear, glm, gpr)
-            │
-            ▼
-HistoryMatchingEngine           # Execute the workflow
+    ├── EmulatorFactory         # Which emulator to use (linear, glm, gpr)
     ├── step()                  # Run one iteration
     ├── commit_step()           # Accept the iteration
     ├── revert_step()           # Reject and retry

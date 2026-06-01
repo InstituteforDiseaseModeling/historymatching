@@ -1,8 +1,10 @@
 """
-HistoryMatchingEngine for interactive workflow execution.
+HistoryMatching — the main user-facing class for running a calibration.
 
-Provides step-by-step execution with the ability to inspect results,
-make adjustments, and revert changes if needed.
+Configure everything in one constructor call (parameter bounds, observations,
+simulator function, and options), then call :meth:`HistoryMatching.run` for an
+automated workflow or :meth:`HistoryMatching.step` / :meth:`commit_step` /
+:meth:`revert_step` for interactive, wave-by-wave control.
 """
 
 import logging
@@ -25,8 +27,8 @@ from .iteration_result import IterationResult
 from .observation_data import ObservationData
 from .parameter_space import ParameterSpace
 from .emulators.factory import EmulatorFactory
-from .feature_selection import FeatureSelectionStrategy
-from .sampling import SamplingStrategy
+from .feature_selection import FeatureSelectionStrategy, AutoFeatureSelection, ManualFeatureSelection
+from .sampling import SamplingStrategy, SamplingStrategyFactory
 
 logger = logging.getLogger(__name__)
 
@@ -202,38 +204,52 @@ class WorkflowProgress:
     end_time: Optional[float] = None
 
 
-class HistoryMatchingEngine:
+class HistoryMatching:
     """
-    Interactive history matching engine with step-by-step execution.
+    Bayesian history matching — configure everything in one constructor call.
 
-    Supports both automated execution and interactive workflows where users
-    can inspect results, make adjustments, and control progression.
+    Pass your parameter bounds, observations, and simulator ``function`` as plain
+    arguments.  Friendly values (strings, dicts, lists) are accepted for the
+    strategy options and turned into the underlying objects for you; sensible
+    defaults are used for anything you omit.
 
     Examples:
+        import historymatching as hm
+
+        match = hm.HistoryMatching(
+            function=run_sir,
+            parameter_bounds={'beta': (0.5, 3.0), 'gamma': (0.1, 1.0)},
+            observations={'peak_incidence': (120.0, 50.0)},  # (mean, std)
+            emulator_type='gpr',
+            n_samples=500,
+            max_iterations=4,
+        )
+
         # Automated execution
-        engine = builder.build()
-        results = engine.run()
+        results = match.run()
+        nroy = match.get_nroy_samples()
 
-        # Interactive execution
-        engine = builder.build()
-        result = engine.step()  # Run one iteration
-        if result.is_acceptable():
-            engine.commit_step()  # Accept the iteration
-        else:
-            engine.revert_step()  # Reject and try different settings
+        # Interactive, step-by-step execution
+        result = match.step()       # run one wave
+        match.commit_step()         # accept it (or match.revert_step())
+        match.update_feature_selection(['different_feature'])
+        result = match.step()
 
-        # Continue or modify strategy
-        engine.update_feature_selection(['different_feature'])
-        result = engine.step()
+    The simulator ``function`` receives a pandas DataFrame of parameter samples
+    (one row per sample) and may return either a DataFrame or a list of dicts
+    (one dict per sample) mapping output names to values.
     """
 
     def __init__(
         self,
-        parameter_space: ParameterSpace,
-        observations: ObservationData,
-        sampling_strategy: SamplingStrategy,
-        feature_selection_strategy: FeatureSelectionStrategy,
-        emulator_factory: EmulatorFactory,
+        parameter_bounds: Union[dict, pd.DataFrame, ParameterSpace, None] = None,
+        observations: Union[dict, pd.DataFrame, ObservationData, None] = None,
+        function: Optional[Callable] = None,
+        *,
+        sampling_strategy: Union[str, dict, SamplingStrategy] = "lhs",
+        feature_selection: Union[str, list, dict, FeatureSelectionStrategy, None] = None,
+        emulator_type: str = "gpr",
+        emulator_factory: Optional[EmulatorFactory] = None,
         emulator_bank: Optional[EmulatorBank] = None,
         n_samples: int = 1000,
         implausibility_threshold: float = 3.0,
@@ -244,32 +260,50 @@ class HistoryMatchingEngine:
         max_batch_size: int = 10000,
         output_dir: Optional[str] = "./hm_output",
         run_name: Optional[str] = None,
-        **kwargs,
+        **settings,
     ):
         """
-        Initialize the history matching engine.
+        Configure a history matching run.
 
         Args:
-            parameter_space: Parameter space definition
-            observations: Observation data
-            sampling_strategy: Strategy for parameter sampling
-            feature_selection_strategy: Strategy for feature selection
-            emulator_factory: Factory for creating emulators
-            emulator_bank: Optional existing emulator bank
-            n_samples: Number of samples per iteration
-            implausibility_threshold: Threshold for parameter space reduction
-            max_iterations: Maximum iterations to run
-            random_seed: Random seed for reproducibility
-            auto_reduce_space: Whether to automatically reduce parameter space
-            oversample_factor: Factor for oversampling to account for filtering
-            **kwargs: Additional settings
+            parameter_bounds: The parameter space to search.  A dict mapping
+                ``name -> (min, max)``, a DataFrame with ``parameter/minimum/maximum``
+                columns, or a :class:`ParameterSpace`.
+            observations: The target observations.  A dict mapping
+                ``feature -> (mean, std)``, a DataFrame with ``feature/mean/std``
+                columns, or an :class:`ObservationData`.
+            function: The simulator.  A callable taking a DataFrame of parameter
+                samples and returning a DataFrame (or list of dicts) of outputs.
+                May also be set later with :meth:`set_simulation_function`.
+            sampling_strategy: ``'lhs'`` (default) / ``'grid'`` / ``'random'``, a
+                :class:`SamplingStrategy`, or a config dict (e.g. ``{'type': 'lhs',
+                'criterion': 'center'}``).
+            feature_selection: a feature name or list of names (manual selection),
+                a config dict (e.g. ``{'method': 'fano', 'max_features': 3}``), a
+                :class:`FeatureSelectionStrategy`, or ``None`` for automatic
+                selection (mean-squared-z, one feature per wave).
+            emulator_type: ``'gpr'`` (default) / ``'glm'`` / ``'linear'``.
+            emulator_factory: a pre-built :class:`EmulatorFactory` (overrides
+                ``emulator_type``).
+            emulator_bank: a pre-populated :class:`EmulatorBank` (for resuming).
+            n_samples: samples generated per iteration.
+            implausibility_threshold: implausibility cutoff, typically 2.5-4.0.
+            max_iterations: maximum number of waves to run.
+            random_seed: seed for reproducibility.
+            auto_reduce_space: enable automatic parameter-space reduction.
+            oversample_factor: oversampling factor for rejection filtering (>= 1.0).
+            max_batch_size: max candidates per NROY sampling batch (>= 100).
+            output_dir: directory for checkpoints/diagnostics; ``None`` disables disk output.
+            run_name: subdirectory under ``output_dir`` (auto-generated if None).
+            **settings: extra engine tuning options (e.g. ``convergence_threshold``,
+                ``nroy_method``, ``nroy_options``, ``max_candidate_factor``).
         """
-        # Core components
-        self.parameter_space = parameter_space  # Always keep original space
-        self.observations = observations
-        self.sampling_strategy = sampling_strategy
-        self.feature_selection_strategy = feature_selection_strategy
-        self.emulator_factory = emulator_factory
+        # Core components — coerce friendly inputs into domain objects.
+        self.parameter_space = self._coerce_parameter_space(parameter_bounds)
+        self.observations = self._coerce_observations(observations)
+        self.sampling_strategy = self._coerce_sampling(sampling_strategy)
+        self.feature_selection_strategy = self._coerce_feature_selection(feature_selection)
+        self.emulator_factory = self._coerce_emulator_factory(emulator_type, emulator_factory)
         self.emulator_bank = emulator_bank if emulator_bank is not None else EmulatorBank()
 
         # Workflow configuration
@@ -294,9 +328,9 @@ class HistoryMatchingEngine:
         self._progress_callbacks: list[Callable] = []
 
         # Additional settings
-        self.settings = kwargs
+        self.settings = settings
 
-        # Simulation function (to be provided by user)
+        # Simulation function (set below if provided, else via set_simulation_function)
         self._simulation_function: Optional[Callable] = None
 
         # Output directory for checkpoints, emulators, and diagnostics
@@ -325,12 +359,12 @@ class HistoryMatchingEngine:
                 sub_logger.setLevel(logging.DEBUG)
 
         # Log full configuration summary at the top of log.txt
-        param_names = parameter_space.get_parameter_names()
-        obs_targets = observations.get_all_targets()
+        param_names = self.parameter_space.get_parameter_names()
+        obs_targets = self.observations.get_all_targets()
         logger.info(f"{'='*60}")
         logger.info(f"HISTORY MATCHING ENGINE — CONFIGURATION")
         logger.info(f"{'='*60}")
-        logger.info(f"  Emulator type:          {emulator_factory.get_default_type()}")
+        logger.info(f"  Emulator type:          {self.emulator_factory.get_default_type()}")
         logger.info(f"  Parameters:             {len(param_names)}")
         logger.info(f"  Observation targets:    {len(obs_targets)}")
         logger.info(f"  Samples per wave:       {n_samples}")
@@ -346,6 +380,81 @@ class HistoryMatchingEngine:
         logger.info(f"  Parameters: {param_names}")
         logger.info(f"  Targets: {list(obs_targets.keys())}")
         logger.info(f"{'='*60}")
+
+        # Register the simulator if one was supplied at construction time.
+        if function is not None:
+            self.set_simulation_function(function)
+
+        # Fail fast on invalid configuration rather than waiting until run().
+        self.validate()
+
+    # ------------------------------------------------------------------ #
+    # Coercion helpers — turn friendly constructor values into objects.
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _coerce_parameter_space(parameter_bounds) -> ParameterSpace:
+        if parameter_bounds is None:
+            raise ValueError(
+                "parameter_bounds is required: pass a dict of {name: (min, max)}, "
+                "a DataFrame with parameter/minimum/maximum columns, or a ParameterSpace."
+            )
+        if isinstance(parameter_bounds, ParameterSpace):
+            return parameter_bounds
+        return ParameterSpace(parameter_bounds)  # accepts dict or DataFrame
+
+    @staticmethod
+    def _coerce_observations(observations) -> ObservationData:
+        if observations is None:
+            raise ValueError(
+                "observations is required: pass a dict of {feature: (mean, std)}, "
+                "a DataFrame with feature/mean/std columns, or an ObservationData."
+            )
+        if isinstance(observations, ObservationData):
+            return observations
+        return ObservationData(observations)  # accepts dict or DataFrame
+
+    @staticmethod
+    def _coerce_sampling(sampling_strategy) -> SamplingStrategy:
+        if sampling_strategy is None:
+            return SamplingStrategyFactory.create("lhs")
+        if isinstance(sampling_strategy, SamplingStrategy):
+            return sampling_strategy
+        if isinstance(sampling_strategy, str):
+            return SamplingStrategyFactory.create(sampling_strategy)
+        if isinstance(sampling_strategy, dict):
+            opts = dict(sampling_strategy)  # copy so we don't mutate the caller's dict
+            strategy_type = opts.pop("type", "lhs")
+            return SamplingStrategyFactory.create(strategy_type, **opts)
+        raise ValueError(
+            f"Invalid sampling_strategy: {sampling_strategy!r}. Expected a name "
+            f"('lhs'/'grid'/'random'), a config dict, or a SamplingStrategy."
+        )
+
+    @staticmethod
+    def _coerce_feature_selection(feature_selection) -> FeatureSelectionStrategy:
+        if feature_selection is None:
+            return AutoFeatureSelection(method="mean_sq_z", max_features=1)
+        if isinstance(feature_selection, FeatureSelectionStrategy):
+            return feature_selection
+        if isinstance(feature_selection, (str, list)):
+            return ManualFeatureSelection(feature_selection)
+        if isinstance(feature_selection, dict):
+            return AutoFeatureSelection(
+                method=feature_selection.get("method", "mean_sq_z"),
+                threshold=feature_selection.get("threshold", None),
+                max_features=feature_selection.get("max_features", 1),
+                correlation_threshold=feature_selection.get("correlation_threshold", 0.8),
+            )
+        raise ValueError(
+            f"Invalid feature_selection: {feature_selection!r}. Expected a feature "
+            f"name or list of names, a config dict, or a FeatureSelectionStrategy."
+        )
+
+    @staticmethod
+    def _coerce_emulator_factory(emulator_type, emulator_factory) -> EmulatorFactory:
+        if emulator_factory is not None:
+            return emulator_factory
+        return EmulatorFactory(default_type=emulator_type or "gpr")
 
     @property
     def state(self) -> EngineState:
@@ -371,6 +480,57 @@ class HistoryMatchingEngine:
     def run_dir(self) -> Optional[Path]:
         """Output directory for this run, or None if disk output is disabled."""
         return self._run_dir
+
+    @property
+    def function(self) -> Optional[Callable]:
+        """The configured simulator function (or None if not yet set)."""
+        return self._simulation_function
+
+    @function.setter
+    def function(self, func: Callable) -> None:
+        self.set_simulation_function(func)
+
+    @property
+    def results(self) -> list:
+        """All committed :class:`IterationResult` objects, in order."""
+        return self.get_all_results()
+
+    @property
+    def samples_generated(self) -> int:
+        """Total parameter samples generated so far (across all waves)."""
+        return self._progress.total_samples_generated
+
+    @property
+    def samples_accepted(self) -> int:
+        """Total parameter samples accepted so far (across all waves)."""
+        return self._progress.total_samples_accepted
+
+    @property
+    def emulators_trained(self) -> int:
+        """Total emulators trained and committed so far."""
+        return self._progress.total_emulators_trained
+
+    def get_parameter_names(self) -> list[str]:
+        """Names of the parameters being calibrated."""
+        return self.parameter_space.get_parameter_names()
+
+    def get_feature_names(self) -> list[str]:
+        """Names of the observed features being matched."""
+        return self.observations.get_feature_names()
+
+    def __len__(self) -> int:
+        """Number of committed iterations (waves)."""
+        return len(self._snapshots)
+
+    def enumerate(self):
+        """Iterate over committed waves as ``(iteration, result, samples)`` tuples.
+
+        Example:
+            for i, result, samples in match.enumerate():
+                print(i, result.nroy_fraction, len(samples))
+        """
+        for result in self.get_all_results():
+            yield result.iteration, result, result.samples
 
     def set_simulation_function(self, func: Callable[[pd.DataFrame], pd.DataFrame]):
         """
@@ -985,6 +1145,138 @@ class HistoryMatchingEngine:
         """Get all committed iteration results."""
         return [snapshot.result for snapshot in self._snapshots if snapshot.result is not None]
 
+    def print_emulator_quality_metrics(self, iteration: Optional[int] = None) -> dict:
+        """Print and return per-feature emulator quality metrics for a wave.
+
+        Args:
+            iteration: Wave number to report (1-based).  Defaults to the most
+                recently committed wave.
+
+        Returns:
+            Dict mapping feature name -> metrics dict (R², MSE, training size, ...).
+        """
+        if iteration is not None:
+            result = self.get_iteration_result(iteration)
+        else:
+            committed = self.get_all_results()
+            result = committed[-1] if committed else None
+
+        if result is None:
+            print("No completed iterations yet — run a wave first.")
+            return {}
+
+        metrics = result.get_emulator_quality_metrics()
+        print(f"Emulator quality metrics (wave {result.iteration}):")
+        for feature, m in metrics.items():
+            r2 = m.get("r2_score")
+            mse = m.get("mse")
+            n_train = m.get("training_size")
+            r2_str = f"{r2:.3f}" if isinstance(r2, (int, float)) else "n/a"
+            mse_str = f"{mse:.3g}" if isinstance(mse, (int, float)) else "n/a"
+            n_str = f"{n_train}" if n_train is not None else "?"
+            print(f"  {feature:<24} R²={r2_str:<8} MSE={mse_str:<10} n={n_str}")
+        return metrics
+
+    def save_diagnostics(self, fig_dir: str, verbose: bool = False) -> None:
+        """Save emulator diagnostic figures and metrics for every committed wave.
+
+        Writes one ``wave{N}/`` subdirectory per wave under ``fig_dir`` with
+        predicted-vs-actual plots, ARD lengthscale charts (GPR), a convergence
+        figure, and ``metrics.json``.  This is the manual equivalent of the
+        per-wave output written automatically when ``output_dir`` is set.
+
+        Args:
+            fig_dir: Directory to write diagnostics into (created if needed).
+            verbose: If True, print the path written for each wave.
+        """
+        all_results = self.get_all_results()
+        if not all_results:
+            print("No completed iterations yet — nothing to save.")
+            return
+        for result in all_results:
+            result.save_diagnostics(fig_dir, all_results=all_results)
+            if verbose:
+                print(f"  saved wave {result.iteration} diagnostics to {fig_dir}")
+
+    def plot_nroy_parameters(
+        self,
+        samples: Optional[pd.DataFrame] = None,
+        derived: Optional[dict] = None,
+        true_parameters: Optional[dict] = None,
+        bins: int = 25,
+        fig_kwargs: Optional[dict] = None,
+        show: bool = False,
+    ):
+        """Corner plot of the non-implausible (NROY) parameter samples.
+
+        Diagonal panels show marginal histograms; lower-triangle panels show
+        pairwise scatter.  Optionally overlay derived quantities and the known
+        "true" values.
+
+        Args:
+            samples: NROY samples to plot.  Defaults to :meth:`get_nroy_samples`.
+            derived: Dict mapping a derived-quantity name to a callable that
+                takes the samples DataFrame and returns a Series/array
+                (e.g. ``{'R0': lambda df: df['beta'] / df['gamma']}``).
+            true_parameters: Dict mapping a column name to its true value; drawn
+                as reference lines/markers.
+            bins: Number of histogram bins for the diagonal panels.
+            fig_kwargs: Extra keyword arguments passed to ``plt.subplots``.
+            show: If True, call ``plt.show()`` before returning.
+
+        Returns:
+            ``(fig, axes)`` from matplotlib.
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        if samples is None:
+            samples = self.get_nroy_samples()
+        if samples is None or len(samples) == 0:
+            raise ValueError("No NROY samples available to plot. Run at least one wave first.")
+
+        columns = list(self.get_parameter_names())
+        plot_df = samples[columns].copy()
+        if derived:
+            for name, func in derived.items():
+                plot_df[name] = func(samples)
+                columns.append(name)
+
+        true_parameters = true_parameters or {}
+        n = len(columns)
+        fig_kwargs = {"figsize": (2.4 * n, 2.4 * n), **(fig_kwargs or {})}
+        fig, axes = plt.subplots(n, n, **fig_kwargs)
+        if n == 1:
+            axes = np.array([[axes]])
+
+        for i, col_i in enumerate(columns):
+            for j, col_j in enumerate(columns):
+                ax = axes[i][j]
+                if i == j:
+                    ax.hist(plot_df[col_i], bins=bins, color="#3575b5", alpha=0.8, edgecolor="none")
+                    if col_i in true_parameters:
+                        ax.axvline(true_parameters[col_i], color="#d44d4d", lw=1.5)
+                elif i > j:
+                    ax.scatter(plot_df[col_j], plot_df[col_i], s=4, alpha=0.3,
+                               color="#3575b5", edgecolors="none")
+                    if col_j in true_parameters:
+                        ax.axvline(true_parameters[col_j], color="#d44d4d", lw=1.0, alpha=0.7)
+                    if col_i in true_parameters:
+                        ax.axhline(true_parameters[col_i], color="#d44d4d", lw=1.0, alpha=0.7)
+                else:
+                    ax.set_visible(False)
+                    continue
+                if j == 0:
+                    ax.set_ylabel(col_i, fontsize=8)
+                if i == n - 1:
+                    ax.set_xlabel(col_j, fontsize=8)
+                ax.tick_params(labelsize=6)
+
+        fig.tight_layout()
+        if show:
+            plt.show()
+        return fig, axes
+
     def get_nroy_samples(self, n: Optional[int] = None,
                          method: Optional[str] = None, **kwargs) -> pd.DataFrame:
         """
@@ -1124,19 +1416,20 @@ class HistoryMatchingEngine:
         logger.info(f"Checkpoint saved to {filepath}")
 
     @classmethod
-    def load_checkpoint(cls, filepath: Path, sampling_strategy: SamplingStrategy, feature_selection_strategy: FeatureSelectionStrategy, emulator_factory: EmulatorFactory) -> "HistoryMatchingEngine":
+    def load_checkpoint(cls, filepath: Path, sampling_strategy: SamplingStrategy, feature_selection: FeatureSelectionStrategy, emulator_factory: EmulatorFactory) -> "HistoryMatching":
         """Load engine state from checkpoint file."""
         with open(filepath, "rb") as f:
             data = pickle.load(f)
 
         # Create engine with loaded data
         engine = cls(
-            parameter_space=data["parameter_space"],
+            parameter_bounds=data["parameter_space"],
             observations=data["observations"],
             sampling_strategy=sampling_strategy,
-            feature_selection_strategy=feature_selection_strategy,
+            feature_selection=feature_selection,
             emulator_factory=emulator_factory,
             emulator_bank=data["emulator_bank"],
+            output_dir=None,
             n_samples=data["n_samples"],
             implausibility_threshold=data["implausibility_threshold"],
             max_iterations=data["max_iterations"],
@@ -1541,7 +1834,7 @@ class HistoryMatchingEngine:
                     f"{len(plausible_samples)}/{self.n_samples} plausible samples "
                     f"(acceptance rate: {current_acceptance_rate:.4%}).  "
                     f"Proceeding with {len(plausible_samples)} samples.  "
-                    f"Adjust via builder.settings['max_candidate_factor'] = N (or engine.settings)."
+                    f"Adjust via the max_candidate_factor option (HistoryMatching(..., max_candidate_factor=N))."
                 )
                 break
 
@@ -1672,8 +1965,40 @@ class HistoryMatchingEngine:
         return plausible
 
     def _run_simulation(self, samples: pd.DataFrame) -> pd.DataFrame:
-        """Run simulation with parameter samples."""
-        return self._simulation_function(samples)
+        """Run the simulator and normalize its output to a DataFrame.
+
+        The simulator receives a DataFrame of parameter samples and may return
+        either a DataFrame or a list of dicts (one per sample); both are accepted.
+        """
+        output = self._simulation_function(samples)
+        return self._coerce_simulation_output(output, len(samples))
+
+    @staticmethod
+    def _coerce_simulation_output(output, n_samples: int) -> pd.DataFrame:
+        """Normalize a simulator's return value into a DataFrame of outputs."""
+        if isinstance(output, pd.DataFrame):
+            results = output
+        elif isinstance(output, dict):
+            # Dict of column-name -> array/list of per-sample values.
+            results = pd.DataFrame(output)
+        elif isinstance(output, list):
+            # List of per-sample dicts (records), or a list of scalars.
+            results = pd.DataFrame(output)
+        else:
+            try:
+                results = pd.DataFrame(output)
+            except Exception as e:
+                raise TypeError(
+                    "Simulation function must return a pandas DataFrame or a list of "
+                    f"dicts (one per sample); got {type(output).__name__}."
+                ) from e
+
+        if len(results) != n_samples:
+            raise ValueError(
+                f"Simulation function returned {len(results)} rows for {n_samples} "
+                f"input samples; it must return exactly one row (or dict) per sample."
+            )
+        return results.reset_index(drop=True)
 
     def _select_features(self, simulation_results: pd.DataFrame) -> list[str]:
         """Select features to emulate using configured strategy."""
@@ -1825,7 +2150,7 @@ class HistoryMatchingEngine:
                     f"{len(plausible_samples)}/{self.n_samples} plausible samples "
                     f"(acceptance rate: {current_acceptance_rate:.4%}).  "
                     f"Proceeding with {len(plausible_samples)} samples.  "
-                    f"Adjust via builder.settings['max_candidate_factor'] = N (or engine.settings)."
+                    f"Adjust via the max_candidate_factor option (HistoryMatching(..., max_candidate_factor=N))."
                 )
                 break
 
@@ -1868,9 +2193,10 @@ class HistoryMatchingEngine:
         Returns True only when the acceptance rate (fraction of LHS candidates
         passing the emulator filter) drops below the configurable threshold.
 
-        The threshold is set via ``builder.convergence_threshold``
-        and defaults to 0.01 (1%).  Setting the threshold to 0.0 disables early
-        stopping entirely.
+        The threshold is set via the ``convergence_threshold`` option and
+        defaults to 0.0, which disables early stopping; set it to a small
+        positive value (e.g. 0.01) to stop once the NROY acceptance rate falls
+        below that fraction.
         """
         threshold = self.settings.get('convergence_threshold', 0.0)
         if threshold <= 0:
@@ -1906,7 +2232,7 @@ class HistoryMatchingEngine:
     def __repr__(self) -> str:
         """String representation of engine state."""
         return (
-            f"HistoryMatchingEngine(\n"
+            f"HistoryMatching(\n"
             f"  state={self._state.value},\n"
             f"  iteration={self._progress.current_iteration}/{self.max_iterations},\n"
             f"  acceptance_rate={self._progress.acceptance_rate:.3f},\n"
@@ -1914,3 +2240,8 @@ class HistoryMatchingEngine:
             f"  auto_reduce_space={self.auto_reduce_space}\n"
             f")"
         )
+
+
+# Backwards-compatible alias: the engine class was previously named
+# ``HistoryMatchingEngine`` and configured via ``HistoryMatchingBuilder``.
+HistoryMatchingEngine = HistoryMatching

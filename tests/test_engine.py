@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from historymatching.engine import EngineState
-from historymatching.engine import HistoryMatchingEngine
+from historymatching.engine import HistoryMatching
 from historymatching.engine import WorkflowProgress
 from historymatching.iteration_result import IterationResult
 from historymatching.observation_data import ObservationData
@@ -90,13 +90,14 @@ def mock_simulation_function():
 @pytest.fixture
 def basic_engine(parameter_space, observations):
     """Create basic engine for testing."""
-    return HistoryMatchingEngine(
-        parameter_space=parameter_space,
+    return HistoryMatching(
+        parameter_bounds=parameter_space,
         observations=observations,
         sampling_strategy=RandomSampling(),
-        feature_selection_strategy=ManualFeatureSelection(["output1"]),
+        feature_selection=ManualFeatureSelection(["output1"]),
         emulator_factory=EmulatorFactory("linear"),
-        n_samples=50  # Small for testing
+        n_samples=50,  # Small for testing
+        output_dir=None,
     )
 
 
@@ -105,12 +106,13 @@ class TestHistoryMatchingEngine:
 
     def test_engine_initialization(self, parameter_space, observations):
         """Test basic engine initialization."""
-        engine = HistoryMatchingEngine(
-            parameter_space=parameter_space,
+        engine = HistoryMatching(
+            parameter_bounds=parameter_space,
             observations=observations,
             sampling_strategy=RandomSampling(),
-            feature_selection_strategy=ManualFeatureSelection(["output1"]),
-            emulator_factory=EmulatorFactory("linear")
+            feature_selection=ManualFeatureSelection(["output1"]),
+            emulator_factory=EmulatorFactory("linear"),
+            output_dir=None,
         )
 
         assert engine.state == EngineState.INITIALIZED
@@ -123,17 +125,18 @@ class TestHistoryMatchingEngine:
 
     def test_engine_initialization_with_options(self, parameter_space, observations):
         """Test engine initialization with custom options."""
-        engine = HistoryMatchingEngine(
-            parameter_space=parameter_space,
+        engine = HistoryMatching(
+            parameter_bounds=parameter_space,
             observations=observations,
             sampling_strategy=RandomSampling(),
-            feature_selection_strategy=ManualFeatureSelection(["output1"]),
+            feature_selection=ManualFeatureSelection(["output1"]),
             emulator_factory=EmulatorFactory("linear"),
             n_samples=500,
             auto_reduce_space=True,
             oversample_factor=3.0,
             max_iterations=5,
-            random_seed=42
+            random_seed=42,
+            output_dir=None,
         )
 
         assert engine.n_samples == 500
@@ -399,14 +402,15 @@ class TestHistoryMatchingEngine:
 
     def test_space_reduction_enabled(self, parameter_space, observations, mock_simulation_function):
         """Test space reduction when enabled."""
-        engine = HistoryMatchingEngine(
-            parameter_space=parameter_space,
+        engine = HistoryMatching(
+            parameter_bounds=parameter_space,
             observations=observations,
             sampling_strategy=RandomSampling(),
-            feature_selection_strategy=ManualFeatureSelection(["output1"]),
+            feature_selection=ManualFeatureSelection(["output1"]),
             emulator_factory=EmulatorFactory("linear"),
             n_samples=50,
-            auto_reduce_space=True  # Enable space reduction
+            auto_reduce_space=True,  # Enable space reduction
+            output_dir=None,
         )
 
         engine.set_simulation_function(mock_simulation_function)
@@ -463,10 +467,10 @@ class TestHistoryMatchingEngine:
             basic_engine.save_checkpoint(checkpoint_path)
 
             # Load checkpoint
-            loaded_engine = HistoryMatchingEngine.load_checkpoint(
+            loaded_engine = HistoryMatching.load_checkpoint(
                 checkpoint_path,
                 sampling_strategy=RandomSampling(),
-                feature_selection_strategy=ManualFeatureSelection(["output1"]),
+                feature_selection=ManualFeatureSelection(["output1"]),
                 emulator_factory=EmulatorFactory("linear")
             )
 
@@ -482,7 +486,7 @@ class TestHistoryMatchingEngine:
         """Test string representation."""
         repr_str = repr(basic_engine)
 
-        assert "HistoryMatchingEngine" in repr_str
+        assert "HistoryMatching" in repr_str
         assert "state=initialized" in repr_str
         assert "iteration=0" in repr_str
         assert "auto_reduce_space=False" in repr_str
