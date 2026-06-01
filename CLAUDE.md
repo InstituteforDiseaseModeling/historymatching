@@ -20,7 +20,7 @@ This project uses `uv`. Always prefix Python/pytest commands with `uv run`:
 
 ```bash
 uv run pytest tests/
-uv run python -c "import history_matching"
+uv run python -c "import historymatching"
 ```
 
 Install with notebook and dev dependencies:
@@ -45,8 +45,8 @@ uv run pytest tests/ -x -q    # fail fast, quiet
 ## Code structure
 
 ```
-history_matching/         # flat package — everything at the top level
-    __init__.py           # re-exports all public API; users just: import history_matching as hm
+historymatching/         # flat package — everything at the top level
+    __init__.py           # re-exports all public API; users just: import historymatching as hm
     engine.py             # HistoryMatchingEngine — runs the iterative loop
     builder.py            # HistoryMatchingBuilder — fluent API for configuring an engine
     parameter_space.py    # ParameterSpace — wraps parameter bounds (DataFrame)
@@ -73,7 +73,7 @@ tests/
 
 **The typical user workflow:**
 ```python
-import history_matching as hm
+import historymatching as hm
 
 engine = (hm.HistoryMatchingBuilder
     .from_data(

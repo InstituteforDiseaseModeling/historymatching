@@ -5,15 +5,15 @@ Unit tests for HistoryMatchingBuilder.
 
 import pandas as pd
 import pytest
-from history_matching.builder import HistoryMatchingBuilder
-from history_matching.engine import HistoryMatchingEngine
-from history_matching.emulator_bank import EmulatorBank
-from history_matching.observation_data import ObservationData
-from history_matching.parameter_space import ParameterSpace
-from history_matching.emulators.factory import EmulatorFactory
-from history_matching.feature_selection import AutoFeatureSelection
-from history_matching.feature_selection import ManualFeatureSelection
-from history_matching.sampling import RandomSampling
+from historymatching.builder import HistoryMatchingBuilder
+from historymatching.engine import HistoryMatchingEngine
+from historymatching.emulator_bank import EmulatorBank
+from historymatching.observation_data import ObservationData
+from historymatching.parameter_space import ParameterSpace
+from historymatching.emulators.factory import EmulatorFactory
+from historymatching.feature_selection import AutoFeatureSelection
+from historymatching.feature_selection import ManualFeatureSelection
+from historymatching.sampling import RandomSampling
 
 
 class TestHistoryMatchingBuilder:

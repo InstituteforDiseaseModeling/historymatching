@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # Import the history matching library
-import history_matching as hm
+import historymatching as hm
 
 
 def simple_epidemic_model(samples: pd.DataFrame) -> pd.DataFrame:

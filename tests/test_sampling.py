@@ -5,10 +5,9 @@ Unit tests for sampling strategies.
 import pytest
 import numpy as np
 import pandas as pd
-from unittest.mock import patch, MagicMock
 
-from history_matching.parameter_space import ParameterSpace
-from history_matching.sampling import (
+from historymatching.parameter_space import ParameterSpace
+from historymatching.sampling import (
     SamplingStrategy,
     LatinHypercubeSampling,
     GridSampling,
@@ -187,13 +186,17 @@ class TestRandomSampling:
         assert samples['param2'].min() >= -5.0
         assert samples['param2'].max() <= 5.0
     
-    @patch('numpy.random.seed')
-    def test_generate_samples_with_seed(self, mock_seed, parameter_space):
-        """Test sample generation with random seed."""
+    def test_generate_samples_with_seed(self, parameter_space):
+        """Test that a fixed seed produces reproducible samples."""
         sampler = RandomSampling()
-        sampler.generate_samples(parameter_space, n_samples=1, seed=123)
-        
-        mock_seed.assert_called_once_with(123)
+        samples_a = sampler.generate_samples(parameter_space, n_samples=5, seed=123)
+        samples_b = sampler.generate_samples(parameter_space, n_samples=5, seed=123)
+        samples_c = sampler.generate_samples(parameter_space, n_samples=5, seed=456)
+
+        # Same seed -> identical samples
+        pd.testing.assert_frame_equal(samples_a, samples_b)
+        # Different seed -> different samples
+        assert not samples_a.equals(samples_c)
     
     def test_get_strategy_name(self):
         """Test strategy name generation."""

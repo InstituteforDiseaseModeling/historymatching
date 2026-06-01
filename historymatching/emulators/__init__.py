@@ -1,5 +1,5 @@
 """Bring emulators into `emulators` namespace so we don't have to
-`import history_matching.emulators.linear.LinearModel`, for example."""
+`import historymatching.emulators.linear.LinearModel`, for example."""
 
 from .base import BaseEmulator  # noqa: F401 isort: skip
 from .linear import LinearModel  # noqa: F401 isort: skip

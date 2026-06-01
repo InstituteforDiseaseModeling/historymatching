@@ -4,7 +4,7 @@ requires = [
 ]
 
 [project]
-name = "history-matching"
+name = "historymatching"
 version = "1.0.0"
 description = "A Python implementation of the Bayesian History Matching algorithm."
 readme = "README.md"
@@ -14,6 +14,7 @@ authors = [
     {name = "Rafael C. Nunez"},
     {name = "Richard Barnes"},
     {name = "Christopher Lorton"},
+    {name = "Cliff Kerr"},
 ]
 keywords = [
     "Bayesian History Matching",
@@ -33,10 +34,6 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Utilities",
 ]
@@ -51,7 +48,7 @@ dependencies = [
     "setuptools>=30.3.0,<82",  # gpflow requires pkg_resources, removed in setuptools 82+
     "tensorflow>=2.18",
     "tf-keras",
-    "gpflow>=2.5",  # 2.5+ stable API; >=2.9 conflicts with tensorflow>=2.18
+    "gpflow>=2.5",  # 2.5+ stable API
     "bokeh>=3.0",
     "numexpr>=2.8,!=2.8.5", # until RE string issue gets fixed
 ]
@@ -68,7 +65,6 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",
-    "ruff>=0.1.0",
 ]
 docs = [
     "mkdocs>=1.5",
@@ -76,63 +72,17 @@ docs = [
     "mkdocstrings[python]>=0.24",
     "mkdocs-jupyter>=0.24",
     "mkdocs-include-markdown-plugin>=6.0",
-    "pymdown-extensions>=10.0",
+    "pymdown-extensions>=10.21.3",
 ]
 
 [project.urls]
-Documentation = "https://docs.idmod.org/projects/history-matching/"
-Changelog = "https://docs.idmod.org/projects/history-matching/en/latest/changelog.html"
-"Issue Tracker" = "https://github.com/InstituteforDiseaseModeling/history_matching/issues"
-Repository = "https://github.com/InstituteforDiseaseModeling/history_matching"
+Documentation = "https://docs.idmod.org/projects/historymatching/"
+Changelog = "https://docs.idmod.org/projects/historymatching/en/latest/changelog.html"
+"Issue Tracker" = "https://github.com/InstituteforDiseaseModeling/historymatching/issues"
+Repository = "https://github.com/InstituteforDiseaseModeling/historymatching"
 
 [tool.setuptools.packages.find]
-include = ["history_matching*"]
-
-[tool.ruff]
-extend-exclude = ["static", "ci/templates", "examples"]
-line-length = 200
-src = ["history_matching", "tests"]
-target-version = "py39"
-
-[tool.ruff.lint]
-ignore = [
-    "RUF001", # ruff-specific rules ambiguous-unicode-character-string
-    "S101", # flake8-bandit assert
-    "S308", # flake8-bandit suspicious-mark-safe-usage
-    "S603", # `subprocess` without `shell=True`
-    "S607", # starting a process with a partial path
-]
-select = [
-    "B", # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "DTZ", # flake8-datetimez
-    "E", # pycodestyle errors
-    "EXE", # flake8-executable
-    "F", # pyflakes
-    "I", # isort
-    "INT", # flake8-gettext
-    "PIE", # flake8-pie
-    "PLC", # pylint convention
-    "PLE", # pylint errors
-    "PT", # flake8-pytest-style
-    "PTH", # flake8-use-pathlib
-    "Q", # flake8-quotes
-    "RSE", # flake8-raise
-    "RUF", # ruff-specific rules
-    "S", # flake8-bandit
-    "UP", # pyupgrade
-    "W", # pycodestyle warnings
-]
-
-[tool.ruff.lint.per-file-ignores]
-
-[tool.ruff.lint.flake8-pytest-style]
-fixture-parentheses = false
-mark-parentheses = false
-
-[tool.ruff.lint.isort]
-forced-separate = ["conftest"]
-force-single-line = true
+include = ["historymatching*"]
 
 [tool.pytest.ini_options]
 norecursedirs = ["migrations"]
@@ -142,13 +92,8 @@ testpaths = ["tests"]
 filterwarnings = [
     "error",
     "ignore::DeprecationWarning",
+    "ignore::SyntaxWarning",  # gpflow docstrings use unescaped '\' -> SyntaxWarning on py3.12+
     "ignore::UserWarning:gpflow",
-    "ignore::UserWarning:history_matching",
+    "ignore::UserWarning:historymatching",
     "ignore:pkg_resources is deprecated as an API:UserWarning",
 ]
-
-[tool.black]
-line-length = 200
-target-version = ["py39"]
-skip-string-normalization = true
-ignore = ".venv"

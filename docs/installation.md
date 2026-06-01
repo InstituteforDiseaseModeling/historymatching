@@ -10,8 +10,8 @@
 Clone the repository and install:
 
 ```bash
-git clone https://github.com/InstituteforDiseaseModeling/history_matching
-cd history_matching
+git clone https://github.com/InstituteforDiseaseModeling/historymatching
+cd historymatching
 pip install -e .
 ```
 
@@ -69,7 +69,7 @@ uv sync --extra notebooks --extra test --extra mac
 ## Verify installation
 
 ```python
-import history_matching as hm
+import historymatching as hm
 
 engine = (hm.HistoryMatchingBuilder
     .from_data(

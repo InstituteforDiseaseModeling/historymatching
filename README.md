@@ -13,8 +13,8 @@ Python 3.9-3.12, with TensorFlow 2.18+.
 Install from the repository:
 
 ```bash
-git clone https://github.com/InstituteforDiseaseModeling/history_matching
-cd history_matching
+git clone https://github.com/InstituteforDiseaseModeling/historymatching
+cd historymatching
 pip install -e .
 ```
 
@@ -33,7 +33,7 @@ pip install -e ".[mac]"
 ## Quick start
 
 ```python
-import history_matching as hm
+import historymatching as hm
 
 # Configure the engine
 builder = hm.HistoryMatchingBuilder.from_data(

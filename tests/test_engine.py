@@ -10,18 +10,18 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pytest
-from history_matching.engine import EngineState
-from history_matching.engine import HistoryMatchingEngine
-from history_matching.engine import WorkflowProgress
-from history_matching.iteration_result import IterationResult
-from history_matching.observation_data import ObservationData
-from history_matching.parameter_space import ParameterSpace
-from history_matching.emulators.base import BaseEmulator
-from history_matching.emulators.factory import EmulatorFactory
-from history_matching.feature_selection import AutoFeatureSelection
-from history_matching.feature_selection import ManualFeatureSelection
-from history_matching.sampling import LatinHypercubeSampling
-from history_matching.sampling import RandomSampling
+from historymatching.engine import EngineState
+from historymatching.engine import HistoryMatchingEngine
+from historymatching.engine import WorkflowProgress
+from historymatching.iteration_result import IterationResult
+from historymatching.observation_data import ObservationData
+from historymatching.parameter_space import ParameterSpace
+from historymatching.emulators.base import BaseEmulator
+from historymatching.emulators.factory import EmulatorFactory
+from historymatching.feature_selection import AutoFeatureSelection
+from historymatching.feature_selection import ManualFeatureSelection
+from historymatching.sampling import LatinHypercubeSampling
+from historymatching.sampling import RandomSampling
 
 
 class MockEmulator(BaseEmulator):

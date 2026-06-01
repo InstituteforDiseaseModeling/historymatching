@@ -320,7 +320,7 @@ class HistoryMatchingEngine:
             logger.setLevel(logging.DEBUG)
             # Attach file handler to sub-loggers
             for sub in ('emulators', 'feature_selection', 'nroy_sampling'):
-                sub_logger = logging.getLogger(f'history_matching.{sub}')
+                sub_logger = logging.getLogger(f'historymatching.{sub}')
                 sub_logger.addHandler(fh)
                 sub_logger.setLevel(logging.DEBUG)
 

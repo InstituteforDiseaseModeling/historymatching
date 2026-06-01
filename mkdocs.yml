@@ -1,8 +1,8 @@
 site_name: History Matching
 site_description: Bayesian History Matching for model calibration and uncertainty quantification
-site_url: https://institutefordiseasemodeling.github.io/history_matching
-repo_name: InstituteforDiseaseModeling/history_matching
-repo_url: https://github.com/InstituteforDiseaseModeling/history_matching
+site_url: https://institutefordiseasemodeling.github.io/historymatching
+repo_name: InstituteforDiseaseModeling/historymatching
+repo_url: https://github.com/InstituteforDiseaseModeling/historymatching
 
 copyright: Copyright &copy; 2025 Gates Foundation. All rights reserved.
 
@@ -104,7 +104,7 @@ extra:
       href: "https://www.gatesfoundation.org/Terms-of-Use"
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/InstituteforDiseaseModeling/history_matching
+      link: https://github.com/InstituteforDiseaseModeling/historymatching
     - icon: fontawesome/regular/envelope
       link: mailto:idm@gatesfoundation.org
     - icon: octicons/globe-24
