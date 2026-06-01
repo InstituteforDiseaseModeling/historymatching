@@ -8,17 +8,17 @@ import numpy as np
 import importlib
 from unittest.mock import patch
 
-from history_matching.emulators.factory import (
+from historymatching.emulators.factory import (
     EmulatorFactory,
     create_linear_emulator,
     create_gpr_emulator,
     create_glm_emulator
 )
-from history_matching.emulators.base import BaseEmulator
-from history_matching.emulators.linear import LinearModel
-from history_matching.emulators.glm import GLM
-from history_matching.emulators.gpr import GPR
-from history_matching.emulators.results import EmulationResults
+from historymatching.emulators.base import BaseEmulator
+from historymatching.emulators.linear import LinearModel
+from historymatching.emulators.glm import GLM
+from historymatching.emulators.gpr import GPR
+from historymatching.emulators.results import EmulationResults
 
 
 class MockEmulator(BaseEmulator):
@@ -286,7 +286,7 @@ class TestEmulatorFactory:
         
         assert info['name'] == 'linear'
         assert info['class'] == 'LinearModel'
-        assert info['module'] == 'history_matching.emulators.linear'
+        assert info['module'] == 'historymatching.emulators.linear'
         assert isinstance(info['description'], str)
     
     def test_get_emulator_info_unknown(self):
@@ -333,17 +333,17 @@ class TestConvenienceFunctions:
     def setup_method(self):
         """Setup for each test method - ensure clean registry state."""
         # Import original registry to restore after tests
-        from history_matching.emulators.factory import EmulatorFactory
-        from history_matching.emulators.linear import LinearModel
-        from history_matching.emulators.glm import GLM
-        from history_matching.emulators.gpr import GPR
+        from historymatching.emulators.factory import EmulatorFactory
+        from historymatching.emulators.linear import LinearModel
+        from historymatching.emulators.glm import GLM
+        from historymatching.emulators.gpr import GPR
         
         # Store original registry
         self._original_registry = EmulatorFactory._emulator_registry.copy()
     
     def teardown_method(self):
         """Cleanup after each test method - restore clean registry state."""
-        from history_matching.emulators.factory import EmulatorFactory
+        from historymatching.emulators.factory import EmulatorFactory
         
         # Restore original registry
         EmulatorFactory._emulator_registry = self._original_registry
@@ -359,7 +359,7 @@ class TestConvenienceFunctions:
         """Test create_linear_emulator convenience function."""
         X, y = sample_data
         
-        with patch('history_matching.emulators.factory.EmulatorFactory.create_emulator') as mock_create:
+        with patch('historymatching.emulators.factory.EmulatorFactory.create_emulator') as mock_create:
             mock_emulator = MockEmulator(X, y)
             mock_create.return_value = mock_emulator
             
@@ -372,7 +372,7 @@ class TestConvenienceFunctions:
         """Test create_gpr_emulator convenience function."""
         X, y = sample_data
         
-        with patch('history_matching.emulators.factory.EmulatorFactory.create_emulator') as mock_create:
+        with patch('historymatching.emulators.factory.EmulatorFactory.create_emulator') as mock_create:
             mock_emulator = MockEmulator(X, y)
             mock_create.return_value = mock_emulator
             
@@ -385,7 +385,7 @@ class TestConvenienceFunctions:
         """Test create_glm_emulator convenience function."""
         X, y = sample_data
         
-        with patch('history_matching.emulators.factory.EmulatorFactory.create_emulator') as mock_create:
+        with patch('historymatching.emulators.factory.EmulatorFactory.create_emulator') as mock_create:
             mock_emulator = MockEmulator(X, y)
             mock_create.return_value = mock_emulator
             
@@ -401,17 +401,17 @@ class TestEmulatorFactoryIntegration:
     def setup_method(self):
         """Setup for each test method - ensure clean registry state."""
         # Import original registry to restore after tests
-        from history_matching.emulators.factory import EmulatorFactory
-        from history_matching.emulators.linear import LinearModel
-        from history_matching.emulators.glm import GLM
-        from history_matching.emulators.gpr import GPR
+        from historymatching.emulators.factory import EmulatorFactory
+        from historymatching.emulators.linear import LinearModel
+        from historymatching.emulators.glm import GLM
+        from historymatching.emulators.gpr import GPR
         
         # Store original registry
         self._original_registry = EmulatorFactory._emulator_registry.copy()
     
     def teardown_method(self):
         """Cleanup after each test method - restore clean registry state."""
-        from history_matching.emulators.factory import EmulatorFactory
+        from historymatching.emulators.factory import EmulatorFactory
         
         # Restore original registry
         EmulatorFactory._emulator_registry = self._original_registry
@@ -604,7 +604,7 @@ class TestEmulatorFactoryIntegration:
                       + np.random.normal(0, 0.1, n)
         })
 
-        from history_matching.emulators.gpr import GPR
+        from historymatching.emulators.gpr import GPR
 
         emulator = GPR(X, y, test_fraction=0.25)
         emulator.train()
@@ -658,7 +658,7 @@ class TestEmulatorFactoryIntegration:
                       + np.random.normal(0, 0.01, n)
         })
 
-        from history_matching.emulators.gpr import GPR
+        from historymatching.emulators.gpr import GPR
 
         emulator = GPR(X, y, test_fraction=0.25)
         emulator.train()
@@ -691,7 +691,7 @@ class TestEmulatorFactoryIntegration:
                       + np.random.normal(0, 0.1, n)
         })
 
-        from history_matching.emulators.gpr import GPR
+        from historymatching.emulators.gpr import GPR
 
         emulator = GPR(X, y, test_fraction=0.25)
         emulator.train()

@@ -1,67 +1,67 @@
 # API reference
 
-Documentation is generated from the `history_matching` package using [mkdocstrings](https://mkdocstrings.github.io/).
+Documentation is generated from the `historymatching` package using [mkdocstrings](https://mkdocstrings.github.io/).
 
 ## Builder
 
-::: history_matching.HistoryMatchingBuilder
+::: historymatching.HistoryMatchingBuilder
 
 ## Engine
 
-::: history_matching.HistoryMatchingEngine
+::: historymatching.HistoryMatchingEngine
 
 ## Domain objects
 
 ### Parameter space
 
-::: history_matching.ParameterSpace
+::: historymatching.ParameterSpace
 
 ### Observation data
 
-::: history_matching.ObservationData
+::: historymatching.ObservationData
 
 ### Emulator bank
 
-::: history_matching.EmulatorBank
+::: historymatching.EmulatorBank
 
 ### Iteration result
 
-::: history_matching.IterationResult
+::: historymatching.IterationResult
 
 ## Strategies
 
 ### Sampling
 
-::: history_matching.sampling.SamplingStrategy
+::: historymatching.sampling.SamplingStrategy
 
-::: history_matching.sampling.LatinHypercubeSampling
+::: historymatching.sampling.LatinHypercubeSampling
 
-::: history_matching.sampling.GridSampling
+::: historymatching.sampling.GridSampling
 
-::: history_matching.sampling.RandomSampling
+::: historymatching.sampling.RandomSampling
 
-::: history_matching.sampling.SamplingStrategyFactory
+::: historymatching.sampling.SamplingStrategyFactory
 
 ### Feature selection
 
-::: history_matching.feature_selection.FeatureSelectionStrategy
+::: historymatching.feature_selection.FeatureSelectionStrategy
 
-::: history_matching.feature_selection.AutoFeatureSelection
+::: historymatching.feature_selection.AutoFeatureSelection
 
-::: history_matching.feature_selection.ManualFeatureSelection
+::: historymatching.feature_selection.ManualFeatureSelection
 
 ### Emulator factory
 
-::: history_matching.emulators.factory.EmulatorFactory
+::: historymatching.emulators.factory.EmulatorFactory
 
 ## Emulators
 
-::: history_matching.emulators.base.BaseEmulator
+::: historymatching.emulators.base.BaseEmulator
 
-::: history_matching.emulators.linear.LinearModel
+::: historymatching.emulators.linear.LinearModel
 
-::: history_matching.emulators.glm.GLM
+::: historymatching.emulators.glm.GLM
 
-::: history_matching.emulators.gpr.GPR
+::: historymatching.emulators.gpr.GPR
 
-::: history_matching.emulators.results.EmulationResults
+::: historymatching.emulators.results.EmulationResults

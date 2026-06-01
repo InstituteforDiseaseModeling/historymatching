@@ -8,8 +8,8 @@ import pandas as pd
 import warnings
 from unittest.mock import patch, MagicMock
 
-from history_matching.observation_data import ObservationData
-from history_matching.feature_selection import (
+from historymatching.observation_data import ObservationData
+from historymatching.feature_selection import (
     FeatureSelectionStrategy,
     ManualFeatureSelection,
     AutoFeatureSelection,

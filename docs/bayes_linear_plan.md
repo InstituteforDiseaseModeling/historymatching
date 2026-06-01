@@ -1,8 +1,8 @@
-# Plan: Add Bayes Linear Emulator to history_matching
+# Plan: Add Bayes Linear Emulator to historymatching
 
 ## Context
 
-The history_matching package currently has GPR (GPflow), LinearModel (statsmodels OLS), and GLM emulators. The user wants a **Bayes Linear** emulator inspired by the R package `hmer`. This fills a gap between the simple LinearModel (no spatial correlation) and the full GPR (heavy TensorFlow dependency, slow). Bayes Linear uses a regression trend + correlated residual structure, fitted with pure numpy/scipy -- no TF needed.
+The historymatching package currently has GPR (GPflow), LinearModel (statsmodels OLS), and GLM emulators. The user wants a **Bayes Linear** emulator inspired by the R package `hmer`. This fills a gap between the simple LinearModel (no spatial correlation) and the full GPR (heavy TensorFlow dependency, slow). Bayes Linear uses a regression trend + correlated residual structure, fitted with pure numpy/scipy -- no TF needed.
 
 ## Mathematical formulation
 
@@ -35,7 +35,7 @@ This is essentially universal kriging with an OLS trend, but framed in the Bayes
 
 ## Files to create/modify
 
-### 1. Create: `history_matching/emulators/bayes_linear.py`
+### 1. Create: `historymatching/emulators/bayes_linear.py`
 
 New `BayesLinear(BaseEmulator)` class with:
 
@@ -59,11 +59,11 @@ New `BayesLinear(BaseEmulator)` class with:
   4. Return `EmulationResults(mean, std, additional_data)` with `ci_obs_*` and `ci_pred_*`
 - **`print_emulator_description(self)`** -- print beta, sigma^2, theta, nugget
 
-### 2. Modify: `history_matching/emulators/__init__.py`
+### 2. Modify: `historymatching/emulators/__init__.py`
 
 Add: `from .bayes_linear import BayesLinear  # noqa: F401 isort: skip`
 
-### 3. Modify: `history_matching/emulators/factory.py`
+### 3. Modify: `historymatching/emulators/factory.py`
 
 - Import `BayesLinear`
 - Add to registry: `'bayes_linear': BayesLinear`

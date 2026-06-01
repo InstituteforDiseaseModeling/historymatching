@@ -3,8 +3,8 @@
 ## Development setup
 
 ```bash
-git clone https://github.com/InstituteforDiseaseModeling/history_matching
-cd history_matching
+git clone https://github.com/InstituteforDiseaseModeling/historymatching
+cd historymatching
 pip install -e ".[dev]"
 ```
 
@@ -12,14 +12,6 @@ pip install -e ".[dev]"
 
 ```bash
 pytest tests/
-```
-
-## Code style
-
-This project uses [Ruff](https://docs.astral.sh/ruff/) for linting. Run checks with:
-
-```bash
-ruff check .
 ```
 
 ## Pull requests

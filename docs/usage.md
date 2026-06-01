@@ -9,7 +9,7 @@ This guide covers the core concepts and common patterns for using the history ma
 Define the parameters you want to calibrate with their bounds:
 
 ```python
-import history_matching as hm
+import historymatching as hm
 
 # From a dictionary
 space = hm.ParameterSpace({
