@@ -70,9 +70,14 @@ def make(parameter_bounds, observations, **kwargs):
 class TestConstruction:
     """Constructing HistoryMatching from plain data."""
 
-    def test_public_aliases(self):
-        assert hm.HistoryMatch is hm.HistoryMatching
-        assert hm.HistoryMatchingEngine is hm.HistoryMatching
+    def test_public_namespace_is_curated(self):
+        # One canonical class name; the old aliases are gone.
+        assert "HistoryMatching" in hm.__all__
+        assert not hasattr(hm, "HistoryMatch")
+        assert not hasattr(hm, "HistoryMatchingEngine")
+        # No leaked submodules or bare constants in the documented surface.
+        assert "engine" not in hm.__all__
+        assert "PARAMETER_SPACE_COLUMNS" not in hm.__all__
 
     def test_defaults(self, parameter_bounds, observations):
         match = make(parameter_bounds, observations)
@@ -87,13 +92,13 @@ class TestConstruction:
         match = make(parameter_bounds, observations)
         assert isinstance(match.parameter_space, ParameterSpace)
         assert isinstance(match.observations, ObservationData)
-        assert set(match.get_parameter_names()) == set(parameter_bounds)
-        assert set(match.get_feature_names()) == set(observations)
+        assert set(match.parameters) == set(parameter_bounds)
+        assert set(match.outputs) == set(observations)
 
     def test_from_dataframes(self, parameter_df, observations_df):
         match = make(parameter_df, observations_df)
-        assert set(match.get_parameter_names()) == set(parameter_df["parameter"])
-        assert set(match.get_feature_names()) == set(observations_df["feature"])
+        assert set(match.parameters) == set(parameter_df["parameter"])
+        assert set(match.outputs) == set(observations_df["feature"])
 
     def test_from_existing_objects(self, parameter_bounds, observations):
         ps = ParameterSpace(parameter_bounds)
@@ -113,9 +118,18 @@ class TestConstruction:
         assert "Grid" in match.sampling_strategy.get_strategy_name()
         assert match.emulator_factory.get_default_type() == "linear"
 
-    def test_unknown_kwargs_go_to_settings(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations, max_candidate_factor=2000)
-        assert match.settings["max_candidate_factor"] == 2000
+    def test_tuning_knobs_are_explicit(self, parameter_bounds, observations):
+        # Formerly-hidden **settings knobs are now real, discoverable kwargs.
+        match = make(parameter_bounds, observations,
+                     max_candidate_factor=2000, convergence_threshold=0.02, nroy_method="lhs")
+        assert match.max_candidate_factor == 2000
+        assert match.convergence_threshold == 0.02
+        assert match.nroy_method == "lhs"
+
+    def test_unknown_kwarg_raises(self, parameter_bounds, observations):
+        # A typo'd option is no longer silently swallowed.
+        with pytest.raises(TypeError):
+            make(parameter_bounds, observations, max_iteratons=5)
 
 
 class TestSamplingStrategy:
@@ -142,21 +156,21 @@ class TestSamplingStrategy:
 class TestFeatureSelection:
     def test_list(self, parameter_bounds, observations):
         match = make(parameter_bounds, observations, feature_selection=["output1", "output2"])
-        assert isinstance(match.feature_selection_strategy, ManualFeatureSelection)
+        assert isinstance(match.feature_selection, ManualFeatureSelection)
 
     def test_string(self, parameter_bounds, observations):
         match = make(parameter_bounds, observations, feature_selection="output1")
-        assert isinstance(match.feature_selection_strategy, ManualFeatureSelection)
+        assert isinstance(match.feature_selection, ManualFeatureSelection)
 
     def test_object(self, parameter_bounds, observations):
         strategy = AutoFeatureSelection(method="var", max_features=2)
         match = make(parameter_bounds, observations, feature_selection=strategy)
-        assert match.feature_selection_strategy is strategy
+        assert match.feature_selection is strategy
 
     def test_dict(self, parameter_bounds, observations):
         match = make(parameter_bounds, observations,
                      feature_selection={"method": "var", "max_features": 2, "threshold": 0.5})
-        strategy = match.feature_selection_strategy
+        strategy = match.feature_selection
         assert isinstance(strategy, AutoFeatureSelection)
         assert strategy.method == "var"
         assert strategy.max_features == 2
@@ -164,7 +178,7 @@ class TestFeatureSelection:
 
     def test_default_is_auto(self, parameter_bounds, observations):
         match = make(parameter_bounds, observations)
-        assert isinstance(match.feature_selection_strategy, AutoFeatureSelection)
+        assert isinstance(match.feature_selection, AutoFeatureSelection)
 
 
 class TestEmulatorConfig:
@@ -224,7 +238,7 @@ class TestWorkflowParameters:
         assert match.random_seed == 123
         assert match.auto_reduce_space is True
         assert match.oversample_factor == 3.0
-        assert isinstance(match.feature_selection_strategy, ManualFeatureSelection)
+        assert isinstance(match.feature_selection, ManualFeatureSelection)
 
 
 class TestValidation:
@@ -286,7 +300,7 @@ class TestSimulationFunction:
             return pd.DataFrame({"output1": np.ones(len(samples))})
         match = make(parameter_bounds, observations)
         assert match.function is None
-        match.set_simulation_function(sim)
+        match.function = sim
         assert match.function is sim
         # The `function` property setter is equivalent.
         match2 = make(parameter_bounds, observations)
@@ -378,6 +392,24 @@ class TestConveniences:
         assert fig is not None
         import matplotlib.pyplot as plt
         plt.close(fig)
+
+    def test_save_diagnostics(self, ran_match, tmp_path):
+        # match.save_diagnostics delegates to each IterationResult.save
+        ran_match.save_diagnostics(str(tmp_path))
+        wave_dirs = sorted(tmp_path.glob("wave*"))
+        assert wave_dirs, "no wave directories were written"
+        w = wave_dirs[0]
+        assert (w / "samples.csv").exists()
+        assert (w / "simulation_results.csv").exists()
+        assert (w / "metrics.json").exists()
+
+    def test_result_save(self, ran_match, tmp_path):
+        # IterationResult.save writes one wave's artifacts
+        result = ran_match.results[-1]
+        wave_dir = result.save(str(tmp_path), all_results=ran_match.results)
+        from pathlib import Path
+        assert Path(wave_dir).exists()
+        assert (Path(wave_dir) / "samples.csv").exists()
 
 
 class TestRepr:

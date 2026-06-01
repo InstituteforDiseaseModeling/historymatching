@@ -123,7 +123,7 @@ def main():
     print("\n Iteration Summary:")
     for i, result in enumerate(results, 1):
         print(f" Iteration {i}: {len(result.samples)} samples, "
-              f"features {result.selected_features}")
+              f"features {result.emulated_outputs}")
 
     # Step 6: Extract final plausible parameter ranges
     if results:
@@ -178,7 +178,7 @@ def interactive_example():
 
     print(f" Iteration 1 completed:")
     print(f" - Generated {len(result1.samples)} samples")
-    print(f" - Selected features: {result1.selected_features}")
+    print(f" - Selected features: {result1.emulated_outputs}")
     print(f" - Emulators trained: {len(result1.emulators)}")
 
     # Decision point: accept or modify?
@@ -190,15 +190,15 @@ def interactive_example():
 
     # Step 2: Modify strategy and run again
     print(f"\n Step 2: Let's try both features this time...")
-    engine.update_feature_selection(['peak_infections', 'total_deaths'])
-    engine.update_emulator_type('gpr') # Switch to GPR for better flexibility
+    engine.feature_selection = ['peak_infections', 'total_deaths']
+    engine.emulator_type = 'gpr'  # Switch to GPR for better flexibility
 
     result2 = engine.step()
 
     print(f" Iteration 2 completed:")
     print(f" - Generated {len(result2.samples)} samples")
     print(f" - Acceptance rate: {engine.acceptance_rate:.3f}")
-    print(f" - Selected features: {result2.selected_features}")
+    print(f" - Selected features: {result2.emulated_outputs}")
 
     print(" Committing iteration 2...")
     engine.commit_step()
@@ -251,7 +251,7 @@ def advanced_configuration_example():
 
     # Inspect the configured engine
     print(f"\n Configured engine: {engine}")
-    print(f" Parameters: {engine.get_parameter_names()}")
+    print(f" Parameters: {engine.parameters}")
 
     print(f"\n Advanced engine built:")
     print(f" Space reduction: {'enabled' if engine.auto_reduce_space else 'disabled'}")

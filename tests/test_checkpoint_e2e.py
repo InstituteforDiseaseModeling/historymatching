@@ -50,11 +50,12 @@ if __name__ == '__main__':
     print("=" * 60)
 
     engine = make_engine(output_dir)
-    run_dir = engine.run_dir
-    print(f"Run dir: {run_dir}")
+    assert engine.run_dir is None, "output is created lazily, not at construction"
 
     result1 = engine.step()
     engine.commit_step()
+    run_dir = engine.run_dir  # created on the first step()
+    print(f"Run dir: {run_dir}")
     print(f"Wave 1 committed. Iteration: {engine.current_iteration}")
 
     wave1_dir = run_dir / "wave1"
@@ -72,7 +73,7 @@ if __name__ == '__main__':
             assert (feat_dir / "metrics.json").exists(), f"metrics.json missing in {feat_dir}"
             with open(feat_dir / "metrics.json") as f:
                 metrics = json.load(f)
-            print(f"  {feat_dir.name}: R2={metrics.get('r2_score', 'N/A')}")
+            print(f"  {feat_dir.name}: R2={metrics.get('r2', 'N/A')}")
 
     print("PASS\n")
 
