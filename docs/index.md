@@ -8,7 +8,7 @@ The library provides a modern, object-oriented API built around the **Builder/En
 
 ## Requirements
 
-Python 3.9-3.12, with TensorFlow 2.18+.
+Python 3.11+, with TensorFlow 2.18+.
 
 ## Installation
 

@@ -34,6 +34,11 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Utilities",
 ]
@@ -61,18 +66,13 @@ test = [
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",  # for parallel testing
 ]
-dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "pytest-xdist>=3.0",
-]
 docs = [
     "mkdocs>=1.5",
     "mkdocs-material>=9.0",
     "mkdocstrings[python]>=0.24",
     "mkdocs-jupyter>=0.24",
     "mkdocs-include-markdown-plugin>=6.0",
-    "pymdown-extensions>=10.0",
+    "pymdown-extensions>=10.21.3",
 ]
 
 [project.urls]
