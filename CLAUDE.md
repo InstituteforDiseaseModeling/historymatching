@@ -23,14 +23,14 @@ uv run pytest tests/
 uv run python -c "import historymatching"
 ```
 
-Install with notebook and dev dependencies:
+Set up the dev environment (reproduces the locked versions CI uses):
 ```bash
-uv pip install -e ".[notebooks,dev]"
+uv sync --extra notebooks --extra test
 ```
 
 On Apple Silicon, optionally add Metal GPU support:
 ```bash
-uv pip install -e ".[mac]"
+uv sync --extra notebooks --extra test --extra mac
 ```
 
 ## Running tests

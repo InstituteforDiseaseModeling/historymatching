@@ -38,10 +38,10 @@ pip install -e ".[mac]"
 
 ### Development
 
-For running tests and linting:
+For running tests:
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[test]"
 ```
 
 ### Documentation

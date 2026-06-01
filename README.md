@@ -10,49 +10,39 @@ Python 3.9-3.12, with TensorFlow 2.18+.
 
 ## Installation
 
-Install from the repository:
+> **Note:** historymatching will be published to PyPI soon. Until the first release lands, install from GitHub as shown below; afterward, `pip install historymatching` will work directly.
+
+To use historymatching in your own project, install it from GitHub:
+
+```bash
+pip install "historymatching @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
+```
+
+Add optional extras as needed — `notebooks` for the tutorial notebooks, `mac` for Metal GPU acceleration on Apple Silicon. Combine them in a single bracket to install both at once:
+
+```bash
+pip install "historymatching[notebooks] @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
+pip install "historymatching[notebooks,mac] @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
+```
+
+If you use [uv](https://docs.astral.sh/uv/), `uv pip install` is a drop-in replacement for the `pip install` commands above: it mirrors pip's interface, resolving dependencies fresh from package metadata into the active environment without consulting a lockfile. uv's resolver is also noticeably faster and more reliable than plain pip on the TensorFlow/GPflow dependency tree (with its pinned `setuptools<81` and `tf-keras` requirements).
+
+### Developing historymatching
+
+To work on historymatching itself, clone the repository and set up the environment with [uv](https://docs.astral.sh/uv/) (recommended). Unlike `uv pip`, `uv sync` reads the committed `uv.lock`, creates a `.venv` automatically, and reproduces the *exact* dependency versions CI uses (pruning anything not in the lock) — so your environment matches CI:
 
 ```bash
 git clone https://github.com/InstituteforDiseaseModeling/historymatching
 cd historymatching
-pip install -e .
+uv sync --extra notebooks --extra test    # add --extra mac on Apple Silicon
 ```
 
-For notebook support and development:
+Run commands inside that environment with `uv run`, e.g. `uv run pytest tests/`.
+
+Prefer plain pip? Install in editable mode instead (this resolves dependencies fresh rather than from the lockfile):
 
 ```bash
-pip install -e ".[notebooks,dev]"
-```
-
-On Apple Silicon Macs, optionally install Metal GPU acceleration:
-
-```bash
-pip install -e ".[mac]"
-```
-
-### Installation via uv
-
-[uv](https://docs.astral.sh/uv/) is a fast Python package and project manager that can serve as a drop-in replacement for `pip`. To install with uv:
-
-```bash
-git clone https://github.com/InstituteforDiseaseModeling/historymatching
-cd historymatching
-uv pip install -e .
-```
-
-The optional dependency groups work the same way:
-
-```bash
-uv pip install -e ".[notebooks,dev]"
-uv pip install -e ".[mac]"  # Metal GPU acceleration on Apple Silicon
-```
-
-uv is especially helpful on macOS. The TensorFlow and GPflow dependency tree (including the pinned `setuptools<81` and `tf-keras` requirements) can be slow and error-prone to resolve with `pip`, and uv's resolver handles it quickly and reliably. uv can also manage the Python interpreter itself, which makes it easy to get a supported version (3.9-3.12) without touching the system Python that macOS ships with:
-
-```bash
-uv python install 3.12
-uv venv --python 3.12
-uv pip install -e ".[notebooks,dev,mac]"
+pip install -e ".[notebooks,test]"
 ```
 
 ## Quick start
