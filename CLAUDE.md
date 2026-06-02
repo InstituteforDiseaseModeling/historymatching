@@ -40,7 +40,7 @@ uv run pytest tests/           # all tests
 uv run pytest tests/ -x -q    # fail fast, quiet
 ```
 
-211 tests, runs in ~10 seconds. No network or external dependencies required.
+234 tests, runs in ~10 seconds. No network or external dependencies required.
 
 ## Code structure
 

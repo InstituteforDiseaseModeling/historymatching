@@ -51,6 +51,21 @@ from .emulators import (  # noqa: F401 isort: skip
 from .emulators.results import EmulationResults  # noqa: F401 isort: skip
 from .nroy_sampling import generate_nroy_design, NROYResult  # noqa: F401 isort: skip
 
+# Plotting helpers — also available as the ``historymatching.plotting`` module.
+from . import plotting  # noqa: F401 isort: skip
+from .plotting import (  # noqa: F401 isort: skip
+    plot_convergence,
+    plot_marginals,
+    plot_pairplot,
+    plot_ensemble_fan,
+    plot_zscores_vs_targets,
+    plot_constrained_dims,
+    plot_targets,
+    plot_parameter_bounds,
+    plot_emulator_quality,
+    plot_predicted_vs_actual,
+)
+
 __all__ = [
     "HistoryMatching",
     "EngineState",
@@ -77,4 +92,16 @@ __all__ = [
     "EmulationResults",
     "generate_nroy_design",
     "NROYResult",
+    # Plotting helpers
+    "plotting",
+    "plot_convergence",
+    "plot_marginals",
+    "plot_pairplot",
+    "plot_ensemble_fan",
+    "plot_zscores_vs_targets",
+    "plot_constrained_dims",
+    "plot_targets",
+    "plot_parameter_bounds",
+    "plot_emulator_quality",
+    "plot_predicted_vs_actual",
 ]

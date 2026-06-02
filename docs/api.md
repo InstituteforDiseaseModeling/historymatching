@@ -62,4 +62,20 @@ The single public entry point. Configure and run an entire workflow through one 
 
 ::: historymatching.emulators.gpr.GPR
 
+::: historymatching.emulators.bayes_linear.BayesLinear
+
 ::: historymatching.emulators.results.EmulationResults
+
+## NROY sampling
+
+::: historymatching.nroy_sampling.generate_nroy_design
+
+::: historymatching.nroy_sampling.NROYResult
+
+## Plotting
+
+The `historymatching.plotting` module provides composable plotting functions (each
+returns Matplotlib axes and accepts an `ax=`/`axes=` argument). The most commonly
+used are re-exported at the top level, e.g. `historymatching.plot_pairplot`.
+
+::: historymatching.plotting

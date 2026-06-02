@@ -78,6 +78,10 @@ docs/_build
 # MkDocs
 site/
 
+# History matching run output (default output_dir)
+hm_output/
+**/hm_output/
+
 # Mypy Cache
 .mypy_cache/
 
