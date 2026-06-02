@@ -8,7 +8,7 @@ The library provides a modern, object-oriented API built around the **Builder/En
 
 ## Requirements
 
-Python 3.9-3.12, with TensorFlow 2.18+.
+Python 3.11+, with TensorFlow 2.18+.
 
 ## Installation
 
@@ -23,9 +23,10 @@ See [Installation](installation.md) for full details including optional dependen
 ```python
 import historymatching as hm
 
-# Configure the builder by assigning to its attributes, then build the engine.
-builder = hm.HistoryMatchingBuilder.from_data(
-    parameter_bounds={
+# Configure the engine
+engine = hm.HistoryMatching(
+    function=my_model,                  # the simulation function
+    bounds={
         'beta': (0.1, 0.5),
         'gamma': (0.01, 0.1),
     },
@@ -33,21 +34,14 @@ builder = hm.HistoryMatchingBuilder.from_data(
         'peak_infected': (150.0, 20.0),  # (mean, std)
         'total_cases': (500.0, 50.0),
     },
+    sampling_strategy='lhs',
+    emulator_type='gpr',
+    n_samples=500,
+    max_iterations=5,
 )
-builder.sampling_strategy = 'lhs'
-builder.emulator_type = 'gpr'
-builder.n_samples = 500
-builder.max_iterations = 5
-engine = builder.build()
 
-# Provide a simulation function and run
-engine.set_simulation_function(my_model)
+# Run
 results = engine.run()
-
-# Summarise and visualise
-print(engine.summary())
-engine.plot_nroy()          # corner plot of the plausible parameter region
-engine.plot_convergence()   # NROY fraction per wave
 ```
 
 See the [Usage guide](usage.md) for a complete walkthrough, or jump into the [Tutorials](tutorials.md).

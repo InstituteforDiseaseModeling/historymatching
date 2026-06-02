@@ -2,7 +2,7 @@
 Basic History Matching Workflow Example
 
 This example demonstrates the simplest way to set up and run
-a history matching workflow using the new object-oriented API.
+a history matching workflow using the hm.HistoryMatching API.
 """
 
 import numpy as np
@@ -91,22 +91,21 @@ def main():
     print(f" Parameters: {list(parameter_bounds.keys())}")
     print(f" Observations: {list(observations.keys())}")
 
-    # Step 2: Build the engine using the builder pattern
+    # Step 2: Create the engine
     print("\nBuilding history matching engine...")
 
-    builder = hm.HistoryMatchingBuilder.from_data(parameter_bounds, observations)
-    builder.sampling_strategy = 'lhs'
-    builder.emulator_type = 'gpr'
-    builder.n_samples = 1000
-    builder.max_iterations = 5
-    builder.random_seed = 42
-    engine = builder.build()
+    engine = hm.HistoryMatching(
+        bounds=parameter_bounds,
+        observations=observations,
+        function=simple_epidemic_model,
+        sampling_strategy='lhs',
+        emulator_type='gpr',
+        n_samples=1000,
+        max_iterations=5,
+        random_seed=42,
+    )
 
     print(f" Engine created: {engine}")
-
-    # Step 3: Set simulation function
-    print("\n Configuring simulation model...")
-    engine.set_simulation_function(simple_epidemic_model)
 
     # Step 4: Run automated workflow
     print("\n Running automated history matching...")
@@ -117,14 +116,14 @@ def main():
     # Step 5: Analyze results
     print(f"\n Analysis complete! Ran {len(results)} iterations")
     print(f" Final acceptance rate: {engine.acceptance_rate:.3f}")
-    print(f" Total samples generated: {engine.progress.total_samples_generated}")
-    print(f" Total samples accepted: {engine.progress.total_samples_accepted}")
+    print(f" Total samples generated: {engine.samples_generated}")
+    print(f" Total samples accepted: {engine.samples_accepted}")
 
     # Print iteration summary
     print("\n Iteration Summary:")
     for i, result in enumerate(results, 1):
         print(f" Iteration {i}: {len(result.samples)} samples, "
-              f"features {result.selected_features}")
+              f"features {result.emulated_outputs}")
 
     # Step 6: Extract final plausible parameter ranges
     if results:
@@ -160,14 +159,15 @@ def interactive_example():
     }
 
     # Build engine with more explicit configuration
-    builder = hm.HistoryMatchingBuilder.from_data(parameter_bounds, observations)
-    builder.sampling_strategy = 'lhs'
-    builder.feature_selection = ['peak_infections']
-    builder.emulator_type = 'linear'
-    builder.n_samples = 500
-    engine = builder.build()
-
-    engine.set_simulation_function(simple_epidemic_model)
+    engine = hm.HistoryMatching(
+        bounds=parameter_bounds,
+        observations=observations,
+        function=simple_epidemic_model,
+        sampling_strategy='lhs',
+        feature_selection=['peak_infections'],
+        emulator_type='linear',
+        n_samples=500,
+    )
 
     print(" Interactive engine built")
     print(f" Initial parameter space: {len(engine.parameter_space.get_parameter_names())} parameters")
@@ -178,7 +178,7 @@ def interactive_example():
 
     print(f" Iteration 1 completed:")
     print(f" - Generated {len(result1.samples)} samples")
-    print(f" - Selected features: {result1.selected_features}")
+    print(f" - Selected features: {result1.emulated_outputs}")
     print(f" - Emulators trained: {len(result1.emulators)}")
 
     # Decision point: accept or modify?
@@ -190,22 +190,22 @@ def interactive_example():
 
     # Step 2: Modify strategy and run again
     print(f"\n Step 2: Let's try both features this time...")
-    engine.update_feature_selection(['peak_infections', 'total_deaths'])
-    engine.update_emulator_type('gpr') # Switch to GPR for better flexibility
+    engine.feature_selection = ['peak_infections', 'total_deaths']
+    engine.emulator_type = 'gpr'  # Switch to GPR for better flexibility
 
     result2 = engine.step()
 
     print(f" Iteration 2 completed:")
     print(f" - Generated {len(result2.samples)} samples")
     print(f" - Acceptance rate: {engine.acceptance_rate:.3f}")
-    print(f" - Selected features: {result2.selected_features}")
+    print(f" - Selected features: {result2.emulated_outputs}")
 
     print(" Committing iteration 2...")
     engine.commit_step()
 
     print(f"\n Interactive workflow completed!")
     print(f" Final state: {engine.current_iteration} iterations, "
-          f"{engine.progress.total_samples_accepted} total accepted samples")
+          f"{engine.samples_accepted} total accepted samples")
 
     return engine
 
@@ -234,34 +234,24 @@ def advanced_configuration_example():
     print(f" Parameters: {parameter_df['parameter'].tolist()}")
     print(f" Observations: {observations_df['feature'].tolist()}")
 
-    # Advanced builder configuration with preview
-    builder = hm.HistoryMatchingBuilder.from_dataframes(
-        parameter_df,
-        observations_df,
+    # Advanced configuration
+    engine = hm.HistoryMatching(
+        bounds=parameter_df,
+        observations=observations_df,
+        sampling_strategy={'type': 'lhs', 'criterion': 'maximin', 'iterations': 10},
+        feature_selection={'method': 'fano', 'max_features': 2, 'correlation_threshold': 0.7},
+        emulator_type='gpr',
+        n_samples=800,
+        max_iterations=8,
+        implausibility_threshold=2.8,
+        auto_reduce_space=True,
+        oversample_factor=4.0,
+        random_seed=123,
     )
-    builder.sampling_strategy = {'type': 'lhs', 'criterion': 'maximin', 'iterations': 10}
-    builder.feature_selection = {'method': 'fano', 'max_features': 2, 'correlation_threshold': 0.7}
-    builder.emulator_type = 'gpr'
-    builder.n_samples = 800
-    builder.max_iterations = 8
-    builder.implausibility_threshold = 2.8
-    builder.auto_reduce_space = True
-    builder.oversample_factor = 4.0
-    builder.random_seed = 123
 
-    # Preview configuration before building
-    print(f"\n Configuration preview:")
-    config = builder.preview_configuration()
-    for key, value in config.items():
-        if isinstance(value, dict):
-            print(f" {key}:")
-            for sub_key, sub_value in value.items():
-                print(f" {sub_key}: {sub_value}")
-        else:
-            print(f" {key}: {value}")
-
-    # Now build the engine
-    engine = builder.build()
+    # Inspect the configured engine
+    print(f"\n Configured engine: {engine}")
+    print(f" Parameters: {engine.parameters}")
 
     print(f"\n Advanced engine built:")
     print(f" Space reduction: {'enabled' if engine.auto_reduce_space else 'disabled'}")

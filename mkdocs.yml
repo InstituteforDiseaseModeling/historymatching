@@ -45,16 +45,11 @@ nav:
       - NROY sampling methods: tutorials/06_nroy_sampling_methods.ipynb
       - Visualization: tutorials/07_visualization.ipynb
   - Usage guide: usage.md
-  - Diagnostics & plotting: diagnostics.md
   - API reference: api.md
   - Contributing: contributing.md
   - What's new: whatsnew.md
 
 docs_dir: docs
-
-# Internal design notes kept in the repo but excluded from the published site.
-exclude_docs: |
-  bayes_linear_plan.md
 
 markdown_extensions:
   - toc:
@@ -84,7 +79,7 @@ extra_css:
 plugins:
   - mkdocs-jupyter:
       include: ["**/*.ipynb"]
-      execute: false
+      execute: true
       allow_errors: true
       include_source: true
       kernel_name: python3

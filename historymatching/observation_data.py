@@ -25,14 +25,25 @@ class ObservationData:
     def __init__(self, observations: Union[pd.DataFrame, dict]):
         """
         Initialize observation data.
-        
+
         Args:
             observations: DataFrame with columns ['feature', 'mean', 'std']
-                         or dict mapping feature names to (mean, std) tuples
+                         or dict mapping each observed output name to a
+                         ``(mean, std)`` tuple.  The second value is the
+                         standard deviation (sigma), *not* the variance.
         """
         if isinstance(observations, dict):
-            # Convert dict to DataFrame
-            data = [(name, values[0], values[1]) for name, values in observations.items()]
+            # Convert dict to DataFrame, with a clear error for the common
+            # mistake of passing a bare number instead of a (mean, std) pair.
+            data = []
+            for name, values in observations.items():
+                if not isinstance(values, (tuple, list)) or len(values) != 2:
+                    raise ValueError(
+                        f"observations['{name}'] must be a (mean, std) tuple, got {values!r}. "
+                        f"The second value is the standard deviation, not the variance. "
+                        f"Example: observations={{'{name}': (120.0, 5.0)}}"
+                    )
+                data.append((name, values[0], values[1]))
             observations = pd.DataFrame(data, columns=OBSERVATIONS_COLUMNS)
 
         self._observations = self._validate_and_normalize(observations)
@@ -228,34 +239,6 @@ class ObservationData:
         """
         return self._observations.reset_index(drop=True).copy()
 
-    def summary(self) -> str:
-        """Human-readable table of observation targets.
-
-        Returns:
-            A multi-line string listing each feature's ``mean ± std`` target.
-        """
-        lines = [f"ObservationData: {len(self)} features"]
-        for f in self.get_feature_names():
-            mean, std = self.get_target_for_feature(f)
-            lines.append(f"  {f:<20} {mean:.4g} ± {std:.4g}")
-        return "\n".join(lines)
-
-    def plot_targets(self, *, ax=None):
-        """Plot observation targets as means with ±1σ error bars.
-
-        Args:
-            ax: Existing Matplotlib axes to draw into.
-
-        Returns:
-            The Matplotlib ``Axes`` containing the plot.
-        """
-        from . import plotting
-        return plotting.plot_targets(self.get_all_targets(), ax=ax)
-
-    def _repr_html_(self) -> str:
-        """Rich table representation for Jupyter notebooks."""
-        return self.to_dataframe().to_html(index=False)
-
     def __len__(self) -> int:
         """Return number of observed features."""
         return len(self._observations)
@@ -268,6 +251,12 @@ class ObservationData:
         return self._observations.equals(other._observations)
 
     def __repr__(self) -> str:
-        """String representation."""
-        features = self.get_feature_names()
-        return f"ObservationData({len(features)} features: {features})"
+        """String representation showing each observed (mean, std)."""
+        names = self.get_feature_names()
+        shown = names[:6]
+        items = ", ".join(
+            f"{n}=(mean={self.get_target_for_feature(n)[0]:g}, std={self.get_target_for_feature(n)[1]:g})"
+            for n in shown
+        )
+        more = f", +{len(names) - len(shown)} more" if len(names) > len(shown) else ""
+        return f"ObservationData({len(names)} observations: {items}{more})"

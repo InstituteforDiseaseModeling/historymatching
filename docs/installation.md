@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Python 3.9-3.12
+- Python 3.11+
 - TensorFlow 2.18+ (installed automatically)
 
 ## Standard installation
@@ -38,10 +38,10 @@ pip install -e ".[mac]"
 
 ### Development
 
-For running tests and linting:
+For running tests:
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[test]"
 ```
 
 ### Documentation
@@ -71,12 +71,9 @@ uv sync --extra notebooks --extra test --extra mac
 ```python
 import historymatching as hm
 
-engine = (hm.HistoryMatchingBuilder
-    .from_data(
-        parameter_bounds={'x': (0, 1)},
-        observations={'y': (0.5, 0.1)},
-    )
-    .build()
+engine = hm.HistoryMatching(
+    bounds={'x': (0, 1)},
+    observations={'y': (0.5, 0.1)},
 )
 print(engine)  # Should print engine status
 ```

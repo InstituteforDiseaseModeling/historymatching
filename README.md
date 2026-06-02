@@ -6,53 +6,43 @@ History matching iteratively constrains a model's parameter space by comparing s
 
 ## Requirements
 
-Python 3.9-3.12, with TensorFlow 2.18+.
+Python 3.11+, with TensorFlow 2.18+.
 
 ## Installation
 
-Install from the repository:
+> **Note:** historymatching will be published to PyPI soon. Until the first release lands, install from GitHub as shown below; afterward, `pip install historymatching` will work directly.
+
+To use historymatching in your own project, install it from GitHub:
+
+```bash
+pip install "historymatching @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
+```
+
+Add optional extras as needed — `notebooks` for the tutorial notebooks, `mac` for Metal GPU acceleration on Apple Silicon. Combine them in a single bracket to install both at once:
+
+```bash
+pip install "historymatching[notebooks] @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
+pip install "historymatching[notebooks,mac] @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
+```
+
+If you use [uv](https://docs.astral.sh/uv/), `uv pip install` is a drop-in replacement for the `pip install` commands above: it mirrors pip's interface, resolving dependencies fresh from package metadata into the active environment without consulting a lockfile. uv's resolver is also noticeably faster and more reliable than plain pip on the TensorFlow/GPflow dependency tree (with its pinned `setuptools<81` and `tf-keras` requirements).
+
+### Developing historymatching
+
+To work on historymatching itself, clone the repository and set up the environment with [uv](https://docs.astral.sh/uv/) (recommended). Unlike `uv pip`, `uv sync` reads the committed `uv.lock`, creates a `.venv` automatically, and reproduces the *exact* dependency versions CI uses (pruning anything not in the lock) — so your environment matches CI:
 
 ```bash
 git clone https://github.com/InstituteforDiseaseModeling/historymatching
 cd historymatching
-pip install -e .
+uv sync --extra notebooks --extra test    # add --extra mac on Apple Silicon
 ```
 
-For notebook support and development:
+Run commands inside that environment with `uv run`, e.g. `uv run pytest tests/`.
+
+Prefer plain pip? Install in editable mode instead (this resolves dependencies fresh rather than from the lockfile):
 
 ```bash
-pip install -e ".[notebooks,dev]"
-```
-
-On Apple Silicon Macs, optionally install Metal GPU acceleration:
-
-```bash
-pip install -e ".[mac]"
-```
-
-### Installation via uv
-
-[uv](https://docs.astral.sh/uv/) is a fast Python package and project manager that can serve as a drop-in replacement for `pip`. To install with uv:
-
-```bash
-git clone https://github.com/InstituteforDiseaseModeling/historymatching
-cd historymatching
-uv pip install -e .
-```
-
-The optional dependency groups work the same way:
-
-```bash
-uv pip install -e ".[notebooks,dev]"
-uv pip install -e ".[mac]"  # Metal GPU acceleration on Apple Silicon
-```
-
-uv is especially helpful on macOS. The TensorFlow and GPflow dependency tree (including the pinned `setuptools<81` and `tf-keras` requirements) can be slow and error-prone to resolve with `pip`, and uv's resolver handles it quickly and reliably. uv can also manage the Python interpreter itself, which makes it easy to get a supported version (3.9-3.12) without touching the system Python that macOS ships with:
-
-```bash
-uv python install 3.12
-uv venv --python 3.12
-uv pip install -e ".[notebooks,dev,mac]"
+pip install -e ".[notebooks,test]"
 ```
 
 ## Quick start
@@ -60,10 +50,10 @@ uv pip install -e ".[notebooks,dev,mac]"
 ```python
 import historymatching as hm
 
-# Configure the engine. The builder is configured by assigning to its
-# attributes; every setting is optional and has a sensible default.
-builder = hm.HistoryMatchingBuilder.from_data(
-    parameter_bounds={
+# Configure the engine
+engine = hm.HistoryMatching(
+    function=my_model,                  # the simulation function
+    bounds={
         'beta': (0.1, 0.5),
         'gamma': (0.01, 0.1),
     },
@@ -71,26 +61,19 @@ builder = hm.HistoryMatchingBuilder.from_data(
         'peak_infected': (150.0, 20.0),  # (mean, std)
         'total_cases': (500.0, 50.0),
     },
+    sampling_strategy='lhs',
+    emulator_type='gpr',                # or 'linear', 'glm'
+    n_samples=500,
+    max_iterations=5,
+    output_dir='./hm_output',
+    run_name='my_calibration',
 )
-builder.sampling_strategy = 'lhs'
-builder.emulator_type = 'gpr'          # or 'bayes_linear', 'linear', 'glm'
-builder.n_samples = 500
-builder.max_iterations = 5
-builder.output_dir = './hm_output'
-builder.run_name = 'my_calibration'
-engine = builder.build()
 
-# Provide a simulation function and run
-engine.set_simulation_function(my_model)
+# Run
 results = engine.run()
 
 # Emulators, diagnostics, and checkpoints are saved automatically to
 # hm_output/my_calibration/wave1/, wave2/, etc.
-
-# Inspect and visualise the result
-print(engine.summary())            # NROY ranges + per-wave convergence
-engine.plot_convergence()          # NROY fraction per wave
-engine.plot_nroy()                 # corner plot of the plausible region
 
 # Get NROY samples (filtered through ALL emulators)
 nroy = engine.get_nroy_samples(10000)
@@ -99,27 +82,38 @@ nroy = engine.get_nroy_samples(10000)
 ### Resume from checkpoint
 
 ```python
-builder.run_name = 'my_calibration'
-engine = builder.build()
-engine.set_simulation_function(my_model)
+engine = hm.HistoryMatching(
+    function=my_model,
+    bounds=parameter_bounds,
+    observations=observations,
+    run_name='my_calibration',
+)
 results = engine.run(resume=True)  # continues from last committed wave
 ```
 
 ### NROY sampling methods
 
-The default `auto` method uses a multi-stage pipeline (LHS rejection, escalating to ray sampling + PCA-oriented importance sampling + maximin thinning) that efficiently explores small NROY regions:
+The default `ray_resample` method uses a 4-stage pipeline (LHS → ray sampling → importance sampling → maximin thinning) that efficiently explores small NROY regions:
 
 ```python
-builder.nroy_method = 'auto'   # default; or 'ray', or 'lhs' for pure rejection
-builder.nroy_options = {'n_lines': 30, 'points_per_line': 100}  # optional tuning
-engine = builder.build()
+engine = hm.HistoryMatching(
+    function=my_model,
+    bounds=parameter_bounds,
+    observations=observations,
+    nroy_method='ray_resample',           # default; or 'lhs' for pure rejection
+    nroy_options=dict(n_lines=30, points_per_line=100),  # optional tuning
+)
 ```
 
 For simple problems, pure LHS rejection is fine:
 
 ```python
-builder.nroy_method = 'lhs'
-engine = builder.build()
+engine = hm.HistoryMatching(
+    function=my_model,
+    bounds=parameter_bounds,
+    observations=observations,
+    nroy_method='lhs',
+)
 ```
 
 ## Documentation

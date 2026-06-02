@@ -3,9 +3,8 @@ NROY sampling pipeline inspired by the hmer R package.
 
 Provides two methods for generating non-implausible parameter samples:
 - 'lhs': Pure LHS rejection sampling (simple, can be slow at low acceptance)
-- 'ray': multi-stage pipeline (LHS seed → ray sampling → importance sampling
+- 'ray_resample': 4-stage pipeline (LHS → ray sampling → importance sampling
   → maximin thinning) that efficiently explores small NROY regions
-- 'auto': LHS rejection, escalating to the ray pipeline when acceptance is low
 
 Reference: Iskauskas (2024), "Emulation and History Matching using the hmer
 Package", Journal of Statistical Software.
@@ -40,11 +39,6 @@ class NROYResult:
 
     def __len__(self):
         return len(self.samples)
-
-    def __repr__(self):
-        rate = (self.lhs_accepted / self.lhs_tested) if self.lhs_tested else float("nan")
-        return (f"NROYResult({len(self.samples)} samples; "
-                f"LHS acceptance {self.lhs_accepted}/{self.lhs_tested} = {rate:.2%})")
 
 
 def generate_nroy_design(
@@ -90,10 +84,10 @@ def generate_nroy_design(
     sampling_strategy : SamplingStrategy, optional
         Strategy for generating initial LHS candidates. Defaults to LHS maximin.
     method : str
-        ``'auto'`` (default): LHS rejection, escalating to ray + importance
-        sampling if acceptance is low.  ``'ray'``: skip straight to the
-        ray + importance pipeline.  ``'lhs'``: pure rejection sampling
-        (unbiased, but slow at low acceptance).
+        ``'auto'`` (default) runs LHS rejection and escalates to the
+        ray + importance-sampling pipeline only if LHS underfills;
+        ``'lhs'`` does pure rejection sampling; ``'ray'`` seeds with a
+        small LHS draw then goes straight to ray + importance sampling.
     seed : int, optional
         Random seed for reproducibility.
 

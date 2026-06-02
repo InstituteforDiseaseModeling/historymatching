@@ -79,7 +79,7 @@ def _resolve_params(samples: pd.DataFrame, params: Optional[Sequence[str]]) -> L
         resolved = list(params)
     else:
         resolved = [c for c in samples.columns
-                    if np.issubdtype(samples[c].dtype, np.number)]
+                    if pd.api.types.is_numeric_dtype(samples[c])]
     if not resolved:
         raise ValueError("No parameters to plot — `samples` has no numeric "
                          "columns (pass `params=` to choose columns explicitly).")

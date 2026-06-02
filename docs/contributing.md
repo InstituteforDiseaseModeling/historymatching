@@ -5,7 +5,13 @@
 ```bash
 git clone https://github.com/InstituteforDiseaseModeling/historymatching
 cd historymatching
-pip install -e ".[dev]"
+uv sync --extra notebooks --extra test
+```
+
+Or with plain pip in editable mode:
+
+```bash
+pip install -e ".[test]"
 ```
 
 ## Running tests

@@ -2,13 +2,11 @@
 
 Documentation is generated from the `historymatching` package using [mkdocstrings](https://mkdocstrings.github.io/).
 
-## Builder
+## History matching
 
-::: historymatching.HistoryMatchingBuilder
+The single public entry point. Configure and run an entire workflow through one `HistoryMatching(...)` constructor call.
 
-## Engine
-
-::: historymatching.HistoryMatchingEngine
+::: historymatching.HistoryMatching
 
 ## Domain objects
 
@@ -78,7 +76,6 @@ Documentation is generated from the `historymatching` package using [mkdocstring
 
 The `historymatching.plotting` module provides composable plotting functions (each
 returns Matplotlib axes and accepts an `ax=`/`axes=` argument). The most commonly
-used are re-exported at the top level, e.g. `historymatching.plot_pairplot`. See
-the [Diagnostics & plotting](diagnostics.md) guide for usage.
+used are re-exported at the top level, e.g. `historymatching.plot_pairplot`.
 
 ::: historymatching.plotting

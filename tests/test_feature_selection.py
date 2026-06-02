@@ -7,15 +7,8 @@ import numpy as np
 import pandas as pd
 import warnings
 from unittest.mock import patch, MagicMock
+import historymatching as hm
 
-from historymatching.observation_data import ObservationData
-from historymatching.feature_selection import (
-    FeatureSelectionStrategy,
-    ManualFeatureSelection,
-    AutoFeatureSelection,
-    InteractiveFeatureSelection,
-    MultiFeatureSelection
-)
 
 
 class TestFeatureSelectionStrategy:
@@ -24,12 +17,12 @@ class TestFeatureSelectionStrategy:
     def test_cannot_instantiate_abstract_class(self):
         """Test that FeatureSelectionStrategy cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            FeatureSelectionStrategy()
+            hm.FeatureSelectionStrategy()
     
     def test_subclass_must_implement_abstract_methods(self):
         """Test that subclasses must implement abstract methods."""
         
-        class IncompleteSelector(FeatureSelectionStrategy):
+        class IncompleteSelector(hm.FeatureSelectionStrategy):
             def select_features(self, simulation_results, observations, iteration=1):
                 return ['feature1']
         
@@ -46,7 +39,7 @@ class TestFeatureSelectionStrategy:
             'feature4': [0.1, 0.2, 0.3, 0.4]
         })
         
-        observations = ObservationData({
+        observations = hm.ObservationData({
             'feature1': (2.5, 0.5),  # (mean, std)
             'feature2': (2.0, 0.3),
             'feature3': (25.0, 5.0)
@@ -57,7 +50,7 @@ class TestFeatureSelectionStrategy:
     def test_validate_features_all_valid(self, sample_data):
         """Test validation when all features are valid."""
         
-        class TestSelector(FeatureSelectionStrategy):
+        class TestSelector(hm.FeatureSelectionStrategy):
             def select_features(self, simulation_results, observations, iteration=1):
                 return ['feature1', 'feature2']
             
@@ -76,7 +69,7 @@ class TestFeatureSelectionStrategy:
     def test_validate_features_missing_from_simulation(self, sample_data):
         """Test validation when feature missing from simulation results."""
         
-        class TestSelector(FeatureSelectionStrategy):
+        class TestSelector(hm.FeatureSelectionStrategy):
             def select_features(self, simulation_results, observations, iteration=1):
                 return ['feature1']
             
@@ -99,7 +92,7 @@ class TestFeatureSelectionStrategy:
     def test_validate_features_missing_from_observations(self, sample_data):
         """Test validation when feature missing from observations."""
         
-        class TestSelector(FeatureSelectionStrategy):
+        class TestSelector(hm.FeatureSelectionStrategy):
             def select_features(self, simulation_results, observations, iteration=1):
                 return ['feature1']
             
@@ -122,7 +115,7 @@ class TestFeatureSelectionStrategy:
     def test_validate_features_no_valid_features(self, sample_data):
         """Test validation when no features are valid."""
         
-        class TestSelector(FeatureSelectionStrategy):
+        class TestSelector(hm.FeatureSelectionStrategy):
             def select_features(self, simulation_results, observations, iteration=1):
                 return []
             
@@ -150,7 +143,7 @@ class TestManualFeatureSelection:
             'hospitalizations': [50, 100, 150]
         })
         
-        observations = ObservationData({
+        observations = hm.ObservationData({
             'infections': (200, 50),  # (mean, std)
             'deaths': (20, 5),
             'hospitalizations': (100, 25)
@@ -160,24 +153,24 @@ class TestManualFeatureSelection:
     
     def test_initialization_single_feature(self):
         """Test initialization with single feature."""
-        selector = ManualFeatureSelection('infections')
+        selector = hm.ManualFeatureSelection('infections')
         assert selector.selected_features == ['infections']
     
     def test_initialization_multiple_features(self):
         """Test initialization with multiple features."""
-        selector = ManualFeatureSelection(['infections', 'deaths'])
+        selector = hm.ManualFeatureSelection(['infections', 'deaths'])
         assert selector.selected_features == ['infections', 'deaths']
     
     def test_initialization_empty_features(self):
         """Test initialization with empty features raises error."""
         with pytest.raises(ValueError, match="Must provide at least one feature"):
-            ManualFeatureSelection([])
+            hm.ManualFeatureSelection([])
     
     def test_select_features(self, sample_data):
         """Test feature selection."""
         simulation_results, observations = sample_data
         
-        selector = ManualFeatureSelection(['infections', 'deaths'])
+        selector = hm.ManualFeatureSelection(['infections', 'deaths'])
         selected = selector.select_features(simulation_results, observations, iteration=1)
         
         assert selected == ['infections', 'deaths']
@@ -186,7 +179,7 @@ class TestManualFeatureSelection:
         """Test feature selection with some invalid features."""
         simulation_results, observations = sample_data
         
-        selector = ManualFeatureSelection(['infections', 'invalid_feature'])
+        selector = hm.ManualFeatureSelection(['infections', 'invalid_feature'])
         
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -197,7 +190,7 @@ class TestManualFeatureSelection:
     
     def test_get_strategy_name(self):
         """Test strategy name generation."""
-        selector = ManualFeatureSelection(['infections', 'deaths'])
+        selector = hm.ManualFeatureSelection(['infections', 'deaths'])
         assert selector.get_strategy_name() == "Manual Selection (2 features)"
 
 
@@ -218,7 +211,7 @@ class TestAutoFeatureSelection:
         # Make correlated feature actually correlated
         simulation_results['correlated'] = simulation_results['high_var'] * 0.9 + np.random.normal(0, 1, 100)
         
-        observations = ObservationData({
+        observations = hm.ObservationData({
             'high_var': (0, 5),  # (mean, std)
             'low_var': (0, 1),
             'high_mean': (100, 10),
@@ -230,7 +223,7 @@ class TestAutoFeatureSelection:
     
     def test_initialization_default_params(self):
         """Test initialization with default parameters."""
-        selector = AutoFeatureSelection()
+        selector = hm.AutoFeatureSelection()
         assert selector.method == 'mean_sq_z'
         assert selector.threshold is None
         assert selector.cooldown_period == 1
@@ -239,7 +232,7 @@ class TestAutoFeatureSelection:
     
     def test_initialization_custom_params(self):
         """Test initialization with custom parameters."""
-        selector = AutoFeatureSelection(
+        selector = hm.AutoFeatureSelection(
             method='var',
             threshold=0.5,
             cooldown_period=3,
@@ -262,7 +255,7 @@ class TestAutoFeatureSelection:
         """
         simulation_results, observations = sample_data
 
-        selector = AutoFeatureSelection(method='fano', max_features=1)
+        selector = hm.AutoFeatureSelection(method='fano', max_features=1)
         selected = selector.select_features(simulation_results, observations, iteration=1)
 
         # Should select one feature
@@ -291,7 +284,7 @@ class TestAutoFeatureSelection:
         """Test feature selection using variance method (on z-scores)."""
         simulation_results, observations = sample_data
 
-        selector = AutoFeatureSelection(method='var', max_features=1)
+        selector = hm.AutoFeatureSelection(method='var', max_features=1)
         selected = selector.select_features(simulation_results, observations, iteration=1)
 
         assert len(selected) == 1
@@ -308,7 +301,7 @@ class TestAutoFeatureSelection:
         """Test feature selection using mean method (on z-scores)."""
         simulation_results, observations = sample_data
 
-        selector = AutoFeatureSelection(method='mean', max_features=1)
+        selector = hm.AutoFeatureSelection(method='mean', max_features=1)
         selected = selector.select_features(simulation_results, observations, iteration=1)
 
         assert len(selected) == 1
@@ -325,7 +318,7 @@ class TestAutoFeatureSelection:
         """Test fallback to variance when unknown method is used."""
         simulation_results, observations = sample_data
         
-        selector = AutoFeatureSelection(method='unknown_method', max_features=1)
+        selector = hm.AutoFeatureSelection(method='unknown_method', max_features=1)
         
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -347,7 +340,7 @@ class TestAutoFeatureSelection:
                 z_vars[feature] = ((simulation_results[feature] - obs_mean) / obs_std).var()
 
         high_threshold = pd.Series(z_vars).quantile(0.8)
-        selector = AutoFeatureSelection(method='var', threshold=high_threshold, max_features=2)
+        selector = hm.AutoFeatureSelection(method='var', threshold=high_threshold, max_features=2)
         selected = selector.select_features(simulation_results, observations, iteration=1)
 
         # Should only select features whose z-score variance is above threshold
@@ -359,7 +352,7 @@ class TestAutoFeatureSelection:
         simulation_results, observations = sample_data
         
         # Reset history to ensure clean test
-        selector = AutoFeatureSelection(method='var', max_features=3, correlation_threshold=0.5)
+        selector = hm.AutoFeatureSelection(method='var', max_features=3, correlation_threshold=0.5)
         selected = selector.select_features(simulation_results, observations, iteration=1)
         
         # Check that no two selected features are highly correlated
@@ -372,7 +365,7 @@ class TestAutoFeatureSelection:
         """Test that history tracking prevents immediate re-selection."""
         simulation_results, observations = sample_data
         
-        selector = AutoFeatureSelection(method='var', max_features=1)
+        selector = hm.AutoFeatureSelection(method='var', max_features=1)
         
         # First selection
         selected1 = selector.select_features(simulation_results, observations, iteration=1)
@@ -386,16 +379,17 @@ class TestAutoFeatureSelection:
     def test_select_features_no_common_features(self):
         """Test behavior when no common features exist."""
         simulation_results = pd.DataFrame({'sim_only': [1, 2, 3]})
-        observations = ObservationData({'obs_only': (1, 0.1)})  # (mean, std)
+        observations = hm.ObservationData({'obs_only': (1, 0.1)})  # (mean, std)
         
-        selector = AutoFeatureSelection()
-        
-        with pytest.raises(ValueError, match="No common features"):
+        selector = hm.AutoFeatureSelection()
+
+        # The error names the mismatch so a beginner can fix it.
+        with pytest.raises(ValueError, match="None of the simulator's output columns match"):
             selector.select_features(simulation_results, observations, iteration=1)
     
     def test_reset_history(self):
         """Test resetting selection history."""
-        selector = AutoFeatureSelection()
+        selector = hm.AutoFeatureSelection()
         
         # Add some history to the instance
         selector.history.extend(['feature1', 'feature2'])
@@ -407,7 +401,7 @@ class TestAutoFeatureSelection:
     
     def test_get_strategy_name(self):
         """Test strategy name generation."""
-        selector = AutoFeatureSelection(method='var', max_features=2)
+        selector = hm.AutoFeatureSelection(method='var', max_features=2)
         assert selector.get_strategy_name() == "Auto Selection (method=var, max=2)"
 
 
@@ -423,7 +417,7 @@ class TestInteractiveFeatureSelection:
             'hospitalizations': [50, 100, 150]
         })
         
-        observations = ObservationData({
+        observations = hm.ObservationData({
             'infections': (200, 50),  # (mean, std)
             'deaths': (20, 5),
             'hospitalizations': (100, 25)
@@ -433,13 +427,13 @@ class TestInteractiveFeatureSelection:
     
     def test_initialization_default_fallback(self):
         """Test initialization with default fallback strategy."""
-        selector = InteractiveFeatureSelection()
-        assert isinstance(selector.fallback_strategy, AutoFeatureSelection)
+        selector = hm.InteractiveFeatureSelection()
+        assert isinstance(selector.fallback_strategy, hm.AutoFeatureSelection)
     
     def test_initialization_custom_fallback(self):
         """Test initialization with custom fallback strategy."""
-        fallback = ManualFeatureSelection(['infections'])
-        selector = InteractiveFeatureSelection(fallback_strategy=fallback)
+        fallback = hm.ManualFeatureSelection(['infections'])
+        selector = hm.InteractiveFeatureSelection(fallback_strategy=fallback)
         assert selector.fallback_strategy is fallback
     
     @patch('sys.stdin.isatty', return_value=False)
@@ -447,8 +441,8 @@ class TestInteractiveFeatureSelection:
         """Test feature selection in non-interactive environment."""
         simulation_results, observations = sample_data
         
-        fallback = ManualFeatureSelection(['infections'])
-        selector = InteractiveFeatureSelection(fallback_strategy=fallback)
+        fallback = hm.ManualFeatureSelection(['infections'])
+        selector = hm.InteractiveFeatureSelection(fallback_strategy=fallback)
         
         selected = selector.select_features(simulation_results, observations, iteration=1)
         
@@ -461,8 +455,8 @@ class TestInteractiveFeatureSelection:
         """Test interactive selection with 'auto' input."""
         simulation_results, observations = sample_data
         
-        fallback = ManualFeatureSelection(['infections'])
-        selector = InteractiveFeatureSelection(fallback_strategy=fallback)
+        fallback = hm.ManualFeatureSelection(['infections'])
+        selector = hm.InteractiveFeatureSelection(fallback_strategy=fallback)
         
         selected = selector.select_features(simulation_results, observations, iteration=1)
         
@@ -475,7 +469,7 @@ class TestInteractiveFeatureSelection:
         """Test interactive selection with manual input."""
         simulation_results, observations = sample_data
         
-        selector = InteractiveFeatureSelection()
+        selector = hm.InteractiveFeatureSelection()
         selected = selector.select_features(simulation_results, observations, iteration=1)
         
         assert set(selected) == {'infections', 'deaths'}
@@ -487,7 +481,7 @@ class TestInteractiveFeatureSelection:
         """Test interactive selection with retry on invalid input."""
         simulation_results, observations = sample_data
         
-        selector = InteractiveFeatureSelection()
+        selector = hm.InteractiveFeatureSelection()
         selected = selector.select_features(simulation_results, observations, iteration=1)
         
         assert selected == ['infections']
@@ -498,8 +492,8 @@ class TestInteractiveFeatureSelection:
         """Test fallback when interactive selection fails."""
         simulation_results, observations = sample_data
         
-        fallback = ManualFeatureSelection(['infections'])
-        selector = InteractiveFeatureSelection(fallback_strategy=fallback)
+        fallback = hm.ManualFeatureSelection(['infections'])
+        selector = hm.InteractiveFeatureSelection(fallback_strategy=fallback)
         
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -511,8 +505,8 @@ class TestInteractiveFeatureSelection:
     
     def test_get_strategy_name(self):
         """Test strategy name generation."""
-        fallback = ManualFeatureSelection(['infections'])
-        selector = InteractiveFeatureSelection(fallback_strategy=fallback)
+        fallback = hm.ManualFeatureSelection(['infections'])
+        selector = hm.InteractiveFeatureSelection(fallback_strategy=fallback)
         
         expected = "Interactive Selection (fallback: Manual Selection (1 features))"
         assert selector.get_strategy_name() == expected
@@ -532,7 +526,7 @@ class TestMultiFeatureSelection:
             'feature4': np.random.normal(0, 2, 50),
         })
         
-        observations = ObservationData({
+        observations = hm.ObservationData({
             'feature1': (0, 1.0),  # (mean, std)
             'feature2': (0, 1.0),
             'feature3': (0, 1.0),
@@ -543,14 +537,14 @@ class TestMultiFeatureSelection:
     
     def test_initialization_default_params(self):
         """Test initialization with default parameters."""
-        selector = MultiFeatureSelection()
+        selector = hm.MultiFeatureSelection()
         assert selector.auto_selector.max_features == 2
         assert selector.auto_selector.method == 'mean_sq_z'
         assert selector.auto_selector.correlation_threshold == 0.5
     
     def test_initialization_custom_params(self):
         """Test initialization with custom parameters."""
-        selector = MultiFeatureSelection(n_features=3, method='var', correlation_threshold=0.7)
+        selector = hm.MultiFeatureSelection(n_features=3, method='var', correlation_threshold=0.7)
         assert selector.auto_selector.max_features == 3
         assert selector.auto_selector.method == 'var'
         assert selector.auto_selector.correlation_threshold == 0.7
@@ -560,7 +554,7 @@ class TestMultiFeatureSelection:
         simulation_results, observations = sample_data
         
         # Reset history for clean test
-        selector = MultiFeatureSelection(n_features=2, method='var')
+        selector = hm.MultiFeatureSelection(n_features=2, method='var')
         selected = selector.select_features(simulation_results, observations, iteration=1)
         
         assert len(selected) <= 2  # May be fewer due to correlation filtering
@@ -573,7 +567,7 @@ class TestMultiFeatureSelection:
     
     def test_get_strategy_name(self):
         """Test strategy name generation."""
-        selector = MultiFeatureSelection(n_features=3, method='var')
+        selector = hm.MultiFeatureSelection(n_features=3, method='var')
         expected = "Multi Selection (method=var, max=3)"
         assert selector.get_strategy_name() == expected
 
@@ -596,7 +590,7 @@ class TestFeatureSelectionIntegration:
             'reproduction_number': np.random.gamma(2, 0.5, n_samples), # Continuous, positive
         })
         
-        observations = ObservationData({
+        observations = hm.ObservationData({
             'infections': (1000, 100),  # (mean, std)
             'deaths': (50, 10),
             'hospitalizations': (200, 50),
@@ -611,10 +605,10 @@ class TestFeatureSelectionIntegration:
         simulation_results, observations = realistic_data
         
         strategies = [
-            ManualFeatureSelection(['infections']),
-            AutoFeatureSelection(method='var', max_features=1),
-            MultiFeatureSelection(n_features=2, method='var'),
-            InteractiveFeatureSelection(ManualFeatureSelection(['deaths']))
+            hm.ManualFeatureSelection(['infections']),
+            hm.AutoFeatureSelection(method='var', max_features=1),
+            hm.MultiFeatureSelection(n_features=2, method='var'),
+            hm.InteractiveFeatureSelection(hm.ManualFeatureSelection(['deaths']))
         ]
         
         for strategy in strategies:
@@ -635,16 +629,16 @@ class TestFeatureSelectionIntegration:
         simulation_results, observations = realistic_data
         
         # Manual selection should be completely consistent
-        manual_selector = ManualFeatureSelection(['infections', 'deaths'])
+        manual_selector = hm.ManualFeatureSelection(['infections', 'deaths'])
         selected1 = manual_selector.select_features(simulation_results, observations, iteration=1)
         selected2 = manual_selector.select_features(simulation_results, observations, iteration=2)
         assert selected1 == selected2
         
         # Auto selection should be consistent with same starting conditions
-        auto_selector1 = AutoFeatureSelection(method='var', max_features=1)
+        auto_selector1 = hm.AutoFeatureSelection(method='var', max_features=1)
         selected1 = auto_selector1.select_features(simulation_results, observations, iteration=1)
         
-        auto_selector2 = AutoFeatureSelection(method='var', max_features=1)
+        auto_selector2 = hm.AutoFeatureSelection(method='var', max_features=1)
         selected2 = auto_selector2.select_features(simulation_results, observations, iteration=1)
         assert selected1 == selected2
     
@@ -652,9 +646,9 @@ class TestFeatureSelectionIntegration:
         """Test feature selection with edge cases."""
         # Single feature case
         single_feature_results = pd.DataFrame({'only_feature': [1, 2, 3, 4, 5]})
-        single_feature_obs = ObservationData({'only_feature': (3, 1.0)})  # (mean, std)
+        single_feature_obs = hm.ObservationData({'only_feature': (3, 1.0)})  # (mean, std)
         
-        selector = AutoFeatureSelection(max_features=2)
+        selector = hm.AutoFeatureSelection(max_features=2)
         selected = selector.select_features(single_feature_results, single_feature_obs, iteration=1)
         assert selected == ['only_feature']
         
@@ -664,13 +658,13 @@ class TestFeatureSelectionIntegration:
             'feat2': [1.0] * 10,
             'feat3': [1.0] * 10
         })
-        identical_obs = ObservationData({
+        identical_obs = hm.ObservationData({
             'feat1': (1, 0.1),  # (mean, std)
             'feat2': (1, 0.1),
             'feat3': (1, 0.1)
         })
         
-        selector = AutoFeatureSelection(method='var', max_features=2)
+        selector = hm.AutoFeatureSelection(method='var', max_features=2)
         selected = selector.select_features(identical_results, identical_obs, iteration=1)
         # When all features have identical variance (0), selector picks up to max_features
         # since they all tie in ranking

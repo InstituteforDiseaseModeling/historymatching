@@ -7,7 +7,7 @@ import pandas as pd
 from typing import List, Optional, Callable, Dict, Tuple
 
 from historymatching.utils import PARAMETER_SPACE_COLUMNS, OBSERVATIONS_COLUMNS
-from historymatching.emulators.base import BaseEmulator
+import historymatching as hm
 
 
 class TestDataFactory:
@@ -138,7 +138,7 @@ class TestDataFactory:
         return model_func(samples_df)
 
 
-class MockEmulator(BaseEmulator):
+class MockEmulator(hm.BaseEmulator):
     """Mock emulator for testing purposes."""
     
     def __init__(self, X: pd.DataFrame, y: pd.DataFrame, 
@@ -257,7 +257,7 @@ class TestAssertions:
                     f"Parameter {param_name} above maximum: {param_samples.max()} > {max_val}"
     
     @staticmethod
-    def assert_emulator_trained(emulator: BaseEmulator):
+    def assert_emulator_trained(emulator: hm.BaseEmulator):
         """
         Assert emulator has been properly trained.
         

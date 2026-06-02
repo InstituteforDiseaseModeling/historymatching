@@ -8,20 +8,15 @@ import numpy as np
 import importlib
 from unittest.mock import patch
 
+import historymatching as hm
 from historymatching.emulators.factory import (
-    EmulatorFactory,
     create_linear_emulator,
     create_gpr_emulator,
-    create_glm_emulator
+    create_glm_emulator,
 )
-from historymatching.emulators.base import BaseEmulator
-from historymatching.emulators.linear import LinearModel
-from historymatching.emulators.glm import GLM
-from historymatching.emulators.gpr import GPR
-from historymatching.emulators.results import EmulationResults
 
 
-class MockEmulator(BaseEmulator):
+class MockEmulator(hm.BaseEmulator):
     """Mock emulator for testing."""
     
     def __init__(self, X=None, y=None, **kwargs):
@@ -34,7 +29,7 @@ class MockEmulator(BaseEmulator):
         self.training_complete = True
     
     def predict(self, x):
-        return EmulationResults(
+        return hm.EmulationResults(
             mean=[1.0] * len(x),
             std=[0.316] * len(x)  # sqrt(0.1) ≈ 0.316
         )
@@ -73,39 +68,39 @@ class TestEmulatorFactory:
     
     def test_initialization_default_params(self):
         """Test initialization with default parameters."""
-        factory = EmulatorFactory()
+        factory = hm.EmulatorFactory()
         assert factory.default_type == 'gpr'
         assert factory.default_kwargs == {}
     
     def test_initialization_custom_params(self):
         """Test initialization with custom parameters."""
-        factory = EmulatorFactory(default_type='linear', regularization=0.1, max_iter=100)
+        factory = hm.EmulatorFactory(default_type='linear', regularization=0.1, max_iter=100)
         assert factory.default_type == 'linear'
         assert factory.default_kwargs == {'regularization': 0.1, 'max_iter': 100}
     
     def test_initialization_invalid_default_type(self):
         """Test initialization with invalid default type."""
         with pytest.raises(ValueError, match="Unknown default emulator type"):
-            EmulatorFactory(default_type='invalid_type')
+            hm.EmulatorFactory(default_type='invalid_type')
     
     def test_emulator_registry_contents(self):
         """Test that the emulator registry contains expected types."""
-        registry = EmulatorFactory._emulator_registry
+        registry = hm.EmulatorFactory._emulator_registry
         
         assert 'linear' in registry
         assert 'glm' in registry
         assert 'gpr' in registry
         assert 'gaussian' in registry  # alias for gpr
         
-        assert registry['linear'] == LinearModel
-        assert registry['glm'] == GLM
-        assert registry['gpr'] == GPR
-        assert registry['gaussian'] == GPR
+        assert registry['linear'] == hm.LinearModel
+        assert registry['glm'] == hm.GLM
+        assert registry['gpr'] == hm.GPR
+        assert registry['gaussian'] == hm.GPR
     
     def test_create_emulator_default_type(self, sample_data):
         """Test creating emulator with default type."""
         X, y = sample_data
-        factory = EmulatorFactory(default_type='linear')
+        factory = hm.EmulatorFactory(default_type='linear')
         
         with patch.object(factory, 'create_emulator') as mock_create:
             mock_emulator = MockEmulator()
@@ -119,7 +114,7 @@ class TestEmulatorFactory:
     def test_create_emulator_specific_type(self, sample_data):
         """Test creating emulator with specific type."""
         X, y = sample_data
-        factory = EmulatorFactory(default_type='linear')
+        factory = hm.EmulatorFactory(default_type='linear')
         
         with patch.object(factory, 'create_emulator') as mock_create:
             mock_emulator = MockEmulator()
@@ -133,7 +128,7 @@ class TestEmulatorFactory:
     def test_create_emulator_invalid_type(self, sample_data):
         """Test creating emulator with invalid type."""
         X, y = sample_data
-        factory = EmulatorFactory()
+        factory = hm.EmulatorFactory()
         
         with pytest.raises(ValueError, match="Unknown emulator type"):
             factory.create_emulator(X, y, emulator_type='invalid')
@@ -146,7 +141,7 @@ class TestEmulatorFactory:
             'output2': [4, 5, 6]
         })
         
-        factory = EmulatorFactory()
+        factory = hm.EmulatorFactory()
         
         with pytest.raises(TypeError, match="Output data must have exactly one column"):
             factory.create_emulator(X, y_multi)
@@ -156,7 +151,7 @@ class TestEmulatorFactory:
         X, y = sample_data
         
         # Create a factory with default parameters
-        factory = EmulatorFactory(default_type='linear', test_fraction=0.3)
+        factory = hm.EmulatorFactory(default_type='linear', test_fraction=0.3)
         
         # Check that defaults are set correctly
         assert factory.default_kwargs['test_fraction'] == 0.3
@@ -176,11 +171,11 @@ class TestEmulatorFactory:
         X, y = multi_output_data
         features = ['infections', 'deaths']
         
-        with patch.object(EmulatorFactory, 'create_emulator') as mock_create:
+        with patch.object(hm.EmulatorFactory, 'create_emulator') as mock_create:
             mock_emulator = MockEmulator()
             mock_create.return_value = mock_emulator
             
-            factory = EmulatorFactory()
+            factory = hm.EmulatorFactory()
             emulators = factory.create_emulators_for_features(X, y, features)
             
             assert len(emulators) == 2
@@ -197,7 +192,7 @@ class TestEmulatorFactory:
         X, y = multi_output_data
         features = ['infections', 'missing_feature']
         
-        factory = EmulatorFactory()
+        factory = hm.EmulatorFactory()
         
         with pytest.raises(ValueError, match="Features not found in simulation results"):
             factory.create_emulators_for_features(X, y, features)
@@ -206,11 +201,11 @@ class TestEmulatorFactory:
         """Test convenience method that creates and trains emulator."""
         X, y = sample_data
         
-        with patch.object(EmulatorFactory, 'create_emulator') as mock_create:
+        with patch.object(hm.EmulatorFactory, 'create_emulator') as mock_create:
             mock_emulator = MockEmulator()
             mock_create.return_value = mock_emulator
             
-            factory = EmulatorFactory()
+            factory = hm.EmulatorFactory()
             emulator = factory.create_and_train_emulator(X, y)
             
             mock_create.assert_called_once_with(X, y, None)
@@ -218,7 +213,7 @@ class TestEmulatorFactory:
     
     def test_with_defaults(self):
         """Test creating new factory with updated defaults."""
-        factory1 = EmulatorFactory(default_type='linear', param1=1, param2=2)
+        factory1 = hm.EmulatorFactory(default_type='linear', param1=1, param2=2)
         factory2 = factory1.with_defaults(param2=20, param3=3)
         
         assert factory2.default_type == 'linear'
@@ -229,7 +224,7 @@ class TestEmulatorFactory:
     
     def test_set_default_type(self):
         """Test creating new factory with different default type."""
-        factory1 = EmulatorFactory(default_type='linear', param1=1)
+        factory1 = hm.EmulatorFactory(default_type='linear', param1=1)
         factory2 = factory1.set_default_type('gpr')
         
         assert factory2.default_type == 'gpr'
@@ -241,29 +236,29 @@ class TestEmulatorFactory:
     def test_register_emulator(self):
         """Test registering a custom emulator type."""
         # Create a custom emulator class
-        class CustomEmulator(BaseEmulator):
+        class CustomEmulator(hm.BaseEmulator):
             def train(self):
                 pass
             
             def predict(self, x):
-                return EmulationResults(
+                return hm.EmulationResults(
                     mean=[0.5] * len(x),
                     std=[0.316] * len(x)  # sqrt(0.1) ≈ 0.316
                 )
 
         # Register it
-        EmulatorFactory.register_emulator('custom', CustomEmulator)
+        hm.EmulatorFactory.register_emulator('custom', CustomEmulator)
         
         # Test that it was registered
-        assert 'custom' in EmulatorFactory._emulator_registry
-        assert EmulatorFactory._emulator_registry['custom'] == CustomEmulator
+        assert 'custom' in hm.EmulatorFactory._emulator_registry
+        assert hm.EmulatorFactory._emulator_registry['custom'] == CustomEmulator
         
         # Test that we can create it
-        factory = EmulatorFactory(default_type='custom')
+        factory = hm.EmulatorFactory(default_type='custom')
         assert factory.default_type == 'custom'
         
         # Clean up
-        del EmulatorFactory._emulator_registry['custom']
+        del hm.EmulatorFactory._emulator_registry['custom']
     
     def test_register_invalid_emulator(self):
         """Test registering non-BaseEmulator class raises error."""
@@ -271,18 +266,18 @@ class TestEmulatorFactory:
             pass
         
         with pytest.raises(TypeError, match="must be a subclass of BaseEmulator"):
-            EmulatorFactory.register_emulator('invalid', NotAnEmulator)
+            hm.EmulatorFactory.register_emulator('invalid', NotAnEmulator)
     
     def test_available_emulators(self):
         """Test getting list of available emulator types."""
-        available = EmulatorFactory.available_emulators()
+        available = hm.EmulatorFactory.available_emulators()
         expected = ['linear', 'glm', 'gpr', 'gaussian', 'bayes_linear']
         
         assert set(available) == set(expected)
     
     def test_get_emulator_info(self):
         """Test getting emulator information."""
-        info = EmulatorFactory.get_emulator_info('linear')
+        info = hm.EmulatorFactory.get_emulator_info('linear')
         
         assert info['name'] == 'linear'
         assert info['class'] == 'LinearModel'
@@ -292,23 +287,23 @@ class TestEmulatorFactory:
     def test_get_emulator_info_unknown(self):
         """Test getting info for unknown emulator raises error."""
         with pytest.raises(ValueError, match="Unknown emulator type"):
-            EmulatorFactory.get_emulator_info('unknown')
+            hm.EmulatorFactory.get_emulator_info('unknown')
     
     def test_with_defaults_class(self):
         """Test class method for creating factory with defaults."""
-        factory = EmulatorFactory.with_defaults_class('glm', param1=1, param2=2)
+        factory = hm.EmulatorFactory.with_defaults_class('glm', param1=1, param2=2)
         
         assert factory.default_type == 'glm'
         assert factory.default_kwargs == {'param1': 1, 'param2': 2}
     
     def test_get_default_type(self):
         """Test getting default emulator type."""
-        factory = EmulatorFactory(default_type='linear')
+        factory = hm.EmulatorFactory(default_type='linear')
         assert factory.get_default_type() == 'linear'
     
     def test_get_default_kwargs(self):
         """Test getting default parameters."""
-        factory = EmulatorFactory(param1=1, param2=2)
+        factory = hm.EmulatorFactory(param1=1, param2=2)
         kwargs = factory.get_default_kwargs()
         
         assert kwargs == {'param1': 1, 'param2': 2}
@@ -319,7 +314,7 @@ class TestEmulatorFactory:
     
     def test_repr(self):
         """Test string representation."""
-        factory = EmulatorFactory(default_type='linear')
+        factory = hm.EmulatorFactory(default_type='linear')
         repr_str = repr(factory)
         
         assert 'EmulatorFactory' in repr_str
@@ -333,20 +328,15 @@ class TestConvenienceFunctions:
     def setup_method(self):
         """Setup for each test method - ensure clean registry state."""
         # Import original registry to restore after tests
-        from historymatching.emulators.factory import EmulatorFactory
-        from historymatching.emulators.linear import LinearModel
-        from historymatching.emulators.glm import GLM
-        from historymatching.emulators.gpr import GPR
         
         # Store original registry
-        self._original_registry = EmulatorFactory._emulator_registry.copy()
+        self._original_registry = hm.EmulatorFactory._emulator_registry.copy()
     
     def teardown_method(self):
         """Cleanup after each test method - restore clean registry state."""
-        from historymatching.emulators.factory import EmulatorFactory
         
         # Restore original registry
-        EmulatorFactory._emulator_registry = self._original_registry
+        hm.EmulatorFactory._emulator_registry = self._original_registry
     
     @pytest.fixture
     def sample_data(self):
@@ -401,20 +391,15 @@ class TestEmulatorFactoryIntegration:
     def setup_method(self):
         """Setup for each test method - ensure clean registry state."""
         # Import original registry to restore after tests
-        from historymatching.emulators.factory import EmulatorFactory
-        from historymatching.emulators.linear import LinearModel
-        from historymatching.emulators.glm import GLM
-        from historymatching.emulators.gpr import GPR
         
         # Store original registry
-        self._original_registry = EmulatorFactory._emulator_registry.copy()
+        self._original_registry = hm.EmulatorFactory._emulator_registry.copy()
     
     def teardown_method(self):
         """Cleanup after each test method - restore clean registry state."""
-        from historymatching.emulators.factory import EmulatorFactory
         
         # Restore original registry
-        EmulatorFactory._emulator_registry = self._original_registry
+        hm.EmulatorFactory._emulator_registry = self._original_registry
     
     @pytest.fixture
     def realistic_data(self):
@@ -447,7 +432,7 @@ class TestEmulatorFactoryIntegration:
         
         # Test each emulator type
         for emulator_type in ['linear', 'gpr', 'glm']:
-            factory = EmulatorFactory(default_type=emulator_type)
+            factory = hm.EmulatorFactory(default_type=emulator_type)
             
             try:
                 emulator = factory.create_emulator(X, y_single)
@@ -462,7 +447,7 @@ class TestEmulatorFactoryIntegration:
         X, _, y_multi = realistic_data
         features = ['total_infections', 'total_deaths']
         
-        factory = EmulatorFactory(default_type='linear')  # Use linear for speed
+        factory = hm.EmulatorFactory(default_type='linear')  # Use linear for speed
         
         emulators = factory.create_emulators_for_features(X, y_multi, features)
         
@@ -479,7 +464,7 @@ class TestEmulatorFactoryIntegration:
         X, y_single, _ = realistic_data
         
         # Create factory with custom defaults
-        factory = EmulatorFactory(
+        factory = hm.EmulatorFactory(
             default_type='linear',
             test_fraction=0.3  # Custom test fraction
         )
@@ -504,7 +489,7 @@ class TestEmulatorFactoryIntegration:
         """Test factory error handling with problematic data."""
         X, _, _ = realistic_data
         
-        factory = EmulatorFactory()
+        factory = hm.EmulatorFactory()
         
         # Test with empty DataFrame
         empty_y = pd.DataFrame()
@@ -520,7 +505,7 @@ class TestEmulatorFactoryIntegration:
         """Test that factory produces consistent results."""
         X, y_single, _ = realistic_data
         
-        factory = EmulatorFactory(default_type='linear')
+        factory = hm.EmulatorFactory(default_type='linear')
         
         # Create two emulators with same parameters
         emulator1 = factory.create_emulator(X, y_single)
@@ -536,7 +521,7 @@ class TestEmulatorFactoryIntegration:
         X, y_single, _ = realistic_data
         
         # Define a simple custom emulator
-        class SimpleAverageEmulator(BaseEmulator):
+        class SimpleAverageEmulator(hm.BaseEmulator):
             def __init__(self, X=None, y=None, **kwargs):
                 super().__init__(X, y)
                 self.kwargs = kwargs
@@ -554,17 +539,17 @@ class TestEmulatorFactoryIntegration:
             def predict(self, x):
                 if not hasattr(self, 'mean_value'):
                     raise RuntimeError("Emulator not trained")
-                return EmulationResults(
+                return hm.EmulationResults(
                     mean=[self.mean_value] * len(x),
                     std=[0.1] * len(x)  # sqrt(0.01) = 0.1
                 )
         
         # Register the custom emulator
-        EmulatorFactory.register_emulator('simple_average', SimpleAverageEmulator)
+        hm.EmulatorFactory.register_emulator('simple_average', SimpleAverageEmulator)
         
         try:
             # Test that we can create and use it
-            factory = EmulatorFactory(default_type='simple_average')
+            factory = hm.EmulatorFactory(default_type='simple_average')
             emulator = factory.create_and_train_emulator(X, y_single)
             
             assert isinstance(emulator, SimpleAverageEmulator)
@@ -578,8 +563,8 @@ class TestEmulatorFactoryIntegration:
             
         finally:
             # Clean up
-            if 'simple_average' in EmulatorFactory._emulator_registry:
-                del EmulatorFactory._emulator_registry['simple_average']
+            if 'simple_average' in hm.EmulatorFactory._emulator_registry:
+                del hm.EmulatorFactory._emulator_registry['simple_average']
 
     def test_gpr_train_predict_test_roundtrip(self):
         """End-to-end GPR: train on a known function, predict, test diagnostics.
@@ -604,9 +589,8 @@ class TestEmulatorFactoryIntegration:
                       + np.random.normal(0, 0.1, n)
         })
 
-        from historymatching.emulators.gpr import GPR
 
-        emulator = GPR(X, y, test_fraction=0.25)
+        emulator = hm.GPR(X, y, test_fraction=0.25)
         emulator.train()
         assert emulator.training_complete
 
@@ -658,9 +642,8 @@ class TestEmulatorFactoryIntegration:
                       + np.random.normal(0, 0.01, n)
         })
 
-        from historymatching.emulators.gpr import GPR
 
-        emulator = GPR(X, y, test_fraction=0.25)
+        emulator = hm.GPR(X, y, test_fraction=0.25)
         emulator.train()
         assert emulator.training_complete
 
@@ -691,9 +674,8 @@ class TestEmulatorFactoryIntegration:
                       + np.random.normal(0, 0.1, n)
         })
 
-        from historymatching.emulators.gpr import GPR
 
-        emulator = GPR(X, y, test_fraction=0.25)
+        emulator = hm.GPR(X, y, test_fraction=0.25)
         emulator.train()
         assert emulator.training_complete
 

@@ -23,14 +23,14 @@ uv run pytest tests/
 uv run python -c "import historymatching"
 ```
 
-Install with notebook and dev dependencies:
+Set up the dev environment (reproduces the locked versions CI uses):
 ```bash
-uv pip install -e ".[notebooks,dev]"
+uv sync --extra notebooks --extra test
 ```
 
 On Apple Silicon, optionally add Metal GPU support:
 ```bash
-uv pip install -e ".[mac]"
+uv sync --extra notebooks --extra test --extra mac
 ```
 
 ## Running tests
@@ -40,15 +40,14 @@ uv run pytest tests/           # all tests
 uv run pytest tests/ -x -q    # fail fast, quiet
 ```
 
-233 tests, runs in ~15 seconds. No network or external dependencies required.
+234 tests, runs in ~10 seconds. No network or external dependencies required.
 
 ## Code structure
 
 ```
 historymatching/         # flat package — everything at the top level
     __init__.py           # re-exports all public API; users just: import historymatching as hm
-    engine.py             # HistoryMatchingEngine — runs the iterative loop
-    builder.py            # HistoryMatchingBuilder — fluent API for configuring an engine
+    engine.py             # HistoryMatching — single public class; configures and runs the iterative loop (HistoryMatchingEngine is a back-compat alias)
     parameter_space.py    # ParameterSpace — wraps parameter bounds (DataFrame)
     observation_data.py   # ObservationData — wraps target observations (mean, std)
     emulator_bank.py      # EmulatorBank — stores trained emulators by iteration and feature
@@ -75,16 +74,13 @@ tests/
 ```python
 import historymatching as hm
 
-engine = (hm.HistoryMatchingBuilder
-    .from_data(
-        parameter_bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
-        observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
-    )
-    .with_emulator_type('gpr')
-    .with_samples_per_iteration(500)
-    .build()
+engine = hm.HistoryMatching(
+    function=my_simulator,
+    bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
+    observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
+    emulator_type='gpr',
+    n_samples=500,
 )
-engine.set_simulation_function(my_simulator)
 results = engine.run()
 ```
 

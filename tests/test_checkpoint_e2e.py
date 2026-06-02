@@ -27,17 +27,17 @@ def run_sir(samples):
 def make_engine(output_dir):
     obs_peak = float(obs_incidence.max())
     obs_ar = float(obs_incidence.sum() / POPULATION)
-    builder = hm.HistoryMatchingBuilder.from_data(
-        parameter_bounds={'beta': (0.3, 2.0), 'gamma': (0.1, 0.8)},
-        observations={'peak_incidence': (obs_peak, obs_peak*0.10),
-                      'attack_rate': (obs_ar, obs_ar*0.05)})
-    builder.emulator_type = 'gpr'
-    builder.n_samples = 100
-    builder.max_iterations = 2
-    builder.output_dir = output_dir
-    builder.run_name = 'test_run'
-    engine = builder.build()
-    engine.set_simulation_function(run_sir)
+    engine = hm.HistoryMatching(
+        function=run_sir,
+        bounds={'beta': (0.3, 2.0), 'gamma': (0.1, 0.8)},
+        observations={'peak_incidence': (obs_peak, obs_peak * 0.10),
+                      'attack_rate': (obs_ar, obs_ar * 0.05)},
+        emulator_type='gpr',
+        n_samples=100,
+        max_iterations=2,
+        output_dir=output_dir,
+        run_name='test_run',
+    )
     return engine
 
 
@@ -50,11 +50,12 @@ if __name__ == '__main__':
     print("=" * 60)
 
     engine = make_engine(output_dir)
-    run_dir = engine.run_dir
-    print(f"Run dir: {run_dir}")
+    assert engine.run_dir is None, "output is created lazily, not at construction"
 
     result1 = engine.step()
     engine.commit_step()
+    run_dir = engine.run_dir  # created on the first step()
+    print(f"Run dir: {run_dir}")
     print(f"Wave 1 committed. Iteration: {engine.current_iteration}")
 
     wave1_dir = run_dir / "wave1"
@@ -72,7 +73,7 @@ if __name__ == '__main__':
             assert (feat_dir / "metrics.json").exists(), f"metrics.json missing in {feat_dir}"
             with open(feat_dir / "metrics.json") as f:
                 metrics = json.load(f)
-            print(f"  {feat_dir.name}: R2={metrics.get('r2_score', 'N/A')}")
+            print(f"  {feat_dir.name}: R2={metrics.get('r2', 'N/A')}")
 
     print("PASS\n")
 

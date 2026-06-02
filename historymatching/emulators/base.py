@@ -195,48 +195,17 @@ class BaseEmulator:
 
     
     def plot_diagnostics(self):
-        """Diagnostics plots for the trained emulator.
+        """Diagnostics plots for the trained emulator."""
 
-        Returns:
-            A list of the Matplotlib figures created (residuals plus the four
-            prediction-accuracy figures).
-        """
-        if not self.testing_complete:
-            self.test()
-        figs = [self.plot_residuals()]
-        figs.extend(self.plot_predictions())
-        return figs
+        self.plot_residuals()
+        self.plot_predictions()
 
-    def plot_predicted_vs_actual(self, ax=None, title="Predicted vs actual"):
-        """Predicted-vs-actual scatter on the held-out test set.
+        return
 
-        A single, composable panel (unlike :meth:`plot_diagnostics`, which opens
-        several figures).  Points near the dashed 1:1 line indicate a good fit.
-
-        Args:
-            ax: Existing Matplotlib axes to draw into; created if omitted.
-            title: Base title (R²/MSE/n are appended).
-
-        Returns:
-            The Matplotlib ``Axes`` containing the plot.
-        """
-        from .. import plotting
-        if not self.testing_complete:
-            self.test()
-        em = getattr(self, 'emulator_metrics', {})
-        n_train = len(self.X_train) if self.X_train is not None else None
-        return plotting.plot_predicted_vs_actual(
-            self.y_test.flatten(), self.y_test_pred.flatten(),
-            ax=ax, r2=em.get('R2'), mse=em.get('MSE'), n_train=n_train, title=title)
-
+    
     def plot_residuals(self):
-        """Plot residuals of predicted vs. true testing values.
-
-        Returns:
-            The Matplotlib figure created.
+        """Plot residuals of predicted vs. true testing values. 
         """
-        if not self.testing_complete:
-            self.test()
         # Get data
         params = self.X_df.columns
         n_params = len( params )
@@ -258,19 +227,13 @@ class BaseEmulator:
         for i in range(n_params, len(axs)):
             axs[i].set_visible(False)
         fig.tight_layout()
-
-        return fig
-
-
+        
+        return
+    
+    
     def plot_predictions(self):
-        """Plot the predicted and true testing values.
-
-        Returns:
-            A list of the four Matplotlib figures created (prediction accuracy,
-            predicted-vs-observed, predicted-vs-error, and error histogram).
+        """Plot the predicted and true testing values. 
         """
-        if not self.testing_complete:
-            self.test()
         # Get data
         params = self.X_df.columns
         n_params = len( params )
@@ -422,10 +385,10 @@ class BaseEmulator:
         ax_hist_te.set_xlabel('error (normalized)')
 
         fig_errhist.tight_layout()
+        
+        return
 
-        return [fig, fig_predobs, fig_prederr, fig_errhist]
-
-
+    
     def plot_implausibility(self, x=None, target=0, target_var=0, model_discrepancy=0, threshold=3):
         """Get implausibility for a given set of parameters.
 
@@ -577,13 +540,8 @@ class BaseEmulator:
                         data.
             threshold: Implausibility threshold. Sets of parameters within this
                        threshold are deemed as non-implausible.
-
-        Returns:
-            The Matplotlib figure created.
         """
-        if not self.testing_complete:
-            self.test()
-
+       
         # Compute Z-values for train and test splits
         def _compute_zscore_data(X_df, y_true, pred_results, target, target_var, model_var, threshold):
             data = X_df.copy()
@@ -638,4 +596,4 @@ class BaseEmulator:
         
         fig_z.tight_layout()
 
-        return fig_z
+        return
