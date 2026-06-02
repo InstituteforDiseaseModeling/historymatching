@@ -6,19 +6,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from historymatching.nroy_sampling import (
-    NROYResult,
-    generate_nroy_design,
-    _lhs_reject_loop,
-)
-from historymatching.emulator_bank import EmulatorBank
-from historymatching.observation_data import ObservationData
-from historymatching.parameter_space import ParameterSpace
-from historymatching.emulators.base import BaseEmulator
-from historymatching.emulators.results import EmulationResults
+from historymatching.nroy_sampling import _lhs_reject_loop
+import historymatching as hm
 
 
-class PassthroughEmulator(BaseEmulator):
+class PassthroughEmulator(hm.BaseEmulator):
     """Emulator that predicts the first input column as the output.
 
     With a tight observation target around 0.5, roughly half the [0,1]
@@ -37,7 +29,7 @@ class PassthroughEmulator(BaseEmulator):
         mean = X.iloc[:, 0].values if isinstance(X, pd.DataFrame) else X[:, 0]
         # Small constant std so implausibility is dominated by |pred - obs|
         std = np.full_like(mean, np.sqrt(0.001))
-        return EmulationResults(mean=pd.Series(mean), std=pd.Series(std))
+        return hm.EmulationResults(mean=pd.Series(mean), std=pd.Series(std))
 
     def get_hyperparameters(self):
         return {"type": "passthrough"}
@@ -51,8 +43,8 @@ def simple_setup():
     # Expected acceptance ≈ 60%
     observations = {"output": (0.5, 0.1)}
 
-    param_space = ParameterSpace(param_bounds)
-    obs_data = ObservationData(observations)
+    param_space = hm.ParameterSpace(param_bounds)
+    obs_data = hm.ObservationData(observations)
 
     emulator = PassthroughEmulator("output")
     # Minimal training data (not used by passthrough, but required by API)
@@ -60,7 +52,7 @@ def simple_setup():
     y_dummy = pd.Series([0.5])
     emulator.train(X_dummy, y_dummy)
 
-    bank = EmulatorBank()
+    bank = hm.EmulatorBank()
     bank.add_emulator(1, "output", emulator)
 
     return param_space, obs_data, bank
@@ -75,7 +67,7 @@ class TestNROYFractionReporting:
         actual candidates generated, NOT max_candidates."""
         param_space, obs_data, bank = simple_setup
 
-        result = generate_nroy_design(
+        result = hm.generate_nroy_design(
             n_points=50,
             parameter_space=param_space,
             emulator_bank=bank,
@@ -101,7 +93,7 @@ class TestNROYFractionReporting:
         actual acceptance rate, not be artificially deflated."""
         param_space, obs_data, bank = simple_setup
 
-        result = generate_nroy_design(
+        result = hm.generate_nroy_design(
             n_points=100,
             parameter_space=param_space,
             emulator_bank=bank,
@@ -122,10 +114,9 @@ class TestNROYFractionReporting:
 
     def test_lhs_reject_loop_tracks_total_generated(self):
         """_lhs_reject_loop should attach total_generated to the result."""
-        param_space = ParameterSpace({"x1": (0.0, 1.0), "x2": (0.0, 1.0)})
+        param_space = hm.ParameterSpace({"x1": (0.0, 1.0), "x2": (0.0, 1.0)})
 
-        from historymatching.sampling import SamplingStrategyFactory
-        strategy = SamplingStrategyFactory.create('lhs')
+        strategy = hm.SamplingStrategyFactory.create('lhs')
 
         # filter_fn that accepts everything
         result = _lhs_reject_loop(
@@ -146,7 +137,7 @@ class TestNROYFractionReporting:
         """In ray mode, lhs_tested should be the seed LHS size, not max_candidates."""
         param_space, obs_data, bank = simple_setup
 
-        result = generate_nroy_design(
+        result = hm.generate_nroy_design(
             n_points=20,
             parameter_space=param_space,
             emulator_bank=bank,

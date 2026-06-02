@@ -72,7 +72,7 @@ uv sync --extra notebooks --extra test --extra mac
 import historymatching as hm
 
 engine = hm.HistoryMatching(
-    parameter_bounds={'x': (0, 1)},
+    bounds={'x': (0, 1)},
     observations={'y': (0.5, 0.1)},
 )
 print(engine)  # Should print engine status

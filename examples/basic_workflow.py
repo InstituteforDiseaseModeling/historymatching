@@ -95,7 +95,7 @@ def main():
     print("\nBuilding history matching engine...")
 
     engine = hm.HistoryMatching(
-        parameter_bounds=parameter_bounds,
+        bounds=parameter_bounds,
         observations=observations,
         function=simple_epidemic_model,
         sampling_strategy='lhs',
@@ -116,8 +116,8 @@ def main():
     # Step 5: Analyze results
     print(f"\n Analysis complete! Ran {len(results)} iterations")
     print(f" Final acceptance rate: {engine.acceptance_rate:.3f}")
-    print(f" Total samples generated: {engine.progress.total_samples_generated}")
-    print(f" Total samples accepted: {engine.progress.total_samples_accepted}")
+    print(f" Total samples generated: {engine.samples_generated}")
+    print(f" Total samples accepted: {engine.samples_accepted}")
 
     # Print iteration summary
     print("\n Iteration Summary:")
@@ -160,7 +160,7 @@ def interactive_example():
 
     # Build engine with more explicit configuration
     engine = hm.HistoryMatching(
-        parameter_bounds=parameter_bounds,
+        bounds=parameter_bounds,
         observations=observations,
         function=simple_epidemic_model,
         sampling_strategy='lhs',
@@ -205,7 +205,7 @@ def interactive_example():
 
     print(f"\n Interactive workflow completed!")
     print(f" Final state: {engine.current_iteration} iterations, "
-          f"{engine.progress.total_samples_accepted} total accepted samples")
+          f"{engine.samples_accepted} total accepted samples")
 
     return engine
 
@@ -236,7 +236,7 @@ def advanced_configuration_example():
 
     # Advanced configuration
     engine = hm.HistoryMatching(
-        parameter_bounds=parameter_df,
+        bounds=parameter_df,
         observations=observations_df,
         sampling_strategy={'type': 'lhs', 'criterion': 'maximin', 'iterations': 10},
         feature_selection={'method': 'fano', 'max_features': 2, 'correlation_threshold': 0.7},

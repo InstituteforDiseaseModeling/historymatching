@@ -40,7 +40,7 @@ uv run pytest tests/           # all tests
 uv run pytest tests/ -x -q    # fail fast, quiet
 ```
 
-188 tests, runs in ~10 seconds. No network or external dependencies required.
+211 tests, runs in ~10 seconds. No network or external dependencies required.
 
 ## Code structure
 
@@ -75,9 +75,9 @@ tests/
 import historymatching as hm
 
 engine = hm.HistoryMatching(
-    parameter_bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
-    observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
     function=my_simulator,
+    bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
+    observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
     emulator_type='gpr',
     n_samples=500,
 )

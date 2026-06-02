@@ -29,7 +29,7 @@ def make_engine(output_dir):
     obs_ar = float(obs_incidence.sum() / POPULATION)
     engine = hm.HistoryMatching(
         function=run_sir,
-        parameter_bounds={'beta': (0.3, 2.0), 'gamma': (0.1, 0.8)},
+        bounds={'beta': (0.3, 2.0), 'gamma': (0.1, 0.8)},
         observations={'peak_incidence': (obs_peak, obs_peak * 0.10),
                       'attack_rate': (obs_ar, obs_ar * 0.05)},
         emulator_type='gpr',

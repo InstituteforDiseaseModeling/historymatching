@@ -190,20 +190,6 @@ class IterationSnapshot:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
-class WorkflowProgress:
-    """Progress tracking for history matching workflow."""
-
-    current_iteration: int = 0
-    completed_iterations: list[int] = field(default_factory=list)
-    total_samples_generated: int = 0
-    total_samples_accepted: int = 0
-    total_emulators_trained: int = 0
-    acceptance_rate: float = 1.0
-    start_time: Optional[float] = None
-    end_time: Optional[float] = None
-
-
 class HistoryMatching:
     """
     Bayesian history matching — configure everything in one constructor call.
@@ -224,9 +210,9 @@ class HistoryMatching:
                 rows.append({'peak_incidence': simulate_peak(row['beta'], row['gamma'])})
             return rows   # a DataFrame is also accepted
 
-        match = hm.HistoryMatching(
+        engine = hm.HistoryMatching(
             function=run_sir,
-            parameter_bounds={'beta': (0.5, 3.0), 'gamma': (0.1, 1.0)},
+            bounds={'beta': (0.5, 3.0), 'gamma': (0.1, 1.0)},
             observations={'peak_incidence': (120.0, 50.0)},  # (mean, std)
             emulator_type='gpr',
             n_samples=500,
@@ -234,25 +220,35 @@ class HistoryMatching:
         )
 
         # Automated execution
-        results = match.run()
-        plausible = match.get_nroy_samples()     # NROY = "Not Ruled Out Yet"
+        results = engine.run()
+        plausible = engine.get_nroy_samples()     # NROY = "Not Ruled Out Yet"
 
         # Interactive, step-by-step execution
-        result = match.step()             # run one wave
-        match.commit_step()               # accept it (or match.revert_step())
-        match.feature_selection = ['different_output']   # reconfigure on the fly
-        result = match.step()
+        result = engine.step()             # run one wave
+        engine.commit_step()               # accept it (or engine.revert_step())
+        engine.feature_selection = ['different_output']   # reconfigure on the fly
+        result = engine.step()
 
     The simulator ``function`` receives a pandas DataFrame of parameter samples
     (one row per sample) and may return either a DataFrame or a list of dicts
     (one dict per sample) mapping output names to values.
     """
 
+    # Public progress counters; persisted/restored together by the checkpointer.
+    _PROGRESS_ATTRS = (
+        "current_iteration",
+        "completed_iterations",
+        "samples_generated",
+        "samples_accepted",
+        "emulators_trained",
+        "acceptance_rate",
+    )
+
     def __init__(
         self,
-        parameter_bounds: Union[dict, pd.DataFrame, ParameterSpace, None] = None,
-        observations: Union[dict, pd.DataFrame, ObservationData, None] = None,
         function: Optional[Callable] = None,
+        bounds: Union[dict, pd.DataFrame, ParameterSpace, None] = None,
+        observations: Union[dict, pd.DataFrame, ObservationData, None] = None,
         *,
         sampling_strategy: Union[str, dict, SamplingStrategy] = "lhs",
         feature_selection: Union[str, list, dict, FeatureSelectionStrategy, None] = None,
@@ -282,17 +278,17 @@ class HistoryMatching:
         emulated outputs are implausibly far from the observations.
 
         Args:
-            parameter_bounds: The parameter space to search.  A dict mapping
+            function: The simulator.  A callable taking a DataFrame of parameter
+                samples and returning a DataFrame (or list of dicts) of outputs,
+                whose column/key names match the observation names.  May also be
+                set later with ``engine.function = my_simulator``.
+            bounds: The parameter space to search.  A dict mapping
                 ``name -> (min, max)``, a DataFrame with ``parameter/minimum/maximum``
                 columns, or a :class:`ParameterSpace`.
             observations: The target data.  A dict mapping ``output -> (mean, std)``
                 (the second value is the standard deviation, not the variance),
                 a DataFrame with ``feature/mean/std`` columns, or an
                 :class:`ObservationData`.
-            function: The simulator.  A callable taking a DataFrame of parameter
-                samples and returning a DataFrame (or list of dicts) of outputs,
-                whose column/key names match the observation names.  May also be
-                set later with ``match.function = my_simulator``.
             sampling_strategy: ``'lhs'`` (default) / ``'grid'`` / ``'random'``, a
                 :class:`SamplingStrategy`, or a config dict (e.g. ``{'type': 'lhs',
                 'criterion': 'center'}``).
@@ -325,7 +321,7 @@ class HistoryMatching:
                 ``n_samples`` (safety valve for near-empty NROY spaces).
         """
         # Core components — coerce friendly inputs into domain objects.
-        self.parameter_space = self._coerce_parameter_space(parameter_bounds)
+        self.parameter_space = self._coerce_parameter_space(bounds)
         self.observations = self._coerce_observations(observations)
         self._sampling_strategy = self._coerce_sampling(sampling_strategy)
         self._feature_selection_strategy = self._coerce_feature_selection(feature_selection)
@@ -348,27 +344,32 @@ class HistoryMatching:
         self.max_candidate_factor = max_candidate_factor
 
         # Engine state
-        self._state = EngineState.INITIALIZED
-        self._progress = WorkflowProgress()
+        self.state = EngineState.INITIALIZED
         self._snapshots: list[IterationSnapshot] = []
         self._pending_result: Optional[IterationResult] = None
         self._pending_snapshot: Optional[IterationSnapshot] = None
         self._nroy_exhausted: bool = False
 
+        # Progress counters (public, plain attributes — updated as waves run).
+        self.current_iteration = 0
+        self.completed_iterations: list[int] = []
+        self.samples_generated = 0
+        self.samples_accepted = 0
+        self.emulators_trained = 0
+        self.acceptance_rate = 1.0
+
         # Callbacks and hooks
         self._iteration_callbacks: list[Callable] = []
         self._progress_callbacks: list[Callable] = []
 
-        # Simulation function (set via the `function` property)
-        self._simulation_function: Optional[Callable] = None
-        if function is not None:
-            self.function = function
+        # Simulator function (assign with ``engine.function = my_simulator``).
+        self.function: Optional[Callable] = function
 
         # Output is created lazily on the first run()/step() so that merely
         # constructing a HistoryMatching writes nothing to disk.
         self._output_dir = output_dir
         self._run_name = run_name
-        self._run_dir: Optional[Path] = None
+        self.run_dir: Optional[Path] = None
         self._log_handler: Optional[logging.Handler] = None
         self._output_ready = False
 
@@ -387,8 +388,8 @@ class HistoryMatching:
 
         import datetime
         run_name = self._run_name or datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S")
-        self._run_dir = Path(self._output_dir) / run_name
-        self._run_dir.mkdir(parents=True, exist_ok=True)
+        self.run_dir = Path(self._output_dir) / run_name
+        self.run_dir.mkdir(parents=True, exist_ok=True)
 
         # Attach a single file handler to the top-level ``historymatching``
         # logger (sub-loggers propagate to it), replacing any handler a previous
@@ -398,7 +399,7 @@ class HistoryMatching:
             if getattr(h, '_historymatching_run_handler', False):
                 pkg_logger.removeHandler(h)
                 h.close()
-        fh = logging.FileHandler(self._run_dir / "log.txt")
+        fh = logging.FileHandler(self.run_dir / "log.txt")
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logging.Formatter(
             '%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
@@ -424,8 +425,8 @@ class HistoryMatching:
         logger.info(f"  Random seed:              {self.random_seed}")
         logger.info(f"  Oversample factor:        {self.oversample_factor}")
         logger.info(f"  Max batch size:           {self.max_batch_size}")
-        logger.info(f"  Output directory:         {self._run_dir}")
-        logger.info(f"  Run log:                  {self._run_dir / 'log.txt'}")
+        logger.info(f"  Output directory:         {self.run_dir}")
+        logger.info(f"  Run log:                  {self.run_dir / 'log.txt'}")
         logger.info(f"  Parameters: {param_names}")
         logger.info(f"  Targets: {list(obs_targets.keys())}")
         logger.info(f"{'='*60}")
@@ -434,15 +435,15 @@ class HistoryMatching:
     # Coercion helpers — turn friendly constructor values into objects.
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _coerce_parameter_space(parameter_bounds) -> ParameterSpace:
-        if parameter_bounds is None:
+    def _coerce_parameter_space(bounds) -> ParameterSpace:
+        if bounds is None:
             raise ValueError(
-                "parameter_bounds is required: pass a dict of {name: (min, max)}, "
+                "bounds is required: pass a dict of {name: (min, max)}, "
                 "a DataFrame with parameter/minimum/maximum columns, or a ParameterSpace."
             )
-        if isinstance(parameter_bounds, ParameterSpace):
-            return parameter_bounds
-        return ParameterSpace(parameter_bounds)  # accepts dict or DataFrame
+        if isinstance(bounds, ParameterSpace):
+            return bounds
+        return ParameterSpace(bounds)  # accepts dict or DataFrame
 
     @staticmethod
     def _coerce_observations(observations) -> ObservationData:
@@ -499,63 +500,9 @@ class HistoryMatching:
         return EmulatorFactory(default_type=emulator_type or "gpr")
 
     @property
-    def state(self) -> EngineState:
-        """Current engine state."""
-        return self._state
-
-    @property
-    def progress(self) -> WorkflowProgress:
-        """Current workflow progress."""
-        return self._progress
-
-    @property
-    def current_iteration(self) -> int:
-        """Current iteration number (0-based)."""
-        return self._progress.current_iteration
-
-    @property
-    def acceptance_rate(self) -> float:
-        """Current acceptance rate for sample filtering."""
-        return self._progress.acceptance_rate
-
-    @property
-    def run_dir(self) -> Optional[Path]:
-        """Output directory for this run.
-
-        ``None`` until the first :meth:`run`/:meth:`step` creates it (output is
-        written lazily), or always ``None`` if ``output_dir=None``.
-        """
-        return self._run_dir
-
-    @property
-    def function(self) -> Optional[Callable]:
-        """The simulator (set it with ``match.function = my_simulator``)."""
-        return self._simulation_function
-
-    @function.setter
-    def function(self, func: Callable) -> None:
-        self._simulation_function = func
-        logger.info("Simulator function configured")
-
-    @property
     def results(self) -> list:
         """All committed :class:`IterationResult` objects, in order."""
         return [s.result for s in self._snapshots if s.result is not None]
-
-    @property
-    def samples_generated(self) -> int:
-        """Total parameter samples generated so far (across all waves)."""
-        return self._progress.total_samples_generated
-
-    @property
-    def samples_accepted(self) -> int:
-        """Total parameter samples accepted so far (across all waves)."""
-        return self._progress.total_samples_accepted
-
-    @property
-    def emulators_trained(self) -> int:
-        """Total emulators trained and committed so far."""
-        return self._progress.total_emulators_trained
 
     @property
     def parameters(self) -> list[str]:
@@ -567,10 +514,86 @@ class HistoryMatching:
         """Names of the observed outputs being matched."""
         return self.observations.get_feature_names()
 
+    @staticmethod
+    def plot_ensemble_fan(
+        trajectories,
+        observed=None,
+        x=None,
+        xlabel=None,
+        ylabel=None,
+        title=None,
+        ax=None,
+        show: bool = False,
+    ):
+        """Fan plot of an ensemble of trajectories, optionally vs observed data.
+
+        Draws the ensemble median, a shaded 5-95th and 25-75th percentile band, the
+        faint individual trajectories, and (if given) the observed series on top.
+        Handy for eyeballing how well a set of plausible (NROY) parameter sets
+        reproduces the data.
+
+        Args:
+            trajectories: 2-D array-like, shape ``(n_runs, n_timepoints)`` — one row
+                per simulated trajectory.
+            observed: Optional observed series of length ``n_timepoints``.
+            x: Optional x-axis values (defaults to ``0..n_timepoints-1``).
+            xlabel, ylabel, title: Optional axis labels / title.
+            ax: Optional matplotlib Axes to draw into (a new figure is made if None).
+            show: If True, call ``plt.show()`` before returning.
+
+        Returns:
+            ``(fig, ax)`` from matplotlib.
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        arr = np.asarray(trajectories, dtype=float)
+        if arr.ndim != 2:
+            raise ValueError(f"trajectories must be 2-D (n_runs, n_timepoints); got shape {arr.shape}")
+
+        n_runs, n_t = arr.shape
+        if x is None:
+            x = np.arange(n_t)
+
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(10, 5))
+        else:
+            fig = ax.figure
+
+        # Faint individual trajectories.
+        for i in range(n_runs):
+            ax.plot(x, arr[i], color="gray", alpha=0.15, linewidth=0.8,
+                    label="Plausible simulations" if i == 0 else None)
+
+        # Percentile bands + median.
+        q05, q25, med, q75, q95 = np.percentile(arr, [5, 25, 50, 75, 95], axis=0)
+        ax.fill_between(x, q05, q95, color="#3575b5", alpha=0.15, label="5-95th pct")
+        ax.fill_between(x, q25, q75, color="#3575b5", alpha=0.30, label="25-75th pct")
+        ax.plot(x, med, color="#1f4e8c", linewidth=2, label="Ensemble median")
+
+        if observed is not None:
+            ax.plot(x, np.asarray(observed, dtype=float), "ro-", markersize=4,
+                    linewidth=1.5, label="Observed")
+
+        if xlabel:
+            ax.set_xlabel(xlabel)
+        if ylabel:
+            ax.set_ylabel(ylabel)
+        if title:
+            ax.set_title(title)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+
+        if show:
+            plt.show()
+        return fig, ax
+
     # -- Reconfigurable options: assign friendly values, coerced like the constructor --
     @property
     def sampling_strategy(self) -> SamplingStrategy:
-        """Sampling strategy. Assign a name/dict/strategy to change it (e.g. ``match.sampling_strategy = 'grid'``)."""
+        """Sampling strategy. Assign a name/dict/strategy to change it (e.g. ``engine.sampling_strategy = 'grid'``)."""
         return self._sampling_strategy
 
     @sampling_strategy.setter
@@ -580,7 +603,7 @@ class HistoryMatching:
 
     @property
     def feature_selection(self) -> FeatureSelectionStrategy:
-        """Which outputs to emulate each wave. Assign a name/list/dict/strategy (e.g. ``match.feature_selection = ['peak']``)."""
+        """Which outputs to emulate each wave. Assign a name/list/dict/strategy (e.g. ``engine.feature_selection = ['peak']``)."""
         return self._feature_selection_strategy
 
     @feature_selection.setter
@@ -615,15 +638,15 @@ class HistoryMatching:
 
     @max_iterations.setter
     def max_iterations(self, value: int) -> None:
-        done = self._progress.current_iteration
+        done = self.current_iteration
         if done and value <= done:
             raise ValueError(
                 f"Cannot set max_iterations to {value}: {done} waves already completed. "
                 f"New limit must be greater than {done}."
             )
         self._max_iterations = value
-        if self._state == EngineState.COMPLETED and done < value:
-            self._state = EngineState.PAUSED
+        if self.state == EngineState.COMPLETED and done < value:
+            self.state = EngineState.PAUSED
 
     def __len__(self) -> int:
         """Number of committed waves."""
@@ -633,7 +656,7 @@ class HistoryMatching:
         """Iterate over committed waves as ``(iteration, result, samples)`` tuples.
 
         Example:
-            for i, result, samples in match.enumerate():
+            for i, result, samples in engine.enumerate():
                 print(i, result.nroy_fraction, len(samples))
         """
         for result in self.results:
@@ -703,59 +726,59 @@ class HistoryMatching:
         self.validate()
         self._ensure_output()
 
-        if self._state not in [EngineState.INITIALIZED, EngineState.PAUSED]:
-            if self._state == EngineState.RUNNING:
+        if self.state not in [EngineState.INITIALIZED, EngineState.PAUSED]:
+            if self.state == EngineState.RUNNING:
                 raise RuntimeError(
-                    f"Engine is currently running iteration {self._progress.current_iteration + 1}. "
+                    f"Engine is currently running iteration {self.current_iteration + 1}. "
                     "Wait for it to complete before calling step() again."
                 )
-            elif self._state == EngineState.COMPLETED:
+            elif self.state == EngineState.COMPLETED:
                 raise RuntimeError(
                     f"Engine has completed all {self.max_iterations} iterations. "
                     "Use get_all_results() to access results or create a new engine instance to continue."
                 )
-            elif self._state == EngineState.ERROR:
+            elif self.state == EngineState.ERROR:
                 raise RuntimeError(
                     "Engine is in an error state from a previous operation. "
                     "Check the logs for details or create a new engine instance."
                 )
             else:
                 raise RuntimeError(
-                    f"Engine is in state '{self._state.value}' and cannot execute step(). "
+                    f"Engine is in state '{self.state.value}' and cannot execute step(). "
                     "If you have a pending iteration, use commit_step() to accept it or revert_step() to discard it."
                 )
 
-        if self._simulation_function is None:
+        if self.function is None:
             raise ValueError(
                 "No simulator function has been configured. Before running waves, set "
-                "match.function = your_function (or pass function=... to the constructor). "
+                "engine.function = your_function (or pass function=... to the constructor). "
                 "Your function takes a DataFrame of parameter samples and returns the outputs "
                 "as a DataFrame or list of dicts."
             )
 
-        if self._progress.current_iteration >= self.max_iterations:
+        if self.current_iteration >= self.max_iterations:
             raise RuntimeError(
                 f"Maximum iterations limit reached ({self.max_iterations} waves completed). "
                 f"To run more waves, raise the limit, e.g. "
-                f"match.max_iterations = {self.max_iterations + 5}, then step()/run() again."
+                f"engine.max_iterations = {self.max_iterations + 5}, then step()/run() again."
             )
 
-        wave_num = self._progress.current_iteration + 1
+        wave_num = self.current_iteration + 1
         logger.info(f"{'='*60}")
         logger.info(f"WAVE {wave_num} STARTING")
         logger.info(f"{'='*60}")
-        self._state = EngineState.RUNNING
+        self.state = EngineState.RUNNING
         wave_t0 = _time.time()
 
         try:
             # ── Phase 1: Get samples ─────────────────────────────────────
             t0 = _time.time()
-            if self._progress.current_iteration == 0:
+            if self.current_iteration == 0:
                 samples = self._generate_plausible_samples()
                 logger.info(f"[Wave {wave_num}] Phase 1/5 SAMPLING: generated {len(samples)} samples "
-                            f"(acceptance rate: {self._progress.acceptance_rate:.3f}) [{_time.time()-t0:.1f}s]")
+                            f"(acceptance rate: {self.acceptance_rate:.3f}) [{_time.time()-t0:.1f}s]")
             else:
-                previous_snapshot = self._snapshots[self._progress.current_iteration - 1]
+                previous_snapshot = self._snapshots[self.current_iteration - 1]
                 samples = previous_snapshot.next_samples
                 if samples is None:
                     raise RuntimeError(
@@ -814,7 +837,7 @@ class HistoryMatching:
 
             # Create iteration result
             iteration_result = IterationResult(
-                iteration=self._progress.current_iteration + 1,
+                iteration=self.current_iteration + 1,
                 parameter_space=self.parameter_space,  # Current parameter space for this iteration
                 samples=samples,
                 simulation_results=simulation_results,
@@ -827,28 +850,28 @@ class HistoryMatching:
             # Store pending changes (not committed yet)
             self._pending_result = iteration_result
             self._pending_snapshot = IterationSnapshot(
-                iteration=self._progress.current_iteration + 1,
+                iteration=self.current_iteration + 1,
                 parameter_space=next_parameter_space,
                 emulator_bank=self.emulator_bank.copy(),  # Copy current state
                 result=iteration_result,
                 next_samples=next_iteration_samples,  # Store pre-computed samples for next iteration
-                total_samples_generated=self._progress.total_samples_generated,
-                total_samples_accepted=self._progress.total_samples_accepted,
-                acceptance_rate=self._progress.acceptance_rate,
+                total_samples_generated=self.samples_generated,
+                total_samples_accepted=self.samples_accepted,
+                acceptance_rate=self.acceptance_rate,
             )
 
             # Add emulators to pending snapshot's bank
             for feature, emulator in emulators.items():
                 self._pending_snapshot.emulator_bank.add_emulator(iteration_result.iteration, feature, emulator)
 
-            self._state = EngineState.PAUSED
+            self.state = EngineState.PAUSED
             logger.info(f"[Wave {wave_num}] ALL PHASES COMPLETE [{_time.time()-wave_t0:.1f}s total]. Committing...")
 
             return iteration_result
 
         except Exception as e:
-            self._state = EngineState.ERROR
-            iteration_num = self._progress.current_iteration + 1
+            self.state = EngineState.ERROR
+            iteration_num = self.current_iteration + 1
 
             # Provide specific guidance based on the error type
             if "simulation" in str(e).lower() or "simulation_function" in str(e):
@@ -895,19 +918,19 @@ class HistoryMatching:
             RuntimeError: If no pending iteration to commit
         """
         if self._pending_result is None or self._pending_snapshot is None:
-            if self._state == EngineState.INITIALIZED:
+            if self.state == EngineState.INITIALIZED:
                 raise RuntimeError(
                     "No iteration has been executed yet. Call step() first to run an iteration, "
                     "then use commit_step() to accept the results."
                 )
-            elif self._state == EngineState.COMPLETED:
+            elif self.state == EngineState.COMPLETED:
                 raise RuntimeError(
                     "All iterations have been completed and committed. "
                     "Use get_all_results() to access the final results."
                 )
             else:
                 raise RuntimeError(
-                    f"No pending iteration to commit (engine state: {self._state.value}). "
+                    f"No pending iteration to commit (engine state: {self.state.value}). "
                     "Call step() first to execute an iteration that can be committed."
                 )
 
@@ -919,10 +942,10 @@ class HistoryMatching:
             self.parameter_space = self._pending_snapshot.parameter_space
 
         # Update progress
-        self._progress.current_iteration += 1
-        self._progress.completed_iterations.append(self._progress.current_iteration)
-        self._progress.total_samples_accepted += len(self._pending_result.samples)
-        self._progress.total_emulators_trained += len(self._pending_result.emulators)
+        self.current_iteration += 1
+        self.completed_iterations.append(self.current_iteration)
+        self.samples_accepted += len(self._pending_result.samples)
+        self.emulators_trained += len(self._pending_result.emulators)
 
         # Store snapshot
         self._snapshots.append(self._pending_snapshot)
@@ -933,10 +956,10 @@ class HistoryMatching:
         self._pending_snapshot = None
 
         # Update state
-        if self._progress.current_iteration >= self.max_iterations:
-            self._state = EngineState.COMPLETED
+        if self.current_iteration >= self.max_iterations:
+            self.state = EngineState.COMPLETED
         else:
-            self._state = EngineState.PAUSED
+            self.state = EngineState.PAUSED
 
         # Save wave output (emulators, diagnostics, checkpoint)
         self._save_wave_output(committed_result)
@@ -945,7 +968,7 @@ class HistoryMatching:
         self._call_iteration_callbacks(committed_result)
         self._call_progress_callbacks()
 
-        logger.info(f"[Wave {committed_result.iteration}] COMMITTED — diagnostics and checkpoint saved to {self._run_dir}")
+        logger.info(f"[Wave {committed_result.iteration}] COMMITTED — diagnostics and checkpoint saved to {self.run_dir}")
         logger.info(f"{'='*60}")
 
     def revert_step(self) -> None:
@@ -959,33 +982,33 @@ class HistoryMatching:
             RuntimeError: If no pending iteration to revert
         """
         if self._pending_result is None:
-            if self._state == EngineState.INITIALIZED:
+            if self.state == EngineState.INITIALIZED:
                 raise RuntimeError(
                     "No iteration has been executed yet. Call step() first to run an iteration "
                     "before attempting to revert it."
                 )
-            elif self._state == EngineState.COMPLETED:
+            elif self.state == EngineState.COMPLETED:
                 raise RuntimeError(
                     "All iterations have been completed. There are no pending results to revert. "
                     "Previous iterations were already committed."
                 )
             else:
                 raise RuntimeError(
-                    f"No pending iteration to revert (engine state: {self._state.value}). "
+                    f"No pending iteration to revert (engine state: {self.state.value}). "
                     "Call step() first to execute an iteration that can be reverted."
                 )
 
         # Restore progress information from last committed snapshot
         if self._snapshots:
             last_snapshot = self._snapshots[-1]
-            self._progress.total_samples_generated = last_snapshot.total_samples_generated
-            self._progress.total_samples_accepted = last_snapshot.total_samples_accepted
-            self._progress.acceptance_rate = last_snapshot.acceptance_rate
+            self.samples_generated = last_snapshot.total_samples_generated
+            self.samples_accepted = last_snapshot.total_samples_accepted
+            self.acceptance_rate = last_snapshot.acceptance_rate
         else:
             # No committed snapshots, reset to initial values
-            self._progress.total_samples_generated = 0
-            self._progress.total_samples_accepted = 0
-            self._progress.acceptance_rate = 1.0
+            self.samples_generated = 0
+            self.samples_accepted = 0
+            self.acceptance_rate = 1.0
 
         # Clear pending state
         reverted_iteration = self._pending_result.iteration
@@ -993,7 +1016,7 @@ class HistoryMatching:
         self._pending_snapshot = None
 
         # Return to paused state
-        self._state = EngineState.PAUSED
+        self.state = EngineState.PAUSED
 
         logger.info(f"Iteration {reverted_iteration} reverted")
 
@@ -1017,15 +1040,15 @@ class HistoryMatching:
             KeyError: If the feature was not emulated in the pending step.
 
         Example:
-            result = match.step()
+            result = engine.step()
 
             metrics = result.get_emulator_quality_metrics()
             for output in result.emulated_outputs:
                 print(f"{output}: R²={metrics[output]['r2']:.3f}")
 
             # Drop any emulator with a poor fit before committing
-            match.drop_emulator_from_pending('output_c')
-            match.commit_step()
+            engine.drop_emulator_from_pending('output_c')
+            engine.commit_step()
         """
         if self._pending_snapshot is None:
             raise RuntimeError(
@@ -1049,33 +1072,33 @@ class HistoryMatching:
         Get a human-readable, multi-line summary of the current status.
 
         (To reconfigure mid-run, just assign to the matching attribute, e.g.
-        ``match.feature_selection = ['peak']`` or ``match.max_iterations = 20``.)
+        ``engine.feature_selection = ['peak']`` or ``engine.max_iterations = 20``.)
         """
         summary = [
             "=== History Matching Status ===",
-            f"State: {self._state.value}",
-            f"Progress: {self._progress.current_iteration}/{self.max_iterations} waves",
+            f"State: {self.state.value}",
+            f"Progress: {self.current_iteration}/{self.max_iterations} waves",
         ]
 
-        if self._progress.current_iteration > 0:
+        if self.current_iteration > 0:
             summary.extend([
-                f"Acceptance rate: {self._progress.acceptance_rate:.1%}",
-                f"Total samples generated: {self._progress.total_samples_generated:,}",
-                f"Total samples accepted: {self._progress.total_samples_accepted:,}",
-                f"Emulators trained: {self._progress.total_emulators_trained}",
+                f"Acceptance rate: {self.acceptance_rate:.1%}",
+                f"Total samples generated: {self.samples_generated:,}",
+                f"Total samples accepted: {self.samples_accepted:,}",
+                f"Emulators trained: {self.emulators_trained}",
             ])
 
         if self._pending_result is not None:
             summary.append(f"[ACTION NEEDED] Pending wave {self._pending_result.iteration} - use commit_step() or revert_step()")
 
-        if self._simulation_function is None:
-            summary.append("[SET function] No simulator set - assign match.function = your_function")
+        if self.function is None:
+            summary.append("[SET function] No simulator set - assign engine.function = your_function")
         else:
             summary.append("[OK] Simulator function configured")
 
-        if self._state == EngineState.ERROR:
+        if self.state == EngineState.ERROR:
             summary.append("[ERROR] Engine is in an error state - check the logs for details")
-        elif self._state == EngineState.COMPLETED:
+        elif self.state == EngineState.COMPLETED:
             summary.append("[OK] All waves completed successfully")
 
         return "\n".join(summary)
@@ -1099,26 +1122,26 @@ class HistoryMatching:
         self.validate()
         self._ensure_output()
 
-        if self._simulation_function is None:
+        if self.function is None:
             raise ValueError(
                 "Cannot start automated run: no simulator function has been configured. "
-                "Set match.function = your_function (or pass function=... to the constructor). "
+                "Set engine.function = your_function (or pass function=... to the constructor). "
                 "Your function takes parameter samples (a DataFrame) and returns the outputs "
                 "(a DataFrame or list of dicts).\n\n"
                 "Example:\n"
                 "  def my_simulation(params_df):\n"
                 "      # Your simulation code here\n"
                 "      return results_df\n"
-                "  match.function = my_simulation"
+                "  engine.function = my_simulation"
             )
 
         # Resume from checkpoint if requested
-        if self._run_dir is not None:
-            ckpt = self._run_dir / "checkpoint.pkl"
+        if self.run_dir is not None:
+            ckpt = self.run_dir / "checkpoint.pkl"
             if resume and ckpt.exists():
                 logger.info(f"Resuming from checkpoint: {ckpt}")
                 self._load_checkpoint_state(ckpt)
-                logger.info(f"Resumed at wave {self._progress.current_iteration}")
+                logger.info(f"Resumed at wave {self.current_iteration}")
             elif not resume and ckpt.exists():
                 logger.warning(
                     f"Checkpoint exists at {ckpt} but resume=False. "
@@ -1130,11 +1153,7 @@ class HistoryMatching:
         results = self.get_all_results()  # includes any resumed waves
 
         try:
-            import time
-
-            self._progress.start_time = time.time()
-
-            while self._progress.current_iteration < self.max_iterations and self._state not in [EngineState.COMPLETED, EngineState.ERROR]:
+            while self.current_iteration < self.max_iterations and self.state not in [EngineState.COMPLETED, EngineState.ERROR]:
                 # Run iteration
                 result = self.step()
                 results.append(result)
@@ -1143,7 +1162,7 @@ class HistoryMatching:
                     self.commit_step()
                     if getattr(self, '_nroy_exhausted', False):
                         logger.info("Stopping: NROY space exhausted after this wave.")
-                        self._state = EngineState.COMPLETED
+                        self.state = EngineState.COMPLETED
                         break
                 else:
                     break  # Let user decide
@@ -1153,24 +1172,22 @@ class HistoryMatching:
                     logger.info("Convergence criteria met. Stopping early.")
                     break
 
-            self._progress.end_time = time.time()
-
             # Only set to COMPLETED if we actually finished all iterations
-            if self._state != EngineState.ERROR and self._progress.current_iteration >= self.max_iterations:
-                self._state = EngineState.COMPLETED
+            if self.state != EngineState.ERROR and self.current_iteration >= self.max_iterations:
+                self.state = EngineState.COMPLETED
 
             logger.info(f"Automated run completed. {len(results)} iterations executed.")
 
         except Exception as e:
-            self._state = EngineState.ERROR
+            self.state = EngineState.ERROR
             failed_iteration = len(results) + 1
 
             error_msg = (
                 f"Automated run failed at iteration {failed_iteration} of {self.max_iterations}: {e}\n\n"
                 f"Progress before failure:\n"
                 f"  - Completed iterations: {len(results)}\n"
-                f"  - Total samples generated: {self._progress.total_samples_generated:,}\n"
-                f"  - Current acceptance rate: {self._progress.acceptance_rate:.1%}\n\n"
+                f"  - Total samples generated: {self.samples_generated:,}\n"
+                f"  - Current acceptance rate: {self.acceptance_rate:.1%}\n\n"
                 "You can:\n"
                 "  - Fix the issue and restart with a new engine\n"
                 "  - Use step-by-step execution (step/commit/revert) for more control\n"
@@ -1450,7 +1467,7 @@ class HistoryMatching:
             "parameter_space": self.parameter_space,
             "observations": self.observations,
             "emulator_bank": self.emulator_bank,
-            "progress": self._progress,
+            "progress": {name: getattr(self, name) for name in self._PROGRESS_ATTRS},
             "snapshots": self._snapshots,
             "max_iterations": self.max_iterations,
             "implausibility_threshold": self.implausibility_threshold,
@@ -1476,7 +1493,7 @@ class HistoryMatching:
 
         # Create engine with loaded data
         engine = cls(
-            parameter_bounds=data["parameter_space"],
+            bounds=data["parameter_space"],
             observations=data["observations"],
             sampling_strategy=sampling_strategy,
             feature_selection=feature_selection,
@@ -1495,9 +1512,9 @@ class HistoryMatching:
         )
 
         # Restore state
-        engine._progress = data["progress"]
+        engine._restore_progress(data["progress"])
         engine._snapshots = data["snapshots"]
-        engine._state = EngineState.PAUSED
+        engine.state = EngineState.PAUSED
 
         logger.info(f"Engine loaded from checkpoint {filepath}")
         return engine
@@ -1510,10 +1527,16 @@ class HistoryMatching:
             data = pickle.load(f)
 
         self.emulator_bank = data["emulator_bank"]
-        self._progress = data["progress"]
+        self._restore_progress(data["progress"])
         self._snapshots = data["snapshots"]
-        self._state = EngineState.PAUSED
+        self.state = EngineState.PAUSED
         logger.info(f"Loaded checkpoint: {len(self._snapshots)} waves completed")
+
+    def _restore_progress(self, progress: dict) -> None:
+        """Restore the public progress counters from a checkpoint dict."""
+        for name in self._PROGRESS_ATTRS:
+            if name in progress:
+                setattr(self, name, progress[name])
 
     def _save_wave_output(self, result: IterationResult) -> None:
         """Save emulators, diagnostics, and checkpoint after committing a wave.
@@ -1531,12 +1554,12 @@ class HistoryMatching:
               checkpoint.pkl       # latest engine state (overwritten each wave)
               run_config.json      # written once on first wave
         """
-        if self._run_dir is None:
+        if self.run_dir is None:
             return
 
         import json as _json
 
-        wave_dir = self._run_dir / f"wave{result.iteration}"
+        wave_dir = self.run_dir / f"wave{result.iteration}"
         wave_dir.mkdir(parents=True, exist_ok=True)
 
         # ── Per-feature: emulator + diagnostics ──────────────────────────
@@ -1788,12 +1811,12 @@ class HistoryMatching:
 
         # ── Run-level: checkpoint + config ───────────────────────────────
         try:
-            self.save_checkpoint(self._run_dir / "checkpoint.pkl")
+            self.save_checkpoint(self.run_dir / "checkpoint.pkl")
         except Exception as e:
             logger.warning(f"Failed to save checkpoint: {e}")
 
         # Run config (written once)
-        config_path = self._run_dir / "run_config.json"
+        config_path = self.run_dir / "run_config.json"
         if not config_path.exists():
             try:
                 config = {
@@ -1824,8 +1847,8 @@ class HistoryMatching:
         if not self.emulator_bank.has_emulators():
             # First iteration - no filtering needed
             samples = self.sampling_strategy.generate_samples(self.parameter_space, self.n_samples, seed=self.random_seed)
-            self._progress.total_samples_generated += len(samples)
-            self._progress.acceptance_rate = 1.0
+            self.samples_generated += len(samples)
+            self.acceptance_rate = 1.0
             return samples
 
         # Subsequent iterations - adaptive rejection sampling loop
@@ -1903,8 +1926,8 @@ class HistoryMatching:
                 batch_size = min(batch_size * 2, self.max_batch_size)
 
         # Update global progress tracking
-        self._progress.total_samples_generated += total_candidates_generated
-        self._progress.acceptance_rate = len(plausible_samples) / total_candidates_generated if total_candidates_generated > 0 else 1.0
+        self.samples_generated += total_candidates_generated
+        self.acceptance_rate = len(plausible_samples) / total_candidates_generated if total_candidates_generated > 0 else 1.0
 
         # Return exactly the requested number of samples
         return plausible_samples.head(self.n_samples)
@@ -2026,7 +2049,7 @@ class HistoryMatching:
         The simulator receives a DataFrame of parameter samples and may return
         either a DataFrame or a list of dicts (one per sample); both are accepted.
         """
-        output = self._simulation_function(samples)
+        output = self.function(samples)
         return self._coerce_simulation_output(output, len(samples))
 
     @staticmethod
@@ -2058,7 +2081,7 @@ class HistoryMatching:
 
     def _select_features(self, simulation_results: pd.DataFrame) -> list[str]:
         """Select features to emulate using configured strategy."""
-        return self._feature_selection_strategy.select_features(simulation_results, self.observations, self._progress.current_iteration + 1)
+        return self._feature_selection_strategy.select_features(simulation_results, self.observations, self.current_iteration + 1)
 
     def _create_emulators(self, samples: pd.DataFrame, simulation_results: pd.DataFrame, features: list[str]) -> dict[str, Any]:
         """Create and train emulators for selected features.
@@ -2129,7 +2152,7 @@ class HistoryMatching:
         """
         # Create a temporary emulator bank with current emulators for filtering
         temp_bank = self.emulator_bank.copy()
-        current_iteration = self._progress.current_iteration + 1
+        current_iteration = self.current_iteration + 1
         for feature, emulator in current_emulators.items():
             temp_bank.add_emulator(current_iteration, feature, emulator)
 
@@ -2224,11 +2247,11 @@ class HistoryMatching:
         self._last_nroy_fraction = (
             n_plausible / n_generated if n_generated > 0 else 1.0
         )
-        self._progress.total_samples_generated += n_generated
-        self._progress.total_samples_accepted += n_plausible
-        self._progress.acceptance_rate = (
-            self._progress.total_samples_accepted / self._progress.total_samples_generated
-            if self._progress.total_samples_generated > 0 else 1.0
+        self.samples_generated += n_generated
+        self.samples_accepted += n_plausible
+        self.acceptance_rate = (
+            self.samples_accepted / self.samples_generated
+            if self.samples_generated > 0 else 1.0
         )
         logger.debug(f"NROY fraction: {self._last_nroy_fraction:.6f}")
 
@@ -2241,7 +2264,7 @@ class HistoryMatching:
 
     def _create_snapshot(self) -> IterationSnapshot:
         """Create snapshot of current state."""
-        return IterationSnapshot(iteration=self._progress.current_iteration, parameter_space=self.parameter_space, emulator_bank=self.emulator_bank.copy())
+        return IterationSnapshot(iteration=self.current_iteration, parameter_space=self.parameter_space, emulator_bank=self.emulator_bank.copy())
 
     def _check_convergence(self) -> bool:
         """Check if convergence criteria are met.
@@ -2264,7 +2287,7 @@ class HistoryMatching:
                 f"NROY fraction ({rate:.4%}) fell below convergence threshold "
                 f"({threshold:.2%}).  The NROY region may be very small — consider "
                 f"relaxing the implausibility threshold or checking emulator quality.  "
-                f"Stopping after {self._progress.current_iteration} iterations."
+                f"Stopping after {self.current_iteration} iterations."
             )
             return True
         return False
@@ -2281,7 +2304,7 @@ class HistoryMatching:
         """Call registered progress callbacks."""
         for callback in self._progress_callbacks:
             try:
-                callback(self._progress)
+                callback(self)
             except Exception as e:
                 logger.warning(f"Progress callback failed: {e}")
 
@@ -2289,15 +2312,15 @@ class HistoryMatching:
         """Config-revealing representation (leads with what is being calibrated)."""
         params = self.parameters
         outs = self.outputs
-        sim = "set" if self._simulation_function is not None else "NOT SET"
+        sim = "set" if self.function is not None else "NOT SET"
         return (
             f"HistoryMatching(\n"
             f"  parameters={len(params)} {params},\n"
             f"  outputs={len(outs)} {outs},\n"
             f"  emulator={self.emulator_type}, simulator={sim},\n"
             f"  n_samples={self.n_samples}, implausibility_threshold={self.implausibility_threshold},\n"
-            f"  state={self._state.value}, wave {self._progress.current_iteration}/{self.max_iterations}, "
-            f"acceptance_rate={self._progress.acceptance_rate:.3f}\n"
+            f"  state={self.state.value}, wave {self.current_iteration}/{self.max_iterations}, "
+            f"acceptance_rate={self.acceptance_rate:.3f}\n"
             f")"
         )
 

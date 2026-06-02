@@ -1,5 +1,5 @@
 """
-Unit tests for the HistoryMatching configuration API.
+Unit tests for the hm.HistoryMatching configuration API.
 
 These cover the single-constructor configuration that replaced the old
 HistoryMatchingBuilder: friendly values (dicts / strings / lists / objects) are
@@ -14,15 +14,6 @@ import pandas as pd
 import pytest
 
 import historymatching as hm
-from historymatching import HistoryMatching
-from historymatching.emulator_bank import EmulatorBank
-from historymatching.observation_data import ObservationData
-from historymatching.parameter_space import ParameterSpace
-from historymatching.emulators.factory import EmulatorFactory
-from historymatching.feature_selection import AutoFeatureSelection
-from historymatching.feature_selection import ManualFeatureSelection
-from historymatching.sampling import LatinHypercubeSampling
-from historymatching.sampling import RandomSampling
 
 
 @pytest.fixture
@@ -64,7 +55,7 @@ def observations_df():
 def make(parameter_bounds, observations, **kwargs):
     """Build a HistoryMatching with disk output disabled by default."""
     kwargs.setdefault("output_dir", None)
-    return HistoryMatching(parameter_bounds=parameter_bounds, observations=observations, **kwargs)
+    return hm.HistoryMatching(bounds=parameter_bounds, observations=observations, **kwargs)
 
 
 class TestConstruction:
@@ -80,51 +71,51 @@ class TestConstruction:
         assert "PARAMETER_SPACE_COLUMNS" not in hm.__all__
 
     def test_defaults(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations)
-        assert match.n_samples == 1000
-        assert match.implausibility_threshold == 3.0
-        assert match.max_iterations == 10
-        assert match.random_seed is None
-        assert match.auto_reduce_space is False
-        assert match.oversample_factor == 1.1
+        engine = make(parameter_bounds, observations)
+        assert engine.n_samples == 1000
+        assert engine.implausibility_threshold == 3.0
+        assert engine.max_iterations == 10
+        assert engine.random_seed is None
+        assert engine.auto_reduce_space is False
+        assert engine.oversample_factor == 1.1
 
     def test_from_dicts(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations)
-        assert isinstance(match.parameter_space, ParameterSpace)
-        assert isinstance(match.observations, ObservationData)
-        assert set(match.parameters) == set(parameter_bounds)
-        assert set(match.outputs) == set(observations)
+        engine = make(parameter_bounds, observations)
+        assert isinstance(engine.parameter_space, hm.ParameterSpace)
+        assert isinstance(engine.observations, hm.ObservationData)
+        assert set(engine.parameters) == set(parameter_bounds)
+        assert set(engine.outputs) == set(observations)
 
     def test_from_dataframes(self, parameter_df, observations_df):
-        match = make(parameter_df, observations_df)
-        assert set(match.parameters) == set(parameter_df["parameter"])
-        assert set(match.outputs) == set(observations_df["feature"])
+        engine = make(parameter_df, observations_df)
+        assert set(engine.parameters) == set(parameter_df["parameter"])
+        assert set(engine.outputs) == set(observations_df["feature"])
 
     def test_from_existing_objects(self, parameter_bounds, observations):
-        ps = ParameterSpace(parameter_bounds)
-        obs = ObservationData(observations)
-        match = make(ps, obs)
-        assert match.parameter_space is ps
-        assert match.observations is obs
+        ps = hm.ParameterSpace(parameter_bounds)
+        obs = hm.ObservationData(observations)
+        engine = make(ps, obs)
+        assert engine.parameter_space is ps
+        assert engine.observations is obs
 
     def test_constructor_kwargs(self, parameter_bounds, observations):
-        match = make(
+        engine = make(
             parameter_bounds, observations,
             n_samples=500, max_iterations=5,
             sampling_strategy="grid", emulator_type="linear",
         )
-        assert match.n_samples == 500
-        assert match.max_iterations == 5
-        assert "Grid" in match.sampling_strategy.get_strategy_name()
-        assert match.emulator_factory.get_default_type() == "linear"
+        assert engine.n_samples == 500
+        assert engine.max_iterations == 5
+        assert "Grid" in engine.sampling_strategy.get_strategy_name()
+        assert engine.emulator_factory.get_default_type() == "linear"
 
     def test_tuning_knobs_are_explicit(self, parameter_bounds, observations):
         # Formerly-hidden **settings knobs are now real, discoverable kwargs.
-        match = make(parameter_bounds, observations,
+        engine = make(parameter_bounds, observations,
                      max_candidate_factor=2000, convergence_threshold=0.02, nroy_method="lhs")
-        assert match.max_candidate_factor == 2000
-        assert match.convergence_threshold == 0.02
-        assert match.nroy_method == "lhs"
+        assert engine.max_candidate_factor == 2000
+        assert engine.convergence_threshold == 0.02
+        assert engine.nroy_method == "lhs"
 
     def test_unknown_kwarg_raises(self, parameter_bounds, observations):
         # A typo'd option is no longer silently swallowed.
@@ -134,93 +125,93 @@ class TestConstruction:
 
 class TestSamplingStrategy:
     def test_string(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations, sampling_strategy="grid")
-        assert "Grid" in match.sampling_strategy.get_strategy_name()
+        engine = make(parameter_bounds, observations, sampling_strategy="grid")
+        assert "Grid" in engine.sampling_strategy.get_strategy_name()
 
     def test_object(self, parameter_bounds, observations):
-        strategy = RandomSampling()
-        match = make(parameter_bounds, observations, sampling_strategy=strategy)
-        assert match.sampling_strategy is strategy
+        strategy = hm.RandomSampling()
+        engine = make(parameter_bounds, observations, sampling_strategy=strategy)
+        assert engine.sampling_strategy is strategy
 
     def test_dict(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations,
+        engine = make(parameter_bounds, observations,
                      sampling_strategy={"type": "lhs", "criterion": "center"})
-        assert isinstance(match.sampling_strategy, LatinHypercubeSampling)
-        assert "center" in match.sampling_strategy.get_strategy_name()
+        assert isinstance(engine.sampling_strategy, hm.LatinHypercubeSampling)
+        assert "center" in engine.sampling_strategy.get_strategy_name()
 
     def test_default_is_lhs(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations)
-        assert isinstance(match.sampling_strategy, LatinHypercubeSampling)
+        engine = make(parameter_bounds, observations)
+        assert isinstance(engine.sampling_strategy, hm.LatinHypercubeSampling)
 
 
 class TestFeatureSelection:
     def test_list(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations, feature_selection=["output1", "output2"])
-        assert isinstance(match.feature_selection, ManualFeatureSelection)
+        engine = make(parameter_bounds, observations, feature_selection=["output1", "output2"])
+        assert isinstance(engine.feature_selection, hm.ManualFeatureSelection)
 
     def test_string(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations, feature_selection="output1")
-        assert isinstance(match.feature_selection, ManualFeatureSelection)
+        engine = make(parameter_bounds, observations, feature_selection="output1")
+        assert isinstance(engine.feature_selection, hm.ManualFeatureSelection)
 
     def test_object(self, parameter_bounds, observations):
-        strategy = AutoFeatureSelection(method="var", max_features=2)
-        match = make(parameter_bounds, observations, feature_selection=strategy)
-        assert match.feature_selection is strategy
+        strategy = hm.AutoFeatureSelection(method="var", max_features=2)
+        engine = make(parameter_bounds, observations, feature_selection=strategy)
+        assert engine.feature_selection is strategy
 
     def test_dict(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations,
+        engine = make(parameter_bounds, observations,
                      feature_selection={"method": "var", "max_features": 2, "threshold": 0.5})
-        strategy = match.feature_selection
-        assert isinstance(strategy, AutoFeatureSelection)
+        strategy = engine.feature_selection
+        assert isinstance(strategy, hm.AutoFeatureSelection)
         assert strategy.method == "var"
         assert strategy.max_features == 2
         assert strategy.threshold == 0.5
 
     def test_default_is_auto(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations)
-        assert isinstance(match.feature_selection, AutoFeatureSelection)
+        engine = make(parameter_bounds, observations)
+        assert isinstance(engine.feature_selection, hm.AutoFeatureSelection)
 
 
 class TestEmulatorConfig:
     def test_emulator_type(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations, emulator_type="linear")
-        assert isinstance(match.emulator_factory, EmulatorFactory)
-        assert match.emulator_factory.get_default_type() == "linear"
+        engine = make(parameter_bounds, observations, emulator_type="linear")
+        assert isinstance(engine.emulator_factory, hm.EmulatorFactory)
+        assert engine.emulator_factory.get_default_type() == "linear"
 
     def test_emulator_factory_overrides_type(self, parameter_bounds, observations):
-        factory = EmulatorFactory("gpr", kernel="rbf")
-        match = make(parameter_bounds, observations,
+        factory = hm.EmulatorFactory("gpr", kernel="rbf")
+        engine = make(parameter_bounds, observations,
                      emulator_type="linear", emulator_factory=factory)
-        assert match.emulator_factory is factory
+        assert engine.emulator_factory is factory
 
     def test_emulator_bank(self, parameter_bounds, observations):
-        bank = EmulatorBank()
-        match = make(parameter_bounds, observations, emulator_bank=bank)
-        assert match.emulator_bank is bank
+        bank = hm.EmulatorBank()
+        engine = make(parameter_bounds, observations, emulator_bank=bank)
+        assert engine.emulator_bank is bank
 
     def test_default_is_gpr(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations)
-        assert match.emulator_factory.get_default_type() == "gpr"
+        engine = make(parameter_bounds, observations)
+        assert engine.emulator_factory.get_default_type() == "gpr"
 
 
 class TestWorkflowParameters:
     def test_workflow_parameters(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations,
+        engine = make(parameter_bounds, observations,
                      n_samples=2000, max_iterations=20,
                      implausibility_threshold=2.5, random_seed=42)
-        assert match.n_samples == 2000
-        assert match.max_iterations == 20
-        assert match.implausibility_threshold == 2.5
-        assert match.random_seed == 42
+        assert engine.n_samples == 2000
+        assert engine.max_iterations == 20
+        assert engine.implausibility_threshold == 2.5
+        assert engine.random_seed == 42
 
     def test_space_reduction_options(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations,
+        engine = make(parameter_bounds, observations,
                      auto_reduce_space=True, oversample_factor=5.0)
-        assert match.auto_reduce_space is True
-        assert match.oversample_factor == 5.0
+        assert engine.auto_reduce_space is True
+        assert engine.oversample_factor == 5.0
 
     def test_full_configuration(self, parameter_bounds, observations):
-        match = make(
+        engine = make(
             parameter_bounds, observations,
             sampling_strategy="lhs",
             feature_selection=["output1"],
@@ -232,23 +223,23 @@ class TestWorkflowParameters:
             auto_reduce_space=True,
             oversample_factor=3.0,
         )
-        assert match.n_samples == 1500
-        assert match.max_iterations == 15
-        assert match.implausibility_threshold == 2.8
-        assert match.random_seed == 123
-        assert match.auto_reduce_space is True
-        assert match.oversample_factor == 3.0
-        assert isinstance(match.feature_selection, ManualFeatureSelection)
+        assert engine.n_samples == 1500
+        assert engine.max_iterations == 15
+        assert engine.implausibility_threshold == 2.8
+        assert engine.random_seed == 123
+        assert engine.auto_reduce_space is True
+        assert engine.oversample_factor == 3.0
+        assert isinstance(engine.feature_selection, hm.ManualFeatureSelection)
 
 
 class TestValidation:
-    def test_missing_parameter_bounds(self, observations):
-        with pytest.raises(ValueError, match="parameter_bounds is required"):
-            HistoryMatching(observations=observations, output_dir=None)
+    def test_missing_bounds(self, observations):
+        with pytest.raises(ValueError, match="bounds is required"):
+            hm.HistoryMatching(observations=observations, output_dir=None)
 
     def test_missing_observations(self, parameter_bounds):
         with pytest.raises(ValueError, match="observations is required"):
-            HistoryMatching(parameter_bounds=parameter_bounds, output_dir=None)
+            hm.HistoryMatching(bounds=parameter_bounds, output_dir=None)
 
     def test_rejects_nonpositive_n_samples(self, parameter_bounds, observations):
         with pytest.raises(ValueError):
@@ -291,25 +282,24 @@ class TestSimulationFunction:
     def test_function_via_constructor(self, parameter_bounds, observations):
         def sim(samples):
             return pd.DataFrame({"output1": np.ones(len(samples))})
-        match = make(parameter_bounds, observations, function=sim)
-        assert match.function is sim
-        assert match._simulation_function is sim
+        engine = make(parameter_bounds, observations, function=sim)
+        assert engine.function is sim
 
     def test_function_via_setter(self, parameter_bounds, observations):
         def sim(samples):
             return pd.DataFrame({"output1": np.ones(len(samples))})
-        match = make(parameter_bounds, observations)
-        assert match.function is None
-        match.function = sim
-        assert match.function is sim
-        # The `function` property setter is equivalent.
-        match2 = make(parameter_bounds, observations)
-        match2.function = sim
-        assert match2.function is sim
+        engine = make(parameter_bounds, observations)
+        assert engine.function is None
+        engine.function = sim
+        assert engine.function is sim
+        # Assigning `function` after construction is equivalent.
+        engine2 = make(parameter_bounds, observations)
+        engine2.function = sim
+        assert engine2.function is sim
 
     def test_output_dataframe_passthrough(self):
         df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
-        out = HistoryMatching._coerce_simulation_output(df, 3)
+        out = hm.HistoryMatching._coerce_simulation_output(df, 3)
         assert isinstance(out, pd.DataFrame)
         assert list(out.columns) == ["a", "b"]
         assert len(out) == 3
@@ -317,26 +307,26 @@ class TestSimulationFunction:
 
     def test_output_records_normalized(self):
         records = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
-        out = HistoryMatching._coerce_simulation_output(records, 2)
+        out = hm.HistoryMatching._coerce_simulation_output(records, 2)
         assert isinstance(out, pd.DataFrame)
         assert list(out.columns) == ["a", "b"]
         assert len(out) == 2
 
     def test_output_dict_of_columns(self):
-        out = HistoryMatching._coerce_simulation_output({"a": [1, 2], "b": [3, 4]}, 2)
+        out = hm.HistoryMatching._coerce_simulation_output({"a": [1, 2], "b": [3, 4]}, 2)
         assert list(out.columns) == ["a", "b"]
         assert len(out) == 2
 
     def test_output_wrong_length_raises(self):
         with pytest.raises(ValueError, match="exactly one row"):
-            HistoryMatching._coerce_simulation_output([{"a": 1}], 3)
+            hm.HistoryMatching._coerce_simulation_output([{"a": 1}], 3)
 
 
 class TestConveniences:
     """End-to-end checks of the friendly accessors after a short run."""
 
     @pytest.fixture
-    def ran_match(self, parameter_bounds, observations):
+    def ran_engine(self, parameter_bounds, observations):
         np.random.seed(0)
 
         def sim(samples):
@@ -350,7 +340,7 @@ class TestConveniences:
                 })
             return rows
 
-        match = make(
+        engine = make(
             parameter_bounds, observations,
             function=sim,
             emulator_type="linear",
@@ -359,33 +349,33 @@ class TestConveniences:
             max_iterations=2,
             random_seed=1,
         )
-        match.run()
-        return match
+        engine.run()
+        return engine
 
-    def test_len_and_results(self, ran_match):
-        assert len(ran_match) == len(ran_match.results)
-        assert 1 <= len(ran_match) <= 2
+    def test_len_and_results(self, ran_engine):
+        assert len(ran_engine) == len(ran_engine.results)
+        assert 1 <= len(ran_engine) <= 2
 
-    def test_enumerate(self, ran_match):
-        rows = list(ran_match.enumerate())
-        assert len(rows) == len(ran_match)
+    def test_enumerate(self, ran_engine):
+        rows = list(ran_engine.enumerate())
+        assert len(rows) == len(ran_engine)
         for i, result, samples in rows:
             assert result.iteration == i
             assert len(samples) == len(result.samples)
 
-    def test_progress_properties(self, ran_match):
-        assert ran_match.samples_generated > 0
-        assert ran_match.samples_accepted > 0
-        assert ran_match.emulators_trained >= 1
+    def test_progress_properties(self, ran_engine):
+        assert ran_engine.samples_generated > 0
+        assert ran_engine.samples_accepted > 0
+        assert ran_engine.emulators_trained >= 1
 
-    def test_print_emulator_quality_metrics(self, ran_match, capsys):
-        metrics = ran_match.print_emulator_quality_metrics()
+    def test_print_emulator_quality_metrics(self, ran_engine, capsys):
+        metrics = ran_engine.print_emulator_quality_metrics()
         out = capsys.readouterr().out
         assert "output1" in metrics
         assert "wave" in out.lower()
 
-    def test_plot_nroy_parameters(self, ran_match):
-        fig, axes = ran_match.plot_nroy_parameters(
+    def test_plot_nroy_parameters(self, ran_engine):
+        fig, axes = ran_engine.plot_nroy_parameters(
             derived={"sum": lambda df: df["param1"] + df["param2"]},
             true_parameters={"param1": 0.5},
         )
@@ -393,9 +383,9 @@ class TestConveniences:
         import matplotlib.pyplot as plt
         plt.close(fig)
 
-    def test_save_diagnostics(self, ran_match, tmp_path):
-        # match.save_diagnostics delegates to each IterationResult.save
-        ran_match.save_diagnostics(str(tmp_path))
+    def test_save_diagnostics(self, ran_engine, tmp_path):
+        # engine.save_diagnostics delegates to each IterationResult.save
+        ran_engine.save_diagnostics(str(tmp_path))
         wave_dirs = sorted(tmp_path.glob("wave*"))
         assert wave_dirs, "no wave directories were written"
         w = wave_dirs[0]
@@ -403,10 +393,10 @@ class TestConveniences:
         assert (w / "simulation_results.csv").exists()
         assert (w / "metrics.json").exists()
 
-    def test_result_save(self, ran_match, tmp_path):
+    def test_result_save(self, ran_engine, tmp_path):
         # IterationResult.save writes one wave's artifacts
-        result = ran_match.results[-1]
-        wave_dir = result.save(str(tmp_path), all_results=ran_match.results)
+        result = ran_engine.results[-1]
+        wave_dir = result.save(str(tmp_path), all_results=ran_engine.results)
         from pathlib import Path
         assert Path(wave_dir).exists()
         assert (Path(wave_dir) / "samples.csv").exists()
@@ -414,7 +404,7 @@ class TestConveniences:
 
 class TestRepr:
     def test_repr(self, parameter_bounds, observations):
-        match = make(parameter_bounds, observations)
-        text = repr(match)
+        engine = make(parameter_bounds, observations)
+        text = repr(engine)
         assert "HistoryMatching(" in text
         assert "state=initialized" in text

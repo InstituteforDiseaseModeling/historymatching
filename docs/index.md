@@ -25,7 +25,8 @@ import historymatching as hm
 
 # Configure the engine
 engine = hm.HistoryMatching(
-    parameter_bounds={
+    function=my_model,                  # the simulation function
+    bounds={
         'beta': (0.1, 0.5),
         'gamma': (0.01, 0.1),
     },
@@ -33,7 +34,6 @@ engine = hm.HistoryMatching(
         'peak_infected': (150.0, 20.0),  # (mean, std)
         'total_cases': (500.0, 50.0),
     },
-    function=my_model,                  # the simulation function
     sampling_strategy='lhs',
     emulator_type='gpr',
     n_samples=500,

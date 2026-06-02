@@ -10,21 +10,10 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pytest
-from historymatching.engine import EngineState
-from historymatching.engine import HistoryMatching
-from historymatching.engine import WorkflowProgress
-from historymatching.iteration_result import IterationResult
-from historymatching.observation_data import ObservationData
-from historymatching.parameter_space import ParameterSpace
-from historymatching.emulators.base import BaseEmulator
-from historymatching.emulators.factory import EmulatorFactory
-from historymatching.feature_selection import AutoFeatureSelection
-from historymatching.feature_selection import ManualFeatureSelection
-from historymatching.sampling import LatinHypercubeSampling
-from historymatching.sampling import RandomSampling
+import historymatching as hm
 
 
-class MockEmulator(BaseEmulator):
+class MockEmulator(hm.BaseEmulator):
     """Mock emulator for testing that inherits from BaseEmulator."""
 
     def __init__(self, feature_name="mock_feature"):
@@ -59,7 +48,7 @@ class MockEmulator(BaseEmulator):
 @pytest.fixture
 def parameter_space():
     """Create test parameter space."""
-    return ParameterSpace({
+    return hm.ParameterSpace({
         "param1": (0.0, 1.0),
         "param2": (-1.0, 1.0),
         "param3": (10.0, 20.0)
@@ -68,7 +57,7 @@ def parameter_space():
 @pytest.fixture
 def observations():
     """Create test observations."""
-    return ObservationData({
+    return hm.ObservationData({
         "output1": (5.0, 1.0),  # (mean, std)
         "output2": (10.0, 4.0),
         "output3": (0.5, 0.01)
@@ -90,12 +79,12 @@ def mock_simulation_function():
 @pytest.fixture
 def basic_engine(parameter_space, observations):
     """Create basic engine for testing."""
-    return HistoryMatching(
-        parameter_bounds=parameter_space,
+    return hm.HistoryMatching(
+        bounds=parameter_space,
         observations=observations,
-        sampling_strategy=RandomSampling(),
-        feature_selection=ManualFeatureSelection(["output1"]),
-        emulator_factory=EmulatorFactory("linear"),
+        sampling_strategy=hm.RandomSampling(),
+        feature_selection=hm.ManualFeatureSelection(["output1"]),
+        emulator_factory=hm.EmulatorFactory("linear"),
         n_samples=50,  # Small for testing
         output_dir=None,
     )
@@ -106,16 +95,16 @@ class TestHistoryMatchingEngine:
 
     def test_engine_initialization(self, parameter_space, observations):
         """Test basic engine initialization."""
-        engine = HistoryMatching(
-            parameter_bounds=parameter_space,
+        engine = hm.HistoryMatching(
+            bounds=parameter_space,
             observations=observations,
-            sampling_strategy=RandomSampling(),
-            feature_selection=ManualFeatureSelection(["output1"]),
-            emulator_factory=EmulatorFactory("linear"),
+            sampling_strategy=hm.RandomSampling(),
+            feature_selection=hm.ManualFeatureSelection(["output1"]),
+            emulator_factory=hm.EmulatorFactory("linear"),
             output_dir=None,
         )
 
-        assert engine.state == EngineState.INITIALIZED
+        assert engine.state == hm.EngineState.INITIALIZED
         assert engine.current_iteration == 0
         assert engine.parameter_space is parameter_space
         assert engine.observations is observations
@@ -125,12 +114,12 @@ class TestHistoryMatchingEngine:
 
     def test_engine_initialization_with_options(self, parameter_space, observations):
         """Test engine initialization with custom options."""
-        engine = HistoryMatching(
-            parameter_bounds=parameter_space,
+        engine = hm.HistoryMatching(
+            bounds=parameter_space,
             observations=observations,
-            sampling_strategy=RandomSampling(),
-            feature_selection=ManualFeatureSelection(["output1"]),
-            emulator_factory=EmulatorFactory("linear"),
+            sampling_strategy=hm.RandomSampling(),
+            feature_selection=hm.ManualFeatureSelection(["output1"]),
+            emulator_factory=hm.EmulatorFactory("linear"),
             n_samples=500,
             auto_reduce_space=True,
             oversample_factor=3.0,
@@ -148,7 +137,7 @@ class TestHistoryMatchingEngine:
     def test_set_simulation_function(self, basic_engine, mock_simulation_function):
         """Test setting simulation function."""
         basic_engine.function = mock_simulation_function
-        assert basic_engine._simulation_function is mock_simulation_function
+        assert basic_engine.function is mock_simulation_function
 
     def test_step_without_simulation_function(self, basic_engine):
         """Test stepping without simulation function raises error."""
@@ -158,7 +147,7 @@ class TestHistoryMatchingEngine:
     def test_step_invalid_state(self, basic_engine, mock_simulation_function):
         """Test stepping in invalid state."""
         basic_engine.function = mock_simulation_function
-        basic_engine._state = EngineState.RUNNING
+        basic_engine.state = hm.EngineState.RUNNING
 
         with pytest.raises(RuntimeError, match="Engine is currently running iteration"):
             basic_engine.step()
@@ -174,11 +163,11 @@ class TestHistoryMatchingEngine:
 
             result = basic_engine.step()
 
-        assert isinstance(result, IterationResult)
+        assert isinstance(result, hm.IterationResult)
         assert result.iteration == 1
         assert len(result.samples) == 50
         assert "output1" in result.emulated_outputs
-        assert basic_engine.state == EngineState.PAUSED
+        assert basic_engine.state == hm.EngineState.PAUSED
         assert basic_engine._pending_result is result
 
     def test_commit_step(self, basic_engine, mock_simulation_function):
@@ -197,11 +186,11 @@ class TestHistoryMatchingEngine:
 
         assert basic_engine.current_iteration == 1
         assert basic_engine._pending_result is None
-        assert basic_engine.state == EngineState.PAUSED
+        assert basic_engine.state == hm.EngineState.PAUSED
         assert len(basic_engine._snapshots) == 1
         # total_samples_accepted includes both the committed iteration's samples
         # and any pre-computed samples for the next iteration
-        assert basic_engine.progress.total_samples_accepted >= 50
+        assert basic_engine.samples_accepted >= 50
 
     def test_revert_step(self, basic_engine, mock_simulation_function):
         """Test reverting a step."""
@@ -219,7 +208,7 @@ class TestHistoryMatchingEngine:
 
         assert basic_engine.current_iteration == 0
         assert basic_engine._pending_result is None
-        assert basic_engine.state == EngineState.PAUSED
+        assert basic_engine.state == hm.EngineState.PAUSED
         assert len(basic_engine._snapshots) == 0
 
     def test_commit_without_pending_step(self, basic_engine):
@@ -270,17 +259,17 @@ class TestHistoryMatchingEngine:
 
     def test_update_strategies(self, basic_engine):
         """Reconfiguring mid-run via coercing property setters."""
-        # Feature selection: friendly list is coerced to ManualFeatureSelection
+        # Feature selection: friendly list is coerced to hm.ManualFeatureSelection
         basic_engine.feature_selection = ["output1", "output2"]
-        assert isinstance(basic_engine.feature_selection, ManualFeatureSelection)
+        assert isinstance(basic_engine.feature_selection, hm.ManualFeatureSelection)
 
         # ...or assign a strategy object directly
-        auto_strategy = AutoFeatureSelection(method="var")
+        auto_strategy = hm.AutoFeatureSelection(method="var")
         basic_engine.feature_selection = auto_strategy
         assert basic_engine.feature_selection is auto_strategy
 
         # Sampling strategy: object or friendly name
-        new_sampling = LatinHypercubeSampling()
+        new_sampling = hm.LatinHypercubeSampling()
         basic_engine.sampling_strategy = new_sampling
         assert basic_engine.sampling_strategy is new_sampling
         basic_engine.sampling_strategy = "grid"
@@ -305,8 +294,8 @@ class TestHistoryMatchingEngine:
         # Engine may stop early due to convergence criteria (acceptance_rate < 1%)
         assert 1 <= len(results) <= 3
         assert basic_engine.current_iteration == len(results)
-        assert basic_engine.state in (EngineState.COMPLETED, EngineState.PAUSED)
-        assert all(isinstance(r, IterationResult) for r in results)
+        assert basic_engine.state in (hm.EngineState.COMPLETED, hm.EngineState.PAUSED)
+        assert all(isinstance(r, hm.IterationResult) for r in results)
 
     def test_automated_run_no_auto_commit(self, basic_engine, mock_simulation_function):
         """Test automated run without auto-commit."""
@@ -320,7 +309,7 @@ class TestHistoryMatchingEngine:
 
         assert len(results) == 1  # Only one iteration
         assert basic_engine.current_iteration == 0  # Not committed
-        assert basic_engine.state == EngineState.PAUSED
+        assert basic_engine.state == hm.EngineState.PAUSED
 
     def test_max_iterations_limit(self, basic_engine, mock_simulation_function):
         """Test maximum iterations limit."""
@@ -405,12 +394,12 @@ class TestHistoryMatchingEngine:
 
     def test_space_reduction_enabled(self, parameter_space, observations, mock_simulation_function):
         """Test space reduction when enabled."""
-        engine = HistoryMatching(
-            parameter_bounds=parameter_space,
+        engine = hm.HistoryMatching(
+            bounds=parameter_space,
             observations=observations,
-            sampling_strategy=RandomSampling(),
-            feature_selection=ManualFeatureSelection(["output1"]),
-            emulator_factory=EmulatorFactory("linear"),
+            sampling_strategy=hm.RandomSampling(),
+            feature_selection=hm.ManualFeatureSelection(["output1"]),
+            emulator_factory=hm.EmulatorFactory("linear"),
             n_samples=50,
             auto_reduce_space=True,  # Enable space reduction
             output_dir=None,
@@ -470,16 +459,16 @@ class TestHistoryMatchingEngine:
             basic_engine.save_checkpoint(checkpoint_path)
 
             # Load checkpoint
-            loaded_engine = HistoryMatching.load_checkpoint(
+            loaded_engine = hm.HistoryMatching.load_checkpoint(
                 checkpoint_path,
-                sampling_strategy=RandomSampling(),
-                feature_selection=ManualFeatureSelection(["output1"]),
-                emulator_factory=EmulatorFactory("linear")
+                sampling_strategy=hm.RandomSampling(),
+                feature_selection=hm.ManualFeatureSelection(["output1"]),
+                emulator_factory=hm.EmulatorFactory("linear")
             )
 
             # Check that state was restored
             assert loaded_engine.current_iteration == basic_engine.current_iteration
-            assert loaded_engine.state == EngineState.PAUSED
+            assert loaded_engine.state == hm.EngineState.PAUSED
             assert len(loaded_engine._snapshots) == len(basic_engine._snapshots)
 
         finally:
@@ -495,18 +484,16 @@ class TestHistoryMatchingEngine:
         assert "simulator=NOT SET" in repr_str
 
 
-class TestWorkflowProgress:
-    """Test WorkflowProgress tracking."""
+class TestProgressTracking:
+    """Test progress tracking via the engine's public counters."""
 
-    def test_progress_initialization(self):
-        """Test progress initialization."""
-        progress = WorkflowProgress()
-
-        assert progress.current_iteration == 0
-        assert progress.completed_iterations == []
-        assert progress.total_samples_generated == 0
-        assert progress.total_samples_accepted == 0
-        assert progress.acceptance_rate == 1.0
+    def test_progress_initialization(self, basic_engine):
+        """Test progress counters start at zero."""
+        assert basic_engine.current_iteration == 0
+        assert basic_engine.completed_iterations == []
+        assert basic_engine.samples_generated == 0
+        assert basic_engine.samples_accepted == 0
+        assert basic_engine.acceptance_rate == 1.0
 
     def test_progress_updates(self, basic_engine, mock_simulation_function):
         """Test that progress is updated correctly."""
@@ -520,18 +507,17 @@ class TestWorkflowProgress:
             basic_engine.step()
             basic_engine.commit_step()
 
-            progress = basic_engine.progress
-            assert progress.current_iteration == 1
-            assert progress.completed_iterations == [1]
-            assert progress.total_samples_accepted >= 50
+            assert basic_engine.current_iteration == 1
+            assert basic_engine.completed_iterations == [1]
+            assert basic_engine.samples_accepted >= 50
 
             # Second iteration
             basic_engine.step()
             basic_engine.commit_step()
 
-            assert progress.current_iteration == 2
-            assert progress.completed_iterations == [1, 2]
-            assert progress.total_samples_accepted >= 100
+            assert basic_engine.current_iteration == 2
+            assert basic_engine.completed_iterations == [1, 2]
+            assert basic_engine.samples_accepted >= 100
 
 
 class TestSampleFiltering:

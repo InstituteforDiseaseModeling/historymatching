@@ -52,7 +52,8 @@ import historymatching as hm
 
 # Configure the engine
 engine = hm.HistoryMatching(
-    parameter_bounds={
+    function=my_model,                  # the simulation function
+    bounds={
         'beta': (0.1, 0.5),
         'gamma': (0.01, 0.1),
     },
@@ -60,7 +61,6 @@ engine = hm.HistoryMatching(
         'peak_infected': (150.0, 20.0),  # (mean, std)
         'total_cases': (500.0, 50.0),
     },
-    function=my_model,                  # the simulation function
     sampling_strategy='lhs',
     emulator_type='gpr',                # or 'linear', 'glm'
     n_samples=500,
@@ -83,9 +83,9 @@ nroy = engine.get_nroy_samples(10000)
 
 ```python
 engine = hm.HistoryMatching(
-    parameter_bounds=parameter_bounds,
-    observations=observations,
     function=my_model,
+    bounds=parameter_bounds,
+    observations=observations,
     run_name='my_calibration',
 )
 results = engine.run(resume=True)  # continues from last committed wave
@@ -97,9 +97,9 @@ The default `ray_resample` method uses a 4-stage pipeline (LHS → ray sampling 
 
 ```python
 engine = hm.HistoryMatching(
-    parameter_bounds=parameter_bounds,
-    observations=observations,
     function=my_model,
+    bounds=parameter_bounds,
+    observations=observations,
     nroy_method='ray_resample',           # default; or 'lhs' for pure rejection
     nroy_options=dict(n_lines=30, points_per_line=100),  # optional tuning
 )
@@ -109,9 +109,9 @@ For simple problems, pure LHS rejection is fine:
 
 ```python
 engine = hm.HistoryMatching(
-    parameter_bounds=parameter_bounds,
-    observations=observations,
     function=my_model,
+    bounds=parameter_bounds,
+    observations=observations,
     nroy_method='lhs',
 )
 ```

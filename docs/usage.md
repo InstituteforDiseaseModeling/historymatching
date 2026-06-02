@@ -59,13 +59,13 @@ def my_model(samples: pd.DataFrame) -> pd.DataFrame:
 
 ## Creating an engine
 
-All history matching workflows start by constructing a `HistoryMatching` engine. Everything is configured in a single constructor call — pass the parameter bounds and observations positionally, then any options as keyword arguments. Every keyword argument is optional and has a sensible default.
+All history matching workflows start by constructing a `HistoryMatching` engine. Everything is configured in a single constructor call — pass your simulator `function`, the parameter bounds, and observations, then any options as keyword arguments. Every keyword argument is optional and has a sensible default.
 
 ```python
 engine = hm.HistoryMatching(
-    parameter_bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
-    observations={'peak_infected': (150.0, 20.0)},
     function=my_model,                                       # the simulation function
+    bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
+    observations={'peak_infected': (150.0, 20.0)},
     sampling_strategy={'type': 'lhs', 'criterion': 'maximin'},  # How to sample
     feature_selection={'method': 'fano', 'max_features': 3},    # Which outputs to emulate
     emulator_type='gpr',                                     # Statistical surrogate type
@@ -191,8 +191,9 @@ By default the engine saves emulators, diagnostics, and checkpoints after each w
 
 ```python
 engine = hm.HistoryMatching(
-    parameter_bounds, observations,
     function=my_model,
+    bounds=parameter_bounds,
+    observations=observations,
     output_dir='./hm_output',       # default; None disables all disk output
     run_name='my_calibration',      # default: auto-generated timestamp
 )
@@ -227,8 +228,9 @@ hm_output/my_calibration/
 
 ```python
 engine = hm.HistoryMatching(
-    parameter_bounds, observations,
     function=my_model,
+    bounds=parameter_bounds,
+    observations=observations,
     run_name='my_calibration',
 )
 results = engine.run(resume=True)   # loads checkpoint.pkl, continues
