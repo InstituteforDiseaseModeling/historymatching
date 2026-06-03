@@ -1,0 +1,7 @@
+history\_matching.config module
+===============================
+
+.. automodule:: history_matching.config
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+history\_matching.emulators.linear module
+=========================================
+
+.. automodule:: history_matching.emulators.linear
+   :members:
+   :undoc-members:
+   :show-inheritance:

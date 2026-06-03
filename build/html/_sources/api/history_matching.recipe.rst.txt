@@ -1,0 +1,7 @@
+history\_matching.recipe module
+===============================
+
+.. automodule:: history_matching.recipe
+   :members:
+   :undoc-members:
+   :show-inheritance:

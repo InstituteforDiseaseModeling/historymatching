@@ -1,0 +1,7 @@
+history\_matching.emulators.gpflowgpr module
+============================================
+
+.. automodule:: history_matching.emulators.gpflowgpr
+   :members:
+   :undoc-members:
+   :show-inheritance:

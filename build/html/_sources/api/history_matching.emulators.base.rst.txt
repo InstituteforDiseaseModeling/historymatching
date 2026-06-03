@@ -1,0 +1,7 @@
+history\_matching.emulators.base module
+=======================================
+
+.. automodule:: history_matching.emulators.base
+   :members:
+   :undoc-members:
+   :show-inheritance:

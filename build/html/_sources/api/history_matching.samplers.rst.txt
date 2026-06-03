@@ -1,0 +1,7 @@
+history\_matching.samplers module
+=================================
+
+.. automodule:: history_matching.samplers
+   :members:
+   :undoc-members:
+   :show-inheritance:

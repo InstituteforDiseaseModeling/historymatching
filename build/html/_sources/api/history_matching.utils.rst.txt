@@ -1,0 +1,7 @@
+history\_matching.utils module
+==============================
+
+.. automodule:: history_matching.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:

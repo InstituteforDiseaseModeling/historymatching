@@ -1,0 +1,31 @@
+history\_matching package
+=========================
+
+.. automodule:: history_matching
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   history_matching.emulators
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   history_matching.cli
+   history_matching.config
+   history_matching.constrict
+   history_matching.features
+   history_matching.recipe
+   history_matching.samplers
+   history_matching.situation
+   history_matching.step
+   history_matching.utils

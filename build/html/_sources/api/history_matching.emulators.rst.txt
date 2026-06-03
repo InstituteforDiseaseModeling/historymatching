@@ -1,0 +1,20 @@
+history\_matching.emulators package
+===================================
+
+.. automodule:: history_matching.emulators
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   history_matching.emulators.base
+   history_matching.emulators.gaussian_process
+   history_matching.emulators.gpflowgpr
+   history_matching.emulators.linear
+   history_matching.emulators.tfglm
+   history_matching.emulators.tfgpr

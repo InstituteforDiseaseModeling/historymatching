@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overview &mdash; history_matching 0.9.0 documentation</title>
+      <link rel="stylesheet" href="_static/theme_overrides.css" type="text/css" />
+      <link rel="stylesheet" href="_static/copy_button.css" type="text/css" />
+      <link rel="stylesheet" href="_static/theme_overrides.css" type="text/css" />
+
+  
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/documentation_options.js?v=39bb1c6d"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="_static/show_block_by_os.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="search" type="application/opensearchdescription+xml"
+          title="Search within history_matching 0.9.0 documentation"
+          href="_static/opensearch.xml"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting started" href="gettingstarted.html" />
+    <link rel="prev" title="README" href="readme.html" />
+
+<link href="https://fonts.googleapis.com/css?family=Lato|Montserrat|Open+Sans" rel="stylesheet">
+
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            history_matching
+              <img src="_static/IDM_white.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                0.9.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">README</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#disease-modelers">Disease modelers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-calibration-experts">Model calibration experts</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="gettingstarted.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="using.html">Using history matching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture and workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently asked questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">history_matching</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="https://docs.idmod.org">IDM docs</a> &raquo;</li>
+    <li><a href="index.html">history-matching</a> &raquo;</li>
+    
+
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h1>
+<p>The history-matching package is designed for:</p>
+<blockquote>
+<div><ul>
+<li><p>Disease modelers, fluent in one or more of the followin programming/script languages:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>C, MATLAB, Python, R</p></li>
+<li><p>Model calibration experts, fluent in Python</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</div></blockquote>
+<section id="disease-modelers">
+<h2>Disease modelers<a class="headerlink" href="#disease-modelers" title="Link to this heading">¶</a></h2>
+<p>Disease modelers can configure and use history-matching to help:</p>
+<blockquote>
+<div><ul>
+<li><p>quantify uncertainty in a model for better understanding of parameter uncertainty, importance, relations among, and effects of changes in parameter values. This allows for:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>fitting observed data</p></li>
+<li><p>validating a model by rendering outputs that match observed data</p></li>
+<li><p>identifying relevant and non-relevant parameters</p></li>
+<li><p>understanding and estimating parameter correlations</p></li>
+<li><p>characterizing uncertainty of parameters to help know which parameter combinations or regions of parameter space could explain observed data</p></li>
+<li><p>gaining a better understanding of disease transmission, causal processes, and interventions</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+<blockquote>
+<div><ul>
+<li><p>calibrate a model where the (pseudo-) likelihood function may be unknown or hard to define in a model with heterogenous data. For example, combining timeseries with phylogenetic summary statistics, or mortality timeseries with incidence by age group. This allows for:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>fitting observed data.</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>calibrate a model where it is difficult to guess an initial solution or a small parameter space in a model with high dimensionality. For example, when there are three or more parameters. This allows for:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>obtaining quick initial data points (guesses) to feed into more efficient calibration methods.</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</div></blockquote>
+</div></blockquote>
+</section>
+<section id="model-calibration-experts">
+<h2>Model calibration experts<a class="headerlink" href="#model-calibration-experts" title="Link to this heading">¶</a></h2>
+<p>Model calibration experts can configure and use history-matching to help:</p>
+<blockquote>
+<div><ul>
+<li><p>customize and improve a calibration and uncertainty quantification framework so that new methods can be quickly integrated by modelers in their workflows. This allows for:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>designing fast (reaching convergence quickly), efficient (use of costly simulations) model calibration and uncertainty algorithms to help identify and select useful summary statistics and relevant, active parameters</p></li>
+<li><p>prototyping and integrating algorithms easily</p></li>
+<li><p>moving quickly from prototypes to useful software for modelers</p></li>
+<li><p>evaluating the performance of algorithms, such as: convergence, timing, and numerical performance and accuracy reports.</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="readme.html" class="btn btn-neutral float-left" title="README" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="gettingstarted.html" class="btn btn-neutral float-right" title="Getting started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2017-2023, Dan Klein, Rafael Nunez, Christopher Lorton, et al..
+      <span class="lastupdated">Last updated on Apr 18, 2024.
+      </span></p>
+  </div>
+
+  
+<p>history-matching is licensed under the <a href="https://mit-license.org/">MIT License</a>.</p>
+<p>Send documentation feedback to <a href="mailto:feedback@idmod.org" target="_top">feedback@idmod.org</a></p>
+<p><a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+<a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

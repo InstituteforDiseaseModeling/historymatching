@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>history_matching.emulators package &mdash; history_matching 0.9.0 documentation</title>
+      <link rel="stylesheet" href="../_static/theme_overrides.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/copy_button.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/theme_overrides.css" type="text/css" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/documentation_options.js?v=39bb1c6d"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/show_block_by_os.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="search" type="application/opensearchdescription+xml"
+          title="Search within history_matching 0.9.0 documentation"
+          href="../_static/opensearch.xml"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="history_matching.emulators.base module" href="history_matching.emulators.base.html" />
+    <link rel="prev" title="history_matching package" href="history_matching.html" />
+
+<link href="https://fonts.googleapis.com/css?family=Lato|Montserrat|Open+Sans" rel="stylesheet">
+
+
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            history_matching
+              <img src="../_static/IDM_white.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                0.9.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">README</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using.html">Using history matching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture and workflow</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="history_matching.html">history_matching package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="history_matching.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">history_matching.emulators package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../faq.html">Frequently asked questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">history_matching</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="https://docs.idmod.org">IDM docs</a> &raquo;</li>
+    <li><a href="../index.html">history-matching</a> &raquo;</li>
+    
+        <li><a href="modules.html">API reference</a> &raquo;</li>
+    
+        <li><a href="history_matching.html">history_matching package</a> &raquo;</li>
+    
+
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="history-matching-emulators-package">
+<h1>history_matching.emulators package<a class="headerlink" href="#history-matching-emulators-package" title="Link to this heading">¶</a></h1>
+<p id="module-history_matching.emulators">Bring emulators into <cite>emulators</cite> namespace so we don’t have to
+<cite>import history_matching.emulators.linear.LinearModel</cite>, for example.</p>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="history_matching.emulators.base.html">history_matching.emulators.base module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator"><code class="docutils literal notranslate"><span class="pre">BaseEmulator</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.get_implausibility"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.get_implausibility()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.info"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.plot_diagnostics"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.plot_diagnostics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.plot_predictions"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.plot_predictions()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.plot_residuals"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.plot_residuals()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.predict"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.print_emulator_description"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.print_emulator_description()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.test"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.test()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.base.html#history_matching.emulators.base.BaseEmulator.train"><code class="docutils literal notranslate"><span class="pre">BaseEmulator.train()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="history_matching.emulators.gaussian_process.html">history_matching.emulators.gaussian_process module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="history_matching.emulators.gaussian_process.html#history_matching.emulators.gaussian_process.GaussianModel"><code class="docutils literal notranslate"><span class="pre">GaussianModel</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.gaussian_process.html#history_matching.emulators.gaussian_process.GaussianModel.predict"><code class="docutils literal notranslate"><span class="pre">GaussianModel.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.gaussian_process.html#history_matching.emulators.gaussian_process.GaussianModel.train"><code class="docutils literal notranslate"><span class="pre">GaussianModel.train()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="history_matching.emulators.gpflowgpr.html">history_matching.emulators.gpflowgpr module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="history_matching.emulators.gpflowgpr.html#history_matching.emulators.gpflowgpr.GPFlowGPR"><code class="docutils literal notranslate"><span class="pre">GPFlowGPR</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.gpflowgpr.html#history_matching.emulators.gpflowgpr.GPFlowGPR.predict"><code class="docutils literal notranslate"><span class="pre">GPFlowGPR.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.gpflowgpr.html#history_matching.emulators.gpflowgpr.GPFlowGPR.train"><code class="docutils literal notranslate"><span class="pre">GPFlowGPR.train()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="history_matching.emulators.linear.html">history_matching.emulators.linear module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="history_matching.emulators.linear.html#history_matching.emulators.linear.LinearModel"><code class="docutils literal notranslate"><span class="pre">LinearModel</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.linear.html#history_matching.emulators.linear.LinearModel.predict"><code class="docutils literal notranslate"><span class="pre">LinearModel.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.linear.html#history_matching.emulators.linear.LinearModel.print_emulator_description"><code class="docutils literal notranslate"><span class="pre">LinearModel.print_emulator_description()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.linear.html#history_matching.emulators.linear.LinearModel.train"><code class="docutils literal notranslate"><span class="pre">LinearModel.train()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="history_matching.emulators.tfglm.html">history_matching.emulators.tfglm module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="history_matching.emulators.tfglm.html#history_matching.emulators.tfglm.TensorFlowGLM"><code class="docutils literal notranslate"><span class="pre">TensorFlowGLM</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.tfglm.html#history_matching.emulators.tfglm.TensorFlowGLM.predict"><code class="docutils literal notranslate"><span class="pre">TensorFlowGLM.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.tfglm.html#history_matching.emulators.tfglm.TensorFlowGLM.train"><code class="docutils literal notranslate"><span class="pre">TensorFlowGLM.train()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="history_matching.emulators.tfgpr.html">history_matching.emulators.tfgpr module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="history_matching.emulators.tfgpr.html#history_matching.emulators.tfgpr.TensorFlowGPR"><code class="docutils literal notranslate"><span class="pre">TensorFlowGPR</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.tfgpr.html#history_matching.emulators.tfgpr.TensorFlowGPR.predict"><code class="docutils literal notranslate"><span class="pre">TensorFlowGPR.predict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="history_matching.emulators.tfgpr.html#history_matching.emulators.tfgpr.TensorFlowGPR.train"><code class="docutils literal notranslate"><span class="pre">TensorFlowGPR.train()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="history_matching.html" class="btn btn-neutral float-left" title="history_matching package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="history_matching.emulators.base.html" class="btn btn-neutral float-right" title="history_matching.emulators.base module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2017-2023, Dan Klein, Rafael Nunez, Christopher Lorton, et al..
+      <span class="lastupdated">Last updated on Apr 18, 2024.
+      </span></p>
+  </div>
+
+  
+<p>history-matching is licensed under the <a href="https://mit-license.org/">MIT License</a>.</p>
+<p>Send documentation feedback to <a href="mailto:feedback@idmod.org" target="_top">feedback@idmod.org</a></p>
+<p><a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+<a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
