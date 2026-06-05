@@ -62,7 +62,7 @@ engine = hm.HistoryMatching(
         'total_cases': (500.0, 50.0),
     },
     sampling_strategy='lhs',
-    emulator_type='gpr',                # or 'linear', 'glm'
+    emulator_type='bayes_linear',       # default; or 'gpr', 'linear', 'glm'
     n_samples=500,
     max_iterations=5,
     output_dir='./hm_output',
@@ -93,15 +93,15 @@ results = engine.run(resume=True)  # continues from last committed wave
 
 ### NROY sampling methods
 
-The default `ray_resample` method uses a 4-stage pipeline (LHS → ray sampling → importance sampling → maximin thinning) that efficiently explores small NROY regions:
+The default `auto` method draws with Latin Hypercube sampling first and only escalates to the more expensive `ray_resample` pipeline (LHS → ray sampling → importance sampling → maximin thinning) when LHS acceptance is too low to fill small NROY regions:
 
 ```python
 engine = hm.HistoryMatching(
     function=my_model,
     bounds=parameter_bounds,
     observations=observations,
-    nroy_method='ray_resample',           # default; or 'lhs' for pure rejection
-    nroy_options=dict(n_lines=30, points_per_line=100),  # optional tuning
+    nroy_method='auto',                   # default; LHS first, escalates to 'ray_resample'
+    nroy_options=dict(n_lines=30, points_per_line=100),  # optional tuning for ray_resample
 )
 ```
 

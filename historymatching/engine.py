@@ -214,7 +214,7 @@ class HistoryMatching:
             function=run_sir,
             bounds={'beta': (0.5, 3.0), 'gamma': (0.1, 1.0)},
             observations={'peak_incidence': (120.0, 50.0)},  # (mean, std)
-            emulator_type='gpr',
+            emulator_type='bayes_linear',
             n_samples=500,
             max_iterations=4,
         )
@@ -252,7 +252,7 @@ class HistoryMatching:
         *,
         sampling_strategy: Union[str, dict, SamplingStrategy] = "lhs",
         feature_selection: Union[str, list, dict, FeatureSelectionStrategy, None] = None,
-        emulator_type: str = "gpr",
+        emulator_type: str = "bayes_linear",
         emulator_factory: Optional[EmulatorFactory] = None,
         emulator_bank: Optional[EmulatorBank] = None,
         n_samples: int = 1000,
@@ -298,7 +298,7 @@ class HistoryMatching:
                 or ``None`` for the automatic default (``method='mean_sq_z'`` —
                 ranks outputs by mean squared z-score, i.e. how far each sits from
                 its target in std units — one output per wave).
-            emulator_type: ``'gpr'`` (default) / ``'glm'`` / ``'linear'``.
+            emulator_type: ``'bayes_linear'`` (default) / ``'gpr'`` / ``'glm'`` / ``'linear'``.
             emulator_factory: a pre-built :class:`EmulatorFactory` (overrides
                 ``emulator_type``; use it to pass emulator kwargs).
             emulator_bank: a pre-populated :class:`EmulatorBank` (for resuming).
@@ -497,7 +497,7 @@ class HistoryMatching:
     def _coerce_emulator_factory(emulator_type, emulator_factory) -> EmulatorFactory:
         if emulator_factory is not None:
             return emulator_factory
-        return EmulatorFactory(default_type=emulator_type or "gpr")
+        return EmulatorFactory(default_type=emulator_type or "bayes_linear")
 
     @property
     def results(self) -> list:

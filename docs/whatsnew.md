@@ -1,17 +1,40 @@
 # What's new
 
-## v1.2.0 (2025)
+> **A note on versioning.** Only `v1.0.0` and `v2.0.0` were ever tagged and released.
+> The "later/earlier additions" groupings below were informal, *untagged* development
+> milestones (previously labelled "1.1.0" and "1.2.0"). None shipped as a separate
+> release — they are all part of the `v1.0.0` tag.
+
+## v2.0.0 (2026)
+
+### Breaking changes
+
+- **New flat constructor API.** The fluent `HistoryMatchingBuilder` (`.with_*()` + `.build()`) is **removed** in favour of a single `HistoryMatching(...)` constructor that takes all options as keyword arguments. See the **[migration guide](migration.md)** for the full v1→v2 mapping.
+- **`engine.set_simulation_function(f)` removed** — pass `function=f` to the constructor, or set `engine.function = f`.
+- **`engine.update_*()` methods removed** — reconfigure via attribute assignment (e.g. `engine.max_iterations = n`).
+- **`IterationResult` methods renamed/removed**: `summary_statistics()` → `summary()`, `get_emulator_for_feature()` → `get_emulator()`, `export_*()` → `save()`; `get_implausibility_scores()` removed.
+
+### Changed defaults
+
+- **Default emulator is now `bayes_linear`** (pure NumPy/SciPy, no TensorFlow dependency) — previously `gpr`. Pass `emulator_type='gpr'` for Gaussian Process emulation.
+- **Default NROY method is now `'auto'`** (LHS first, escalating to `ray_resample` only when LHS acceptance is too low) — in v1, `get_nroy_samples()` defaulted to `ray_resample`.
+
+The last release with the builder API is tagged **`v1.0.0`**.
+
+---
+
+## v1.0.0 development — later additions (untagged)
 
 ### New features
 
 - **Bayes Linear emulator**: New `BayesLinear` emulator type (`'bayes_linear'`) inspired by the hmer R package. Uses an OLS regression trend plus squared-exponential correlated residuals with ARD correlation lengths. Pure numpy/scipy — no TensorFlow dependency. Good uncertainty quantification comparable to GPR, with faster training for moderate datasets.
-- **Ray-resample NROY sampling**: New 4-stage pipeline for finding NROY samples, inspired by hmer's `generate_new_design()`. Stages: (1) LHS rejection, (2) ray sampling along pairs of distant NROY points, (3) PCA-oriented importance sampling, (4) maximin thinning for space-filling coverage. Much faster than pure rejection at low acceptance rates (<1%). Now the default; pass `nroy_method='lhs'` for the old behavior. Tune via `nroy_options=dict(n_lines=20, points_per_line=50, ...)`.
+- **Ray-resample NROY sampling**: New 4-stage pipeline for finding NROY samples, inspired by hmer's `generate_new_design()`. Stages: (1) LHS rejection, (2) ray sampling along pairs of distant NROY points, (3) PCA-oriented importance sampling, (4) maximin thinning for space-filling coverage. Much faster than pure rejection at low acceptance rates (<1%). Was the default in v1 (changed to `'auto'` in v2.0.0); pass `nroy_method='lhs'` for pure rejection or `'ray_resample'` to always use this pipeline. Tune via `nroy_options=dict(n_lines=20, points_per_line=50, ...)`.
 - **Detailed run logging**: Engine writes `log.txt` to the output directory with per-phase timing, per-emulator training progress, and NROY sampling progress at 10% intervals. Hyperparameters (ARD lengthscales, etc.) saved to `metrics.json`.
 - **Improved diagnostics**: Residuals/predictions wrap to 5-column grid for high-dimensional problems. Pred-vs-true split into train/test panels with error bars. Error scatter and histogram also split train/test. Convergence plot uses log y-axis.
 
 ---
 
-## v1.1.0 (2025)
+## v1.0.0 development — earlier additions (untagged)
 
 ### New features
 
@@ -39,7 +62,7 @@
 
 ---
 
-## v1.0.0 (2025)
+## v1.0.0 (2025) — tagged release (the complete v1)
 
 ### New features
 

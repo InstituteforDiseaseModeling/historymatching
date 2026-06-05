@@ -189,9 +189,9 @@ class TestEmulatorConfig:
         engine = make(parameter_bounds, observations, emulator_bank=bank)
         assert engine.emulator_bank is bank
 
-    def test_default_is_gpr(self, parameter_bounds, observations):
+    def test_default_is_bayes_linear(self, parameter_bounds, observations):
         engine = make(parameter_bounds, observations)
-        assert engine.emulator_factory.get_default_type() == "gpr"
+        assert engine.emulator_factory.get_default_type() == "bayes_linear"
 
 
 class TestWorkflowParameters:

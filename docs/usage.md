@@ -68,7 +68,7 @@ engine = hm.HistoryMatching(
     observations={'peak_infected': (150.0, 20.0)},
     sampling_strategy={'type': 'lhs', 'criterion': 'maximin'},  # How to sample
     feature_selection={'method': 'fano', 'max_features': 3},    # Which outputs to emulate
-    emulator_type='gpr',                                     # Statistical surrogate type
+    emulator_type='bayes_linear',                            # Statistical surrogate type (default)
     n_samples=500,                                           # Parameter samples per wave
     max_iterations=10,                                       # Stopping criterion
     implausibility_threshold=3.0,                            # Implausibility cutoff
@@ -152,10 +152,11 @@ engine.commit_step()
 
 ## Emulator types
 
-The library includes three emulator types:
+The library includes four emulator types:
 
 | Emulator | Best for | Speed | Uncertainty |
 |----------|----------|-------|-------------|
+| `'bayes_linear'` | Linear relationships with calibrated uncertainty (default) | Fast | Good |
 | `'linear'` | Linear relationships, fast prototyping | Fast | Limited |
 | `'glm'` | Generalized linear relationships | Fast | Limited |
 | `'gpr'` | Nonlinear relationships, small-medium data | Slower | Excellent |
@@ -163,9 +164,10 @@ The library includes three emulator types:
 Select via the `emulator_type` argument:
 
 ```python
-hm.HistoryMatching(..., emulator_type='gpr')    # Gaussian Process Regression (default)
-hm.HistoryMatching(..., emulator_type='linear') # Linear regression
-hm.HistoryMatching(..., emulator_type='glm')    # Generalized linear model
+hm.HistoryMatching(..., emulator_type='bayes_linear') # Bayes linear (default)
+hm.HistoryMatching(..., emulator_type='gpr')          # Gaussian Process Regression
+hm.HistoryMatching(..., emulator_type='linear')       # Linear regression
+hm.HistoryMatching(..., emulator_type='glm')          # Generalized linear model
 ```
 
 ## Sampling strategies
