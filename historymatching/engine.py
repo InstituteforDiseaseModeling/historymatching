@@ -1343,6 +1343,96 @@ class HistoryMatching:
             plt.show()
         return fig, axes
 
+    # ── Convenience plot/summary wrappers (delegate to historymatching.plotting) ──
+    # NOTE (for review): these thin wrappers delegate to the `plotting` module,
+    # whereas plot_ensemble_fan / plot_nroy_parameters above are standalone. Worth
+    # unifying (and reconciling plot_nroy vs plot_nroy_parameters) in a later pass.
+    def _bounds_dict(self) -> dict:
+        """``{parameter: (min, max)}`` from the current parameter space."""
+        ps = self.parameter_space
+        return {name: ps.get_bounds(name) for name in ps.get_parameter_names()}
+
+    def _targets_dict(self) -> dict:
+        """``{feature: (mean, std)}`` from the observations."""
+        obs = self.observations
+        return {f: obs.get_target_for_feature(f) for f in obs.get_feature_names()}
+
+    def plot_convergence(self, *, ax=None, **kwargs):
+        """Plot the NROY fraction per wave (delegates to
+        :func:`historymatching.plotting.plot_convergence`)."""
+        from . import plotting
+        results = self.get_all_results()
+        if not results:
+            raise ValueError("No completed waves to plot. Run at least one wave first.")
+        return plotting.plot_convergence(
+            [r.iteration for r in results],
+            [r.nroy_fraction for r in results],
+            ax=ax, **kwargs)
+
+    def plot_marginals(self, *, truth=None, axes=None, **kwargs):
+        """Marginal histograms of the NROY samples (delegates to
+        :func:`historymatching.plotting.plot_marginals`)."""
+        from . import plotting
+        samples = self.get_nroy_samples()
+        return plotting.plot_marginals(
+            samples[list(self.parameters)], truth=truth,
+            bounds=self._bounds_dict(), axes=axes, **kwargs)
+
+    def plot_nroy(self, *, truth=None, axes=None, **kwargs):
+        """Corner/pairplot of the NROY parameter cloud (delegates to
+        :func:`historymatching.plotting.plot_pairplot`)."""
+        from . import plotting
+        samples = self.get_nroy_samples()
+        return plotting.plot_pairplot(
+            samples[list(self.parameters)], truth=truth,
+            bounds=self._bounds_dict(), axes=axes, **kwargs)
+
+    def plot_zscores(self, *, ax=None, **kwargs):
+        """Standardised outputs vs targets across waves (delegates to
+        :func:`historymatching.plotting.plot_zscores_vs_targets`)."""
+        from . import plotting
+        waves = [
+            {"iteration": r.iteration,
+             "sim_results": r.simulation_results,
+             "selected_features": r.emulated_outputs}
+            for r in self.get_all_results()
+        ]
+        if not waves:
+            raise ValueError("No completed waves to plot. Run at least one wave first.")
+        return plotting.plot_zscores_vs_targets(waves, self._targets_dict(), ax=ax, **kwargs)
+
+    def plot_constrained_dims(self, *, n_top=5, axes=None, **kwargs):
+        """Constrained-direction (variance-reduction) plot of the NROY cloud
+        (delegates to :func:`historymatching.plotting.plot_constrained_dims`)."""
+        from . import plotting
+        samples = self.get_nroy_samples()
+        return plotting.plot_constrained_dims(
+            samples[list(self.parameters)], self._bounds_dict(),
+            n_top=n_top, axes=axes, **kwargs)
+
+    def nroy_summary(self) -> str:
+        """Print and return a text summary of the current NROY region: sample
+        count, latest NROY fraction, and per-parameter median with 95% interval.
+
+        NOTE (for review): content is a first pass — adjust as desired.
+        """
+        samples = self.get_nroy_samples()
+        n = 0 if samples is None else len(samples)
+        results = self.get_all_results()
+        frac = results[-1].nroy_fraction if results else None
+        lines = ["NROY summary", "-" * 48, f"  samples:       {n}"]
+        if frac is not None:
+            lines.append(f"  NROY fraction: {frac:.3%}")
+        if n:
+            lines.append(f"  {'parameter':<18}{'median':>12}   95% interval")
+            for name in self.parameters:
+                col = samples[name]
+                lo, hi = col.quantile(0.025), col.quantile(0.975)
+                lines.append(f"  {name:<18}{col.median():>12.4g}   [{lo:.4g}, {hi:.4g}]")
+        text = "\n".join(lines)
+        print(text)
+        return text
+
     def get_nroy_samples(self, n: Optional[int] = None,
                          method: Optional[str] = None, **kwargs) -> pd.DataFrame:
         """

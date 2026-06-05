@@ -115,6 +115,21 @@ class ObservationData:
             targets[feature_name] = self.get_target_for_feature(feature_name)
         return targets
 
+    def plot_targets(self, *, ax=None, **kwargs):
+        """Plot observation targets as means with ±1σ error bars (delegates to
+        :func:`historymatching.plotting.plot_targets`)."""
+        from . import plotting
+        return plotting.plot_targets(self.get_all_targets(), ax=ax, **kwargs)
+
+    def summary(self) -> str:
+        """Human-readable summary: one line per observed feature (mean, std)."""
+        names = self.get_feature_names()
+        lines = [f"ObservationData: {len(names)} target(s)"]
+        for n in names:
+            mean, std = self.get_target_for_feature(n)
+            lines.append(f"  {n:<20} mean={mean:g}, std={std:g}")
+        return "\n".join(lines)
+
     def calculate_implausibility(self, feature_name: str, predicted_mean: Union[float, pd.Series],
                                 predicted_variance: Union[float, pd.Series], model_discrepancy: float = 0.0) -> Union[float, pd.Series]:
         """

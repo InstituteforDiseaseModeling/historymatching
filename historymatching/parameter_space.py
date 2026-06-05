@@ -104,6 +104,26 @@ class ParameterSpace:
         """Get list of all parameter names."""
         return self._parameters["parameter"].tolist()
 
+    def plot_bounds(self, *, reference=None, ax=None, **kwargs):
+        """Plot each parameter's bounds as a horizontal range, optionally against
+        a ``reference`` ParameterSpace to show shrinkage (delegates to
+        :func:`historymatching.plotting.plot_parameter_bounds`)."""
+        from . import plotting
+        bounds = {n: self.get_bounds(n) for n in self.get_parameter_names()}
+        ref = None
+        if reference is not None:
+            ref = {n: reference.get_bounds(n) for n in reference.get_parameter_names()}
+        return plotting.plot_parameter_bounds(bounds, reference=ref, ax=ax, **kwargs)
+
+    def summary(self) -> str:
+        """Human-readable summary: one line per parameter with its bounds."""
+        names = self.get_parameter_names()
+        lines = [f"ParameterSpace: {len(names)} parameter(s)"]
+        for n in names:
+            lo, hi = self.get_bounds(n)
+            lines.append(f"  {n:<20} [{lo:g}, {hi:g}]")
+        return "\n".join(lines)
+
     def constrain_parameter(self, param_name: str, new_min: float, new_max: float) -> "ParameterSpace":
         """
         Create new ParameterSpace with updated bounds for one parameter.

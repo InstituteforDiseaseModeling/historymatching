@@ -100,12 +100,21 @@ class EmulatorBank:
     def get_all_iterations(self) -> List[int]:
         """
         Get list of iteration numbers with emulators.
-        
+
         Returns:
             Sorted list of iteration numbers
         """
         return sorted(self._emulators.keys())
-        
+
+    def summary(self) -> str:
+        """Human-readable summary: emulators stored, by wave and feature."""
+        iterations = self.get_all_iterations()
+        lines = [f"EmulatorBank: {len(self)} emulator(s) across {len(iterations)} wave(s)"]
+        for it in iterations:
+            feats = self.get_features_for_iteration(it)
+            lines.append(f"  wave {it}: {', '.join(feats)}")
+        return "\n".join(lines)
+
     def get_features_for_iteration(self, iteration: int) -> List[str]:
         """
         Get feature names for a specific iteration.
