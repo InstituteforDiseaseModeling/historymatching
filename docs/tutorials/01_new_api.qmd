@@ -297,7 +297,7 @@ hmatch.save_diagnostics(diag_dir, verbose=True)
 This notebook demonstrated the **automated** history matching workflow:
 
 1. **Model setup**: imported `SIR` and `generate_observed_data` from `model.py`
-2. **Configuration**: used `HistoryMatchingBuilder` to define parameter bounds, observations, and
+2. **Configuration**: used the `HistoryMatching` constructor to define parameter bounds, observations, and
    emulator settings
 3. **Execution**: called `engine.run()` to run all iterations automatically
 4. **Analysis**: inspected the final plausible parameter space and validated against observed data

@@ -45,6 +45,7 @@ nav:
   - Usage guide: usage.md
   - API reference: api.md
   - Contributing: contributing.md
+  - Migrating to v2: migration.md
   - What's new: whatsnew.md
 
 docs_dir: docs
