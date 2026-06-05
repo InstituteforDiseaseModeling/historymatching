@@ -128,6 +128,12 @@ class IterationResult:
         em = self.get_emulator(output)
         if hasattr(em, "test") and not getattr(em, "testing_complete", False):
             em.test()
+        if getattr(em, "y_test", None) is None or getattr(em, "y_test_pred", None) is None:
+            raise ValueError(
+                f"Emulator for '{output}' has no held-out test data to plot "
+                "(it may have been trained with test_fraction=0). Re-run with a "
+                "non-zero test fraction to enable predicted-vs-actual diagnostics."
+            )
         m = getattr(em, "emulator_metrics", {})
         n_train = len(em.X_train) if getattr(em, "X_train", None) is not None else None
         return plotting.plot_predicted_vs_actual(

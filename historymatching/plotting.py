@@ -23,7 +23,7 @@ Where the engine or a domain object exposes a convenience ``plot_*`` method, it
 delegates to the corresponding function here.
 """
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -219,6 +219,7 @@ def plot_pairplot(
     params: Optional[Sequence[str]] = None,
     *,
     truth: Optional[Dict[str, float]] = None,
+    derived: Optional[Dict[str, Callable]] = None,
     prior: Optional[pd.DataFrame] = None,
     bounds: Optional[Dict[str, Tuple[float, float]]] = None,
     max_params: int = 8,
@@ -240,6 +241,9 @@ def plot_pairplot(
         params: Columns to show; defaults to all numeric columns, capped at
             ``max_params``.
         truth: ``{name: value}`` drawn as crosshairs / vertical lines.
+        derived: ``{name: callable}`` of extra quantities to add to the grid,
+            each callable taking the samples DataFrame and returning a column
+            (e.g. ``{'R0': lambda df: df['beta'] / df['gamma']}``).
         prior: Optional background cloud (e.g. prior or first-wave samples).
         bounds: ``{name: (lo, hi)}`` to fix axis ranges to the prior, making
             shrinkage visible.
@@ -254,7 +258,13 @@ def plot_pairplot(
     Returns:
         The 2-D NumPy array of ``Axes`` (shape ``(p, p)``).
     """
+    if derived:
+        samples = samples.copy()
+        for _name, _func in derived.items():
+            samples[_name] = np.asarray(_func(samples)).ravel()
     params = _resolve_params(samples, params)
+    if derived:
+        params = params + [n for n in derived if n not in params]
     if len(params) > max_params:
         params = params[:max_params]
     p = len(params)

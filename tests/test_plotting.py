@@ -58,6 +58,12 @@ class TestPlottingFunctions:
         axes = plotting.plot_pairplot(samples[["a"]])
         assert axes.shape == (1, 1)
 
+    def test_plot_pairplot_derived(self, samples):
+        # derived= adds a computed column to the grid (a, b, c + ratio = 4x4)
+        axes = plotting.plot_pairplot(
+            samples, derived={"ratio": lambda df: df["a"] / df["b"]})
+        assert axes.shape == (4, 4)
+
     def test_plot_pairplot_caps_params(self):
         rng = np.random.default_rng(1)
         wide = pd.DataFrame({f"p{i}": rng.uniform(0, 1, 50) for i in range(12)})
