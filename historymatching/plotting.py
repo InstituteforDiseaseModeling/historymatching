@@ -19,9 +19,8 @@ and the engine's on-disk output alike):
   into.  Nothing calls ``plt.show()`` or ``savefig`` — the caller decides
   whether to display, save, or further customise the result.
 
-The thin ``plot_*`` methods on :class:`~historymatching.HistoryMatchingEngine`,
-:class:`~historymatching.IterationResult`, and the domain objects all delegate
-here.
+Where the engine or a domain object exposes a convenience ``plot_*`` method, it
+delegates to the corresponding function here.
 """
 
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -713,7 +712,7 @@ def plot_emulator_quality(
     """Bar chart of per-feature emulator R² (a quick fit-quality overview).
 
     Args:
-        quality: ``{feature: {'r2_score': ..., 'mse': ..., ...}}`` as returned
+        quality: ``{feature: {'r2': ..., 'mse': ..., ...}}`` as returned
             by :meth:`IterationResult.get_emulator_quality_metrics`.
         ax: Existing axes to draw into.
 
@@ -721,7 +720,7 @@ def plot_emulator_quality(
         The Matplotlib ``Axes`` containing the plot.
     """
     feats = list(quality.keys())
-    r2 = [quality[f].get("r2_score") for f in feats]
+    r2 = [quality[f].get("r2") for f in feats]
     r2 = [float("nan") if v is None else v for v in r2]
 
     fig, ax = _get_ax(ax, (max(6, len(feats) * 0.9), 4))

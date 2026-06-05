@@ -100,8 +100,8 @@ class TestPlottingFunctions:
         assert isinstance(ax, plt.Axes)
 
     def test_plot_emulator_quality(self):
-        ax = plotting.plot_emulator_quality({"f1": {"r2_score": 0.9},
-                                             "f2": {"r2_score": 0.5}})
+        ax = plotting.plot_emulator_quality({"f1": {"r2": 0.9},
+                                             "f2": {"r2": 0.5}})
         assert isinstance(ax, plt.Axes)
 
     def test_plot_predicted_vs_actual(self):
@@ -138,7 +138,7 @@ class TestPlottingFunctions:
         assert hi > lo
 
     def test_plot_emulator_quality_handles_none_r2(self):
-        ax = plotting.plot_emulator_quality({"f1": {"r2_score": None},
+        ax = plotting.plot_emulator_quality({"f1": {"r2": None},
                                              "f2": {}})  # missing key
         assert isinstance(ax, plt.Axes)
 
