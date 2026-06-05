@@ -31,7 +31,7 @@ HistoryMatching                 # Configure and execute the workflow
     ├── ObservationData         # Target observations (mean, std)
     ├── SamplingStrategy        # How to generate samples (LHS, grid, random)
     ├── FeatureSelectionStrategy # Which outputs to emulate (auto, manual)
-    ├── EmulatorFactory         # Which emulator to use (linear, glm, gpr)
+    ├── EmulatorFactory         # Which emulator to use (bayes_linear, linear, glm, gpr)
     ├── step()                  # Run one iteration
     ├── commit_step()           # Accept the iteration
     ├── revert_step()           # Reject and retry

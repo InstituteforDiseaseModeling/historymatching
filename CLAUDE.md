@@ -57,9 +57,10 @@ historymatching/         # flat package — everything at the top level
     utils.py              # Column name constants and helper functions
     emulators/            # Emulator implementations (the one subdirectory)
         base.py           # BaseEmulator abstract class
-        gpr.py            # Gaussian Process Regression (default, uses GPflow/TensorFlow)
+        gpr.py            # Gaussian Process Regression (uses GPflow/TensorFlow)
         glm.py            # Generalized Linear Model
         linear.py         # Linear regression
+        bayes_linear.py   # Bayes linear emulator (the default)
         factory.py        # EmulatorFactory — creates emulators by type name
         results.py        # EmulationResults dataclass
 
@@ -78,13 +79,13 @@ engine = hm.HistoryMatching(
     function=my_simulator,
     bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
     observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
-    emulator_type='gpr',
+    emulator_type='bayes_linear',
     n_samples=500,
 )
 results = engine.run()
 ```
 
-**Emulator types:** `'gpr'` (default), `'glm'`, `'linear'`
+**Emulator types:** `'bayes_linear'` (default), `'gpr'`, `'glm'`, `'linear'`
 
 **Sampling strategies:** `'lhs'` (Latin Hypercube, default), `'grid'`, `'random'`
 

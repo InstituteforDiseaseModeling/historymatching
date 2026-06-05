@@ -69,7 +69,7 @@ class TestEmulatorFactory:
     def test_initialization_default_params(self):
         """Test initialization with default parameters."""
         factory = hm.EmulatorFactory()
-        assert factory.default_type == 'gpr'
+        assert factory.default_type == 'bayes_linear'
         assert factory.default_kwargs == {}
     
     def test_initialization_custom_params(self):

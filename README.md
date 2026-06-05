@@ -62,7 +62,7 @@ engine = hm.HistoryMatching(
         'total_cases': (500.0, 50.0),
     },
     sampling_strategy='lhs',
-    emulator_type='gpr',                # or 'linear', 'glm'
+    emulator_type='bayes_linear',       # default; or 'gpr', 'linear', 'glm'
     n_samples=500,
     max_iterations=5,
     output_dir='./hm_output',
