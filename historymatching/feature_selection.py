@@ -170,7 +170,12 @@ class AutoFeatureSelection(FeatureSelectionStrategy):
                 common_features.append(feature)
         
         if not common_features:
-            raise ValueError("No common features between simulation results and observations")
+            raise ValueError(
+                "None of the simulator's output columns match the observed features.\n"
+                f"  Simulator returned: {list(simulation_results.columns)}\n"
+                f"  Observations expect: {observations.get_feature_names()}\n"
+                "Rename your simulator outputs (or your observation keys) so at least one matches."
+            )
         
         # Create subset with only common features
         feature_data = simulation_results[common_features]
@@ -355,7 +360,12 @@ class InteractiveFeatureSelection(FeatureSelectionStrategy):
                 common_features.append(feature)
         
         if not common_features:
-            raise ValueError("No common features between simulation results and observations")
+            raise ValueError(
+                "None of the simulator's output columns match the observed features.\n"
+                f"  Simulator returned: {list(simulation_results.columns)}\n"
+                f"  Observations expect: {observations.get_feature_names()}\n"
+                "Rename your simulator outputs (or your observation keys) so at least one matches."
+            )
         
         # Try interactive selection
         try:

@@ -71,12 +71,9 @@ uv sync --extra notebooks --extra test --extra mac
 ```python
 import historymatching as hm
 
-engine = (hm.HistoryMatchingBuilder
-    .from_data(
-        parameter_bounds={'x': (0, 1)},
-        observations={'y': (0.5, 0.1)},
-    )
-    .build()
+engine = hm.HistoryMatching(
+    bounds={'x': (0, 1)},
+    observations={'y': (0.5, 0.1)},
 )
 print(engine)  # Should print engine status
 ```

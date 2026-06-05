@@ -33,7 +33,7 @@ class EmulatorFactory:
         'bayes_linear': BayesLinear,
     }
     
-    def __init__(self, default_type: str = 'gpr', **default_kwargs):
+    def __init__(self, default_type: str = 'bayes_linear', **default_kwargs):
         """
         Initialize emulator factory.
         
@@ -265,7 +265,7 @@ class EmulatorFactory:
         }
     
     @classmethod
-    def with_defaults_class(cls, default_type: str = 'gpr', **default_kwargs) -> 'EmulatorFactory':
+    def with_defaults_class(cls, default_type: str = 'bayes_linear', **default_kwargs) -> 'EmulatorFactory':
         """
         Class method to create factory with specific defaults.
         

@@ -8,9 +8,9 @@ import pandas as pd
 import tempfile
 import os
 
-from historymatching.parameter_space import ParameterSpace
 from historymatching.utils import PARAMETER_SPACE_COLUMNS
 from fixtures import TestDataFactory, TestAssertions, TestConstants
+import historymatching as hm
 
 
 class ParameterSpaceTests(unittest.TestCase):
@@ -19,11 +19,11 @@ class ParameterSpaceTests(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.simple_params_df = TestDataFactory.create_simple_parameter_space(3)
-        self.simple_space = ParameterSpace(self.simple_params_df)
+        self.simple_space = hm.ParameterSpace(self.simple_params_df)
         
     def test_constructor_with_dataframe(self):
         """Test constructor with valid DataFrame."""
-        space = ParameterSpace(self.simple_params_df)
+        space = hm.ParameterSpace(self.simple_params_df)
         
         self.assertEqual(len(space), 3)
         self.assertEqual(space.get_parameter_names(), ['param_a', 'param_b', 'param_c'])
@@ -36,7 +36,7 @@ class ParameterSpaceTests(unittest.TestCase):
             'param_c': (20.0, 30.0)
         }
         
-        space = ParameterSpace(param_dict)
+        space = hm.ParameterSpace(param_dict)
         
         self.assertEqual(len(space), 3)
         self.assertEqual(space.get_parameter_names(), ['param_a', 'param_b', 'param_c'])
@@ -47,7 +47,7 @@ class ParameterSpaceTests(unittest.TestCase):
         invalid_df = pd.DataFrame([['param_a', 0.0]], columns=['parameter', 'minimum'])
         
         with self.assertRaises(ValueError) as cm:
-            ParameterSpace(invalid_df)
+            hm.ParameterSpace(invalid_df)
         self.assertIn("Parameter space must have columns", str(cm.exception))
         
     def test_constructor_validation_invalid_bounds(self):
@@ -58,7 +58,7 @@ class ParameterSpaceTests(unittest.TestCase):
         ], columns=PARAMETER_SPACE_COLUMNS)
         
         with self.assertRaises(ValueError) as cm:
-            ParameterSpace(invalid_df)
+            hm.ParameterSpace(invalid_df)
         self.assertIn("minimum", str(cm.exception))
         self.assertIn("maximum", str(cm.exception))
         
@@ -69,7 +69,7 @@ class ParameterSpaceTests(unittest.TestCase):
         ], columns=PARAMETER_SPACE_COLUMNS)
         
         with self.assertRaises(ValueError) as cm:
-            ParameterSpace(invalid_df)
+            hm.ParameterSpace(invalid_df)
         self.assertIn("non-finite bounds", str(cm.exception))
         
     def test_constructor_validation_duplicate_parameters(self):
@@ -80,7 +80,7 @@ class ParameterSpaceTests(unittest.TestCase):
         ], columns=PARAMETER_SPACE_COLUMNS)
         
         with self.assertRaises(ValueError) as cm:
-            ParameterSpace(invalid_df)
+            hm.ParameterSpace(invalid_df)
         self.assertIn("Duplicate parameter names", str(cm.exception))
         
     def test_get_bounds(self):
@@ -180,7 +180,7 @@ class ParameterSpaceTests(unittest.TestCase):
             'param_b': (12.5, 17.5), # 5/10 = 0.5  
             'param_c': (22.5, 27.5)  # 5/10 = 0.5
         }
-        constrained_space = ParameterSpace(constrained_dict)
+        constrained_space = hm.ParameterSpace(constrained_dict)
         
         # Volume fraction should be 0.5^3 = 0.125
         fraction = constrained_space.volume_fraction_remaining(self.simple_space)
@@ -192,7 +192,7 @@ class ParameterSpaceTests(unittest.TestCase):
             'param_x': (0.0, 10.0),
             'param_y': (10.0, 20.0)
         }
-        different_space = ParameterSpace(different_dict)
+        different_space = hm.ParameterSpace(different_dict)
         
         with self.assertRaises(ValueError) as cm:
             self.simple_space.volume_fraction_remaining(different_space)
@@ -264,19 +264,19 @@ class ParameterSpaceTests(unittest.TestCase):
         self.assertEqual(len(self.simple_space), 3)
         
         single_param_dict = {'param_x': (0.0, 1.0)}
-        single_space = ParameterSpace(single_param_dict)
+        single_space = hm.ParameterSpace(single_param_dict)
         self.assertEqual(len(single_space), 1)
         
     def test_equality(self):
         """Test equality comparison."""
         # Same data should be equal
-        space1 = ParameterSpace(self.simple_params_df)
-        space2 = ParameterSpace(self.simple_params_df.copy())
+        space1 = hm.ParameterSpace(self.simple_params_df)
+        space2 = hm.ParameterSpace(self.simple_params_df.copy())
         self.assertEqual(space1, space2)
         
         # Different data should not be equal
         different_df = TestDataFactory.create_simple_parameter_space(2)
-        space3 = ParameterSpace(different_df)
+        space3 = hm.ParameterSpace(different_df)
         self.assertNotEqual(space1, space3)
         
         # Different type should not be equal

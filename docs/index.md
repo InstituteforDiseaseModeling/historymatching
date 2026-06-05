@@ -23,27 +23,24 @@ See [Installation](installation.md) for full details including optional dependen
 ```python
 import historymatching as hm
 
-# Configure and build the engine
-engine = (hm.HistoryMatchingBuilder
-    .from_data(
-        parameter_bounds={
-            'beta': (0.1, 0.5),
-            'gamma': (0.01, 0.1),
-        },
-        observations={
-            'peak_infected': (150.0, 20.0),  # (mean, std)
-            'total_cases': (500.0, 50.0),
-        },
-    )
-    .with_sampling_strategy('lhs')
-    .with_emulator_type('gpr')
-    .with_samples_per_iteration(500)
-    .with_max_iterations(5)
-    .build()
+# Configure the engine
+engine = hm.HistoryMatching(
+    function=my_model,                  # the simulation function
+    bounds={
+        'beta': (0.1, 0.5),
+        'gamma': (0.01, 0.1),
+    },
+    observations={
+        'peak_infected': (150.0, 20.0),  # (mean, std)
+        'total_cases': (500.0, 50.0),
+    },
+    sampling_strategy='lhs',
+    emulator_type='bayes_linear',
+    n_samples=500,
+    max_iterations=5,
 )
 
-# Provide a simulation function and run
-engine.set_simulation_function(my_model)
+# Run
 results = engine.run()
 ```
 
