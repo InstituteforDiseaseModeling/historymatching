@@ -6,7 +6,7 @@ History matching iteratively constrains a model's parameter space by comparing s
 
 ## Requirements
 
-Python 3.11+, with TensorFlow 2.18+.
+Python 3.9+, with TensorFlow 2.18+.
 
 ## Installation
 

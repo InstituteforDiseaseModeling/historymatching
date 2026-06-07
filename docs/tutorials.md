@@ -4,7 +4,7 @@ These tutorials walk through how to use the history matching library, from basic
 
 ## Getting started
 
-- [Basic workflow](tutorials/01_basic_workflow.ipynb) — Complete walkthrough calibrating a model using the builder pattern
+- [Basic workflow](tutorials/01_basic_workflow.ipynb) — Complete walkthrough calibrating a model with the single-constructor `HistoryMatching` API
 - [Manual workflow](tutorials/02_manual_workflow.ipynb) — Fine-grained control over each iteration with manual inspection and decision points
 
 ## Advanced workflows
@@ -16,3 +16,4 @@ These tutorials walk through how to use the history matching library, from basic
 
 - [Trajectory selection](tutorials/05_trajectory_selection.ipynb) — Select plausible `(parameter, seed)` pairs for stochastic simulation using importance resampling
 - [NROY sampling methods](tutorials/06_nroy_sampling_methods.ipynb) — Comparison of sampling strategies for exploring the NROY space
+- [Visualization](tutorials/07_visualization.ipynb) — Composable plotting helpers for NROY corner plots, convergence, marginals, and emulator quality

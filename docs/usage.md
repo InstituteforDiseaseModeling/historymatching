@@ -76,7 +76,7 @@ engine = hm.HistoryMatching(
 )
 ```
 
-Every keyword argument is optional — the constructor provides sensible defaults (LHS sampling, automatic output selection by `mean_sq_z`, GPR emulator, 1000 samples, 10 iterations, threshold of 3.0).
+Every keyword argument is optional — the constructor provides sensible defaults (LHS sampling, automatic output selection by `mean_sq_z`, Bayes linear emulator, 1000 samples, 10 iterations, threshold of 3.0).
 
 You can also build from DataFrames — just pass them in place of the dicts:
 

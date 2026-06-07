@@ -104,11 +104,12 @@ class BaseEmulator:
                 implausibility computation. This is typically extracted from
                 observed data.
             target_var: Variance of the target point.
-            model_discrepancy: Model discrepancy or variance. This parameter
-                quantifies the discrepancy between the model output and real
-                life data.
+            model_discrepancy: Model discrepancy, expressed as a standard
+                deviation (sigma), quantifying the difference between the model
+                output and real-life data. It is added in quadrature, matching
+                :meth:`ObservationData.calculate_implausibility`.
         Returns:
-            Numpy array with implausibility values for each of the data points 
+            Numpy array with implausibility values for each of the data points
             in x.
         """
         if not self.training_complete:
@@ -116,7 +117,7 @@ class BaseEmulator:
 
         predictions = self.predict(x)
         predictions_var = predictions.get_variance()  # Get variance directly
-        implausibility = abs( predictions.get_mean() - target ) / np.sqrt( predictions_var + target_var + model_discrepancy )
+        implausibility = abs( predictions.get_mean() - target ) / np.sqrt( predictions_var + target_var + model_discrepancy**2 )
         
         return implausibility    
     
@@ -161,8 +162,11 @@ class BaseEmulator:
             self.emulator_metrics['L-inf'] = metrics.max_error          ( y_test, y_pred )
             self.emulator_metrics['L-1'  ] = metrics.mean_absolute_error( y_test, y_pred )
             self.emulator_metrics['R2'   ] = metrics.r2_score           ( y_test, y_pred )
-            self.emulator_metrics['AIC'  ] = n_test * np.log( self.emulator_metrics['MSE'] ) + 2*self.X_test.shape[1]
-            self.emulator_metrics['BIC'  ] = n_test * np.log( self.emulator_metrics['MSE'] ) + 2*self.X_test.shape[1]*np.log(n_test)
+            # AIC = n*log(MSE) + 2k ; BIC = n*log(MSE) + k*log(n), where k is
+            # the number of parameters (input dimensions).
+            n_params = self.X_test.shape[1]
+            self.emulator_metrics['AIC'  ] = n_test * np.log( self.emulator_metrics['MSE'] ) + 2*n_params
+            self.emulator_metrics['BIC'  ] = n_test * np.log( self.emulator_metrics['MSE'] ) + n_params*np.log(n_test)
         
         self.testing_complete = True
         logging.debug('     emulator testing completed')

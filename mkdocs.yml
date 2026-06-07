@@ -78,7 +78,7 @@ plugins:
   - mkdocs-jupyter:
       include: ["**/*.ipynb"]
       execute: true
-      allow_errors: true
+      allow_errors: false
       include_source: true
       kernel_name: python3
   - search

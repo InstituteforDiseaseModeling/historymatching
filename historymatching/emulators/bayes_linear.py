@@ -21,6 +21,12 @@ from .results import EmulationResults
 
 logger = logging.getLogger(__name__)
 
+# Bounds on log(theta) for the L-BFGS-B correlation-length search, in the
+# normalised [0, 1] input space.  (-4, 4) corresponds to theta in
+# [exp(-4), exp(4)] ~= [0.018, 55], a deliberately wide range that spans
+# near-independent inputs (short lengths) to nearly-flat ones (long lengths).
+LOG_THETA_BOUNDS = (-4.0, 4.0)
+
 
 class BayesLinear(BaseEmulator):
     """Bayes Linear emulator with OLS trend and squared-exponential residual correlation."""
@@ -152,7 +158,7 @@ class BayesLinear(BaseEmulator):
             log_theta0,
             args=(X_norm, residuals),
             method='L-BFGS-B',
-            bounds=[(-4, 4)] * d,  # theta in [~0.018, ~55] — wide range
+            bounds=[LOG_THETA_BOUNDS] * d,
             options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
             callback=_opt_callback,
         )

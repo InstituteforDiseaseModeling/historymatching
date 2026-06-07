@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.9+
 - TensorFlow 2.18+ (installed automatically)
 
 ## Standard installation

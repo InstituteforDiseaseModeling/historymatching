@@ -4,11 +4,11 @@
 
 History Matching is a Python library for Bayesian History Matching — an iterative algorithm for calibrating computational models against observed data. It is designed for problems where simulations are expensive and exhaustive parameter sweeps are impractical.
 
-The library provides a modern, object-oriented API built around the **Builder/Engine** pattern, with pluggable strategies for sampling, feature selection, and emulation.
+The library provides a modern, object-oriented API built around a single `HistoryMatching` engine configured in one constructor call, with pluggable strategies for sampling, feature selection, and emulation.
 
 ## Requirements
 
-Python 3.11+, with TensorFlow 2.18+.
+Python 3.9+, with TensorFlow 2.18+.
 
 ## Installation
 

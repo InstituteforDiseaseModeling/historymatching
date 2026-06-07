@@ -20,6 +20,7 @@ import from submodules.
 """
 
 __version__ = "2.0.1"
+__versiondate__ = "2026-06-07"
 
 from .engine import HistoryMatching, EngineState  # noqa: F401 isort: skip
 from .iteration_result import IterationResult  # noqa: F401 isort: skip
