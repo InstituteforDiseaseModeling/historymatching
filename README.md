@@ -4,6 +4,8 @@ A Python implementation of the [Bayesian history matching](https://en.wikipedia.
 
 History matching iteratively constrains a model's parameter space by comparing simulation outputs against observed data through statistical emulators. It is particularly useful for calibrating expensive computational models where exhaustive parameter sweeps are impractical.
 
+This library provides a modern, object-oriented API built around a single `HistoryMatching` engine configured in one constructor call, with pluggable strategies for sampling, feature selection, and emulation.
+
 ## Requirements
 
 Python 3.9+, with TensorFlow 2.18+.
@@ -121,4 +123,4 @@ Full documentation, tutorials, and API reference are available at [docs.idmod.or
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](https://github.com/InstituteforDiseaseModeling/historymatching/blob/main/LICENSE) for details.
