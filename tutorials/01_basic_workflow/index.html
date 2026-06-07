@@ -924,6 +924,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating to v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../whatsnew/" class="md-nav__link">
         
   
@@ -1935,8 +1962,8 @@ np.random.seed(42)</div>
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1780533687.274131 1035040 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1780533687.335197 1035040 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+I0000 00:00:1780871248.311774 2114834 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1780871248.629392 2114834 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
 To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 </pre>
 </div>
@@ -1945,7 +1972,7 @@ To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, re
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1780533688.530416 1035040 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1780871249.558425 2114834 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 </pre>
 </div>
 </div>
@@ -2415,35 +2442,35 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>I0000 00:00:1780533693.973728 1035040 gpu_device.cc:2043] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 2175 MB memory:  -&gt; device: 0, name: NVIDIA GeForce RTX 3050 Laptop GPU, pci bus id: 0000:01:00.0, compute capability: 8.6
+<pre>I0000 00:00:1780871252.921657 2114834 gpu_device.cc:2043] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 2175 MB memory:  -&gt; device: 0, name: NVIDIA GeForce RTX 3050 Laptop GPU, pci bus id: 0000:01:00.0, compute capability: 8.6
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>I0000 00:00:1780533698.675350 1035204 cuda_solvers.cc:175] Creating GpuSolver handles for stream 0x617f0acd6360
+<pre>I0000 00:00:1780871255.092538 2115049 cuda_solvers.cc:175] Creating GpuSolver handles for stream 0x5a0ed1f54230
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:Checkpoint saved to hm_output/run_20260603_204130/checkpoint.pkl
+<pre>INFO:historymatching.engine:Checkpoint saved to hm_output/run_20260607_182731/checkpoint.pkl
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:Wave 1 output saved to hm_output/run_20260603_204130/wave1
+<pre>INFO:historymatching.engine:Wave 1 output saved to hm_output/run_20260607_182731/wave1
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 1] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260603_204130
+<pre>INFO:historymatching.engine:[Wave 1] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182731
 </pre>
 </div>
 </div>
@@ -2492,7 +2519,7 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 2] Phase 2/5 SIMULATION: complete — 23 outputs [0.4s]
+<pre>INFO:historymatching.engine:[Wave 2] Phase 2/5 SIMULATION: complete — 23 outputs [0.2s]
 </pre>
 </div>
 </div>
@@ -2569,21 +2596,21 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.emulators.gpr:    GPR training complete — noise=0.0730, lengthscale range=[0.701, 1.623] [1.0s]
+<pre>INFO:historymatching.emulators.gpr:    GPR training complete — noise=0.0730, lengthscale range=[0.701, 1.623] [0.7s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.emulators.factory:  Emulator 1/1 [incidence_5]: trained [1.0s]
+<pre>INFO:historymatching.emulators.factory:  Emulator 1/1 [incidence_5]: trained [0.7s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 2] Phase 4/5 EMULATOR TRAINING: complete [1.0s]
+<pre>INFO:historymatching.engine:[Wave 2] Phase 4/5 EMULATOR TRAINING: complete [0.7s]
 </pre>
 </div>
 </div>
@@ -2618,14 +2645,14 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  LHS rejection: 500/500 [0.5s]
+<pre>INFO:historymatching.nroy_sampling:  LHS rejection: 500/500 [0.3s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.5s]
+<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.3s]
 </pre>
 </div>
 </div>
@@ -2639,35 +2666,35 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 2] Phase 5/5 NROY SAMPLING: found 500 candidates [0.5s]
+<pre>INFO:historymatching.engine:[Wave 2] Phase 5/5 NROY SAMPLING: found 500 candidates [0.3s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 2] ALL PHASES COMPLETE [1.9s total]. Committing...
+<pre>INFO:historymatching.engine:[Wave 2] ALL PHASES COMPLETE [1.2s total]. Committing...
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:Checkpoint saved to hm_output/run_20260603_204130/checkpoint.pkl
+<pre>INFO:historymatching.engine:Checkpoint saved to hm_output/run_20260607_182731/checkpoint.pkl
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:Wave 2 output saved to hm_output/run_20260603_204130/wave2
+<pre>INFO:historymatching.engine:Wave 2 output saved to hm_output/run_20260607_182731/wave2
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 2] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260603_204130
+<pre>INFO:historymatching.engine:[Wave 2] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182731
 </pre>
 </div>
 </div>
@@ -2716,7 +2743,7 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 3] Phase 2/5 SIMULATION: complete — 23 outputs [0.4s]
+<pre>INFO:historymatching.engine:[Wave 3] Phase 2/5 SIMULATION: complete — 23 outputs [0.2s]
 </pre>
 </div>
 </div>
@@ -2793,21 +2820,21 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.emulators.gpr:    GPR training complete — noise=0.0114, lengthscale range=[0.856, 1.333] [1.1s]
+<pre>INFO:historymatching.emulators.gpr:    GPR training complete — noise=0.0114, lengthscale range=[0.856, 1.333] [0.7s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.emulators.factory:  Emulator 1/1 [total_cases]: trained [1.1s]
+<pre>INFO:historymatching.emulators.factory:  Emulator 1/1 [total_cases]: trained [0.7s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 3] Phase 4/5 EMULATOR TRAINING: complete [1.1s]
+<pre>INFO:historymatching.engine:[Wave 3] Phase 4/5 EMULATOR TRAINING: complete [0.7s]
 </pre>
 </div>
 </div>
@@ -2842,14 +2869,14 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  LHS rejection: 500/500 [0.9s]
+<pre>INFO:historymatching.nroy_sampling:  LHS rejection: 500/500 [0.6s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.9s]
+<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.6s]
 </pre>
 </div>
 </div>
@@ -2863,35 +2890,35 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 3] Phase 5/5 NROY SAMPLING: found 500 candidates [0.9s]
+<pre>INFO:historymatching.engine:[Wave 3] Phase 5/5 NROY SAMPLING: found 500 candidates [0.6s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 3] ALL PHASES COMPLETE [2.4s total]. Committing...
+<pre>INFO:historymatching.engine:[Wave 3] ALL PHASES COMPLETE [1.4s total]. Committing...
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:Checkpoint saved to hm_output/run_20260603_204130/checkpoint.pkl
+<pre>INFO:historymatching.engine:Checkpoint saved to hm_output/run_20260607_182731/checkpoint.pkl
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:Wave 3 output saved to hm_output/run_20260603_204130/wave3
+<pre>INFO:historymatching.engine:Wave 3 output saved to hm_output/run_20260607_182731/wave3
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 3] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260603_204130
+<pre>INFO:historymatching.engine:[Wave 3] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182731
 </pre>
 </div>
 </div>
@@ -2940,7 +2967,7 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 4] Phase 2/5 SIMULATION: complete — 23 outputs [0.4s]
+<pre>INFO:historymatching.engine:[Wave 4] Phase 2/5 SIMULATION: complete — 23 outputs [0.2s]
 </pre>
 </div>
 </div>
@@ -3017,21 +3044,21 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.emulators.gpr:    GPR training complete — noise=0.2149, lengthscale range=[2.258, 4.068] [1.2s]
+<pre>INFO:historymatching.emulators.gpr:    GPR training complete — noise=0.2149, lengthscale range=[2.258, 4.068] [0.8s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.emulators.factory:  Emulator 1/1 [incidence_5]: trained [1.2s]
+<pre>INFO:historymatching.emulators.factory:  Emulator 1/1 [incidence_5]: trained [0.8s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 4] Phase 4/5 EMULATOR TRAINING: complete [1.2s]
+<pre>INFO:historymatching.engine:[Wave 4] Phase 4/5 EMULATOR TRAINING: complete [0.8s]
 </pre>
 </div>
 </div>
@@ -3073,14 +3100,14 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  LHS rejection: 500/500 [1.3s]
+<pre>INFO:historymatching.nroy_sampling:  LHS rejection: 500/500 [0.8s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [1.3s]
+<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.8s]
 </pre>
 </div>
 </div>
@@ -3094,35 +3121,35 @@ for i, result in enumerate(results, 1):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 4] Phase 5/5 NROY SAMPLING: found 500 candidates [1.3s]
+<pre>INFO:historymatching.engine:[Wave 4] Phase 5/5 NROY SAMPLING: found 500 candidates [0.8s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 4] ALL PHASES COMPLETE [2.9s total]. Committing...
+<pre>INFO:historymatching.engine:[Wave 4] ALL PHASES COMPLETE [1.8s total]. Committing...
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:Checkpoint saved to hm_output/run_20260603_204130/checkpoint.pkl
+<pre>INFO:historymatching.engine:Checkpoint saved to hm_output/run_20260607_182731/checkpoint.pkl
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:Wave 4 output saved to hm_output/run_20260603_204130/wave4
+<pre>INFO:historymatching.engine:Wave 4 output saved to hm_output/run_20260607_182731/wave4
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.engine:[Wave 4] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260603_204130
+<pre>INFO:historymatching.engine:[Wave 4] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182731
 </pre>
 </div>
 </div>
@@ -3702,7 +3729,7 @@ for f in sorted(os.listdir(diag_dir)):
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Diagnostics saved to /tmp/hm_diagnostics_8slb72go/
+<pre>Diagnostics saved to /tmp/hm_diagnostics_5gzmf4fs/
   wave1
   wave2
   wave3

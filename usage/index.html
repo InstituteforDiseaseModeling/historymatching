@@ -961,6 +961,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating to v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../whatsnew/" class="md-nav__link">
         
   
@@ -1273,14 +1300,14 @@
     <span class="n">observations</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;peak_infected&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">150.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">)},</span>
     <span class="n">sampling_strategy</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;lhs&#39;</span><span class="p">,</span> <span class="s1">&#39;criterion&#39;</span><span class="p">:</span> <span class="s1">&#39;maximin&#39;</span><span class="p">},</span>  <span class="c1"># How to sample</span>
     <span class="n">feature_selection</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;method&#39;</span><span class="p">:</span> <span class="s1">&#39;fano&#39;</span><span class="p">,</span> <span class="s1">&#39;max_features&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>    <span class="c1"># Which outputs to emulate</span>
-    <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;gpr&#39;</span><span class="p">,</span>                                     <span class="c1"># Statistical surrogate type</span>
+    <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;bayes_linear&#39;</span><span class="p">,</span>                            <span class="c1"># Statistical surrogate type (default)</span>
     <span class="n">n_samples</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>                                           <span class="c1"># Parameter samples per wave</span>
     <span class="n">max_iterations</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>                                       <span class="c1"># Stopping criterion</span>
     <span class="n">implausibility_threshold</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>                            <span class="c1"># Implausibility cutoff</span>
     <span class="n">random_seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>                                          <span class="c1"># Reproducibility</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>Every keyword argument is optional — the constructor provides sensible defaults (LHS sampling, automatic output selection by <code>mean_sq_z</code>, GPR emulator, 1000 samples, 10 iterations, threshold of 3.0).</p>
+<p>Every keyword argument is optional — the constructor provides sensible defaults (LHS sampling, automatic output selection by <code>mean_sq_z</code>, Bayes linear emulator, 1000 samples, 10 iterations, threshold of 3.0).</p>
 <p>You can also build from DataFrames — just pass them in place of the dicts:</p>
 <div class="highlight"><pre><span></span><code><span class="n">param_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
     <span class="s1">&#39;parameter&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;beta&#39;</span><span class="p">,</span> <span class="s1">&#39;gamma&#39;</span><span class="p">],</span>
@@ -1338,7 +1365,7 @@ values as the constructor:</p>
 <span class="n">engine</span><span class="o">.</span><span class="n">commit_step</span><span class="p">()</span>
 </code></pre></div>
 <h2 id="emulator-types">Emulator types</h2>
-<p>The library includes three emulator types:</p>
+<p>The library includes four emulator types:</p>
 <table>
 <thead>
 <tr>
@@ -1349,6 +1376,12 @@ values as the constructor:</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>'bayes_linear'</code></td>
+<td>Linear relationships with calibrated uncertainty (default)</td>
+<td>Fast</td>
+<td>Good</td>
+</tr>
 <tr>
 <td><code>'linear'</code></td>
 <td>Linear relationships, fast prototyping</td>
@@ -1370,9 +1403,10 @@ values as the constructor:</p>
 </tbody>
 </table>
 <p>Select via the <code>emulator_type</code> argument:</p>
-<div class="highlight"><pre><span></span><code><span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;gpr&#39;</span><span class="p">)</span>    <span class="c1"># Gaussian Process Regression (default)</span>
-<span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span> <span class="c1"># Linear regression</span>
-<span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;glm&#39;</span><span class="p">)</span>    <span class="c1"># Generalized linear model</span>
+<div class="highlight"><pre><span></span><code><span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;bayes_linear&#39;</span><span class="p">)</span> <span class="c1"># Bayes linear (default)</span>
+<span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;gpr&#39;</span><span class="p">)</span>          <span class="c1"># Gaussian Process Regression</span>
+<span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>       <span class="c1"># Linear regression</span>
+<span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;glm&#39;</span><span class="p">)</span>          <span class="c1"># Generalized linear model</span>
 </code></pre></div>
 <h2 id="sampling-strategies">Sampling strategies</h2>
 <table>

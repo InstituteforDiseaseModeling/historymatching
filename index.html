@@ -820,6 +820,33 @@
   
   
     <li class="md-nav__item">
+      <a href="migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating to v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="whatsnew/" class="md-nav__link">
         
   
@@ -944,9 +971,9 @@
 <h1 id="history-matching">History Matching</h1>
 <p><a href="https://github.com/InstituteforDiseaseModeling/historymatching/actions"><img alt="Tests" src="https://github.com/InstituteforDiseaseModeling/historymatching/actions/workflows/tests.yml/badge.svg" /></a></p>
 <p>History Matching is a Python library for Bayesian History Matching — an iterative algorithm for calibrating computational models against observed data. It is designed for problems where simulations are expensive and exhaustive parameter sweeps are impractical.</p>
-<p>The library provides a modern, object-oriented API built around the <strong>Builder/Engine</strong> pattern, with pluggable strategies for sampling, feature selection, and emulation.</p>
+<p>The library provides a modern, object-oriented API built around a single <code>HistoryMatching</code> engine configured in one constructor call, with pluggable strategies for sampling, feature selection, and emulation.</p>
 <h2 id="requirements">Requirements</h2>
-<p>Python 3.11+, with TensorFlow 2.18+.</p>
+<p>Python 3.9+, with TensorFlow 2.18+.</p>
 <h2 id="installation">Installation</h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </code></pre></div>
@@ -966,7 +993,7 @@
         <span class="s1">&#39;total_cases&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">500.0</span><span class="p">,</span> <span class="mf">50.0</span><span class="p">),</span>
     <span class="p">},</span>
     <span class="n">sampling_strategy</span><span class="o">=</span><span class="s1">&#39;lhs&#39;</span><span class="p">,</span>
-    <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;gpr&#39;</span><span class="p">,</span>
+    <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;bayes_linear&#39;</span><span class="p">,</span>
     <span class="n">n_samples</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
     <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
 <span class="p">)</span>

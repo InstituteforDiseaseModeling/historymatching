@@ -1,0 +1,149 @@
+2026-06-07 18:27:31 [INFO] ============================================================
+2026-06-07 18:27:31 [INFO] HISTORY MATCHING — CONFIGURATION
+2026-06-07 18:27:31 [INFO] ============================================================
+2026-06-07 18:27:31 [INFO]   Emulator type:            gpr
+2026-06-07 18:27:31 [INFO]   Parameters:               2
+2026-06-07 18:27:31 [INFO]   Observation targets:      5
+2026-06-07 18:27:31 [INFO]   Samples per wave:         500
+2026-06-07 18:27:31 [INFO]   Max iterations:           4
+2026-06-07 18:27:31 [INFO]   Implausibility threshold: 3.0
+2026-06-07 18:27:31 [INFO]   Auto space reduction:     disabled
+2026-06-07 18:27:31 [INFO]   Random seed:              123
+2026-06-07 18:27:31 [INFO]   Oversample factor:        1.1
+2026-06-07 18:27:31 [INFO]   Max batch size:           10000
+2026-06-07 18:27:31 [INFO]   Output directory:         hm_output/run_20260607_182731
+2026-06-07 18:27:31 [INFO]   Run log:                  hm_output/run_20260607_182731/log.txt
+2026-06-07 18:27:31 [INFO]   Parameters: ['beta', 'gamma']
+2026-06-07 18:27:31 [INFO]   Targets: ['peak_incidence', 'total_cases', 'incidence_5', 'incidence_10', 'incidence_15']
+2026-06-07 18:27:31 [INFO] ============================================================
+2026-06-07 18:27:31 [INFO] Starting automated run with 4 max iterations
+2026-06-07 18:27:31 [INFO] ============================================================
+2026-06-07 18:27:31 [INFO] WAVE 1 STARTING
+2026-06-07 18:27:31 [INFO] ============================================================
+2026-06-07 18:27:31 [INFO] [Wave 1] Phase 1/5 SAMPLING: generated 500 samples (acceptance rate: 1.000) [0.0s]
+2026-06-07 18:27:31 [INFO] [Wave 1] Phase 2/5 SIMULATION: running 500 simulations...
+2026-06-07 18:27:31 [INFO] [Wave 1] Phase 2/5 SIMULATION: complete — 23 outputs [0.2s]
+2026-06-07 18:27:31 [INFO]   Feature ranking (mean_sq_z): peak_incidence=1200.03, incidence_5=1141.78, total_cases=229.07, incidence_10=42.85, incidence_15=25.69
+2026-06-07 18:27:31 [INFO]   SELECTED: peak_incidence (score=1200.03, mean_z=16.35, std_z=30.57)
+2026-06-07 18:27:31 [INFO] [Wave 1] Phase 3/5 FEATURE SELECTION: ['peak_incidence'] [0.0s]
+2026-06-07 18:27:31 [INFO] [Wave 1] Phase 4/5 EMULATOR TRAINING: training 1 emulators...
+2026-06-07 18:27:31 [INFO]   Emulator 1/1 [peak_incidence]: creating (500 samples, 2 params, type=gpr)...
+2026-06-07 18:27:31 [DEBUG] Created gpr emulator for feature: peak_incidence
+2026-06-07 18:27:31 [INFO]   Emulator 1/1 [peak_incidence]: training...
+2026-06-07 18:27:31 [INFO]     Training GPR: 375 points, 2 dims
+2026-06-07 18:27:31 [INFO]     Building GPflow model and optimizing hyperparameters...
+2026-06-07 18:27:35 [INFO]     GPR training complete — noise=0.0038, lengthscale range=[0.158, 0.571] [4.2s]
+2026-06-07 18:27:35 [INFO]   Emulator 1/1 [peak_incidence]: trained [4.2s]
+2026-06-07 18:27:35 [INFO] [Wave 1] Phase 4/5 EMULATOR TRAINING: complete [4.2s]
+2026-06-07 18:27:35 [INFO] [Wave 1] Phase 5/5 NROY SAMPLING: finding 500 plausible candidates for next wave...
+2026-06-07 18:27:35 [INFO]   LHS rejection: 0/500 (0%) — starting
+2026-06-07 18:27:35 [INFO]   LHS rejection: 73/500 (14%) | 550 tested | rate=13.2727% [0s]
+2026-06-07 18:27:35 [INFO]   LHS rejection: 462/500 (92%) | 4,088 tested | rate=11.3014% [0s]
+2026-06-07 18:27:35 [INFO]   LHS rejection: 502/500 (100%) | 4,457 tested | rate=11.2632% [0s]
+2026-06-07 18:27:35 [INFO]   LHS rejection: 500/500 [0.2s]
+2026-06-07 18:27:35 [INFO]   NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.2s]
+2026-06-07 18:27:35 [DEBUG] NROY fraction: 0.112183
+2026-06-07 18:27:35 [INFO] [Wave 1] Phase 5/5 NROY SAMPLING: found 500 candidates [0.2s]
+2026-06-07 18:27:35 [INFO] [Wave 1] ALL PHASES COMPLETE [4.6s total]. Committing...
+2026-06-07 18:27:36 [INFO] Checkpoint saved to hm_output/run_20260607_182731/checkpoint.pkl
+2026-06-07 18:27:36 [INFO] Wave 1 output saved to hm_output/run_20260607_182731/wave1
+2026-06-07 18:27:36 [INFO] [Wave 1] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182731
+2026-06-07 18:27:36 [INFO] ============================================================
+2026-06-07 18:27:36 [INFO] ============================================================
+2026-06-07 18:27:36 [INFO] WAVE 2 STARTING
+2026-06-07 18:27:36 [INFO] ============================================================
+2026-06-07 18:27:36 [INFO] [Wave 2] Phase 1/5 SAMPLING: using 500 pre-computed samples from wave 1 [0.0s]
+2026-06-07 18:27:36 [INFO] [Wave 2] Phase 2/5 SIMULATION: running 500 simulations...
+2026-06-07 18:27:37 [INFO] [Wave 2] Phase 2/5 SIMULATION: complete — 23 outputs [0.2s]
+2026-06-07 18:27:37 [INFO]   Feature ranking (mean_sq_z): incidence_5=155.07, incidence_10=42.55, peak_incidence=17.51, total_cases=13.77, incidence_15=4.66
+2026-06-07 18:27:37 [INFO]   Cooldown (skip): ['peak_incidence']
+2026-06-07 18:27:37 [INFO]   SELECTED: incidence_5 (score=155.07, mean_z=-5.80, std_z=11.03)
+2026-06-07 18:27:37 [INFO] [Wave 2] Phase 3/5 FEATURE SELECTION: ['incidence_5'] [0.0s]
+2026-06-07 18:27:37 [INFO] [Wave 2] Phase 4/5 EMULATOR TRAINING: training 1 emulators...
+2026-06-07 18:27:37 [INFO]   Emulator 1/1 [incidence_5]: creating (500 samples, 2 params, type=gpr)...
+2026-06-07 18:27:37 [DEBUG] Created gpr emulator for feature: incidence_5
+2026-06-07 18:27:37 [INFO]   Emulator 1/1 [incidence_5]: training...
+2026-06-07 18:27:37 [INFO]     Training GPR: 375 points, 2 dims
+2026-06-07 18:27:37 [INFO]     Building GPflow model and optimizing hyperparameters...
+2026-06-07 18:27:37 [INFO]     GPR training complete — noise=0.0730, lengthscale range=[0.701, 1.623] [0.7s]
+2026-06-07 18:27:37 [INFO]   Emulator 1/1 [incidence_5]: trained [0.7s]
+2026-06-07 18:27:37 [INFO] [Wave 2] Phase 4/5 EMULATOR TRAINING: complete [0.7s]
+2026-06-07 18:27:37 [INFO] [Wave 2] Phase 5/5 NROY SAMPLING: finding 500 plausible candidates for next wave...
+2026-06-07 18:27:37 [INFO]   LHS rejection: 0/500 (0%) — starting
+2026-06-07 18:27:37 [INFO]   LHS rejection: 44/500 (8%) | 550 tested | rate=8.0000% [0s]
+2026-06-07 18:27:38 [INFO]   LHS rejection: 559/500 (111%) | 6,820 tested | rate=8.1965% [0s]
+2026-06-07 18:27:38 [INFO]   LHS rejection: 500/500 [0.3s]
+2026-06-07 18:27:38 [INFO]   NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.3s]
+2026-06-07 18:27:38 [DEBUG] NROY fraction: 0.073314
+2026-06-07 18:27:38 [INFO] [Wave 2] Phase 5/5 NROY SAMPLING: found 500 candidates [0.3s]
+2026-06-07 18:27:38 [INFO] [Wave 2] ALL PHASES COMPLETE [1.2s total]. Committing...
+2026-06-07 18:27:39 [INFO] Checkpoint saved to hm_output/run_20260607_182731/checkpoint.pkl
+2026-06-07 18:27:39 [INFO] Wave 2 output saved to hm_output/run_20260607_182731/wave2
+2026-06-07 18:27:39 [INFO] [Wave 2] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182731
+2026-06-07 18:27:39 [INFO] ============================================================
+2026-06-07 18:27:39 [INFO] ============================================================
+2026-06-07 18:27:39 [INFO] WAVE 3 STARTING
+2026-06-07 18:27:39 [INFO] ============================================================
+2026-06-07 18:27:39 [INFO] [Wave 3] Phase 1/5 SAMPLING: using 500 pre-computed samples from wave 2 [0.0s]
+2026-06-07 18:27:39 [INFO] [Wave 3] Phase 2/5 SIMULATION: running 500 simulations...
+2026-06-07 18:27:39 [INFO] [Wave 3] Phase 2/5 SIMULATION: complete — 23 outputs [0.2s]
+2026-06-07 18:27:39 [INFO]   Feature ranking (mean_sq_z): incidence_5=31.34, total_cases=16.09, peak_incidence=13.45, incidence_10=9.09, incidence_15=1.25
+2026-06-07 18:27:39 [INFO]   Cooldown (skip): ['incidence_5']
+2026-06-07 18:27:39 [INFO]   SELECTED: total_cases (score=16.09, mean_z=-2.24, std_z=3.33)
+2026-06-07 18:27:39 [INFO] [Wave 3] Phase 3/5 FEATURE SELECTION: ['total_cases'] [0.0s]
+2026-06-07 18:27:39 [INFO] [Wave 3] Phase 4/5 EMULATOR TRAINING: training 1 emulators...
+2026-06-07 18:27:39 [INFO]   Emulator 1/1 [total_cases]: creating (500 samples, 2 params, type=gpr)...
+2026-06-07 18:27:39 [DEBUG] Created gpr emulator for feature: total_cases
+2026-06-07 18:27:39 [INFO]   Emulator 1/1 [total_cases]: training...
+2026-06-07 18:27:39 [INFO]     Training GPR: 375 points, 2 dims
+2026-06-07 18:27:39 [INFO]     Building GPflow model and optimizing hyperparameters...
+2026-06-07 18:27:40 [INFO]     GPR training complete — noise=0.0114, lengthscale range=[0.856, 1.333] [0.7s]
+2026-06-07 18:27:40 [INFO]   Emulator 1/1 [total_cases]: trained [0.7s]
+2026-06-07 18:27:40 [INFO] [Wave 3] Phase 4/5 EMULATOR TRAINING: complete [0.7s]
+2026-06-07 18:27:40 [INFO] [Wave 3] Phase 5/5 NROY SAMPLING: finding 500 plausible candidates for next wave...
+2026-06-07 18:27:40 [INFO]   LHS rejection: 0/500 (0%) — starting
+2026-06-07 18:27:40 [INFO]   LHS rejection: 22/500 (4%) | 550 tested | rate=4.0000% [0s]
+2026-06-07 18:27:40 [INFO]   LHS rejection: 503/500 (100%) | 13,695 tested | rate=3.6729% [1s]
+2026-06-07 18:27:40 [INFO]   LHS rejection: 500/500 [0.6s]
+2026-06-07 18:27:40 [INFO]   NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.6s]
+2026-06-07 18:27:40 [DEBUG] NROY fraction: 0.036510
+2026-06-07 18:27:40 [INFO] [Wave 3] Phase 5/5 NROY SAMPLING: found 500 candidates [0.6s]
+2026-06-07 18:27:40 [INFO] [Wave 3] ALL PHASES COMPLETE [1.4s total]. Committing...
+2026-06-07 18:27:42 [INFO] Checkpoint saved to hm_output/run_20260607_182731/checkpoint.pkl
+2026-06-07 18:27:42 [INFO] Wave 3 output saved to hm_output/run_20260607_182731/wave3
+2026-06-07 18:27:42 [INFO] [Wave 3] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182731
+2026-06-07 18:27:42 [INFO] ============================================================
+2026-06-07 18:27:42 [INFO] ============================================================
+2026-06-07 18:27:42 [INFO] WAVE 4 STARTING
+2026-06-07 18:27:42 [INFO] ============================================================
+2026-06-07 18:27:42 [INFO] [Wave 4] Phase 1/5 SAMPLING: using 500 pre-computed samples from wave 3 [0.0s]
+2026-06-07 18:27:42 [INFO] [Wave 4] Phase 2/5 SIMULATION: running 500 simulations...
+2026-06-07 18:27:42 [INFO] [Wave 4] Phase 2/5 SIMULATION: complete — 23 outputs [0.2s]
+2026-06-07 18:27:42 [INFO]   Feature ranking (mean_sq_z): incidence_5=41.43, peak_incidence=11.91, incidence_10=7.38, total_cases=3.78, incidence_15=0.77
+2026-06-07 18:27:42 [INFO]   Cooldown (skip): ['total_cases']
+2026-06-07 18:27:42 [INFO]   SELECTED: incidence_5 (score=41.43, mean_z=1.10, std_z=6.35)
+2026-06-07 18:27:42 [INFO] [Wave 4] Phase 3/5 FEATURE SELECTION: ['incidence_5'] [0.0s]
+2026-06-07 18:27:42 [INFO] [Wave 4] Phase 4/5 EMULATOR TRAINING: training 1 emulators...
+2026-06-07 18:27:42 [INFO]   Emulator 1/1 [incidence_5]: creating (500 samples, 2 params, type=gpr)...
+2026-06-07 18:27:42 [DEBUG] Created gpr emulator for feature: incidence_5
+2026-06-07 18:27:42 [INFO]   Emulator 1/1 [incidence_5]: training...
+2026-06-07 18:27:42 [INFO]     Training GPR: 375 points, 2 dims
+2026-06-07 18:27:42 [INFO]     Building GPflow model and optimizing hyperparameters...
+2026-06-07 18:27:43 [INFO]     GPR training complete — noise=0.2149, lengthscale range=[2.258, 4.068] [0.8s]
+2026-06-07 18:27:43 [INFO]   Emulator 1/1 [incidence_5]: trained [0.8s]
+2026-06-07 18:27:43 [INFO] [Wave 4] Phase 4/5 EMULATOR TRAINING: complete [0.8s]
+2026-06-07 18:27:43 [INFO] [Wave 4] Phase 5/5 NROY SAMPLING: finding 500 plausible candidates for next wave...
+2026-06-07 18:27:43 [INFO]   LHS rejection: 0/500 (0%) — starting
+2026-06-07 18:27:43 [INFO]   LHS rejection: 21/500 (4%) | 550 tested | rate=3.8182% [0s]
+2026-06-07 18:27:43 [INFO]   LHS rejection: 484/500 (96%) | 14,349 tested | rate=3.3731% [1s]
+2026-06-07 18:27:43 [INFO]   LHS rejection: 506/500 (101%) | 14,870 tested | rate=3.4028% [1s]
+2026-06-07 18:27:43 [INFO]   LHS rejection: 500/500 [0.8s]
+2026-06-07 18:27:43 [INFO]   NROY SUMMARY: 500/500 [OK] — sources: LHS=500 [0.8s]
+2026-06-07 18:27:43 [DEBUG] NROY fraction: 0.033625
+2026-06-07 18:27:43 [INFO] [Wave 4] Phase 5/5 NROY SAMPLING: found 500 candidates [0.8s]
+2026-06-07 18:27:43 [INFO] [Wave 4] ALL PHASES COMPLETE [1.8s total]. Committing...
+2026-06-07 18:27:45 [INFO] Checkpoint saved to hm_output/run_20260607_182731/checkpoint.pkl
+2026-06-07 18:27:45 [INFO] Wave 4 output saved to hm_output/run_20260607_182731/wave4
+2026-06-07 18:27:45 [INFO] [Wave 4] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182731
+2026-06-07 18:27:45 [INFO] ============================================================
+2026-06-07 18:27:45 [INFO] Automated run completed. 4 iterations executed.

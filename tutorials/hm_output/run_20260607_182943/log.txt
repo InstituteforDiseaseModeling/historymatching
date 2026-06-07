@@ -1,0 +1,115 @@
+2026-06-07 18:29:43 [INFO] ============================================================
+2026-06-07 18:29:43 [INFO] HISTORY MATCHING — CONFIGURATION
+2026-06-07 18:29:43 [INFO] ============================================================
+2026-06-07 18:29:43 [INFO]   Emulator type:            linear
+2026-06-07 18:29:43 [INFO]   Parameters:               2
+2026-06-07 18:29:43 [INFO]   Observation targets:      3
+2026-06-07 18:29:43 [INFO]   Samples per wave:         300
+2026-06-07 18:29:43 [INFO]   Max iterations:           3
+2026-06-07 18:29:43 [INFO]   Implausibility threshold: 3.0
+2026-06-07 18:29:43 [INFO]   Auto space reduction:     disabled
+2026-06-07 18:29:43 [INFO]   Random seed:              42
+2026-06-07 18:29:43 [INFO]   Oversample factor:        1.1
+2026-06-07 18:29:43 [INFO]   Max batch size:           10000
+2026-06-07 18:29:43 [INFO]   Output directory:         hm_output/run_20260607_182943
+2026-06-07 18:29:43 [INFO]   Run log:                  hm_output/run_20260607_182943/log.txt
+2026-06-07 18:29:43 [INFO]   Parameters: ['param1', 'param2']
+2026-06-07 18:29:43 [INFO]   Targets: ['output1', 'output2', 'output3']
+2026-06-07 18:29:43 [INFO] ============================================================
+2026-06-07 18:29:43 [INFO] Starting automated run with 3 max iterations
+2026-06-07 18:29:43 [INFO] ============================================================
+2026-06-07 18:29:43 [INFO] WAVE 1 STARTING
+2026-06-07 18:29:43 [INFO] ============================================================
+2026-06-07 18:29:43 [INFO] [Wave 1] Phase 1/5 SAMPLING: generated 300 samples (acceptance rate: 1.000) [0.0s]
+2026-06-07 18:29:43 [INFO] [Wave 1] Phase 2/5 SIMULATION: running 300 simulations...
+2026-06-07 18:29:43 [INFO] [Wave 1] Phase 2/5 SIMULATION: complete — 3 outputs [0.0s]
+2026-06-07 18:29:43 [INFO]   Feature ranking (mean_sq_z): output3=455.89, output1=296.92, output2=77.39
+2026-06-07 18:29:43 [INFO]   SELECTED: output3 (score=455.89, mean_z=10.80, std_z=18.45)
+2026-06-07 18:29:43 [INFO] [Wave 1] Phase 3/5 FEATURE SELECTION: ['output3'] [0.0s]
+2026-06-07 18:29:43 [INFO] [Wave 1] Phase 4/5 EMULATOR TRAINING: training 1 emulators...
+2026-06-07 18:29:43 [INFO]   Emulator 1/1 [output3]: creating (300 samples, 2 params, type=linear)...
+2026-06-07 18:29:43 [DEBUG] Created linear emulator for feature: output3
+2026-06-07 18:29:43 [INFO]   Emulator 1/1 [output3]: training...
+2026-06-07 18:29:43 [INFO]   Emulator 1/1 [output3]: trained [0.0s]
+2026-06-07 18:29:43 [INFO] [Wave 1] Phase 4/5 EMULATOR TRAINING: complete [0.0s]
+2026-06-07 18:29:43 [INFO] [Wave 1] Phase 5/5 NROY SAMPLING: finding 300 plausible candidates for next wave...
+2026-06-07 18:29:43 [INFO]   LHS rejection: 0/300 (0%) — starting
+2026-06-07 18:29:43 [INFO]   LHS rejection: 41/300 (13%) | 330 tested | rate=12.4242% [0s]
+2026-06-07 18:29:43 [INFO]   LHS rejection: 309/300 (103%) | 2,623 tested | rate=11.7804% [0s]
+2026-06-07 18:29:43 [INFO]   LHS rejection: 300/300 [0.0s]
+2026-06-07 18:29:43 [INFO]   NROY SUMMARY: 300/300 [OK] — sources: LHS=300 [0.0s]
+2026-06-07 18:29:43 [DEBUG] NROY fraction: 0.114373
+2026-06-07 18:29:43 [INFO] [Wave 1] Phase 5/5 NROY SAMPLING: found 300 candidates [0.0s]
+2026-06-07 18:29:43 [INFO] [Wave 1] ALL PHASES COMPLETE [0.0s total]. Committing...
+2026-06-07 18:29:44 [INFO] Checkpoint saved to hm_output/run_20260607_182943/checkpoint.pkl
+2026-06-07 18:29:44 [INFO] Wave 1 output saved to hm_output/run_20260607_182943/wave1
+2026-06-07 18:29:44 [INFO] [Wave 1] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182943
+2026-06-07 18:29:44 [INFO] ============================================================
+2026-06-07 18:29:44 [INFO] ============================================================
+2026-06-07 18:29:44 [INFO] WAVE 2 STARTING
+2026-06-07 18:29:44 [INFO] ============================================================
+2026-06-07 18:29:44 [INFO] [Wave 2] Phase 1/5 SAMPLING: using 300 pre-computed samples from wave 1 [0.0s]
+2026-06-07 18:29:44 [INFO] [Wave 2] Phase 2/5 SIMULATION: running 300 simulations...
+2026-06-07 18:29:44 [INFO] [Wave 2] Phase 2/5 SIMULATION: complete — 3 outputs [0.0s]
+2026-06-07 18:29:44 [INFO]   Feature ranking (mean_sq_z): output2=32.71, output3=11.40, output1=1.84
+2026-06-07 18:29:44 [INFO]   Cooldown (skip): ['output3']
+2026-06-07 18:29:44 [INFO]   SELECTED: output2 (score=32.71, mean_z=2.55, std_z=5.13)
+2026-06-07 18:29:44 [INFO] [Wave 2] Phase 3/5 FEATURE SELECTION: ['output2'] [0.0s]
+2026-06-07 18:29:44 [INFO] [Wave 2] Phase 4/5 EMULATOR TRAINING: training 1 emulators...
+2026-06-07 18:29:44 [INFO]   Emulator 1/1 [output2]: creating (300 samples, 2 params, type=linear)...
+2026-06-07 18:29:44 [DEBUG] Created linear emulator for feature: output2
+2026-06-07 18:29:44 [INFO]   Emulator 1/1 [output2]: training...
+2026-06-07 18:29:44 [INFO]   Emulator 1/1 [output2]: trained [0.0s]
+2026-06-07 18:29:44 [INFO] [Wave 2] Phase 4/5 EMULATOR TRAINING: complete [0.0s]
+2026-06-07 18:29:44 [INFO] [Wave 2] Phase 5/5 NROY SAMPLING: finding 300 plausible candidates for next wave...
+2026-06-07 18:29:44 [INFO]   LHS rejection: 0/300 (0%) — starting
+2026-06-07 18:29:44 [WARNING] Filter failed for 'output3': operands could not be broadcast together with shapes (61,) (114,) (61,) 
+2026-06-07 18:29:44 [INFO]   LHS rejection: 61/300 (20%) | 330 tested | rate=18.4848% [0s]
+2026-06-07 18:29:44 [WARNING] Filter failed for 'output3': operands could not be broadcast together with shapes (290,) (522,) (290,) 
+2026-06-07 18:29:44 [INFO]   LHS rejection: 351/300 (117%) | 1,752 tested | rate=20.0342% [0s]
+2026-06-07 18:29:44 [INFO]   LHS rejection: 300/300 [0.0s]
+2026-06-07 18:29:44 [INFO]   NROY SUMMARY: 300/300 [OK] — sources: LHS=300 [0.0s]
+2026-06-07 18:29:44 [DEBUG] NROY fraction: 0.171233
+2026-06-07 18:29:44 [INFO] [Wave 2] Phase 5/5 NROY SAMPLING: found 300 candidates [0.0s]
+2026-06-07 18:29:44 [INFO] [Wave 2] ALL PHASES COMPLETE [0.0s total]. Committing...
+2026-06-07 18:29:46 [INFO] Checkpoint saved to hm_output/run_20260607_182943/checkpoint.pkl
+2026-06-07 18:29:46 [INFO] Wave 2 output saved to hm_output/run_20260607_182943/wave2
+2026-06-07 18:29:46 [INFO] [Wave 2] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182943
+2026-06-07 18:29:46 [INFO] ============================================================
+2026-06-07 18:29:46 [INFO] ============================================================
+2026-06-07 18:29:46 [INFO] WAVE 3 STARTING
+2026-06-07 18:29:46 [INFO] ============================================================
+2026-06-07 18:29:46 [INFO] [Wave 3] Phase 1/5 SAMPLING: using 300 pre-computed samples from wave 2 [0.0s]
+2026-06-07 18:29:46 [INFO] [Wave 3] Phase 2/5 SIMULATION: running 300 simulations...
+2026-06-07 18:29:46 [INFO] [Wave 3] Phase 2/5 SIMULATION: complete — 3 outputs [0.0s]
+2026-06-07 18:29:46 [INFO]   Feature ranking (mean_sq_z): output1=72.65, output3=48.81, output2=39.24
+2026-06-07 18:29:46 [INFO]   Cooldown (skip): ['output2']
+2026-06-07 18:29:46 [INFO]   SELECTED: output3 (score=48.81, mean_z=0.13, std_z=7.00)
+2026-06-07 18:29:46 [INFO] [Wave 3] Phase 3/5 FEATURE SELECTION: ['output3'] [0.0s]
+2026-06-07 18:29:46 [INFO] [Wave 3] Phase 4/5 EMULATOR TRAINING: training 1 emulators...
+2026-06-07 18:29:46 [INFO]   Emulator 1/1 [output3]: creating (300 samples, 2 params, type=linear)...
+2026-06-07 18:29:46 [DEBUG] Created linear emulator for feature: output3
+2026-06-07 18:29:46 [INFO]   Emulator 1/1 [output3]: training...
+2026-06-07 18:29:46 [INFO]   Emulator 1/1 [output3]: trained [0.0s]
+2026-06-07 18:29:46 [INFO] [Wave 3] Phase 4/5 EMULATOR TRAINING: complete [0.0s]
+2026-06-07 18:29:46 [INFO] [Wave 3] Phase 5/5 NROY SAMPLING: finding 300 plausible candidates for next wave...
+2026-06-07 18:29:46 [INFO]   LHS rejection: 0/300 (0%) — starting
+2026-06-07 18:29:46 [WARNING] Filter failed for 'output2': operands could not be broadcast together with shapes (55,) (101,) (55,) 
+2026-06-07 18:29:46 [WARNING] Filter failed for 'output3': operands could not be broadcast together with shapes (55,) (101,) (55,) 
+2026-06-07 18:29:46 [INFO]   LHS rejection: 55/300 (18%) | 330 tested | rate=16.6667% [0s]
+2026-06-07 18:29:46 [WARNING] Filter failed for 'output2': operands could not be broadcast together with shapes (240,) (440,) (240,) 
+2026-06-07 18:29:46 [WARNING] Filter failed for 'output3': operands could not be broadcast together with shapes (240,) (440,) (240,) 
+2026-06-07 18:29:46 [INFO]   LHS rejection: 295/300 (98%) | 1,947 tested | rate=15.1515% [0s]
+2026-06-07 18:29:46 [WARNING] Filter failed for 'output2': operands could not be broadcast together with shapes (7,) (13,) (7,) 
+2026-06-07 18:29:46 [WARNING] Filter failed for 'output3': operands could not be broadcast together with shapes (7,) (13,) (7,) 
+2026-06-07 18:29:46 [INFO]   LHS rejection: 302/300 (100%) | 1,983 tested | rate=15.2295% [0s]
+2026-06-07 18:29:46 [INFO]   LHS rejection: 300/300 [0.0s]
+2026-06-07 18:29:46 [INFO]   NROY SUMMARY: 300/300 [OK] — sources: LHS=300 [0.0s]
+2026-06-07 18:29:46 [DEBUG] NROY fraction: 0.151286
+2026-06-07 18:29:46 [INFO] [Wave 3] Phase 5/5 NROY SAMPLING: found 300 candidates [0.1s]
+2026-06-07 18:29:46 [INFO] [Wave 3] ALL PHASES COMPLETE [0.1s total]. Committing...
+2026-06-07 18:29:48 [INFO] Checkpoint saved to hm_output/run_20260607_182943/checkpoint.pkl
+2026-06-07 18:29:48 [INFO] Wave 3 output saved to hm_output/run_20260607_182943/wave3
+2026-06-07 18:29:48 [INFO] [Wave 3] COMMITTED — diagnostics and checkpoint saved to hm_output/run_20260607_182943
+2026-06-07 18:29:48 [INFO] ============================================================
+2026-06-07 18:29:48 [INFO] Automated run completed. 3 iterations executed.

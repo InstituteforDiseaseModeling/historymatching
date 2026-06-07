@@ -885,6 +885,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating to v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../whatsnew/" class="md-nav__link">
         
   
@@ -1862,8 +1889,8 @@ np.random.seed(42)
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1780534052.011897 1042382 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1780534052.087784 1042382 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+I0000 00:00:1780871466.726310 2119575 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1780871466.800105 2119575 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
 To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 </pre>
 </div>
@@ -1872,7 +1899,7 @@ To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, re
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1780534053.543294 1042382 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1780871468.227497 2119575 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 </pre>
 </div>
 </div>
@@ -2265,7 +2292,7 @@ print(f"Speedup: {t_lhs/t_ray:.1f}x")
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Ground truth: 2000 points in 9.33s
+<pre>Ground truth: 2000 points in 8.38s
 LHS rejection...
 </pre>
 </div>
@@ -2273,7 +2300,7 @@ LHS rejection...
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>LHS rejection: 500 points in 2.82s
+<pre>LHS rejection: 500 points in 2.92s
 Ray-resample...
 </pre>
 </div>
@@ -2281,8 +2308,8 @@ Ray-resample...
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Ray-resample:  500 points in 3.56s
-Speedup: 0.8x
+<pre>Ray-resample:  500 points in 4.22s
+Speedup: 0.7x
 </pre>
 </div>
 </div>
@@ -2694,14 +2721,14 @@ print(f'\nFinal: {len(nroy_verbose)} NROY points')</div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  Ray sampling: +7227, pool=7233/500 [1.2s]
+<pre>INFO:historymatching.nroy_sampling:  Ray sampling: +7227, pool=7233/500 [1.5s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=6, ray=7227 [1.8s]
+<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=6, ray=7227 [2.2s]
 </pre>
 </div>
 </div>
@@ -2824,14 +2851,14 @@ print(f'Tuned: {len(nroy_tuned)} NROY points')</div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  Ray sampling: +20881, pool=20891/500 [3.0s]
+<pre>INFO:historymatching.nroy_sampling:  Ray sampling: +20881, pool=20891/500 [4.0s]
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=10, ray=20881 [4.0s]
+<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=10, ray=20881 [5.1s]
 </pre>
 </div>
 </div>

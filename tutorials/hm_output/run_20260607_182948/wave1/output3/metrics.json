@@ -1,0 +1,24 @@
+{
+  "r2": 0.9990863362186946,
+  "mse": 0.012960640960298187,
+  "n_train": 225,
+  "hyperparameters": {
+    "type": "bayes_linear",
+    "nugget": 1e-06,
+    "sigma_sq": 9164.124368887211,
+    "sigma_sq_standardized": 684.9365611949131,
+    "theta": {
+      "param1": 6.75667327270551,
+      "param2": 8.318398298653223
+    },
+    "beta": {
+      "intercept": -1.627921015324766,
+      "param1": 10.768261421584304,
+      "param2": 5.008068338245634
+    },
+    "optimizer_converged": true,
+    "nll": -784.3820333608695,
+    "n_train": 225,
+    "n_dims": 2
+  }
+}
