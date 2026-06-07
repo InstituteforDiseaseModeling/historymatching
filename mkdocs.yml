@@ -42,6 +42,8 @@ nav:
       - Advanced configuration: tutorials/03_advanced_configuration.ipynb
       - Emulator showcase: tutorials/04_emulator_showcase.ipynb
       - Trajectory selection: tutorials/05_trajectory_selection.ipynb
+      - NROY sampling methods: tutorials/06_nroy_sampling_methods.ipynb
+      - Visualization: tutorials/07_visualization.ipynb
   - Usage guide: usage.md
   - API reference: api.md
   - Contributing: contributing.md

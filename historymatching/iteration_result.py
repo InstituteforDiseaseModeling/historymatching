@@ -106,6 +106,41 @@ class IterationResult:
 
         return metrics
 
+    def quality_table(self) -> pd.DataFrame:
+        """Per-output emulator quality as a table (rows = outputs; columns
+        ``r2``/``mse``/``n_train``). Renders nicely in notebooks."""
+        metrics = self.get_emulator_quality_metrics()
+        if not metrics:
+            return pd.DataFrame()
+        return pd.DataFrame(metrics).T
+
+    def plot_emulator_quality(self, *, ax=None, **kwargs):
+        """Bar chart of per-output emulator R² (delegates to
+        :func:`historymatching.plotting.plot_emulator_quality`)."""
+        from . import plotting
+        return plotting.plot_emulator_quality(self.get_emulator_quality_metrics(), ax=ax, **kwargs)
+
+    def plot_predicted_vs_actual(self, output: str, *, ax=None, **kwargs):
+        """Predicted-vs-actual scatter for one output's emulator on its held-out
+        test set (delegates to
+        :func:`historymatching.plotting.plot_predicted_vs_actual`)."""
+        from . import plotting
+        em = self.get_emulator(output)
+        if hasattr(em, "test") and not getattr(em, "testing_complete", False):
+            em.test()
+        if getattr(em, "y_test", None) is None or getattr(em, "y_test_pred", None) is None:
+            raise ValueError(
+                f"Emulator for '{output}' has no held-out test data to plot "
+                "(it may have been trained with test_fraction=0). Re-run with a "
+                "non-zero test fraction to enable predicted-vs-actual diagnostics."
+            )
+        m = getattr(em, "emulator_metrics", {})
+        n_train = len(em.X_train) if getattr(em, "X_train", None) is not None else None
+        return plotting.plot_predicted_vs_actual(
+            em.y_test, em.y_test_pred,
+            r2=m.get("R2"), mse=m.get("MSE"), n_train=n_train,
+            title=f"{output} — predicted vs actual", ax=ax, **kwargs)
+
     def summary(self) -> Dict[str, Any]:
         """
         A summary of this wave as a plain dict (handy for logging/inspection).

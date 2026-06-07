@@ -28,3 +28,15 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - run: uv pip install --system -e ".[test]"
       - run: pytest tests/ -x -q
+
+  notebooks:
+    # Execute the tutorial notebooks end-to-end (pytest does not run notebooks).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --extra notebooks --extra test
+      - run: bash docs/tutorials/run_tutorials.sh

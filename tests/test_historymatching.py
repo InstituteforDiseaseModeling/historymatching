@@ -374,14 +374,71 @@ class TestConveniences:
         assert "output1" in metrics
         assert "wave" in out.lower()
 
-    def test_plot_nroy_parameters(self, ran_engine):
-        fig, axes = ran_engine.plot_nroy_parameters(
-            derived={"sum": lambda df: df["param1"] + df["param2"]},
-            true_parameters={"param1": 0.5},
-        )
-        assert fig is not None
+    def test_plot_nroy_parameters_deprecated(self, ran_engine):
+        # Deprecated forwarder: warns, still works, and returns (fig, axes).
         import matplotlib.pyplot as plt
-        plt.close(fig)
+        with pytest.warns(DeprecationWarning):
+            fig, axes = ran_engine.plot_nroy_parameters(
+                derived={"sum": lambda df: df["param1"] + df["param2"]},
+                true_parameters={"param1": 0.5},
+            )
+        assert fig is not None
+        plt.close("all")
+
+    # ── plotting / summary wrappers (delegate to historymatching.plotting) ──
+    def test_plot_convergence(self, ran_engine):
+        import matplotlib.pyplot as plt
+        assert ran_engine.plot_convergence() is not None
+        plt.close("all")
+
+    def test_plot_marginals(self, ran_engine):
+        import matplotlib.pyplot as plt
+        assert ran_engine.plot_marginals(truth={"param1": 0.5}) is not None
+        plt.close("all")
+
+    def test_plot_nroy(self, ran_engine):
+        import matplotlib.pyplot as plt
+        axes = ran_engine.plot_nroy(
+            truth={"param1": 0.5},
+            derived={"sum": lambda df: df["param1"] + df["param2"]},
+        )
+        assert axes is not None
+        plt.close("all")
+
+    def test_plot_zscores(self, ran_engine):
+        import matplotlib.pyplot as plt
+        assert ran_engine.plot_zscores() is not None
+        plt.close("all")
+
+    def test_plot_constrained_dims(self, ran_engine):
+        import matplotlib.pyplot as plt
+        assert ran_engine.plot_constrained_dims(n_top=2) is not None
+        plt.close("all")
+
+    def test_nroy_summary(self, ran_engine, capsys):
+        text = ran_engine.nroy_summary()
+        out = capsys.readouterr().out
+        assert "NROY" in text and "NROY" in out
+        assert "param1" in text
+
+    def test_iterationresult_plotting(self, ran_engine):
+        import matplotlib.pyplot as plt
+        result = ran_engine.results[-1]
+        table = result.quality_table()
+        assert "r2" in table.columns
+        assert result.plot_emulator_quality() is not None
+        assert result.plot_predicted_vs_actual("output1") is not None
+        plt.close("all")
+
+    def test_domain_object_summaries_and_plots(self, ran_engine):
+        import matplotlib.pyplot as plt
+        assert "ParameterSpace" in ran_engine.parameter_space.summary()
+        assert "ObservationData" in ran_engine.observations.summary()
+        assert "EmulatorBank" in ran_engine.emulator_bank.summary()
+        assert ran_engine.parameter_space.plot_bounds(
+            reference=ran_engine.parameter_space) is not None
+        assert ran_engine.observations.plot_targets() is not None
+        plt.close("all")
 
     def test_save_diagnostics(self, ran_engine, tmp_path):
         # engine.save_diagnostics delegates to each IterationResult.save

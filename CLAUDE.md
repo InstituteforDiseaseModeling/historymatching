@@ -40,7 +40,7 @@ uv run pytest tests/           # all tests
 uv run pytest tests/ -x -q    # fail fast, quiet
 ```
 
-211 tests, runs in ~10 seconds. No network or external dependencies required.
+234 tests, runs in ~10 seconds. No network or external dependencies required.
 
 ## Code structure
 
@@ -54,6 +54,7 @@ historymatching/         # flat package — everything at the top level
     iteration_result.py   # IterationResult — immutable result from one iteration
     feature_selection.py  # AutoFeatureSelection, ManualFeatureSelection
     sampling.py           # LatinHypercubeSampling, GridSampling, RandomSampling, SamplingStrategyFactory
+    plotting.py           # Composable plot_* helpers (take primitive data, return Axes); re-exported at top level
     utils.py              # Column name constants and helper functions
     emulators/            # Emulator implementations (the one subdirectory)
         base.py           # BaseEmulator abstract class

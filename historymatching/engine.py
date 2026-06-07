@@ -519,76 +519,41 @@ class HistoryMatching:
         trajectories,
         observed=None,
         x=None,
-        xlabel=None,
-        ylabel=None,
-        title=None,
+        xlabel="Index",
+        ylabel="Value",
+        title="Ensemble vs observed",
         ax=None,
         show: bool = False,
+        **kwargs,
     ):
-        """Fan plot of an ensemble of trajectories, optionally vs observed data.
+        """Fan/spaghetti plot of an ensemble of trajectories vs observed data.
 
-        Draws the ensemble median, a shaded 5-95th and 25-75th percentile band, the
-        faint individual trajectories, and (if given) the observed series on top.
-        Handy for eyeballing how well a set of plausible (NROY) parameter sets
-        reproduces the data.
+        Delegates to :func:`historymatching.plotting.plot_ensemble_fan`. Handy for
+        eyeballing how well a set of plausible (NROY) parameter sets reproduces the
+        data.
 
         Args:
             trajectories: 2-D array-like, shape ``(n_runs, n_timepoints)`` — one row
                 per simulated trajectory.
             observed: Optional observed series of length ``n_timepoints``.
             x: Optional x-axis values (defaults to ``0..n_timepoints-1``).
-            xlabel, ylabel, title: Optional axis labels / title.
+            xlabel, ylabel, title: Axis labels / title.
             ax: Optional matplotlib Axes to draw into (a new figure is made if None).
             show: If True, call ``plt.show()`` before returning.
+            **kwargs: Forwarded to the plotting function (e.g. ``ci``,
+                ``show_members``, ``show_band``).
 
         Returns:
-            ``(fig, ax)`` from matplotlib.
+            The Matplotlib ``Axes``.
         """
-        import matplotlib.pyplot as plt
-        import numpy as np
-
-        arr = np.asarray(trajectories, dtype=float)
-        if arr.ndim != 2:
-            raise ValueError(f"trajectories must be 2-D (n_runs, n_timepoints); got shape {arr.shape}")
-
-        n_runs, n_t = arr.shape
-        if x is None:
-            x = np.arange(n_t)
-
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 5))
-        else:
-            fig = ax.figure
-
-        # Faint individual trajectories.
-        for i in range(n_runs):
-            ax.plot(x, arr[i], color="gray", alpha=0.15, linewidth=0.8,
-                    label="Plausible simulations" if i == 0 else None)
-
-        # Percentile bands + median.
-        q05, q25, med, q75, q95 = np.percentile(arr, [5, 25, 50, 75, 95], axis=0)
-        ax.fill_between(x, q05, q95, color="#3575b5", alpha=0.15, label="5-95th pct")
-        ax.fill_between(x, q25, q75, color="#3575b5", alpha=0.30, label="25-75th pct")
-        ax.plot(x, med, color="#1f4e8c", linewidth=2, label="Ensemble median")
-
-        if observed is not None:
-            ax.plot(x, np.asarray(observed, dtype=float), "ro-", markersize=4,
-                    linewidth=1.5, label="Observed")
-
-        if xlabel:
-            ax.set_xlabel(xlabel)
-        if ylabel:
-            ax.set_ylabel(ylabel)
-        if title:
-            ax.set_title(title)
-        ax.legend(fontsize=8)
-        ax.grid(True, alpha=0.3)
-        for spine in ("top", "right"):
-            ax.spines[spine].set_visible(False)
-
+        from . import plotting
+        ax = plotting.plot_ensemble_fan(
+            trajectories, observed=observed, x=x, ax=ax,
+            xlabel=xlabel, ylabel=ylabel, title=title, **kwargs)
         if show:
+            import matplotlib.pyplot as plt
             plt.show()
-        return fig, ax
+        return ax
 
     # -- Reconfigurable options: assign friendly values, coerced like the constructor --
     @property
@@ -1273,75 +1238,130 @@ class HistoryMatching:
         fig_kwargs: Optional[dict] = None,
         show: bool = False,
     ):
-        """Corner plot of the non-implausible (NROY) parameter samples.
+        """Deprecated alias for :meth:`plot_nroy`.
 
-        Diagonal panels show marginal histograms; lower-triangle panels show
-        pairwise scatter.  Optionally overlay derived quantities and the known
-        "true" values.
-
-        Args:
-            samples: NROY samples to plot.  Defaults to :meth:`get_nroy_samples`.
-            derived: Dict mapping a derived-quantity name to a callable that
-                takes the samples DataFrame and returns a Series/array
-                (e.g. ``{'R0': lambda df: df['beta'] / df['gamma']}``).
-            true_parameters: Dict mapping a column name to its true value; drawn
-                as reference lines/markers.
-            bins: Number of histogram bins for the diagonal panels.
-            fig_kwargs: Extra keyword arguments passed to ``plt.subplots``.
-            show: If True, call ``plt.show()`` before returning.
-
-        Returns:
-            ``(fig, axes)`` from matplotlib.
+        .. deprecated:: 2.0.1
+            Use :meth:`plot_nroy` instead (``true_parameters=`` is now ``truth=``).
+            Retained as a thin forwarder that returns ``(fig, axes)`` for
+            backwards compatibility; ``fig_kwargs`` is no longer applied.
         """
-        import matplotlib.pyplot as plt
+        import warnings
         import numpy as np
 
+        warnings.warn(
+            "HistoryMatching.plot_nroy_parameters() is deprecated; use plot_nroy() "
+            "instead (pass known values via `truth=` rather than `true_parameters=`).",
+            DeprecationWarning, stacklevel=2,
+        )
+        axes = self.plot_nroy(samples=samples, truth=true_parameters,
+                              derived=derived, bins=bins)
+        fig = np.asarray(axes).flat[0].figure
+        if show:
+            import matplotlib.pyplot as plt
+            plt.show()
+        return fig, axes
+
+    # ── Convenience plot/summary wrappers (delegate to historymatching.plotting) ──
+    def _bounds_dict(self) -> dict:
+        """``{parameter: (min, max)}`` from the current parameter space."""
+        ps = self.parameter_space
+        return {name: ps.get_bounds(name) for name in ps.get_parameter_names()}
+
+    def _targets_dict(self) -> dict:
+        """``{feature: (mean, std)}`` from the observations."""
+        obs = self.observations
+        return {f: obs.get_target_for_feature(f) for f in obs.get_feature_names()}
+
+    def _nroy_for_plot(self, samples=None) -> pd.DataFrame:
+        """NROY samples restricted to parameter columns, with a clear error when
+        none are available (no waves run yet, or the NROY region collapsed)."""
         if samples is None:
             samples = self.get_nroy_samples()
         if samples is None or len(samples) == 0:
-            raise ValueError("No NROY samples available to plot. Run at least one wave first.")
+            raise ValueError(
+                "No NROY samples to plot. Run at least one wave first; if you "
+                "have, the NROY region may have collapsed — loosen the "
+                "implausibility threshold or widen the observation uncertainty."
+            )
+        cols = [c for c in self.parameters if c in samples.columns]
+        return samples[cols]
 
-        columns = list(self.parameters)
-        plot_df = samples[columns].copy()
-        if derived:
-            for name, func in derived.items():
-                plot_df[name] = func(samples)
-                columns.append(name)
+    def plot_convergence(self, *, ax=None, **kwargs):
+        """Plot the NROY fraction per wave (delegates to
+        :func:`historymatching.plotting.plot_convergence`)."""
+        from . import plotting
+        results = self.get_all_results()
+        if not results:
+            raise ValueError("No completed waves to plot. Run at least one wave first.")
+        return plotting.plot_convergence(
+            [r.iteration for r in results],
+            [r.nroy_fraction for r in results],
+            ax=ax, **kwargs)
 
-        true_parameters = true_parameters or {}
-        n = len(columns)
-        fig_kwargs = {"figsize": (2.4 * n, 2.4 * n), **(fig_kwargs or {})}
-        fig, axes = plt.subplots(n, n, **fig_kwargs)
-        if n == 1:
-            axes = np.array([[axes]])
+    def plot_marginals(self, *, truth=None, axes=None, **kwargs):
+        """Marginal histograms of the NROY samples (delegates to
+        :func:`historymatching.plotting.plot_marginals`)."""
+        from . import plotting
+        return plotting.plot_marginals(
+            self._nroy_for_plot(), truth=truth,
+            bounds=self._bounds_dict(), axes=axes, **kwargs)
 
-        for i, col_i in enumerate(columns):
-            for j, col_j in enumerate(columns):
-                ax = axes[i][j]
-                if i == j:
-                    ax.hist(plot_df[col_i], bins=bins, color="#3575b5", alpha=0.8, edgecolor="none")
-                    if col_i in true_parameters:
-                        ax.axvline(true_parameters[col_i], color="#d44d4d", lw=1.5)
-                elif i > j:
-                    ax.scatter(plot_df[col_j], plot_df[col_i], s=4, alpha=0.3,
-                               color="#3575b5", edgecolors="none")
-                    if col_j in true_parameters:
-                        ax.axvline(true_parameters[col_j], color="#d44d4d", lw=1.0, alpha=0.7)
-                    if col_i in true_parameters:
-                        ax.axhline(true_parameters[col_i], color="#d44d4d", lw=1.0, alpha=0.7)
-                else:
-                    ax.set_visible(False)
-                    continue
-                if j == 0:
-                    ax.set_ylabel(col_i, fontsize=8)
-                if i == n - 1:
-                    ax.set_xlabel(col_j, fontsize=8)
-                ax.tick_params(labelsize=6)
+    def plot_nroy(self, *, samples=None, truth=None, derived=None, bins=25, axes=None, **kwargs):
+        """Corner/pairplot of the NROY parameter cloud (delegates to
+        :func:`historymatching.plotting.plot_pairplot`).
 
-        fig.tight_layout()
-        if show:
-            plt.show()
-        return fig, axes
+        Pass ``derived`` to overlay computed quantities, e.g.
+        ``{'R0': lambda df: df['beta'] / df['gamma']}``.
+        """
+        from . import plotting
+        return plotting.plot_pairplot(
+            self._nroy_for_plot(samples), truth=truth, derived=derived, bins=bins,
+            bounds=self._bounds_dict(), axes=axes, **kwargs)
+
+    def plot_zscores(self, *, ax=None, **kwargs):
+        """Standardised outputs vs targets across waves (delegates to
+        :func:`historymatching.plotting.plot_zscores_vs_targets`)."""
+        from . import plotting
+        waves = [
+            {"iteration": r.iteration,
+             "sim_results": r.simulation_results,
+             "selected_features": r.emulated_outputs}
+            for r in self.get_all_results()
+        ]
+        if not waves:
+            raise ValueError("No completed waves to plot. Run at least one wave first.")
+        return plotting.plot_zscores_vs_targets(waves, self._targets_dict(), ax=ax, **kwargs)
+
+    def plot_constrained_dims(self, *, n_top=5, axes=None, **kwargs):
+        """Constrained-direction (variance-reduction) plot of the NROY cloud
+        (delegates to :func:`historymatching.plotting.plot_constrained_dims`)."""
+        from . import plotting
+        return plotting.plot_constrained_dims(
+            self._nroy_for_plot(), self._bounds_dict(),
+            n_top=n_top, axes=axes, **kwargs)
+
+    def nroy_summary(self) -> str:
+        """Print and return a text summary of the current NROY region: number of
+        waves and samples, latest NROY fraction, and each parameter's median with
+        its 95% interval."""
+        samples = self.get_nroy_samples()
+        n = 0 if samples is None else len(samples)
+        results = self.get_all_results()
+        frac = results[-1].nroy_fraction if results else None
+        lines = ["NROY summary", "-" * 48,
+                 f"  waves run:     {len(results)}",
+                 f"  NROY samples:  {n}"]
+        if frac is not None:
+            lines.append(f"  NROY fraction: {frac:.3%}")
+        if n:
+            lines.append(f"  {'parameter':<18}{'median':>12}   95% interval")
+            for name in self.parameters:
+                col = samples[name]
+                lo, hi = col.quantile(0.025), col.quantile(0.975)
+                lines.append(f"  {name:<18}{col.median():>12.4g}   [{lo:.4g}, {hi:.4g}]")
+        text = "\n".join(lines)
+        print(text)
+        return text
 
     def get_nroy_samples(self, n: Optional[int] = None,
                          method: Optional[str] = None, **kwargs) -> pd.DataFrame:
