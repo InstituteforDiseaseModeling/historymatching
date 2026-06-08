@@ -10,8 +10,8 @@ Reference: Iskauskas (2024), "Emulation and History Matching using the hmer
 Package", Journal of Statistical Software.
 """
 
-import logging
 from typing import Optional, Tuple
+import logging
 
 import numpy as np
 import pandas as pd

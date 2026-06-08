@@ -2,7 +2,7 @@
 Emulator factory with strategy pattern for history matching.
 """
 
-from typing import Dict, Type, Optional, Any, List
+from typing import Any, Dict, List, Optional, Type
 import logging
 
 import pandas as pd

@@ -2,13 +2,14 @@
 Unit tests for feature selection strategies.
 """
 
-import pytest
+import warnings
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
-import warnings
-from unittest.mock import patch, MagicMock
-import historymatching as hm
+import pytest
 
+import historymatching as hm
 
 
 class TestFeatureSelectionStrategy:

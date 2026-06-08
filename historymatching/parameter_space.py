@@ -2,8 +2,8 @@
 ParameterSpace domain object for history matching.
 """
 
-import logging
 from typing import List, Optional, Tuple, Union
+import logging
 
 import numpy as np
 import pandas as pd

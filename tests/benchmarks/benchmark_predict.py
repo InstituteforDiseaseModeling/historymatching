@@ -30,8 +30,8 @@ import time
 import numpy as np
 import pandas as pd
 
+from historymatching.emulators.fast_predict import _HAS_NUMBA, FastGPRPredictor
 from historymatching.emulators.gpr import GPR
-from historymatching.emulators.fast_predict import FastGPRPredictor, _HAS_NUMBA
 
 
 def _make_training_data(n_train, n_dims, seed):

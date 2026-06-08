@@ -2,17 +2,17 @@
 Unit tests for enhanced emulator factory with strategy pattern.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
-import importlib
 from unittest.mock import patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 import historymatching as hm
 from historymatching.emulators.factory import (
-    create_linear_emulator,
-    create_gpr_emulator,
     create_glm_emulator,
+    create_gpr_emulator,
+    create_linear_emulator,
 )
 
 

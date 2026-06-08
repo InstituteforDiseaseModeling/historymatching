@@ -48,9 +48,7 @@ from .emulators import (  # noqa: F401 isort: skip
     BayesLinear,
     EmulatorFactory,
 )
-# Imported after its dependencies above: engine.py does `import historymatching as hm`
-# and resolves hm.ParameterSpace etc. at class-definition time, so those names must
-# already be bound here. (This is why engine is not imported first.)
+# Engine and higher-level helpers, which build on the components above.
 from .engine import HistoryMatching, EngineState  # noqa: F401 isort: skip
 from .emulators.results import EmulationResults  # noqa: F401 isort: skip
 from .nroy_sampling import generate_nroy_design, NROYResult  # noqa: F401 isort: skip

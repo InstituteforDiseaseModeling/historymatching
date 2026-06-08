@@ -8,8 +8,8 @@ estimated by maximizing a concentrated log-likelihood on the residuals.
 Pure numpy/scipy -- no TensorFlow or GPflow dependency.
 """
 
-import logging
 from typing import Optional
+import logging
 
 import numpy as np
 import pandas as pd

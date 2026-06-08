@@ -2,15 +2,16 @@
 IterationResult — the result of a single history matching wave.
 """
 
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
+
 import numpy as np
 import pandas as pd
 import sciris as sc
 
 from .parameter_space import ParameterSpace
 from .emulators.base import BaseEmulator
-from .constants import SAVE_KW, NROY_COLOR
+from .constants import NROY_COLOR, SAVE_KW
 
 
 @dataclass(frozen=True)

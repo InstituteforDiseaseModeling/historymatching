@@ -31,9 +31,13 @@ import sciris as sc
 import matplotlib.pyplot as plt
 
 from .constants import (
-    NROY_COLOR, PRIOR_COLOR, TRUTH_COLOR, MEDIAN_COLOR, TARGET_COLOR, WAVE_CMAP,
+    MEDIAN_COLOR,
+    NROY_COLOR,
+    PRIOR_COLOR,
+    TARGET_COLOR,
+    TRUTH_COLOR,
+    WAVE_CMAP,
 )
-
 
 __all__ = [
     "plot_convergence",

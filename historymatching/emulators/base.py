@@ -1,15 +1,13 @@
-import logging
-from abc import abstractmethod
 from typing import Optional
 import itertools
-
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
+import logging
+from abc import abstractmethod
 
 import numpy as np
 import pandas as pd
-from sklearn import model_selection
-from sklearn import metrics
+from sklearn import metrics, model_selection
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 from .results import EmulationResults
 

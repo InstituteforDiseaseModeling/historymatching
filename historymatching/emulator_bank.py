@@ -4,6 +4,7 @@ EmulatorBank domain object for history matching.
 
 from typing import Dict, List, Optional
 import logging
+
 import sciris as sc
 
 from .emulators.base import BaseEmulator

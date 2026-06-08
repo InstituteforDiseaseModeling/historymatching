@@ -22,8 +22,8 @@ Usage:
     mask = filter_nroy(candidates, predictors, obs_targets, threshold=3.5)
 """
 
-import logging
 from typing import List, Tuple
+import logging
 
 import numpy as np
 

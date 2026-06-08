@@ -2,15 +2,15 @@
 Sampling strategy implementations for history matching.
 """
 
+from typing import Dict, Optional, Type
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Type
-import numpy as np
-import pandas as pd
-
-from .parameter_space import ParameterSpace
 from itertools import product
 
+import numpy as np
+import pandas as pd
 from scipy.stats.qmc import LatinHypercube as _LHSEngine
+
+from .parameter_space import ParameterSpace
 
 
 def _lhs(n_parameters: int, samples: int, seed: Optional[int] = None) -> "np.ndarray":

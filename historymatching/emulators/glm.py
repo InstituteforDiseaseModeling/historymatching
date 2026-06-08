@@ -1,8 +1,7 @@
-import logging
 from typing import Optional
+import logging
 
 import pandas as pd
-
 import statsmodels.api as sm
 
 from .base import BaseEmulator

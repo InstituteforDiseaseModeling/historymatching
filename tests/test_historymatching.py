@@ -7,6 +7,7 @@ accepted for each option and coerced into the underlying domain objects.
 """
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import numpy as np

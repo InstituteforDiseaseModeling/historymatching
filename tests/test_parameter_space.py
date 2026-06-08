@@ -3,14 +3,13 @@ Unit tests for ParameterSpace domain object.
 """
 
 import unittest
+
 import numpy as np
 import pandas as pd
-import tempfile
-import os
+from fixtures import TestAssertions, TestDataFactory
 
-from historymatching.constants import PARAMETER_SPACE_COLUMNS
-from fixtures import TestDataFactory, TestAssertions, TestConstants
 import historymatching as hm
+from historymatching.constants import PARAMETER_SPACE_COLUMNS
 
 
 class ParameterSpaceTests(unittest.TestCase):
