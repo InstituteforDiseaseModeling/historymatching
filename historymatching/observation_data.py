@@ -2,15 +2,12 @@
 ObservationData domain object for history matching.
 """
 
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
-from .utils import OBSERVATIONS_COLUMNS
+from .constants import OBSERVATIONS_COLUMNS
 
 
 class ObservationData:

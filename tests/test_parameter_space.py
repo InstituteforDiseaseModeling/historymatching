@@ -8,7 +8,7 @@ import pandas as pd
 import tempfile
 import os
 
-from historymatching.utils import PARAMETER_SPACE_COLUMNS
+from historymatching.constants import PARAMETER_SPACE_COLUMNS
 from fixtures import TestDataFactory, TestAssertions, TestConstants
 import historymatching as hm
 

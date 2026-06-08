@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from typing import List, Optional, Callable, Dict, Tuple
 
-from historymatching.utils import PARAMETER_SPACE_COLUMNS, OBSERVATIONS_COLUMNS
+from historymatching.constants import PARAMETER_SPACE_COLUMNS, OBSERVATIONS_COLUMNS
 import historymatching as hm
 
 

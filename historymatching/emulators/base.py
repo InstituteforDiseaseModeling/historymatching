@@ -14,8 +14,6 @@ from sklearn import metrics
 from .results import EmulationResults
 
 
-
-
 class BaseEmulator:
     """Base class for emulators."""
 

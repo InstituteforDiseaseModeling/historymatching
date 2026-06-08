@@ -8,27 +8,17 @@ automated workflow or :meth:`HistoryMatching.step` / :meth:`commit_step` /
 """
 
 import logging
-import pickle
-import time as _time
 import warnings
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
-from typing import Callable
-from typing import Optional
-from typing import Union
+from typing import Any, Callable, Optional, Union
 
 import pandas as pd
+import sciris as sc
 
-from .emulator_bank import EmulatorBank
-from .iteration_result import IterationResult
-from .observation_data import ObservationData
-from .parameter_space import ParameterSpace
-from .emulators.factory import EmulatorFactory
-from .feature_selection import FeatureSelectionStrategy, AutoFeatureSelection, ManualFeatureSelection
-from .sampling import SamplingStrategy, SamplingStrategyFactory
+import historymatching as hm
+from .constants import SAVE_KW, NROY_COLOR, TARGET_COLOR, WAVE_CMAP
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +28,7 @@ _PAIRPLOT_MAX_PARAMS = 15
 
 def _compute_variance_reduction(
     nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
+    parameter_space: hm.ParameterSpace,
 ) -> tuple:
     """
     PCA-based variance reduction analysis for NROY samples.
@@ -77,7 +67,7 @@ def _compute_variance_reduction(
 
 def _marginal_variance_reduction(
     nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
+    parameter_space: hm.ParameterSpace,
 ) -> dict:
     """
     Per-parameter marginal variance reduction vs uniform prior.
@@ -103,7 +93,7 @@ def _marginal_variance_reduction(
 
 def _plot_constrained_dims(
     nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
+    parameter_space: hm.ParameterSpace,
     wave_label: str,
     out_path: "Path",
     n_top: int = 5,
@@ -161,7 +151,7 @@ def _plot_constrained_dims(
         ax.set_ylim(0, 1.05)
 
     plt.tight_layout()
-    fig.savefig(out_path, dpi=120, bbox_inches="tight")
+    sc.savefig(out_path, **SAVE_KW)
     plt.close(fig)
 
 
@@ -180,9 +170,9 @@ class IterationSnapshot:
     """Snapshot of engine state at a specific iteration."""
 
     iteration: int
-    parameter_space: ParameterSpace
-    emulator_bank: EmulatorBank
-    result: Optional[IterationResult] = None
+    parameter_space: hm.ParameterSpace
+    emulator_bank: hm.EmulatorBank
+    result: Optional[hm.IterationResult] = None
     next_samples: Optional[pd.DataFrame] = None  # Pre-computed samples for next iteration
     total_samples_generated: int = 0  # Total samples generated up to this iteration
     total_samples_accepted: int = 0   # Total samples accepted up to this iteration
@@ -247,14 +237,14 @@ class HistoryMatching:
     def __init__(
         self,
         function: Optional[Callable] = None,
-        bounds: Union[dict, pd.DataFrame, ParameterSpace, None] = None,
-        observations: Union[dict, pd.DataFrame, ObservationData, None] = None,
+        bounds: Union[dict, pd.DataFrame, hm.ParameterSpace, None] = None,
+        observations: Union[dict, pd.DataFrame, hm.ObservationData, None] = None,
         *,
-        sampling_strategy: Union[str, dict, SamplingStrategy] = "lhs",
-        feature_selection: Union[str, list, dict, FeatureSelectionStrategy, None] = None,
+        sampling_strategy: Union[str, dict, hm.SamplingStrategy] = "lhs",
+        feature_selection: Union[str, list, dict, hm.FeatureSelectionStrategy, None] = None,
         emulator_type: str = "bayes_linear",
-        emulator_factory: Optional[EmulatorFactory] = None,
-        emulator_bank: Optional[EmulatorBank] = None,
+        emulator_factory: Optional[hm.EmulatorFactory] = None,
+        emulator_bank: Optional[hm.EmulatorBank] = None,
         n_samples: int = 1000,
         implausibility_threshold: float = 3.0,
         max_iterations: int = 10,
@@ -326,7 +316,7 @@ class HistoryMatching:
         self._sampling_strategy = self._coerce_sampling(sampling_strategy)
         self._feature_selection_strategy = self._coerce_feature_selection(feature_selection)
         self._emulator_factory = self._coerce_emulator_factory(emulator_type, emulator_factory)
-        self.emulator_bank = emulator_bank if emulator_bank is not None else EmulatorBank()
+        self.emulator_bank = emulator_bank if emulator_bank is not None else hm.EmulatorBank()
 
         # Workflow configuration
         self.n_samples = n_samples
@@ -346,7 +336,7 @@ class HistoryMatching:
         # Engine state
         self.state = EngineState.INITIALIZED
         self._snapshots: list[IterationSnapshot] = []
-        self._pending_result: Optional[IterationResult] = None
+        self._pending_result: Optional[hm.IterationResult] = None
         self._pending_snapshot: Optional[IterationSnapshot] = None
         self._nroy_exhausted: bool = False
 
@@ -435,54 +425,54 @@ class HistoryMatching:
     # Coercion helpers — turn friendly constructor values into objects.
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _coerce_parameter_space(bounds) -> ParameterSpace:
+    def _coerce_parameter_space(bounds) -> hm.ParameterSpace:
         if bounds is None:
             raise ValueError(
                 "bounds is required: pass a dict of {name: (min, max)}, "
                 "a DataFrame with parameter/minimum/maximum columns, or a ParameterSpace."
             )
-        if isinstance(bounds, ParameterSpace):
+        if isinstance(bounds, hm.ParameterSpace):
             return bounds
-        return ParameterSpace(bounds)  # accepts dict or DataFrame
+        return hm.ParameterSpace(bounds)  # accepts dict or DataFrame
 
     @staticmethod
-    def _coerce_observations(observations) -> ObservationData:
+    def _coerce_observations(observations) -> hm.ObservationData:
         if observations is None:
             raise ValueError(
                 "observations is required: pass a dict of {feature: (mean, std)}, "
                 "a DataFrame with feature/mean/std columns, or an ObservationData."
             )
-        if isinstance(observations, ObservationData):
+        if isinstance(observations, hm.ObservationData):
             return observations
-        return ObservationData(observations)  # accepts dict or DataFrame
+        return hm.ObservationData(observations)  # accepts dict or DataFrame
 
     @staticmethod
-    def _coerce_sampling(sampling_strategy) -> SamplingStrategy:
+    def _coerce_sampling(sampling_strategy) -> hm.SamplingStrategy:
         if sampling_strategy is None:
-            return SamplingStrategyFactory.create("lhs")
-        if isinstance(sampling_strategy, SamplingStrategy):
+            return hm.SamplingStrategyFactory.create("lhs")
+        if isinstance(sampling_strategy, hm.SamplingStrategy):
             return sampling_strategy
         if isinstance(sampling_strategy, str):
-            return SamplingStrategyFactory.create(sampling_strategy)
+            return hm.SamplingStrategyFactory.create(sampling_strategy)
         if isinstance(sampling_strategy, dict):
             opts = dict(sampling_strategy)  # copy so we don't mutate the caller's dict
             strategy_type = opts.pop("type", "lhs")
-            return SamplingStrategyFactory.create(strategy_type, **opts)
+            return hm.SamplingStrategyFactory.create(strategy_type, **opts)
         raise ValueError(
             f"Invalid sampling_strategy: {sampling_strategy!r}. Expected a name "
             f"('lhs'/'grid'/'random'), a config dict, or a SamplingStrategy."
         )
 
     @staticmethod
-    def _coerce_feature_selection(feature_selection) -> FeatureSelectionStrategy:
+    def _coerce_feature_selection(feature_selection) -> hm.FeatureSelectionStrategy:
         if feature_selection is None:
-            return AutoFeatureSelection(method="mean_sq_z", max_features=1)
-        if isinstance(feature_selection, FeatureSelectionStrategy):
+            return hm.AutoFeatureSelection(method="mean_sq_z", max_features=1)
+        if isinstance(feature_selection, hm.FeatureSelectionStrategy):
             return feature_selection
         if isinstance(feature_selection, (str, list)):
-            return ManualFeatureSelection(feature_selection)
+            return hm.ManualFeatureSelection(feature_selection)
         if isinstance(feature_selection, dict):
-            return AutoFeatureSelection(
+            return hm.AutoFeatureSelection(
                 method=feature_selection.get("method", "mean_sq_z"),
                 threshold=feature_selection.get("threshold", None),
                 max_features=feature_selection.get("max_features", 1),
@@ -494,10 +484,10 @@ class HistoryMatching:
         )
 
     @staticmethod
-    def _coerce_emulator_factory(emulator_type, emulator_factory) -> EmulatorFactory:
+    def _coerce_emulator_factory(emulator_type, emulator_factory) -> hm.EmulatorFactory:
         if emulator_factory is not None:
             return emulator_factory
-        return EmulatorFactory(default_type=emulator_type or "bayes_linear")
+        return hm.EmulatorFactory(default_type=emulator_type or "bayes_linear")
 
     @property
     def results(self) -> list:
@@ -557,7 +547,7 @@ class HistoryMatching:
 
     # -- Reconfigurable options: assign friendly values, coerced like the constructor --
     @property
-    def sampling_strategy(self) -> SamplingStrategy:
+    def sampling_strategy(self) -> hm.SamplingStrategy:
         """Sampling strategy. Assign a name/dict/strategy to change it (e.g. ``engine.sampling_strategy = 'grid'``)."""
         return self._sampling_strategy
 
@@ -567,7 +557,7 @@ class HistoryMatching:
         logger.info(f"Sampling strategy: {self._sampling_strategy.get_strategy_name()}")
 
     @property
-    def feature_selection(self) -> FeatureSelectionStrategy:
+    def feature_selection(self) -> hm.FeatureSelectionStrategy:
         """Which outputs to emulate each wave. Assign a name/list/dict/strategy (e.g. ``engine.feature_selection = ['peak']``)."""
         return self._feature_selection_strategy
 
@@ -577,12 +567,12 @@ class HistoryMatching:
         logger.info(f"Feature selection: {self._feature_selection_strategy.get_strategy_name()}")
 
     @property
-    def emulator_factory(self) -> EmulatorFactory:
+    def emulator_factory(self) -> hm.EmulatorFactory:
         """The emulator factory. Assign an :class:`EmulatorFactory` for full control."""
         return self._emulator_factory
 
     @emulator_factory.setter
-    def emulator_factory(self, value: EmulatorFactory) -> None:
+    def emulator_factory(self, value: hm.EmulatorFactory) -> None:
         self._emulator_factory = value
         logger.info(f"Emulator factory: {value.get_default_type()}")
 
@@ -593,7 +583,7 @@ class HistoryMatching:
 
     @emulator_type.setter
     def emulator_type(self, value: str) -> None:
-        self._emulator_factory = EmulatorFactory(default_type=value)
+        self._emulator_factory = hm.EmulatorFactory(default_type=value)
         logger.info(f"Emulator type: {value}")
 
     @property
@@ -674,7 +664,7 @@ class HistoryMatching:
         if self.nroy_method not in ('auto', 'lhs', 'ray'):
             raise ValueError(f"Unknown nroy_method '{self.nroy_method}'. Valid: ('auto', 'lhs', 'ray')")
 
-    def step(self, features: Optional[list[str]] = None) -> IterationResult:
+    def step(self, features: Optional[list[str]] = None) -> hm.IterationResult:
         """
         Execute a single history matching iteration.
 
@@ -733,15 +723,15 @@ class HistoryMatching:
         logger.info(f"WAVE {wave_num} STARTING")
         logger.info(f"{'='*60}")
         self.state = EngineState.RUNNING
-        wave_t0 = _time.time()
+        wave_timer = sc.timer()
 
         try:
             # ── Phase 1: Get samples ─────────────────────────────────────
-            t0 = _time.time()
+            T = sc.timer()
             if self.current_iteration == 0:
                 samples = self._generate_plausible_samples()
                 logger.info(f"[Wave {wave_num}] Phase 1/5 SAMPLING: generated {len(samples)} samples "
-                            f"(acceptance rate: {self.acceptance_rate:.3f}) [{_time.time()-t0:.1f}s]")
+                            f"(acceptance rate: {self.acceptance_rate:.3f}) [{T.tto():.1f}s]")
             else:
                 previous_snapshot = self._snapshots[self.current_iteration - 1]
                 samples = previous_snapshot.next_samples
@@ -751,34 +741,30 @@ class HistoryMatching:
                         f"This indicates an internal error - samples should have been computed during the previous step."
                     )
                 logger.info(f"[Wave {wave_num}] Phase 1/5 SAMPLING: using {len(samples)} pre-computed samples "
-                            f"from wave {previous_snapshot.iteration} [{_time.time()-t0:.1f}s]")
+                            f"from wave {previous_snapshot.iteration} [{T.tto():.1f}s]")
 
             # ── Phase 2: Run simulations ─────────────────────────────────
-            t0 = _time.time()
             logger.info(f"[Wave {wave_num}] Phase 2/5 SIMULATION: running {len(samples)} simulations...")
             simulation_results = self._run_simulation(samples)
             logger.info(f"[Wave {wave_num}] Phase 2/5 SIMULATION: complete — {len(simulation_results.columns)} outputs "
-                        f"[{_time.time()-t0:.1f}s]")
+                        f"[{T.tto():.1f}s]")
 
             # ── Phase 3: Select features ─────────────────────────────────
-            t0 = _time.time()
             if features is None:
                 selected_features = self._select_features(simulation_results)
             else:
                 selected_features = features
-            logger.info(f"[Wave {wave_num}] Phase 3/5 FEATURE SELECTION: {selected_features} [{_time.time()-t0:.1f}s]")
+            logger.info(f"[Wave {wave_num}] Phase 3/5 FEATURE SELECTION: {selected_features} [{T.tto():.1f}s]")
 
             # ── Phase 4: Train emulators ─────────────────────────────────
-            t0 = _time.time()
             logger.info(f"[Wave {wave_num}] Phase 4/5 EMULATOR TRAINING: training {len(selected_features)} emulators...")
             emulators = self._create_emulators(samples, simulation_results, selected_features)
-            logger.info(f"[Wave {wave_num}] Phase 4/5 EMULATOR TRAINING: complete [{_time.time()-t0:.1f}s]")
+            logger.info(f"[Wave {wave_num}] Phase 4/5 EMULATOR TRAINING: complete [{T.tto():.1f}s]")
 
             # ── Phase 5: NROY sampling for next wave ─────────────────────
-            t0 = _time.time()
             logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: finding {self.n_samples} plausible candidates for next wave...")
             next_iteration_samples = self._compute_next_iteration_samples(emulators)
-            logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: found {len(next_iteration_samples)} candidates [{_time.time()-t0:.1f}s]")
+            logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: found {len(next_iteration_samples)} candidates [{T.tto():.1f}s]")
 
             # Check: did we get enough samples for a meaningful next wave?
             min_samples = max(2 * len(self.parameter_space.get_parameter_names()), 20)
@@ -801,7 +787,7 @@ class HistoryMatching:
             nroy_fraction = getattr(self, '_last_nroy_fraction', 1.0)
 
             # Create iteration result
-            iteration_result = IterationResult(
+            iteration_result = hm.IterationResult(
                 iteration=self.current_iteration + 1,
                 parameter_space=self.parameter_space,  # Current parameter space for this iteration
                 samples=samples,
@@ -809,7 +795,7 @@ class HistoryMatching:
                 emulated_outputs=selected_features,
                 emulators=emulators,
                 nroy_fraction=nroy_fraction,
-                execution_time_seconds=_time.time() - wave_t0,
+                execution_time_seconds=wave_timer.total,
             )
 
             # Store pending changes (not committed yet)
@@ -830,7 +816,7 @@ class HistoryMatching:
                 self._pending_snapshot.emulator_bank.add_emulator(iteration_result.iteration, feature, emulator)
 
             self.state = EngineState.PAUSED
-            logger.info(f"[Wave {wave_num}] ALL PHASES COMPLETE [{_time.time()-wave_t0:.1f}s total]. Committing...")
+            logger.info(f"[Wave {wave_num}] ALL PHASES COMPLETE [{wave_timer.total:.1f}s total]. Committing...")
 
             return iteration_result
 
@@ -1068,7 +1054,7 @@ class HistoryMatching:
 
         return "\n".join(summary)
 
-    def run(self, auto_commit: bool = True, resume: bool = False) -> list[IterationResult]:
+    def run(self, auto_commit: bool = True, resume: bool = False) -> list[hm.IterationResult]:
         """
         Run automated history matching workflow.
 
@@ -1164,13 +1150,13 @@ class HistoryMatching:
 
         return results
 
-    def get_iteration_result(self, iteration: int) -> Optional[IterationResult]:
+    def get_iteration_result(self, iteration: int) -> Optional[hm.IterationResult]:
         """Get result for a specific iteration."""
         if iteration <= 0 or iteration > len(self._snapshots):
             return None
         return self._snapshots[iteration - 1].result
 
-    def get_all_results(self) -> list[IterationResult]:
+    def get_all_results(self) -> list[hm.IterationResult]:
         """Get all committed iteration results."""
         return [snapshot.result for snapshot in self._snapshots if snapshot.result is not None]
 
@@ -1465,16 +1451,14 @@ class HistoryMatching:
             "max_candidate_factor": self.max_candidate_factor,
         }
 
-        with open(filepath, "wb") as f:
-            pickle.dump(checkpoint_data, f)
+        sc.save(filepath, checkpoint_data, die=True)
 
         logger.info(f"Checkpoint saved to {filepath}")
 
     @classmethod
-    def load_checkpoint(cls, filepath: Path, sampling_strategy: SamplingStrategy, feature_selection: FeatureSelectionStrategy, emulator_factory: EmulatorFactory) -> "HistoryMatching":
+    def load_checkpoint(cls, filepath: Path, sampling_strategy: hm.SamplingStrategy, feature_selection: hm.FeatureSelectionStrategy, emulator_factory: hm.EmulatorFactory) -> "HistoryMatching":
         """Load engine state from checkpoint file."""
-        with open(filepath, "rb") as f:
-            data = pickle.load(f)
+        data = sc.load(filepath, die=True)
 
         # Create engine with loaded data
         engine = cls(
@@ -1508,8 +1492,7 @@ class HistoryMatching:
 
     def _load_checkpoint_state(self, filepath: Path) -> None:
         """Restore engine state from a checkpoint file (for resume)."""
-        with open(filepath, "rb") as f:
-            data = pickle.load(f)
+        data = sc.load(filepath, die=True)
 
         self.emulator_bank = data["emulator_bank"]
         self._restore_progress(data["progress"])
@@ -1523,7 +1506,7 @@ class HistoryMatching:
             if name in progress:
                 setattr(self, name, progress[name])
 
-    def _save_wave_output(self, result: IterationResult) -> None:
+    def _save_wave_output(self, result: hm.IterationResult) -> None:
         """Save emulators, diagnostics, and checkpoint after committing a wave.
 
         Directory layout::
@@ -1542,8 +1525,6 @@ class HistoryMatching:
         if self.run_dir is None:
             return
 
-        import json as _json
-
         wave_dir = self.run_dir / f"wave{result.iteration}"
         wave_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1552,11 +1533,9 @@ class HistoryMatching:
             feat_dir = wave_dir / feature
             feat_dir.mkdir(exist_ok=True)
 
-            # Save emulator pickle
+            # Save emulator
             try:
-                import pickle
-                with open(feat_dir / "emulator.pkl", "wb") as f:
-                    pickle.dump(emulator, f)
+                sc.save(feat_dir / "emulator.pkl", emulator, die=True)
             except Exception as e:
                 logger.warning(f"Failed to save emulator for '{feature}': {e}")
 
@@ -1564,12 +1543,11 @@ class HistoryMatching:
             try:
                 if not getattr(emulator, 'testing_complete', False):
                     emulator.test()
-                import matplotlib
                 emulator.plot_diagnostics()
                 import matplotlib.pyplot as plt
                 for i, fig_num in enumerate(plt.get_fignums()[-4:]):  # plot_diagnostics creates up to 4 figs
                     plt.figure(fig_num)
-                    plt.savefig(feat_dir / f"diagnostics_{i}.png", dpi=100, bbox_inches='tight')
+                    sc.savefig(feat_dir / f"diagnostics_{i}.png", **SAVE_KW)
                     plt.close(fig_num)
             except Exception as e:
                 logger.warning(f"Failed to save diagnostics for '{feature}': {e}")
@@ -1581,8 +1559,7 @@ class HistoryMatching:
                     metrics['hyperparameters'] = emulator.get_hyperparameters()
                 except Exception:
                     pass
-                with open(feat_dir / "metrics.json", "w") as f:
-                    _json.dump(metrics, f, indent=2, default=float)
+                sc.savejson(feat_dir / "metrics.json", metrics, indent=2)
             except Exception as e:
                 logger.warning(f"Failed to save metrics for '{feature}': {e}")
 
@@ -1590,12 +1567,11 @@ class HistoryMatching:
         try:
             all_results = self.get_all_results()
             if len(all_results) > 0:
-                import matplotlib
                 import matplotlib.pyplot as plt
                 fig, ax = plt.subplots(figsize=(7, 4))
                 waves = [r.iteration for r in all_results]
                 fracs = [r.nroy_fraction for r in all_results]
-                ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
+                ax.bar(waves, fracs, color=NROY_COLOR, alpha=0.8, edgecolor='white')
                 for w, frac in zip(waves, fracs):
                     label = f'{frac:.2%}' if frac < 0.01 else f'{frac:.1%}'
                     ax.annotate(label, (w, frac), textcoords='offset points',
@@ -1607,7 +1583,7 @@ class HistoryMatching:
                 ax.set_ylim(min(fracs) * 0.5, 1)
                 ax.set_xticks(waves)
                 fig.tight_layout()
-                fig.savefig(wave_dir / "convergence.png", dpi=100, bbox_inches='tight')
+                sc.savefig(wave_dir / "convergence.png", **SAVE_KW)
                 plt.close(fig)
         except Exception as e:
             logger.warning(f"Failed to save convergence plot: {e}")
@@ -1617,7 +1593,6 @@ class HistoryMatching:
             all_results = self.get_all_results()
             if len(all_results) > 0:
                 import numpy as np
-                import matplotlib
                 import matplotlib.pyplot as plt
 
                 targets = self.observations.get_all_targets()
@@ -1632,7 +1607,7 @@ class HistoryMatching:
 
                     n_targets = len(target_names)
                     n_waves = len(all_results)
-                    cmap = plt.get_cmap('plasma')
+                    wave_colors = sc.vectocolor(n_waves, cmap=WAVE_CMAP)
                     bar_width = 0.8 / n_waves
 
                     fig, ax = plt.subplots(figsize=(max(14, n_targets * 0.7), 7))
@@ -1646,7 +1621,7 @@ class HistoryMatching:
                             obs_mean, obs_std = targets[key]
                             z = (sims[key].dropna() - obs_mean) / obs_std
                             x_pos = ti + (wi - n_waves / 2 + 0.5) * bar_width
-                            color = cmap(wi / n_waves)
+                            color = wave_colors[wi]
                             q05, q25, med, q75, q95 = np.percentile(z, [5, 25, 50, 75, 95])
                             ymin_data = min(ymin_data, q05)
                             ymax_data = max(ymax_data, q95)
@@ -1657,9 +1632,9 @@ class HistoryMatching:
                             ax.plot(x_pos, med, 'o', color=color, markersize=4, zorder=5)
 
                     for wi, r in enumerate(all_results):
-                        ax.plot([], [], color=cmap(wi / n_waves), linewidth=3.5, label=f'Wave {r.iteration}')
+                        ax.plot([], [], color=wave_colors[wi], linewidth=3.5, label=f'Wave {r.iteration}')
 
-                    ax.axhline(0, color='#d44d4d', lw=1.5, ls='--', alpha=0.7, label='Target')
+                    ax.axhline(0, color=TARGET_COLOR, lw=1.5, ls='--', alpha=0.7, label='Target')
                     ax.axhline(3.5, color='green', lw=0.8, ls=':', alpha=0.4)
                     ax.axhline(-3.5, color='green', lw=0.8, ls=':', alpha=0.4)
                     ax.axhspan(-3.5, 3.5, color='green', alpha=0.03)
@@ -1682,11 +1657,10 @@ class HistoryMatching:
                                  'Green \u2605 = target was emulated in that wave', fontsize=13)
                     ax.legend(fontsize=9, loc='upper center', bbox_to_anchor=(0.5, -0.18),
                               ncol=min(n_waves + 1, 8), framealpha=0.9)
-                    ax.spines['top'].set_visible(False)
-                    ax.spines['right'].set_visible(False)
+                    sc.boxoff(ax)
                     ax.grid(axis='y', alpha=0.2)
                     fig.tight_layout()
-                    fig.savefig(wave_dir / "zscores_vs_targets.png", dpi=150, bbox_inches='tight')
+                    sc.savefig(wave_dir / "zscores_vs_targets.png", **SAVE_KW)
                     plt.close(fig)
         except Exception as e:
             logger.warning(f"Failed to save z-scores plot: {e}")
@@ -1740,7 +1714,7 @@ class HistoryMatching:
                 show_indices = np.linspace(0, len(all_results) - 1, n_show, dtype=int)
                 show_results = [all_results[i] for i in show_indices]
 
-                cmap = plt.get_cmap('plasma')
+                wave_colors = sc.vectocolor(n_show, cmap=WAVE_CMAP)
                 fig, axes = plt.subplots(n_pars, n_pars, figsize=(2.2 * n_pars, 2.2 * n_pars))
                 if n_pars == 1:
                     axes = np.array([[axes]])
@@ -1752,7 +1726,7 @@ class HistoryMatching:
                             for si, r in enumerate(show_results):
                                 if p1 in r.samples.columns:
                                     ax.hist(r.samples[p1], bins=25, density=True, alpha=0.5,
-                                            color=cmap(si / n_show), edgecolor='none',
+                                            color=wave_colors[si], edgecolor='none',
                                             label=f'W{r.iteration}')
                             if i == 0:
                                 ax.legend(fontsize=6)
@@ -1761,7 +1735,7 @@ class HistoryMatching:
                                 if p2 in r.samples.columns and p1 in r.samples.columns:
                                     alpha = 0.15 + 0.35 * (si / max(n_show - 1, 1))
                                     ax.scatter(r.samples[p2], r.samples[p1], s=2, alpha=alpha,
-                                               color=cmap(si / n_show), edgecolors='none')
+                                               color=wave_colors[si], edgecolors='none')
                         else:
                             ax.set_visible(False)
 
@@ -1774,14 +1748,13 @@ class HistoryMatching:
                         else:
                             ax.set_xlabel('')
                         ax.tick_params(labelsize=4)
-                        ax.spines['top'].set_visible(False)
-                        ax.spines['right'].set_visible(False)
+                        sc.boxoff(ax)
 
                 wave_labels = ' \u2192 '.join(str(r.iteration) for r in show_results)
                 fig.suptitle(f'Parameter space: Waves {wave_labels}\n({subtitle_note})',
                              fontsize=13, fontweight='bold', y=1.02)
                 fig.tight_layout()
-                fig.savefig(wave_dir / "pairplot.png", dpi=150, bbox_inches='tight')
+                sc.savefig(wave_dir / "pairplot.png", **SAVE_KW)
                 plt.close(fig)
         except Exception as e:
             logger.warning(f"Failed to save pair plot: {e}")
@@ -1815,8 +1788,7 @@ class HistoryMatching:
                     'max_iterations': self.max_iterations,
                     'implausibility_threshold': self.implausibility_threshold,
                 }
-                with open(config_path, "w") as f:
-                    _json.dump(config, f, indent=2, default=str)
+                sc.savejson(config_path, config, indent=2)
             except Exception as e:
                 logger.warning(f"Failed to save run config: {e}")
 
@@ -1844,7 +1816,7 @@ class HistoryMatching:
         max_candidate_factor = self.max_candidate_factor
         max_candidates = self.n_samples * max_candidate_factor
         last_pct_logged = -10
-        t0 = _time.time()
+        loop_timer = sc.timer()
 
         logger.info(f"  Plausible sampling: 0/{self.n_samples} (0%) — starting")
 
@@ -1875,7 +1847,7 @@ class HistoryMatching:
             pct = int(100 * len(plausible_samples) / self.n_samples)
             if pct >= last_pct_logged + 10:
                 last_pct_logged = pct - (pct % 10)
-                elapsed = _time.time() - t0
+                elapsed = loop_timer.total
                 logger.info(
                     f"  Plausible sampling: {len(plausible_samples)}/{self.n_samples} ({pct}%) "
                     f"| {total_candidates_generated:,} tested | rate={current_acceptance_rate:.4%} [{elapsed:.0f}s]")
@@ -2079,7 +2051,7 @@ class HistoryMatching:
         samples_clean = samples[param_cols]
         return self.emulator_factory.create_emulators_for_features(samples_clean, simulation_results, features)
 
-    def _get_next_parameter_space(self, samples: pd.DataFrame, emulators: dict[str, Any]) -> ParameterSpace:
+    def _get_next_parameter_space(self, samples: pd.DataFrame, emulators: dict[str, Any]) -> hm.ParameterSpace:
         """
         Determine parameter space for next iteration.
 
@@ -2205,7 +2177,7 @@ class HistoryMatching:
             return True
         return False
 
-    def _call_iteration_callbacks(self, result: IterationResult):
+    def _call_iteration_callbacks(self, result: hm.IterationResult):
         """Call registered iteration callbacks."""
         for callback in self._iteration_callbacks:
             try:

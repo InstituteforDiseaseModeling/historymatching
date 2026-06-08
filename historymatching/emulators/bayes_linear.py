@@ -13,6 +13,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+import sciris as sc
 from scipy.optimize import minimize
 from scipy.linalg import cho_factor, cho_solve
 
@@ -110,8 +111,7 @@ class BayesLinear(BaseEmulator):
         3. Optimize correlation lengths theta via concentrated log-likelihood.
         4. Pre-compute Cholesky factor and weight vector for fast prediction.
         """
-        import time as _time
-        t0 = _time.time()
+        t0 = sc.timer()
 
         x_raw = np.asarray(self.X_train, dtype=np.float64)
         y_raw = np.asarray(self.y_train, dtype=np.float64).ravel()
@@ -134,7 +134,7 @@ class BayesLinear(BaseEmulator):
         n, d = X_norm.shape
 
         # --- OLS trend ---
-        logger.info(f"    OLS trend fit [{_time.time()-t0:.1f}s]")
+        logger.info(f"    OLS trend fit [{t0.total:.1f}s]")
         G = self._design_matrix(X_norm)  # (n, d+1)
         GtG = G.T @ G
         self._beta_hat = np.linalg.solve(GtG, G.T @ y_std)
@@ -144,12 +144,12 @@ class BayesLinear(BaseEmulator):
         logger.info(f"    Optimizing theta ({d} correlation lengths, {n}x{n} Cholesky per eval)...")
         self._nll_eval_count = 0
         self._nll_best = np.inf
-        self._opt_t0 = _time.time()
+        self._opt_t0 = sc.timer()
 
         def _opt_callback(xk):
             nll = self._concentrated_nll(xk, X_norm, residuals)
             self._nll_best = min(self._nll_best, nll)
-            elapsed = _time.time() - self._opt_t0
+            elapsed = self._opt_t0.total
             logger.info(f"    L-BFGS-B iter {self._nll_eval_count}: NLL={self._nll_best:.4f} [{elapsed:.0f}s]")
 
         log_theta0 = np.zeros(d)  # initial guess: theta=1 in normalised space
@@ -165,7 +165,7 @@ class BayesLinear(BaseEmulator):
         self._theta = np.exp(result.x)
         self._opt_result = result
         logger.info(f"    Theta optimization: {result.nit} L-BFGS iters, {self._nll_eval_count} NLL evals, "
-                    f"final NLL={result.fun:.4f} [{_time.time()-t0:.1f}s]")
+                    f"final NLL={result.fun:.4f} [{t0.total:.1f}s]")
 
         if not result.success:
             logger.warning(
@@ -189,7 +189,7 @@ class BayesLinear(BaseEmulator):
 
         self.training_complete = True
         logger.info(f"    Training complete — sigma²={self._sigma2:.4f}, "
-                     f"theta range=[{self._theta.min():.3f}, {self._theta.max():.3f}] [{_time.time()-t0:.1f}s total]")
+                     f"theta range=[{self._theta.min():.3f}, {self._theta.max():.3f}] [{t0.total:.1f}s total]")
 
     def predict(self, x: pd.DataFrame) -> EmulationResults:
         """Predict using the trained Bayes Linear emulator."""

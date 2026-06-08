@@ -3,15 +3,12 @@ ParameterSpace domain object for history matching.
 """
 
 import logging
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
-from .utils import PARAMETER_SPACE_COLUMNS
+from .constants import PARAMETER_SPACE_COLUMNS
 
 logger = logging.getLogger(__name__)
 

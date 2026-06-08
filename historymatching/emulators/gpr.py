@@ -1,9 +1,9 @@
 import logging
-import warnings
 from typing import Optional
 
 import numpy as np
 import pandas as pd
+import sciris as sc
 import gpflow
 
 from .base import BaseEmulator
@@ -54,8 +54,7 @@ class GPR(BaseEmulator):
 
         Predictions are un-standardized automatically in predict().
         """
-        import time as _time
-        t0 = _time.time()
+        t0 = sc.timer()
 
         x_raw = np.float64(self.X_train)
         y_raw = np.float64(self.y_train.reshape(-1, 1))
@@ -108,7 +107,7 @@ class GPR(BaseEmulator):
         ls = self.model.kernel.lengthscales.numpy()
         noise = float(self.model.likelihood.variance.numpy())
         logger.info(f"    GPR training complete — noise={noise:.4f}, "
-                     f"lengthscale range=[{ls.min():.3f}, {ls.max():.3f}] [{_time.time()-t0:.1f}s]")
+                     f"lengthscale range=[{ls.min():.3f}, {ls.max():.3f}] [{t0.total:.1f}s]")
 
         return
 

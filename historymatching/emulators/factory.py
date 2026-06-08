@@ -3,9 +3,10 @@ Emulator factory with strategy pattern for history matching.
 """
 
 from typing import Dict, Type, Optional, Any, List
-import time as _time
-import pandas as pd
 import logging
+
+import pandas as pd
+import sciris as sc
 
 from .base import BaseEmulator
 from .linear import LinearModel
@@ -146,10 +147,10 @@ class EmulatorFactory:
                 logger.info(f"  Emulator {i}/{len(features)} [{feature}]: creating ({len(x_data)} samples, "
                             f"{len(x_data.columns)} params, type={emulator_type or self.default_type})...")
                 emulator = self.create_emulator(x_data, y_data, emulator_type, **kwargs)
-                t0 = _time.time()
+                t0 = sc.timer()
                 logger.info(f"  Emulator {i}/{len(features)} [{feature}]: training...")
                 emulator.train()
-                elapsed = _time.time() - t0
+                elapsed = t0.total
 
                 emulators[feature] = emulator
                 logger.info(f"  Emulator {i}/{len(features)} [{feature}]: trained [{elapsed:.1f}s]")

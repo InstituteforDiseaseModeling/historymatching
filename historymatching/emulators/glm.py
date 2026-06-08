@@ -1,11 +1,9 @@
 import logging
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 import statsmodels.api as sm
-import scipy
 
 from .base import BaseEmulator
 from .results import EmulationResults

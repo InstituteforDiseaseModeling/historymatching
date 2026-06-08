@@ -27,14 +27,12 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import sciris as sc
 import matplotlib.pyplot as plt
 
-# ── Shared palette ──────────────────────────────────────────────────────────
-NROY_COLOR = "#3575b5"     # steel blue — the surviving / non-implausible cloud
-PRIOR_COLOR = "#bcbcbc"    # grey — the prior / earlier-wave cloud
-TRUTH_COLOR = "#d44d4d"    # red — known true values (synthetic-recovery demos)
-MEDIAN_COLOR = "#2a7f3f"   # green — estimated median / central value
-TARGET_COLOR = "#d44d4d"   # red — observation targets
+from .constants import (
+    NROY_COLOR, PRIOR_COLOR, TRUTH_COLOR, MEDIAN_COLOR, TARGET_COLOR, WAVE_CMAP,
+)
 
 
 __all__ = [
@@ -61,12 +59,6 @@ def _get_ax(ax: Optional[plt.Axes], figsize: Tuple[float, float]) -> Tuple[plt.F
     else:
         fig = ax.figure
     return fig, ax
-
-
-def _despine(ax: plt.Axes) -> None:
-    """Hide the top and right spines for a cleaner look."""
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
 
 
 def _resolve_params(samples: pd.DataFrame, params: Optional[Sequence[str]]) -> List[str]:
@@ -134,7 +126,7 @@ def plot_convergence(
         top = max(fractions) if fractions else 0.0
         ax.set_ylim(0, min(1.0, top * 1.3) if top > 0 else 1.0)
     ax.grid(axis="y", alpha=0.3)
-    _despine(ax)
+    sc.boxoff(ax)
     return ax
 
 
@@ -205,7 +197,7 @@ def plot_marginals(
         ax.set_xlabel(p)
         ax.set_ylabel("Density")
         ax.legend(fontsize=7)
-        _despine(ax)
+        sc.boxoff(ax)
 
     for j in range(n, len(axes)):
         axes[j].set_visible(False)
@@ -313,7 +305,7 @@ def plot_pairplot(
             if i == p - 1:
                 ax.set_xlabel(pj, fontsize=8)
             ax.tick_params(labelsize=6)
-            _despine(ax)
+            sc.boxoff(ax)
 
     if title:
         fig.suptitle(title, fontsize=12, fontweight="bold")
@@ -401,7 +393,7 @@ def plot_ensemble_fan(
     ax.set_title(title)
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
-    _despine(ax)
+    sc.boxoff(ax)
     return ax
 
 
@@ -439,7 +431,7 @@ def plot_zscores_vs_targets(
         raise ValueError("No overlapping targets/waves to plot.")
 
     fig, ax = _get_ax(ax, (max(14, n_targets * 0.7), 7))
-    cmap = plt.get_cmap("plasma")
+    wave_colors = sc.vectocolor(n_waves, cmap=WAVE_CMAP)
     bar_width = 0.8 / n_waves
     ymin_data = ymax_data = 0.0
 
@@ -451,7 +443,7 @@ def plot_zscores_vs_targets(
 
     for wi, w in enumerate(waves):
         sims = w["sim_results"]
-        color = cmap(wi / max(n_waves, 1))
+        color = wave_colors[wi]
         for ti, key in enumerate(target_names):
             if key not in sims.columns:
                 continue
@@ -469,7 +461,7 @@ def plot_zscores_vs_targets(
             ax.plot(x_pos, med, "o", color=color, markersize=4, zorder=5)
 
     for wi, w in enumerate(waves):
-        ax.plot([], [], color=cmap(wi / max(n_waves, 1)), lw=3.5,
+        ax.plot([], [], color=wave_colors[wi], lw=3.5,
                 label=f"Wave {w['iteration']}")
 
     ax.axhline(0, color=TARGET_COLOR, lw=1.5, ls="--", alpha=0.7, label="Target")
@@ -495,7 +487,7 @@ def plot_zscores_vs_targets(
     ax.legend(fontsize=9, loc="upper center", bbox_to_anchor=(0.5, -0.18),
               ncol=min(n_waves + 1, 8), framealpha=0.9)
     ax.grid(axis="y", alpha=0.2)
-    _despine(ax)
+    sc.boxoff(ax)
     fig.tight_layout()
     return ax
 
@@ -663,7 +655,7 @@ def plot_targets(
     ax.set_ylabel("Target value (±1σ)")
     ax.set_title("Observation targets")
     ax.grid(axis="y", alpha=0.3)
-    _despine(ax)
+    sc.boxoff(ax)
     return ax
 
 
@@ -709,7 +701,7 @@ def plot_parameter_bounds(
     ax.set_title("Parameter bounds")
     if reference is not None:
         ax.legend(fontsize=8)
-    _despine(ax)
+    sc.boxoff(ax)
     return ax
 
 
@@ -745,7 +737,7 @@ def plot_emulator_quality(
     ax.set_ylim(min(0.0, min(finite, default=0.0)), 1.05)
     ax.set_title("Emulator quality (R²)")
     ax.legend(fontsize=8)
-    _despine(ax)
+    sc.boxoff(ax)
     return ax
 
 
@@ -800,5 +792,5 @@ def plot_predicted_vs_actual(
         bits.append(f"n={n_train}")
     ax.set_title(title + ("\n" + "  ".join(bits) if bits else ""))
     ax.set_aspect("equal", adjustable="box")
-    _despine(ax)
+    sc.boxoff(ax)
     return ax

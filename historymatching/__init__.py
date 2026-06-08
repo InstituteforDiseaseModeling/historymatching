@@ -22,7 +22,6 @@ import from submodules.
 __version__ = "2.0.1"
 __versiondate__ = "2026-06-07"
 
-from .engine import HistoryMatching, EngineState  # noqa: F401 isort: skip
 from .iteration_result import IterationResult  # noqa: F401 isort: skip
 from .parameter_space import ParameterSpace  # noqa: F401 isort: skip
 from .observation_data import ObservationData  # noqa: F401 isort: skip
@@ -49,6 +48,10 @@ from .emulators import (  # noqa: F401 isort: skip
     BayesLinear,
     EmulatorFactory,
 )
+# Imported after its dependencies above: engine.py does `import historymatching as hm`
+# and resolves hm.ParameterSpace etc. at class-definition time, so those names must
+# already be bound here. (This is why engine is not imported first.)
+from .engine import HistoryMatching, EngineState  # noqa: F401 isort: skip
 from .emulators.results import EmulationResults  # noqa: F401 isort: skip
 from .nroy_sampling import generate_nroy_design, NROYResult  # noqa: F401 isort: skip
 

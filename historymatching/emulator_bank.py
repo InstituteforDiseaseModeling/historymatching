@@ -2,11 +2,9 @@
 EmulatorBank domain object for history matching.
 """
 
-from typing import Dict, List, Optional, Union
-import os
-import pickle
-import copy
+from typing import Dict, List, Optional
 import logging
+import sciris as sc
 
 from .emulators.base import BaseEmulator
 
@@ -208,22 +206,13 @@ class EmulatorBank:
         Args:
             directory_path: Directory to save emulators in
         """
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path)
-            
         for iteration in self.get_all_iterations():
-            iteration_dir = os.path.join(directory_path, f"iteration_{iteration}")
-            if not os.path.exists(iteration_dir):
-                os.makedirs(iteration_dir)
-                
+            iteration_dir = sc.path(directory_path) / f"iteration_{iteration}"
             for feature, emulator in self.get_emulators_for_iteration(iteration).items():
-                # Use pickle for serialization
-                filename = f"{feature}_emulator.pkl"
-                filepath = os.path.join(iteration_dir, filename)
-                
+                # sc.save auto-creates the parent directory and compresses the pickle.
+                filepath = iteration_dir / f"{feature}_emulator.pkl"
                 try:
-                    with open(filepath, 'wb') as f:
-                        pickle.dump(emulator, f)
+                    sc.save(filepath, emulator, die=True)
                     logger.info(f"Saved emulator for iteration {iteration}, feature '{feature}' to {filepath}")
                 except Exception as e:
                     logger.error(f"Failed to save emulator for iteration {iteration}, feature '{feature}': {e}")
@@ -235,35 +224,31 @@ class EmulatorBank:
         Args:
             directory_path: Directory containing saved emulators
         """
-        if not os.path.exists(directory_path):
+        directory_path = sc.path(directory_path)
+        if not directory_path.exists():
             raise ValueError(f"Directory does not exist: {directory_path}")
-            
+
         # Clear existing emulators
         self.clear()
-        
+
         # Look for iteration directories
-        for item in os.listdir(directory_path):
-            item_path = os.path.join(directory_path, item)
-            if os.path.isdir(item_path) and item.startswith("iteration_"):
+        for item_path in directory_path.iterdir():
+            if item_path.is_dir() and item_path.name.startswith("iteration_"):
                 try:
-                    iteration = int(item.split("_")[1])
+                    iteration = int(item_path.name.split("_")[1])
                 except (IndexError, ValueError):
-                    logger.warning(f"Skipping directory with invalid name: {item}")
+                    logger.warning(f"Skipping directory with invalid name: {item_path.name}")
                     continue
-                    
+
                 # Load emulators from iteration directory
-                for filename in os.listdir(item_path):
-                    if filename.endswith("_emulator.pkl"):
-                        feature = filename.replace("_emulator.pkl", "")
-                        filepath = os.path.join(item_path, filename)
-                        
-                        try:
-                            with open(filepath, 'rb') as f:
-                                emulator = pickle.load(f)
-                            self.add_emulator(iteration, feature, emulator)
-                            logger.info(f"Loaded emulator for iteration {iteration}, feature '{feature}' from {filepath}")
-                        except Exception as e:
-                            logger.error(f"Failed to load emulator from {filepath}: {e}")
+                for filepath in item_path.glob("*_emulator.pkl"):
+                    feature = filepath.name.replace("_emulator.pkl", "")
+                    try:
+                        emulator = sc.load(filepath, die=True)
+                        self.add_emulator(iteration, feature, emulator)
+                        logger.info(f"Loaded emulator for iteration {iteration}, feature '{feature}' from {filepath}")
+                    except Exception as e:
+                        logger.error(f"Failed to load emulator from {filepath}: {e}")
                             
     def copy(self) -> 'EmulatorBank':
         """
@@ -273,7 +258,7 @@ class EmulatorBank:
             New EmulatorBank instance with copied emulators
         """
         new_bank = EmulatorBank()
-        new_bank._emulators = copy.deepcopy(self._emulators)
+        new_bank._emulators = sc.dcp(self._emulators)
         return new_bank
         
     def get_summary_statistics(self) -> Dict:
