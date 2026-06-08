@@ -21,16 +21,15 @@ pip install historymatching
 Add optional extras as needed — `notebooks` for the tutorial notebooks, `mac` for Metal GPU acceleration on Apple Silicon. Combine them in a single bracket to install both at once:
 
 ```bash
-pip install "historymatching[notebooks]
-
-pip install "historymatching[notebooks,mac]
+pip install "historymatching[notebooks]"
+pip install "historymatching[notebooks,mac]"
 ```
 
 If you use [uv](https://docs.astral.sh/uv/), `uv pip install` is a drop-in replacement for the `pip install` commands above, and is typically faster and more reliable than plain `pip`.
 
 ### Developing `historymatching`
 
-To work on historymatching itself, clone the repository and set up the environment with [uv](https://docs.astral.sh/uv/) (recommended). Unlike `uv pip`, `uv sync` reads the committed `uv.lock`, creates a `.venv` automatically, and reproduces the *exact* dependency versions CI uses (pruning anything not in the lock) — so your environment matches CI:
+To work on historymatching itself, clone the repository and set up the environment with [uv](https://docs.astral.sh/uv/) (recommended). Unlike `uv pip`, `uv sync` creates a `.venv` automatically and installs the project with the chosen extras, keeping the environment in step with `pyproject.toml` (pruning anything not declared):
 
 ```bash
 git clone https://github.com/InstituteforDiseaseModeling/historymatching

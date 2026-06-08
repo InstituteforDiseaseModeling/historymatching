@@ -6,7 +6,7 @@ set up a development environment, run the tests, and submit changes.
 ## Development setup
 
 Set up the environment with [uv](https://docs.astral.sh/uv/) (recommended). This
-reads the committed `uv.lock` and reproduces the exact dependency versions CI uses:
+creates a `.venv` and installs the project with the chosen extras:
 
 ```bash
 git clone https://github.com/InstituteforDiseaseModeling/historymatching
