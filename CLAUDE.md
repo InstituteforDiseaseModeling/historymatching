@@ -8,7 +8,7 @@ History matching iteratively constrains a model's parameter space by comparing s
 1. Samples points in parameter space (e.g., Latin Hypercube Sampling)
 2. Runs the user's simulator at those points
 3. Selects informative output features (via Fano factor or manually)
-4. Trains statistical emulators (Gaussian Process Regression by default) on those outputs
+4. Trains statistical emulators (Bayes linear by default; Gaussian Process Regression optional) on those outputs
 5. Uses the emulators to identify and discard "implausible" regions of parameter space
 6. Repeats with a smaller parameter space until convergence
 
@@ -40,14 +40,14 @@ uv run pytest tests/           # all tests
 uv run pytest tests/ -x -q    # fail fast, quiet
 ```
 
-234 tests, runs in ~10 seconds. No network or external dependencies required.
+243 tests, runs in ~2 minutes (collection ~10 seconds). No network or external dependencies required.
 
 ## Code structure
 
 ```
 historymatching/         # flat package — everything at the top level
     __init__.py           # re-exports all public API; users just: import historymatching as hm
-    engine.py             # HistoryMatching — single public class; configures and runs the iterative loop (HistoryMatchingEngine is a back-compat alias)
+    engine.py             # HistoryMatching — single public class; configures and runs the iterative loop
     parameter_space.py    # ParameterSpace — wraps parameter bounds (DataFrame)
     observation_data.py   # ObservationData — wraps target observations (mean, std)
     emulator_bank.py      # EmulatorBank — stores trained emulators by iteration and feature
@@ -55,7 +55,7 @@ historymatching/         # flat package — everything at the top level
     feature_selection.py  # AutoFeatureSelection, ManualFeatureSelection
     sampling.py           # LatinHypercubeSampling, GridSampling, RandomSampling, SamplingStrategyFactory
     plotting.py           # Composable plot_* helpers (take primitive data, return Axes); re-exported at top level
-    utils.py              # Column name constants and helper functions
+    constants.py          # Shared column-schema and plot-palette constants
     emulators/            # Emulator implementations (the one subdirectory)
         base.py           # BaseEmulator abstract class
         gpr.py            # Gaussian Process Regression (uses GPflow/TensorFlow)
@@ -96,7 +96,7 @@ results = engine.run()
 
 ## Key dependencies
 
-- **GPflow + TensorFlow** — for Gaussian Process emulators (the main emulator type)
+- **GPflow + TensorFlow** — for the optional Gaussian Process (`gpr`) emulator
 - **tf-keras** — required by GPflow with TF 2.18+
 - `setuptools<81` is pinned as a dependency because GPflow uses `pkg_resources` which was removed in setuptools 81
 
@@ -109,4 +109,3 @@ Docs will be migrated to **mkdocs** (see `pyproject.toml [project.optional-depen
 - Do not add literal `\n` characters in notebook metadata sections — they cause JSON formatting errors
 - The `examples/` directory contains Jupyter notebooks; `04_emulator_showcase.ipynb.bak` is intentionally kept (in use by another agent)
 - The GPR emulator uses `compile=False` in the Scipy optimizer — removing it causes a hang on TF 2.20
-- The `architecture.md` file contains the original design proposal with useful pseudocode and data structure diagrams; it predates the current implementation
