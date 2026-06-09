@@ -7,21 +7,17 @@ automated workflow or :meth:`HistoryMatching.step` / :meth:`commit_step` /
 :meth:`revert_step` for interactive, wave-by-wave control.
 """
 
+from typing import Any, Callable, Optional, Union
 import logging
-import pickle
-import time as _time
 import warnings
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
-from typing import Callable
-from typing import Optional
-from typing import Union
 
 import pandas as pd
+import sciris as sc
 
+from .constants import NROY_COLOR, SAVE_KW, TARGET_COLOR, WAVE_CMAP
 from .emulator_bank import EmulatorBank
 from .iteration_result import IterationResult
 from .observation_data import ObservationData
@@ -38,7 +34,7 @@ _PAIRPLOT_MAX_PARAMS = 15
 
 def _compute_variance_reduction(
     nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
+    parameter_space: ParameterSpace,
 ) -> tuple:
     """
     PCA-based variance reduction analysis for NROY samples.
@@ -77,7 +73,7 @@ def _compute_variance_reduction(
 
 def _marginal_variance_reduction(
     nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
+    parameter_space: ParameterSpace,
 ) -> dict:
     """
     Per-parameter marginal variance reduction vs uniform prior.
@@ -103,7 +99,7 @@ def _marginal_variance_reduction(
 
 def _plot_constrained_dims(
     nroy_samples: pd.DataFrame,
-    parameter_space: "ParameterSpace",
+    parameter_space: ParameterSpace,
     wave_label: str,
     out_path: "Path",
     n_top: int = 5,
@@ -161,12 +157,12 @@ def _plot_constrained_dims(
         ax.set_ylim(0, 1.05)
 
     plt.tight_layout()
-    fig.savefig(out_path, dpi=120, bbox_inches="tight")
+    sc.savefig(out_path, **SAVE_KW)
     plt.close(fig)
 
 
 class EngineState(Enum):
-    """Possible states of the HistoryMatchingEngine."""
+    """Possible states of the HistoryMatching engine."""
 
     INITIALIZED = "initialized"
     RUNNING = "running"
@@ -210,7 +206,7 @@ class HistoryMatching:
                 rows.append({'peak_incidence': simulate_peak(row['beta'], row['gamma'])})
             return rows   # a DataFrame is also accepted
 
-        engine = hm.HistoryMatching(
+        engine = HistoryMatching(
             function=run_sir,
             bounds={'beta': (0.5, 3.0), 'gamma': (0.1, 1.0)},
             observations={'peak_incidence': (120.0, 50.0)},  # (mean, std)
@@ -733,15 +729,15 @@ class HistoryMatching:
         logger.info(f"WAVE {wave_num} STARTING")
         logger.info(f"{'='*60}")
         self.state = EngineState.RUNNING
-        wave_t0 = _time.time()
+        wave_timer = sc.timer()
 
         try:
             # ── Phase 1: Get samples ─────────────────────────────────────
-            t0 = _time.time()
+            T = sc.timer()
             if self.current_iteration == 0:
                 samples = self._generate_plausible_samples()
                 logger.info(f"[Wave {wave_num}] Phase 1/5 SAMPLING: generated {len(samples)} samples "
-                            f"(acceptance rate: {self.acceptance_rate:.3f}) [{_time.time()-t0:.1f}s]")
+                            f"(acceptance rate: {self.acceptance_rate:.3f}) [{T.tto():.1f}s]")
             else:
                 previous_snapshot = self._snapshots[self.current_iteration - 1]
                 samples = previous_snapshot.next_samples
@@ -751,34 +747,30 @@ class HistoryMatching:
                         f"This indicates an internal error - samples should have been computed during the previous step."
                     )
                 logger.info(f"[Wave {wave_num}] Phase 1/5 SAMPLING: using {len(samples)} pre-computed samples "
-                            f"from wave {previous_snapshot.iteration} [{_time.time()-t0:.1f}s]")
+                            f"from wave {previous_snapshot.iteration} [{T.tto():.1f}s]")
 
             # ── Phase 2: Run simulations ─────────────────────────────────
-            t0 = _time.time()
             logger.info(f"[Wave {wave_num}] Phase 2/5 SIMULATION: running {len(samples)} simulations...")
             simulation_results = self._run_simulation(samples)
             logger.info(f"[Wave {wave_num}] Phase 2/5 SIMULATION: complete — {len(simulation_results.columns)} outputs "
-                        f"[{_time.time()-t0:.1f}s]")
+                        f"[{T.tto():.1f}s]")
 
             # ── Phase 3: Select features ─────────────────────────────────
-            t0 = _time.time()
             if features is None:
                 selected_features = self._select_features(simulation_results)
             else:
                 selected_features = features
-            logger.info(f"[Wave {wave_num}] Phase 3/5 FEATURE SELECTION: {selected_features} [{_time.time()-t0:.1f}s]")
+            logger.info(f"[Wave {wave_num}] Phase 3/5 FEATURE SELECTION: {selected_features} [{T.tto():.1f}s]")
 
             # ── Phase 4: Train emulators ─────────────────────────────────
-            t0 = _time.time()
             logger.info(f"[Wave {wave_num}] Phase 4/5 EMULATOR TRAINING: training {len(selected_features)} emulators...")
             emulators = self._create_emulators(samples, simulation_results, selected_features)
-            logger.info(f"[Wave {wave_num}] Phase 4/5 EMULATOR TRAINING: complete [{_time.time()-t0:.1f}s]")
+            logger.info(f"[Wave {wave_num}] Phase 4/5 EMULATOR TRAINING: complete [{T.tto():.1f}s]")
 
             # ── Phase 5: NROY sampling for next wave ─────────────────────
-            t0 = _time.time()
             logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: finding {self.n_samples} plausible candidates for next wave...")
             next_iteration_samples = self._compute_next_iteration_samples(emulators)
-            logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: found {len(next_iteration_samples)} candidates [{_time.time()-t0:.1f}s]")
+            logger.info(f"[Wave {wave_num}] Phase 5/5 NROY SAMPLING: found {len(next_iteration_samples)} candidates [{T.tto():.1f}s]")
 
             # Check: did we get enough samples for a meaningful next wave?
             min_samples = max(2 * len(self.parameter_space.get_parameter_names()), 20)
@@ -809,7 +801,7 @@ class HistoryMatching:
                 emulated_outputs=selected_features,
                 emulators=emulators,
                 nroy_fraction=nroy_fraction,
-                execution_time_seconds=_time.time() - wave_t0,
+                execution_time_seconds=wave_timer.total,
             )
 
             # Store pending changes (not committed yet)
@@ -830,7 +822,7 @@ class HistoryMatching:
                 self._pending_snapshot.emulator_bank.add_emulator(iteration_result.iteration, feature, emulator)
 
             self.state = EngineState.PAUSED
-            logger.info(f"[Wave {wave_num}] ALL PHASES COMPLETE [{_time.time()-wave_t0:.1f}s total]. Committing...")
+            logger.info(f"[Wave {wave_num}] ALL PHASES COMPLETE [{wave_timer.total:.1f}s total]. Committing...")
 
             return iteration_result
 
@@ -1246,6 +1238,7 @@ class HistoryMatching:
             backwards compatibility; ``fig_kwargs`` is no longer applied.
         """
         import warnings
+
         import numpy as np
 
         warnings.warn(
@@ -1465,16 +1458,14 @@ class HistoryMatching:
             "max_candidate_factor": self.max_candidate_factor,
         }
 
-        with open(filepath, "wb") as f:
-            pickle.dump(checkpoint_data, f)
+        sc.save(filepath, checkpoint_data, die=True)
 
         logger.info(f"Checkpoint saved to {filepath}")
 
     @classmethod
     def load_checkpoint(cls, filepath: Path, sampling_strategy: SamplingStrategy, feature_selection: FeatureSelectionStrategy, emulator_factory: EmulatorFactory) -> "HistoryMatching":
         """Load engine state from checkpoint file."""
-        with open(filepath, "rb") as f:
-            data = pickle.load(f)
+        data = sc.load(filepath, die=True)
 
         # Create engine with loaded data
         engine = cls(
@@ -1508,8 +1499,7 @@ class HistoryMatching:
 
     def _load_checkpoint_state(self, filepath: Path) -> None:
         """Restore engine state from a checkpoint file (for resume)."""
-        with open(filepath, "rb") as f:
-            data = pickle.load(f)
+        data = sc.load(filepath, die=True)
 
         self.emulator_bank = data["emulator_bank"]
         self._restore_progress(data["progress"])
@@ -1542,8 +1532,6 @@ class HistoryMatching:
         if self.run_dir is None:
             return
 
-        import json as _json
-
         wave_dir = self.run_dir / f"wave{result.iteration}"
         wave_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1552,11 +1540,9 @@ class HistoryMatching:
             feat_dir = wave_dir / feature
             feat_dir.mkdir(exist_ok=True)
 
-            # Save emulator pickle
+            # Save emulator
             try:
-                import pickle
-                with open(feat_dir / "emulator.pkl", "wb") as f:
-                    pickle.dump(emulator, f)
+                sc.save(feat_dir / "emulator.pkl", emulator, die=True)
             except Exception as e:
                 logger.warning(f"Failed to save emulator for '{feature}': {e}")
 
@@ -1564,12 +1550,11 @@ class HistoryMatching:
             try:
                 if not getattr(emulator, 'testing_complete', False):
                     emulator.test()
-                import matplotlib
                 emulator.plot_diagnostics()
                 import matplotlib.pyplot as plt
                 for i, fig_num in enumerate(plt.get_fignums()[-4:]):  # plot_diagnostics creates up to 4 figs
                     plt.figure(fig_num)
-                    plt.savefig(feat_dir / f"diagnostics_{i}.png", dpi=100, bbox_inches='tight')
+                    sc.savefig(feat_dir / f"diagnostics_{i}.png", **SAVE_KW)
                     plt.close(fig_num)
             except Exception as e:
                 logger.warning(f"Failed to save diagnostics for '{feature}': {e}")
@@ -1581,8 +1566,7 @@ class HistoryMatching:
                     metrics['hyperparameters'] = emulator.get_hyperparameters()
                 except Exception:
                     pass
-                with open(feat_dir / "metrics.json", "w") as f:
-                    _json.dump(metrics, f, indent=2, default=float)
+                sc.savejson(feat_dir / "metrics.json", metrics, indent=2)
             except Exception as e:
                 logger.warning(f"Failed to save metrics for '{feature}': {e}")
 
@@ -1590,12 +1574,11 @@ class HistoryMatching:
         try:
             all_results = self.get_all_results()
             if len(all_results) > 0:
-                import matplotlib
                 import matplotlib.pyplot as plt
                 fig, ax = plt.subplots(figsize=(7, 4))
                 waves = [r.iteration for r in all_results]
                 fracs = [r.nroy_fraction for r in all_results]
-                ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
+                ax.bar(waves, fracs, color=NROY_COLOR, alpha=0.8, edgecolor='white')
                 for w, frac in zip(waves, fracs):
                     label = f'{frac:.2%}' if frac < 0.01 else f'{frac:.1%}'
                     ax.annotate(label, (w, frac), textcoords='offset points',
@@ -1607,7 +1590,7 @@ class HistoryMatching:
                 ax.set_ylim(min(fracs) * 0.5, 1)
                 ax.set_xticks(waves)
                 fig.tight_layout()
-                fig.savefig(wave_dir / "convergence.png", dpi=100, bbox_inches='tight')
+                sc.savefig(wave_dir / "convergence.png", **SAVE_KW)
                 plt.close(fig)
         except Exception as e:
             logger.warning(f"Failed to save convergence plot: {e}")
@@ -1616,9 +1599,8 @@ class HistoryMatching:
         try:
             all_results = self.get_all_results()
             if len(all_results) > 0:
-                import numpy as np
-                import matplotlib
                 import matplotlib.pyplot as plt
+                import numpy as np
 
                 targets = self.observations.get_all_targets()
                 target_names = [k for k in targets if k in result.simulation_results.columns]
@@ -1632,7 +1614,7 @@ class HistoryMatching:
 
                     n_targets = len(target_names)
                     n_waves = len(all_results)
-                    cmap = plt.get_cmap('plasma')
+                    wave_colors = sc.vectocolor(n_waves, cmap=WAVE_CMAP)
                     bar_width = 0.8 / n_waves
 
                     fig, ax = plt.subplots(figsize=(max(14, n_targets * 0.7), 7))
@@ -1646,7 +1628,7 @@ class HistoryMatching:
                             obs_mean, obs_std = targets[key]
                             z = (sims[key].dropna() - obs_mean) / obs_std
                             x_pos = ti + (wi - n_waves / 2 + 0.5) * bar_width
-                            color = cmap(wi / n_waves)
+                            color = wave_colors[wi]
                             q05, q25, med, q75, q95 = np.percentile(z, [5, 25, 50, 75, 95])
                             ymin_data = min(ymin_data, q05)
                             ymax_data = max(ymax_data, q95)
@@ -1657,9 +1639,9 @@ class HistoryMatching:
                             ax.plot(x_pos, med, 'o', color=color, markersize=4, zorder=5)
 
                     for wi, r in enumerate(all_results):
-                        ax.plot([], [], color=cmap(wi / n_waves), linewidth=3.5, label=f'Wave {r.iteration}')
+                        ax.plot([], [], color=wave_colors[wi], linewidth=3.5, label=f'Wave {r.iteration}')
 
-                    ax.axhline(0, color='#d44d4d', lw=1.5, ls='--', alpha=0.7, label='Target')
+                    ax.axhline(0, color=TARGET_COLOR, lw=1.5, ls='--', alpha=0.7, label='Target')
                     ax.axhline(3.5, color='green', lw=0.8, ls=':', alpha=0.4)
                     ax.axhline(-3.5, color='green', lw=0.8, ls=':', alpha=0.4)
                     ax.axhspan(-3.5, 3.5, color='green', alpha=0.03)
@@ -1682,11 +1664,10 @@ class HistoryMatching:
                                  'Green \u2605 = target was emulated in that wave', fontsize=13)
                     ax.legend(fontsize=9, loc='upper center', bbox_to_anchor=(0.5, -0.18),
                               ncol=min(n_waves + 1, 8), framealpha=0.9)
-                    ax.spines['top'].set_visible(False)
-                    ax.spines['right'].set_visible(False)
+                    sc.boxoff(ax)
                     ax.grid(axis='y', alpha=0.2)
                     fig.tight_layout()
-                    fig.savefig(wave_dir / "zscores_vs_targets.png", dpi=150, bbox_inches='tight')
+                    sc.savefig(wave_dir / "zscores_vs_targets.png", **SAVE_KW)
                     plt.close(fig)
         except Exception as e:
             logger.warning(f"Failed to save z-scores plot: {e}")
@@ -1740,7 +1721,7 @@ class HistoryMatching:
                 show_indices = np.linspace(0, len(all_results) - 1, n_show, dtype=int)
                 show_results = [all_results[i] for i in show_indices]
 
-                cmap = plt.get_cmap('plasma')
+                wave_colors = sc.vectocolor(n_show, cmap=WAVE_CMAP)
                 fig, axes = plt.subplots(n_pars, n_pars, figsize=(2.2 * n_pars, 2.2 * n_pars))
                 if n_pars == 1:
                     axes = np.array([[axes]])
@@ -1752,7 +1733,7 @@ class HistoryMatching:
                             for si, r in enumerate(show_results):
                                 if p1 in r.samples.columns:
                                     ax.hist(r.samples[p1], bins=25, density=True, alpha=0.5,
-                                            color=cmap(si / n_show), edgecolor='none',
+                                            color=wave_colors[si], edgecolor='none',
                                             label=f'W{r.iteration}')
                             if i == 0:
                                 ax.legend(fontsize=6)
@@ -1761,7 +1742,7 @@ class HistoryMatching:
                                 if p2 in r.samples.columns and p1 in r.samples.columns:
                                     alpha = 0.15 + 0.35 * (si / max(n_show - 1, 1))
                                     ax.scatter(r.samples[p2], r.samples[p1], s=2, alpha=alpha,
-                                               color=cmap(si / n_show), edgecolors='none')
+                                               color=wave_colors[si], edgecolors='none')
                         else:
                             ax.set_visible(False)
 
@@ -1774,14 +1755,13 @@ class HistoryMatching:
                         else:
                             ax.set_xlabel('')
                         ax.tick_params(labelsize=4)
-                        ax.spines['top'].set_visible(False)
-                        ax.spines['right'].set_visible(False)
+                        sc.boxoff(ax)
 
                 wave_labels = ' \u2192 '.join(str(r.iteration) for r in show_results)
                 fig.suptitle(f'Parameter space: Waves {wave_labels}\n({subtitle_note})',
                              fontsize=13, fontweight='bold', y=1.02)
                 fig.tight_layout()
-                fig.savefig(wave_dir / "pairplot.png", dpi=150, bbox_inches='tight')
+                sc.savefig(wave_dir / "pairplot.png", **SAVE_KW)
                 plt.close(fig)
         except Exception as e:
             logger.warning(f"Failed to save pair plot: {e}")
@@ -1815,8 +1795,7 @@ class HistoryMatching:
                     'max_iterations': self.max_iterations,
                     'implausibility_threshold': self.implausibility_threshold,
                 }
-                with open(config_path, "w") as f:
-                    _json.dump(config, f, indent=2, default=str)
+                sc.savejson(config_path, config, indent=2)
             except Exception as e:
                 logger.warning(f"Failed to save run config: {e}")
 
@@ -1844,7 +1823,7 @@ class HistoryMatching:
         max_candidate_factor = self.max_candidate_factor
         max_candidates = self.n_samples * max_candidate_factor
         last_pct_logged = -10
-        t0 = _time.time()
+        loop_timer = sc.timer()
 
         logger.info(f"  Plausible sampling: 0/{self.n_samples} (0%) — starting")
 
@@ -1875,7 +1854,7 @@ class HistoryMatching:
             pct = int(100 * len(plausible_samples) / self.n_samples)
             if pct >= last_pct_logged + 10:
                 last_pct_logged = pct - (pct % 10)
-                elapsed = _time.time() - t0
+                elapsed = loop_timer.total
                 logger.info(
                     f"  Plausible sampling: {len(plausible_samples)}/{self.n_samples} ({pct}%) "
                     f"| {total_candidates_generated:,} tested | rate={current_acceptance_rate:.4%} [{elapsed:.0f}s]")
@@ -1966,6 +1945,7 @@ class HistoryMatching:
         Falls back to the standard GPflow path for non-GPR emulators.
         """
         import numpy as np
+
         from .emulators.fast_predict import filter_nroy
 
         fast_predictors = self._build_fast_predictors(emulator_bank)
@@ -2236,8 +2216,3 @@ class HistoryMatching:
             f"acceptance_rate={self.acceptance_rate:.3f}\n"
             f")"
         )
-
-
-# Backwards-compatible alias: the engine class was previously named
-# ``HistoryMatchingEngine`` and configured via ``HistoryMatchingBuilder``.
-HistoryMatchingEngine = HistoryMatching

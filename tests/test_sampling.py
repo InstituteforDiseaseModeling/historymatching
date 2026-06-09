@@ -2,11 +2,10 @@
 Unit tests for sampling strategies.
 """
 
-import pytest
-import numpy as np
 import pandas as pd
-import historymatching as hm
+import pytest
 
+import historymatching as hm
 
 
 class TestSamplingStrategy:

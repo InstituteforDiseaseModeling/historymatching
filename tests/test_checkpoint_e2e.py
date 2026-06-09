@@ -1,10 +1,15 @@
 """Quick end-to-end test of checkpoint, resume, and parallel NROY."""
-import sys, os, shutil, json, tempfile
-import numpy as np
+import json
+import os
+import shutil
+import sys
+import tempfile
+
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'docs', 'tutorials'))
 from model import SIR, generate_observed_data
+
 import historymatching as hm
 
 POPULATION = 5_000

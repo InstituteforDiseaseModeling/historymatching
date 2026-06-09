@@ -7,6 +7,7 @@ expected Matplotlib object(s) without error rather than inspecting pixels.
 """
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np

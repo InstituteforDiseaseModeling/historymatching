@@ -2,12 +2,13 @@
 Test fixtures and utilities for history matching tests.
 """
 
+from typing import Callable, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-from typing import List, Optional, Callable, Dict, Tuple
 
-from historymatching.utils import PARAMETER_SPACE_COLUMNS, OBSERVATIONS_COLUMNS
 import historymatching as hm
+from historymatching.constants import OBSERVATIONS_COLUMNS, PARAMETER_SPACE_COLUMNS
 
 
 class TestDataFactory:

@@ -10,13 +10,13 @@ Reference: Iskauskas (2024), "Emulation and History Matching using the hmer
 Package", Journal of Statistical Software.
 """
 
-import logging
-import time as _time
 from typing import Optional, Tuple
+import logging
 
 import numpy as np
 import pandas as pd
-from scipy.spatial.distance import pdist, squareform
+import sciris as sc
+from scipy.spatial.distance import pdist
 
 from .emulator_bank import EmulatorBank
 from .observation_data import ObservationData
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Public API
 # ---------------------------------------------------------------------------
 
-class NROYResult:
+class NROYResult(sc.prettyobj):
     """Container for NROY sampling results with stats."""
     def __init__(self, samples: pd.DataFrame, lhs_accepted: int, lhs_tested: int):
         self.samples = samples
@@ -108,7 +108,7 @@ def generate_nroy_design(
         return _filter_nroy(candidates_df, emulator_bank, observations,
                             threshold, param_names)
 
-    t0 = _time.time()
+    t0 = sc.timer()
 
     if method == 'ray':
         # ── Ray mode: small LHS for seed, then straight to ray+importance ─
@@ -128,7 +128,7 @@ def generate_nroy_design(
         )
         n_lhs_found = len(lhs_result)
         lhs_tested = lhs_result.attrs.get('total_generated', max_candidates)
-        elapsed = _time.time() - t0
+        elapsed = t0.total
         logger.info(f"  LHS rejection: {n_lhs_found}/{n_points} [{elapsed:.1f}s]")
 
         if n_lhs_found >= n_points:
@@ -139,7 +139,7 @@ def generate_nroy_design(
             logger.warning(
                 f"  LHS found only {n_lhs_found}/{n_points} NROY samples. "
                 f"The NROY space may be near-empty.")
-            _log_summary(n_points, n_lhs_found, 0, 0, _time.time() - t0)
+            _log_summary(n_points, n_lhs_found, 0, 0, t0.total)
             return NROYResult(lhs_result, n_lhs_found, lhs_tested)
 
     # ── Escalate to ray + importance sampling ─────────────────────
@@ -154,13 +154,13 @@ def generate_nroy_design(
         logger.warning(
             f"  Cannot run ray/importance with <2 seed points. "
             f"Returning {len(pool)} LHS points.")
-        _log_summary(n_points, n_from_lhs, 0, 0, _time.time() - t0)
+        _log_summary(n_points, n_from_lhs, 0, 0, t0.total)
         return NROYResult(pool, n_lhs_found, lhs_tested)
 
     rng = np.random.default_rng(seed)
 
     # Ray sampling — scale effort based on how far short we are
-    t1 = _time.time()
+    t1 = sc.timer()
     shortfall_ratio = n_points / max(len(pool), 1)  # how many x more points we need
     scaled_n_lines = min(int(n_lines * max(shortfall_ratio, 1)), 200)
     scaled_ppl = min(int(points_per_line * max(shortfall_ratio, 1)), 500)
@@ -175,16 +175,16 @@ def generate_nroy_design(
     if len(ray_nroy) > 0:
         pool = pd.concat([pool, ray_nroy], ignore_index=True)
     logger.info(f"  Ray sampling: +{n_from_ray}, pool={len(pool)}/{n_points} "
-                f"[{_time.time()-t1:.1f}s]")
+                f"[{t1.total:.1f}s]")
 
     if len(pool) >= n_points:
         result = _maximin_thin(pool, n_points, maximin_reps, rng)
-        _log_summary(n_points, n_from_lhs, n_from_ray, 0, _time.time() - t0)
+        _log_summary(n_points, n_from_lhs, n_from_ray, 0, t0.total)
         return NROYResult(result, n_lhs_found, lhs_tested)
 
     # Importance sampling
     if len(pool) >= 2:
-        t2 = _time.time()
+        t2 = sc.timer()
         remaining = n_points - len(pool)
         logger.info(f"  Importance sampling: need {remaining} more "
                     f"(proposals centered on {len(pool)} pool points)...")
@@ -199,7 +199,7 @@ def generate_nroy_design(
         n_from_imp = len(imp_nroy)
         if len(imp_nroy) > 0:
             pool = pd.concat([pool, imp_nroy], ignore_index=True)
-        elapsed = _time.time() - t2
+        elapsed = t2.total
         logger.info(f"  Importance sampling: +{n_from_imp}, "
                     f"pool={len(pool)}/{n_points} [{elapsed:.1f}s]")
 
@@ -207,7 +207,7 @@ def generate_nroy_design(
     if len(pool) > n_points:
         pool = _maximin_thin(pool, n_points, maximin_reps, rng)
 
-    total = _time.time() - t0
+    total = t0.total
     _log_summary(n_points, n_from_lhs, n_from_ray, n_from_imp, total)
 
     if len(pool) < n_points:
@@ -238,7 +238,7 @@ def _lhs_reject_loop(
     batch_seed = seed
     batch_size = min(int(n_points * oversample_factor), max_batch_size)
     last_pct = -10
-    t0 = _time.time()
+    t0 = sc.timer()
 
     logger.info(f"  LHS rejection: 0/{n_points} (0%) — starting")
 
@@ -258,7 +258,7 @@ def _lhs_reject_loop(
         pct = int(100 * len(plausible) / n_points)
         if pct >= last_pct + 10:
             last_pct = pct - (pct % 10)
-            elapsed = _time.time() - t0
+            elapsed = t0.total
             logger.info(
                 f"  LHS rejection: {len(plausible)}/{n_points} ({pct}%) "
                 f"| {total_generated:,} tested | rate={rate:.4%} [{elapsed:.0f}s]")

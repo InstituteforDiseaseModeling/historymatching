@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from historymatching.nroy_sampling import _lhs_reject_loop
 import historymatching as hm
+from historymatching.nroy_sampling import _lhs_reject_loop
 
 
 class PassthroughEmulator(hm.BaseEmulator):

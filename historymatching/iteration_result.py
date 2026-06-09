@@ -2,15 +2,16 @@
 IterationResult — the result of a single history matching wave.
 """
 
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
-import os
-import json
+
 import numpy as np
 import pandas as pd
+import sciris as sc
 
 from .parameter_space import ParameterSpace
 from .emulators.base import BaseEmulator
+from .constants import NROY_COLOR, SAVE_KW
 
 
 @dataclass(frozen=True)
@@ -179,25 +180,23 @@ class IterationResult:
         Returns:
             The path to the ``wave{N}/`` directory that was written.
         """
-        import pickle
         import matplotlib  # noqa: F401  (ensure a backend is selected)
         import matplotlib.pyplot as plt
 
-        wave_dir = os.path.join(directory, f"wave{self.iteration}")
-        os.makedirs(wave_dir, exist_ok=True)
+        wave_dir = sc.path(directory) / f"wave{self.iteration}"
+        wave_dir.mkdir(parents=True, exist_ok=True)
 
         # ── Raw data ──────────────────────────────────────────────────
-        self.samples.to_csv(os.path.join(wave_dir, "samples.csv"), index=False)
+        self.samples.to_csv(wave_dir / "samples.csv", index=False)
         self.simulation_results.to_csv(
-            os.path.join(wave_dir, "simulation_results.csv"), index=False)
+            wave_dir / "simulation_results.csv", index=False)
 
         # ── Emulators (pickled) ───────────────────────────────────────
-        em_dir = os.path.join(wave_dir, "emulators")
-        os.makedirs(em_dir, exist_ok=True)
+        em_dir = wave_dir / "emulators"
         for output, emulator in self.emulators.items():
             try:
-                with open(os.path.join(em_dir, f"{output}.pkl"), "wb") as f:
-                    pickle.dump(emulator, f)
+                # sc.save auto-creates em_dir and compresses the pickle.
+                sc.save(em_dir / f"{output}.pkl", emulator, die=True)
             except Exception:
                 pass  # Some emulators may not pickle; skip rather than fail the save.
 
@@ -271,14 +270,12 @@ class IterationResult:
                 ax2.set_title('ARD Lengthscales', fontsize=9)
 
             for ax in axes:
-                for spine in ['top', 'right']:
-                    ax.spines[spine].set_visible(False)
+                sc.boxoff(ax)
 
             fig.suptitle(f"Wave {self.iteration} — {output}",
                          fontsize=11, fontweight='bold', y=1.02)
             fig.tight_layout()
-            fig.savefig(os.path.join(wave_dir, f"{output}_diagnostics.png"),
-                        dpi=150, bbox_inches='tight')
+            sc.savefig(wave_dir / f"{output}_diagnostics.png", **SAVE_KW)
             plt.close(fig)
 
         # ── Convergence across waves ──────────────────────────────────
@@ -286,7 +283,7 @@ class IterationResult:
             fig, ax = plt.subplots(figsize=(7, 4))
             waves = [r.iteration for r in all_results]
             fracs = [r.nroy_fraction for r in all_results]
-            ax.bar(waves, fracs, color='#3575b5', alpha=0.8, edgecolor='white')
+            ax.bar(waves, fracs, color=NROY_COLOR, alpha=0.8, edgecolor='white')
             for w, frac in zip(waves, fracs):
                 ax.annotate(f"{frac:.1%}", (w, frac), textcoords='offset points',
                             xytext=(0, 6), ha='center', fontsize=8)
@@ -295,16 +292,14 @@ class IterationResult:
             ax.set_title('Convergence', fontsize=11, fontweight='bold')
             ax.set_ylim(0, min(1.0, max(fracs) * 1.3) if fracs else 1.0)
             ax.set_xticks(waves)
-            for spine in ['top', 'right']:
-                ax.spines[spine].set_visible(False)
+            sc.boxoff(ax)
             ax.grid(axis='y', alpha=0.3)
             fig.tight_layout()
-            fig.savefig(os.path.join(wave_dir, "convergence.png"), dpi=150, bbox_inches='tight')
+            sc.savefig(wave_dir / "convergence.png", **SAVE_KW)
             plt.close(fig)
 
         # ── Metrics ───────────────────────────────────────────────────
-        with open(os.path.join(wave_dir, "metrics.json"), 'w') as f:
-            json.dump(all_metrics, f, indent=2, default=float)
+        sc.savejson(wave_dir / "metrics.json", all_metrics, indent=2)
 
         return wave_dir
 

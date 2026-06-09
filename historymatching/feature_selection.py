@@ -2,12 +2,13 @@
 Feature selection strategy implementations for history matching.
 """
 
-from abc import ABC, abstractmethod
 from typing import List, Optional, Union
 import logging
+import warnings
+from abc import ABC, abstractmethod
+
 import numpy as np
 import pandas as pd
-import warnings
 
 logger = logging.getLogger(__name__)
 
