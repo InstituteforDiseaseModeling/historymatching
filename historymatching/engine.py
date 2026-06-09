@@ -162,7 +162,7 @@ def _plot_constrained_dims(
 
 
 class EngineState(Enum):
-    """Possible states of the HistoryMatchingEngine."""
+    """Possible states of the HistoryMatching engine."""
 
     INITIALIZED = "initialized"
     RUNNING = "running"
@@ -2216,8 +2216,3 @@ class HistoryMatching:
             f"acceptance_rate={self.acceptance_rate:.3f}\n"
             f")"
         )
-
-
-# Backwards-compatible alias: the engine class was previously named
-# ``HistoryMatchingEngine`` and configured via ``HistoryMatchingBuilder``.
-HistoryMatchingEngine = HistoryMatching
