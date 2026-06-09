@@ -1,35 +1,35 @@
 # History Matching
 
-A Python implementation of the Bayesian History Matching algorithm for model calibration and uncertainty quantification.
+A Python implementation of the [Bayesian history matching](https://en.wikipedia.org/wiki/Bayesian_history_matching) algorithm for model calibration and uncertainty quantification.
 
 History matching iteratively constrains a model's parameter space by comparing simulation outputs against observed data through statistical emulators. It is particularly useful for calibrating expensive computational models where exhaustive parameter sweeps are impractical.
 
+This library provides a modern, object-oriented API built around a single `HistoryMatching` engine configured in one constructor call, with pluggable strategies for sampling, feature selection, and emulation.
+
 ## Requirements
 
-Python 3.11+, with TensorFlow 2.18+.
+Python 3.9+, with TensorFlow 2.18+.
 
 ## Installation
 
-> **Note:** historymatching will be published to PyPI soon. Until the first release lands, install from GitHub as shown below; afterward, `pip install historymatching` will work directly.
-
-To use historymatching in your own project, install it from GitHub:
+Available on PyPI:
 
 ```bash
-pip install "historymatching @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
+pip install historymatching
 ```
 
 Add optional extras as needed — `notebooks` for the tutorial notebooks, `mac` for Metal GPU acceleration on Apple Silicon. Combine them in a single bracket to install both at once:
 
 ```bash
-pip install "historymatching[notebooks] @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
-pip install "historymatching[notebooks,mac] @ git+https://github.com/InstituteforDiseaseModeling/historymatching"
+pip install "historymatching[notebooks]"
+pip install "historymatching[notebooks,mac]"
 ```
 
-If you use [uv](https://docs.astral.sh/uv/), `uv pip install` is a drop-in replacement for the `pip install` commands above: it mirrors pip's interface, resolving dependencies fresh from package metadata into the active environment without consulting a lockfile. uv's resolver is also noticeably faster and more reliable than plain pip on the TensorFlow/GPflow dependency tree (with its pinned `setuptools<81` and `tf-keras` requirements).
+If you use [uv](https://docs.astral.sh/uv/), `uv pip install` is a drop-in replacement for the `pip install` commands above, and is typically faster and more reliable than plain `pip`.
 
-### Developing historymatching
+### Developing `historymatching`
 
-To work on historymatching itself, clone the repository and set up the environment with [uv](https://docs.astral.sh/uv/) (recommended). Unlike `uv pip`, `uv sync` reads the committed `uv.lock`, creates a `.venv` automatically, and reproduces the *exact* dependency versions CI uses (pruning anything not in the lock) — so your environment matches CI:
+To work on historymatching itself, clone the repository and set up the environment with [uv](https://docs.astral.sh/uv/) (recommended). Unlike `uv pip`, `uv sync` creates a `.venv` automatically and installs the project with the chosen extras, keeping the environment in step with `pyproject.toml` (pruning anything not declared):
 
 ```bash
 git clone https://github.com/InstituteforDiseaseModeling/historymatching
@@ -118,13 +118,8 @@ engine = hm.HistoryMatching(
 
 ## Documentation
 
-Full documentation, tutorials, and API reference are available in the `docs/` folder. To build locally:
-
-```bash
-pip install -e ".[docs]"
-mkdocs serve
-```
+Full documentation, tutorials, and API reference are available at [docs.idmod.org/historymatching](https://docs.idmod.org/historymatching/).
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](https://github.com/InstituteforDiseaseModeling/historymatching/blob/main/LICENSE) for details.

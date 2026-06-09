@@ -1423,41 +1423,6 @@ class HistoryMatching:
             **nroy_opts,
         ).samples
 
-    def _get_nroy_samples_serial(self, n: int) -> pd.DataFrame:
-        """Serial rejection sampling for NROY candidates."""
-        plausible = pd.DataFrame()
-        total_generated = 0
-        batch_size = min(int(n * self.oversample_factor), self.max_batch_size)
-        batch_seed = self.random_seed
-        max_candidates = n * self.max_candidate_factor
-
-        while len(plausible) < n:
-            candidates = self.sampling_strategy.generate_samples(
-                self.parameter_space, batch_size, seed=batch_seed,
-            )
-            if batch_seed is not None:
-                batch_seed += 1
-
-            batch_pass = self._filter_samples_by_implausibility(candidates)
-            if len(batch_pass) > 0:
-                plausible = pd.concat([plausible, batch_pass], ignore_index=True)
-
-            total_generated += len(candidates)
-
-            if total_generated >= max_candidates:
-                logger.warning(
-                    f"get_nroy_samples: reached candidate limit ({max_candidates:,}) "
-                    f"with {len(plausible)}/{n} samples."
-                )
-                break
-
-            remaining = n - len(plausible)
-            rate = len(plausible) / total_generated if total_generated > 0 else 0.01
-            if rate > 0:
-                batch_size = min(int(self.oversample_factor * remaining / rate), self.max_batch_size)
-
-        return plausible.head(n)
-
     def get_pending_next_samples(self) -> Optional[pd.DataFrame]:
         """
         Get the proposed samples for the next iteration, if available.
@@ -2197,71 +2162,6 @@ class HistoryMatching:
         self._update_nroy_stats(nroy_result.lhs_accepted, nroy_result.lhs_tested)
         return nroy_result.samples
 
-    def _compute_next_samples_serial(self, temp_bank: EmulatorBank) -> pd.DataFrame:
-        """Serial rejection sampling for next-wave candidates (legacy, unused)."""
-        plausible_samples = pd.DataFrame()
-        total_candidates_generated = 0
-        batch_num = 0
-        batch_seed = self.random_seed
-        max_candidate_factor = self.max_candidate_factor
-        max_candidates = self.n_samples * max_candidate_factor
-        batch_size = min(int(self.n_samples * self.oversample_factor), self.max_batch_size)
-        last_pct_logged = -10  # track last percentage milestone logged
-        t0 = _time.time()
-
-        logger.info(f"  NROY sampling: 0/{self.n_samples} (0%) — starting")
-
-        while len(plausible_samples) < self.n_samples:
-            candidates = self.sampling_strategy.generate_samples(self.parameter_space, batch_size, seed=batch_seed)
-            if batch_seed is not None:
-                batch_seed += 1
-
-            batch_plausible = self._filter_samples_with_bank(candidates, temp_bank)
-            if len(batch_plausible) > 0:
-                plausible_samples = pd.concat([plausible_samples, batch_plausible], ignore_index=True)
-
-            total_candidates_generated += len(candidates)
-            batch_num += 1
-            current_acceptance_rate = len(plausible_samples) / total_candidates_generated
-
-            # Log at every 10% milestone
-            pct = int(100 * len(plausible_samples) / self.n_samples)
-            if pct >= last_pct_logged + 10:
-                last_pct_logged = pct - (pct % 10)
-                elapsed = _time.time() - t0
-                logger.info(
-                    f"  NROY sampling: {len(plausible_samples)}/{self.n_samples} ({pct}%) "
-                    f"| {total_candidates_generated:,} tested | rate={current_acceptance_rate:.4%} [{elapsed:.0f}s]")
-
-            logger.debug(
-                f"  Next-wave sampling batch {batch_num}: {len(batch_plausible)}/{len(candidates)} accepted "
-                f"| {len(plausible_samples)}/{self.n_samples} collected "
-                f"| {total_candidates_generated:,} total candidates "
-                f"| rate={current_acceptance_rate:.4%}"
-            )
-
-            if len(plausible_samples) >= self.n_samples:
-                break
-
-            if total_candidates_generated >= max_candidates:
-                logger.warning(
-                    f"Reached candidate limit ({max_candidates:,}) with only "
-                    f"{len(plausible_samples)}/{self.n_samples} plausible samples "
-                    f"(acceptance rate: {current_acceptance_rate:.4%}).  "
-                    f"Proceeding with {len(plausible_samples)} samples.  "
-                    f"Adjust via the max_candidate_factor option (HistoryMatching(..., max_candidate_factor=N))."
-                )
-                break
-
-            remaining_needed = self.n_samples - len(plausible_samples)
-            if current_acceptance_rate > 0:
-                batch_size = min(int(self.oversample_factor * remaining_needed / current_acceptance_rate), self.max_batch_size)
-            else:
-                batch_size = min(batch_size * 2, self.max_batch_size)
-
-        self._update_nroy_stats(len(plausible_samples), total_candidates_generated)
-        return plausible_samples.head(self.n_samples)
-
     def _update_nroy_stats(self, n_plausible: int, n_generated: int) -> None:
         """Update NROY fraction and cumulative progress after rejection sampling."""
         self._last_nroy_fraction = (
@@ -2274,13 +2174,6 @@ class HistoryMatching:
             if self.samples_generated > 0 else 1.0
         )
         logger.debug(f"NROY fraction: {self._last_nroy_fraction:.6f}")
-
-    def _filter_samples_with_bank(self, candidates: pd.DataFrame, emulator_bank: EmulatorBank) -> pd.DataFrame:
-        """Filter candidate samples using a specific emulator bank."""
-        if not emulator_bank.has_emulators():
-            return candidates
-
-        return self._filter_fast(candidates, emulator_bank)
 
     def _create_snapshot(self) -> IterationSnapshot:
         """Create snapshot of current state."""
