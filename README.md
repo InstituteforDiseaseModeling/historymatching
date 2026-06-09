@@ -2,7 +2,7 @@
 
 A Python implementation of the [Bayesian history matching](https://en.wikipedia.org/wiki/Bayesian_history_matching) algorithm for model calibration and uncertainty quantification.
 
-History matching iteratively constrains a model's parameter space by comparing simulation outputs against observed data through statistical emulators. It is particularly useful for calibrating expensive computational models where exhaustive parameter sweeps are impractical.
+History matching iteratively constrains a model's parameter space by comparing simulation outputs against observed data through **emulators** — fast statistical surrogates of the simulator. Each iteration, or **wave**, rules out more of the space; rather than returning a single best-fit point, the method homes in on the **NROY** ("Not Ruled Out Yet") region: the set of all parameter values not yet shown to be inconsistent with the data. It is particularly useful for calibrating expensive computational models where exhaustive parameter sweeps are impractical.
 
 This library provides a modern, object-oriented API built around a single `HistoryMatching` engine configured in one constructor call, with pluggable strategies for sampling, feature selection, and emulation.
 
@@ -118,7 +118,7 @@ engine = hm.HistoryMatching(
 
 ## Documentation
 
-Full documentation, tutorials, and API reference are available at [docs.idmod.org/historymatching](https://docs.idmod.org/historymatching/).
+Full documentation, tutorials, and API reference are available at [docs.idmod.org/historymatching](https://docs.idmod.org/historymatching/). New to history matching? The [glossary](docs/glossary.md) defines NROY, implausibility, emulators, and the other key terms used throughout.
 
 ## License
 

@@ -1,6 +1,8 @@
 # Overview
 
-History matching is an iterative calibration technique that progressively rules out regions of parameter space that are *implausible* — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it identifies the set of all parameter combinations that could plausibly have produced the observed data.
+History matching is an iterative calibration technique that progressively rules out regions of parameter space that are *implausible* — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it identifies the set of all parameter combinations that could plausibly have produced the observed data. That surviving set is called the **NROY** ("Not Ruled Out Yet") region, and it is the central output of the method.
+
+Each iteration is called a **wave**. Unfamiliar terms (NROY, implausibility, emulator, Fano factor, ARD, …) are collected in the [Glossary](glossary.md).
 
 ## How it works
 
@@ -18,8 +20,8 @@ The parameter space shrinks with each iteration until it converges on the region
 
 - **Single-constructor API**: Configure an entire workflow in one `HistoryMatching(...)` call
 - **Interactive engine**: Step-by-step control with `step()` / `commit_step()` / `revert_step()`, or fully automated execution with `run()`
-- **Multiple emulators**: Linear, GLM, and Gaussian Process Regression (GPflow-based with ARD kernels)
-- **Pluggable strategies**: Swap sampling (LHS, grid, random), feature selection (auto Fano-factor, manual), and emulator types at any point
+- **Multiple emulators**: Linear, GLM, and Gaussian Process Regression (GPflow-based with ARD — Automatic Relevance Determination — kernels)
+- **Pluggable strategies**: Swap sampling (LHS, grid, random), feature selection (automatic by Fano factor — the variance-to-mean ratio of each output — or manual), and emulator types at any point
 - **Domain objects**: `ParameterSpace`, `ObservationData`, `EmulatorBank`, and `IterationResult` for clean data management
 - **Checkpoint/resume**: Save and restore engine state for long-running workflows
 
@@ -42,7 +44,7 @@ IterationResult                 # Immutable results per iteration
     ├── samples                 # Parameter samples used
     ├── simulation_results      # Model outputs
     ├── emulators               # Trained emulators
-    └── nroy_fraction           # Fresh-LHS acceptance rate (convergence diagnostic)
+    └── nroy_fraction           # Share of fresh prior samples still in the NROY region (convergence diagnostic)
 ```
 
 ## When to use history matching

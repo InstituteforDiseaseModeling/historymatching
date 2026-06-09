@@ -45,6 +45,7 @@ nav:
       - NROY sampling methods: tutorials/06_nroy_sampling_methods.ipynb
       - Visualization: tutorials/07_visualization.ipynb
   - Usage guide: usage.md
+  - Glossary: glossary.md
   - API reference: api.md
   - Contributing: contributing.md
   - Migrating to v2: migration.md
