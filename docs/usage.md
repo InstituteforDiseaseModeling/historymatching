@@ -1,6 +1,6 @@
 # Usage guide
 
-This guide covers the core concepts and common patterns for using the history matching library. For definitions of history-matching-specific terms (NROY, wave, implausibility, Fano factor, ARD, …), see the [Glossary](glossary.md).
+This guide covers the core concepts and common patterns for using the history matching library.
 
 ## Core concepts
 

@@ -2,7 +2,7 @@
 
 History matching is an iterative calibration technique that progressively rules out regions of parameter space that are *implausible* — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it identifies the set of all parameter combinations that could plausibly have produced the observed data. That surviving set is called the **NROY** ("Not Ruled Out Yet") region, and it is the central output of the method.
 
-Each iteration is called a **wave**. Unfamiliar terms (NROY, implausibility, emulator, Fano factor, ARD, …) are collected in the [Glossary](glossary.md).
+Each iteration is called a **wave**.
 
 ## How it works
 
