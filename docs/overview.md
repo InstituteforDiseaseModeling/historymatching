@@ -8,20 +8,48 @@ Each iteration of the algorithm:
 
 1. **Sample** points from the current non-implausible parameter space
 2. **Simulate** the model at each sample point
-3. **Select features** — choose which model outputs to emulate
-4. **Train emulators** — build fast statistical surrogates (e.g., Gaussian Process Regression) of the simulation
-5. **Filter** — use emulator predictions and implausibility scores to discard implausible regions
+3. **Select features** — choose which model outputs to emulate (ranked by mean-squared z-score, or specified manually)
+4. **Train emulators** — build fast statistical surrogates (Bayes linear by default; Gaussian Process Regression and others available) of the simulation
+5. **Find non-implausible points** — generate candidate points and keep those consistent with the observations across *all* emulators trained so far (the NROY set — "Not Ruled Out Yet" — found via LHS or ray sampling); these seed the next iteration
 
-The parameter space shrinks with each iteration until it converges on the region consistent with observations.
+The non-implausible (NROY) set shrinks with each iteration until it converges on the region consistent with observations.
+
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '14px'}, 'flowchart': {'rankSpacing': 38, 'nodeSpacing': 28}}}%%
+flowchart TD
+    Start(["Parameter space"]) -- "Initial points" --> Sim["Simulate points"]
+    Sim --> Feat["Select features"]
+    Feat --> Train["Train emulators"]
+    Train -- "Add to bank" --> Bank[("Cumulative<br>emulator bank")]
+    Obs[/"Observations"/] --> NROY
+    Bank --> NROY["Find NROY points"]
+    NROY --> Conv{"Converged?"}
+    Conv -- "No — simulate<br>the NROY points" --> Sim
+    Conv -- "Yes" --> Traj(["Trajectory selection"])
+```
+
+Each step is detailed in the list above. Two things the diagram makes explicit: candidate points are tested against the **entire emulator bank accumulated over all waves** (not just the latest), and the **NROY points found each wave become the next wave's simulation inputs**. On convergence you keep that bank plus a sample of points inside the final NROY region — from which [trajectory selection](tutorials/05_trajectory_selection.ipynb) realizes concrete `(θ, seed)` pairs — where `θ` is the parameter vector — via a Bayesian method such as sampling importance resampling on a likelihood.
 
 ## Key features
 
 - **Single-constructor API**: Configure an entire workflow in one `HistoryMatching(...)` call
 - **Interactive engine**: Step-by-step control with `step()` / `commit_step()` / `revert_step()`, or fully automated execution with `run()`
-- **Multiple emulators**: Linear, GLM, and Gaussian Process Regression (GPflow-based with ARD kernels)
-- **Pluggable strategies**: Swap sampling (LHS, grid, random), feature selection (auto Fano-factor, manual), and emulator types at any point
+- **Multiple emulators**: Bayes linear (the default — nearly GPR-quality at a fraction of the cost), linear, GLM, and Gaussian Process Regression (GPflow-based with ARD kernels)
+- **Pluggable strategies**: Swap sampling (LHS, grid, random), feature selection (automatic by mean-squared z-score, or manual), and emulator types at any point
 - **Domain objects**: `ParameterSpace`, `ObservationData`, `EmulatorBank`, and `IterationResult` for clean data management
 - **Checkpoint/resume**: Save and restore engine state for long-running workflows
+
+## When to use history matching
+
+History matching is well-suited for:
+
+- **Expensive simulations** where each run takes minutes to hours
+- **Multiple uncertain parameters** (2-20+ dimensions)
+- **Multiple output features** to match against observations
+- **Uncertainty quantification** — you want the set of plausible parameters, not just a point estimate
+- **Iterative refinement** — you want to progressively learn which regions of parameter space are viable
+
+It complements other calibration approaches like MCMC (which finds posterior distributions) and optimization (which finds point estimates).
 
 ## Architecture
 
@@ -44,15 +72,3 @@ IterationResult                 # Immutable results per iteration
     ├── emulators               # Trained emulators
     └── nroy_fraction           # Fresh-LHS acceptance rate (convergence diagnostic)
 ```
-
-## When to use history matching
-
-History matching is well-suited for:
-
-- **Expensive simulations** where each run takes minutes to hours
-- **Multiple uncertain parameters** (2-20+ dimensions)
-- **Multiple output features** to match against observations
-- **Uncertainty quantification** — you want the set of plausible parameters, not just a point estimate
-- **Iterative refinement** — you want to progressively learn which regions of parameter space are viable
-
-It complements other calibration approaches like MCMC (which finds posterior distributions) and optimization (which finds point estimates).
