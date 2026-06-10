@@ -22,7 +22,9 @@ pip install "historymatching[notebooks,mac]"
 ```
 
 If you use [uv](https://docs.astral.sh/uv/), `uv pip install historymatching` is a
-faster drop-in replacement for `pip install`.
+faster drop-in replacement for `pip install`. And if you maintain your own project
+with a `pyproject.toml`, `uv add historymatching` installs it *and* records it as a
+dependency there.
 
 !!! note "Apple Silicon (Metal GPU)"
     The `mac` extra installs the TensorFlow Metal plugin for GPU acceleration. Note

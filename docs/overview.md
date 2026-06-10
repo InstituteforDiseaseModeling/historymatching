@@ -10,9 +10,9 @@ Each iteration of the algorithm:
 2. **Simulate** the model at each sample point
 3. **Select features** — choose which model outputs to emulate (ranked by mean-squared z-score, or specified manually)
 4. **Train emulators** — build fast statistical surrogates (Bayes linear by default; Gaussian Process Regression and others available) of the simulation
-5. **Find non-implausible points** — generate candidate points and keep those consistent with the observations across *all* emulators trained so far (the NROY set — "Not Ruled Out Yet" — found via LHS or ray sampling); these seed the next iteration
+5. **Find non-implausible points** — generate candidate points and keep those consistent with the observations across *all* emulators trained so far (found via LHS or ray sampling); these seed the next iteration
 
-The non-implausible (NROY) set shrinks with each iteration until it converges on the region consistent with observations.
+The set of parameters that survive this filtering — the **NROY** set, short for *Not Ruled Out Yet* — shrinks with each iteration, converging on the region of parameter space consistent with the observations.
 
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '14px'}, 'flowchart': {'rankSpacing': 38, 'nodeSpacing': 28}}}%%
@@ -28,7 +28,7 @@ flowchart TD
     Conv -- "Yes" --> Traj(["Trajectory selection"])
 ```
 
-Each step is detailed in the list above. Two things the diagram makes explicit: candidate points are tested against the **entire emulator bank accumulated over all waves** (not just the latest), and the **NROY points found each wave become the next wave's simulation inputs**. On convergence you keep that bank plus a sample of points inside the final NROY region — from which [trajectory selection](tutorials/05_trajectory_selection.ipynb) realizes concrete `(θ, seed)` pairs — where `θ` is the parameter vector — via a Bayesian method such as sampling importance resampling on a likelihood.
+Each step is detailed in the list above. Two things the diagram makes explicit: candidate points are tested against the **entire emulator bank accumulated over all waves** (not just the latest), and the **NROY points found each wave become the next wave's simulation inputs**. On convergence you keep that bank plus a sample of points inside the final NROY region — from which [trajectory selection](tutorials/07_trajectory_selection.ipynb) realizes concrete `(θ, seed)` pairs — where `θ` is the parameter vector — via a Bayesian method such as sampling importance resampling on a likelihood.
 
 ## Key features
 

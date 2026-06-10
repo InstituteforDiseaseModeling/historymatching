@@ -37,13 +37,15 @@ nav:
   - Installation: installation.md
   - Tutorials:
       - Tutorials index: tutorials.md
-      - Basic workflow: tutorials/01_basic_workflow.ipynb
-      - Manual workflow: tutorials/02_manual_workflow.ipynb
-      - Advanced configuration: tutorials/03_advanced_configuration.ipynb
-      - Emulator showcase: tutorials/04_emulator_showcase.ipynb
-      - Trajectory selection: tutorials/05_trajectory_selection.ipynb
-      - NROY sampling methods: tutorials/06_nroy_sampling_methods.ipynb
-      - Visualization: tutorials/07_visualization.ipynb
+      # Notebook nav labels come from each notebook's H1 (mkdocs-jupyter
+      # overrides nav titles), so we list the files and let the H1 drive.
+      - tutorials/01_basic_workflow.ipynb
+      - tutorials/02_manual_workflow.ipynb
+      - tutorials/03_advanced_configuration.ipynb
+      - tutorials/04_emulator_showcase.ipynb
+      - tutorials/05_nroy_sampling_methods.ipynb
+      - tutorials/06_visualization.ipynb
+      - tutorials/07_trajectory_selection.ipynb
   - Usage guide: usage.md
   - API reference: api.md
   - Contributing: contributing.md

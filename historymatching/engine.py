@@ -198,8 +198,8 @@ class HistoryMatching:
     Examples:
         import historymatching as hm
 
-        # The simulator takes a DataFrame of samples and returns one row of
-        # outputs per sample.  Each output name must match an observation key.
+        # The simulator takes a DataFrame of samples and returns one row of outputs per sample.
+        # Each output name must match an observation key.
         def run_sir(samples):
             rows = []
             for _, row in samples.iterrows():
