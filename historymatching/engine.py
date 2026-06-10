@@ -997,6 +997,7 @@ class HistoryMatching:
             KeyError: If the feature was not emulated in the pending step.
 
         Example:
+            ```python
             result = engine.step()
 
             metrics = result.get_emulator_quality_metrics()
@@ -1006,6 +1007,7 @@ class HistoryMatching:
             # Drop any emulator with a poor fit before committing
             engine.drop_emulator_from_pending('output_c')
             engine.commit_step()
+            ```
         """
         if self._pending_snapshot is None:
             raise RuntimeError(
