@@ -71,7 +71,7 @@ engine = hm.HistoryMatching(
     emulator_type='bayes_linear',                            # Statistical surrogate type (default)
     n_samples=500,                                           # Parameter samples per wave (one wave = one iteration)
     max_iterations=10,                                       # Stopping criterion
-    implausibility_threshold=3.0,                            # Drop points >3 std devs from target (the "3-sigma" rule)
+    implausibility_threshold=3.0,                            # Drop points >3 std devs from target (~95% for any unimodal dist.; see Glossary)
     random_seed=42,                                          # Reproducibility
 )
 ```
@@ -152,7 +152,7 @@ engine.commit_step()
 
 ## Emulator types
 
-The library includes four emulator types:
+The library includes four [emulator](glossary.md#emulator) types:
 
 | Emulator | Best for | Speed | Uncertainty |
 |----------|----------|-------|-------------|
@@ -218,7 +218,7 @@ hm_output/my_calibration/
       ...
     convergence.png         # NROY fraction bar chart
     zscores_vs_targets.png  # sim outputs vs ALL targets across waves
-    pairplot.png            # parameter space shrinkage (top 8 parameters by ARD relevance)
+    pairplot.png            # parameter space shrinkage (top 8 most-constrained parameters)
     nroy_samples.csv        # candidates for next wave
   wave2/
     ...
@@ -257,7 +257,9 @@ loaded.function = my_model
 ## NROY samples and trajectory selection
 
 The **NROY** ("Not Ruled Out Yet") region is the part of parameter space that has
-not been ruled out as implausible — see the [Glossary](glossary.md#nroy).
+not been ruled out as [implausible](glossary.md#implausibility) — see the
+[Glossary](glossary.md#nroy).
+
 After `run()` completes, draw NROY samples filtered through ALL emulators:
 
 ```python

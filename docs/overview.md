@@ -1,8 +1,8 @@
 # Overview
 
-History matching is an iterative calibration technique that progressively rules out regions of parameter space that are *implausible* — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it identifies the set of all parameter combinations that could plausibly have produced the observed data. That surviving set is called the **NROY** ("Not Ruled Out Yet") region, and it is the central output of the method.
+History matching is an iterative calibration technique that progressively rules out regions of parameter space that are [*implausible*](glossary.md#implausibility) — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it maps out the whole region of parameter space that is not inconsistent with the data — a region you can then sample from. That surviving region is called the [**NROY**](glossary.md#nroy) ("Not Ruled Out Yet") region, and it is the central output of the method.
 
-Each iteration is called a **wave**.
+Each iteration is called a [**wave**](glossary.md#wave).
 
 ## How it works
 
@@ -10,8 +10,8 @@ Each iteration of the algorithm:
 
 1. **Sample** points from the current non-implausible parameter space
 2. **Simulate** the model at each sample point
-3. **Select features** — choose which model outputs to emulate
-4. **Train emulators** — build fast statistical surrogates (e.g., Gaussian Process Regression) of the simulation
+3. **Select [features](glossary.md#feature-output)** — choose which model outputs to emulate
+4. **Train [emulators](glossary.md#emulator)** — build fast statistical surrogates (e.g., Gaussian Process Regression) of the simulation
 5. **Filter** — use emulator predictions and implausibility scores to discard implausible regions
 
 The parameter space shrinks with each iteration until it converges on the region consistent with observations.
@@ -20,8 +20,8 @@ The parameter space shrinks with each iteration until it converges on the region
 
 - **Single-constructor API**: Configure an entire workflow in one `HistoryMatching(...)` call
 - **Interactive engine**: Step-by-step control with `step()` / `commit_step()` / `revert_step()`, or fully automated execution with `run()`
-- **Multiple emulators**: Linear, GLM, and Gaussian Process Regression (GPflow-based with ARD — Automatic Relevance Determination — kernels)
-- **Pluggable strategies**: Swap sampling (LHS, grid, random), feature selection (automatic by Fano factor — the variance-to-mean ratio of each output — or manual), and emulator types at any point
+- **Multiple emulators**: [Bayes linear](glossary.md#bayes-linear) (the default), [Linear](glossary.md#linear), [GLM](glossary.md#glm), and [Gaussian Process Regression](glossary.md#gpr) (GPflow-based with [ARD](glossary.md#ard) — Automatic Relevance Determination — kernels)
+- **Pluggable strategies**: Swap sampling ([LHS](glossary.md#lhs), grid, random), feature selection (automatic by [mean squared z-score](glossary.md#mean-sq-z) — how far each output sits from its target — or manual), and emulator types at any point
 - **Domain objects**: `ParameterSpace`, `ObservationData`, `EmulatorBank`, and `IterationResult` for clean data management
 - **Checkpoint/resume**: Save and restore engine state for long-running workflows
 

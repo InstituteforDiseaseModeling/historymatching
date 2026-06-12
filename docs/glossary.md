@@ -10,17 +10,24 @@ history matching itself.
 A Gaussian Process kernel parameterization that fits a separate lengthscale to
 each input parameter. A short lengthscale means the output varies quickly with
 that parameter (it is "relevant"); a long one means the output barely depends on
-it. Ranking parameters by ARD lengthscale shows which ones the data constrains
-most — this is what the `pairplot.png` diagnostic uses to pick its "top 8"
-parameters. Used by the [GPR](#gpr) emulator.
+it. Used by the [GPR](#gpr) emulator. (ARD reflects emulator sensitivity to the
+current wave's target features; the `pairplot.png` diagnostic ranks parameters
+differently — by overall constraint across all waves — so it does not use ARD.)
 
 ### Bayes linear emulator { #bayes-linear }
 
-The default emulator (`emulator_type='bayes_linear'`). It fits a linear model
-but, in the Bayes linear tradition, tracks the full predictive *uncertainty*
-(expectation and variance) rather than just a point estimate — giving
-Gaussian-Process-like calibrated error bars without the cost or the TensorFlow
-dependency of [GPR](#gpr). Implemented in pure NumPy/SciPy.
+The default emulator (`emulator_type='bayes_linear'`). It combines a linear
+regression *trend* with a correlated-residual process (a squared-exponential
+kernel whose correlation lengths are fit by maximum likelihood) — effectively a
+Gaussian process with a linear mean. In the Bayes linear tradition it tracks the
+full predictive *uncertainty* (an adjusted expectation and variance) rather than
+just a point estimate, giving calibrated error bars at a fraction of the cost of
+[GPR](#gpr) and with no TensorFlow dependency. Implemented in pure NumPy/SciPy.
+
+$$ y(x) = \underbrace{\beta_0 + \textstyle\sum_j \beta_j x_j}_{\text{linear trend}} + r(x), \qquad r(\cdot) \sim \mathcal{GP}\!\left(0,\, \sigma^2 k\right), \qquad k(x, x') = \exp\!\left(-\sum_j \frac{(x_j - x'_j)^2}{\theta_j^2}\right) $$
+
+with trend coefficients $\beta$ (fit by OLS), residual variance $\sigma^2$, and a
+per-parameter correlation length $\theta_j$ fit by maximum likelihood.
 
 ### Emulator (surrogate) { #emulator }
 
@@ -45,39 +52,72 @@ for (e.g. peak incidence, attack rate, cases in week 1). The two words are used
 interchangeably: "feature selection" chooses which model *outputs* to emulate in
 a given wave. Each selected feature gets its own emulator.
 
+### GLM — Generalized Linear Model { #glm }
+
+An emulator (`emulator_type='glm'`) that fits a linear predictor through a link
+function $g$:
+
+$$ g\!\left(\mathbb{E}[y(x)]\right) = \beta_0 + \sum_j \beta_j x_j $$
+
+With the default Gaussian family ($g$ = identity) it reduces to the
+[linear emulator](#linear); with the Poisson family ($g = \log$,
+`link='poisson'`) it models non-negative count outputs.
+
 ### GPR — Gaussian Process Regression { #gpr }
 
-A flexible, nonlinear emulator (`emulator_type='gpr'`) built on GPflow/
-TensorFlow with [ARD](#ard) kernels. Best for nonlinear response surfaces and
-excellent uncertainty estimates, at a higher computational cost than the linear
-emulators.
+A flexible, nonlinear emulator (`emulator_type='gpr'`) built on
+[GPflow](https://www.gpflow.org/)/TensorFlow with [ARD](#ard) kernels. Best for
+nonlinear response surfaces and excellent uncertainty estimates, at a higher
+computational cost than the linear emulators.
+
+$$ y(x) \sim \mathcal{GP}(m,\, k), \qquad k(x, x') = \sigma_f^2 \exp\!\left(-\tfrac{1}{2}\sum_j \frac{(x_j - x'_j)^2}{\ell_j^2}\right) $$
+
+with a constant mean $m$, signal variance $\sigma_f^2$, observation-noise
+variance $\sigma_n^2$, and a separate lengthscale $\ell_j$ per parameter
+([ARD](#ard)).
 
 ### Implausibility { #implausibility }
 
 A score measuring how inconsistent a parameter value is with one observation,
 expressed in standard deviations. For output $f$ at parameter $x$:
 
-$$ I(x) = \frac{\left|\, \mathbb{E}[f(x)] - z \,\right|}{\sqrt{\operatorname{Var}_{\text{emulator}} + \operatorname{Var}_{\text{obs}}}} $$
+$$ I(x) = \frac{\left|\, \mathbb{E}[f(x)] - z \,\right|}{\sqrt{\operatorname{Var}_{\text{emulator}} + \operatorname{Var}_{\text{obs}} + \sigma_{\text{disc}}^2}} $$
 
 where $z$ is the observed target and the denominator combines the emulator's
-predictive variance with the observation's variance. With several outputs, the
-implausibility of a point is the **maximum** over all outputs, so a point must
-be consistent with *every* constraint to survive. A point is *ruled out* when
-its implausibility exceeds the [threshold](#implausibility-threshold).
+predictive variance, the observation's variance, and an optional **model
+discrepancy** $\sigma_{\text{disc}}$ — a standard deviation accounting for
+structural mismatch between the simulator and reality (`model_discrepancy`,
+default `0`). With several outputs, the implausibility of a point is the
+**maximum** over all outputs, so a point must be consistent with *every*
+constraint to survive. A point is *ruled out* when its implausibility exceeds
+the [threshold](#implausibility-threshold).
 
 ### Implausibility threshold { #implausibility-threshold }
 
 The implausibility cutoff above which a parameter value is discarded
 (`implausibility_threshold`, default `3.0`). The default of 3 follows the
-"3-sigma" rule: under a roughly normal error, a consistent point lies within ≈3
-standard deviations of its target ~99.7% of the time, so a higher score is
-strong evidence the point is implausible.
+**Vysochanskij–Petunin inequality** (popularized as Pukelsheim's "three-sigma
+rule"): for *any* unimodal distribution with finite variance — not just a normal
+one — at least ~95% of the probability mass lies within 3 standard deviations of
+the mean. So an implausibility above 3 is strong, distribution-free evidence
+that the point is inconsistent with the observation.
 
 ### LHS — Latin Hypercube Sampling { #lhs }
 
 A space-filling experimental design that spreads sample points evenly across
 every parameter's range. The default sampling strategy (`'lhs'`); better coverage
 than uniform random sampling for the same number of points.
+
+### Linear emulator { #linear }
+
+The simplest emulator (`emulator_type='linear'`): an ordinary least-squares fit
+
+$$ y(x) = \beta_0 + \sum_j \beta_j x_j + \varepsilon, \qquad \varepsilon \sim \mathcal{N}(0, \sigma^2) $$
+
+with predictive uncertainty taken from the OLS standard errors. Fast and
+interpretable, but assumes the response is linear in the parameters — see
+[GLM](#glm) for non-Gaussian outputs, or [Bayes linear](#bayes-linear) and
+[GPR](#gpr) for nonlinear response surfaces.
 
 ### Maximin { #maximin }
 
