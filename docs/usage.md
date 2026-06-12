@@ -69,9 +69,9 @@ engine = hm.HistoryMatching(
     sampling_strategy={'type': 'lhs', 'criterion': 'maximin'},  # How to sample
     feature_selection={'method': 'fano', 'max_features': 3},    # Which outputs to emulate
     emulator_type='bayes_linear',                            # Statistical surrogate type (default)
-    n_samples=500,                                           # Parameter samples per wave
+    n_samples=500,                                           # Parameter samples per wave (one wave = one iteration)
     max_iterations=10,                                       # Stopping criterion
-    implausibility_threshold=3.0,                            # Implausibility cutoff
+    implausibility_threshold=3.0,                            # Drop points >3 std devs from target (the "3-sigma" rule)
     random_seed=42,                                          # Reproducibility
 )
 ```
@@ -184,7 +184,7 @@ hm.HistoryMatching(..., emulator_type='glm')          # Generalized linear model
 |----------|-------------|
 | Manual list | Specify exact outputs: `['peak_infected', 'total_cases']` |
 | `{'method': 'mean_sq_z'}` | Automatic selection by mean squared z-score — how far each output sits from its target in std units (default) |
-| `{'method': 'fano'}` | Automatic selection via Fano factor |
+| `{'method': 'fano'}` | Automatic selection via Fano factor — the variance-to-mean ratio of each output |
 | `{'method': 'var'}` | Automatic selection via variance |
 
 ## Output and checkpoints
@@ -218,7 +218,7 @@ hm_output/my_calibration/
       ...
     convergence.png         # NROY fraction bar chart
     zscores_vs_targets.png  # sim outputs vs ALL targets across waves
-    pairplot.png            # parameter space shrinkage (top 8 by ARD)
+    pairplot.png            # parameter space shrinkage (top 8 parameters by ARD relevance)
     nroy_samples.csv        # candidates for next wave
   wave2/
     ...
@@ -256,6 +256,8 @@ loaded.function = my_model
 
 ## NROY samples and trajectory selection
 
+The **NROY** ("Not Ruled Out Yet") region is the part of parameter space that has
+not been ruled out as implausible — see the [Glossary](glossary.md#nroy).
 After `run()` completes, draw NROY samples filtered through ALL emulators:
 
 ```python
