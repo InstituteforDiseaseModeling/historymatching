@@ -47,6 +47,7 @@ nav:
       - tutorials/06_visualization.ipynb
       - tutorials/07_trajectory_selection.ipynb
   - Usage guide: usage.md
+  - Glossary: glossary.md
   - API reference: api.md
   - Contributing: contributing.md
   - Migrating to v2: migration.md
@@ -73,8 +74,11 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
 
 extra_javascript:
+  - javascripts/mathjax.js
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 extra_css:

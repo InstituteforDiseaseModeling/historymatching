@@ -1,6 +1,8 @@
 # Overview
 
-History matching is an iterative calibration technique that progressively rules out regions of parameter space that are *implausible* — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it identifies the set of all parameter combinations that could plausibly have produced the observed data.
+History matching is an iterative calibration technique that progressively rules out regions of parameter space that are [*implausible*](glossary.md#implausibility) — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it maps out the whole region of parameter space that is not inconsistent with the data — a region you can then sample from. That surviving region is called the [**NROY**](glossary.md#nroy) ("Not Ruled Out Yet") region, and it is the central output of the method.
+
+Each iteration is called a [**wave**](glossary.md#wave).
 
 ## How it works
 
@@ -8,11 +10,11 @@ Each iteration of the algorithm:
 
 1. **Sample** points from the current non-implausible parameter space
 2. **Simulate** the model at each sample point
-3. **Select features** — choose which model outputs to emulate (ranked by mean-squared z-score, or specified manually)
-4. **Train emulators** — build fast statistical surrogates (Bayes linear by default; Gaussian Process Regression and others available) of the simulation
-5. **Find non-implausible points** — generate candidate points and keep those consistent with the observations across *all* emulators trained so far (found via LHS or ray sampling); these seed the next iteration
+3. **Select [features](glossary.md#feature-output)** — choose which model outputs to emulate (ranked by [mean-squared z-score](glossary.md#mean-sq-z), or specified manually)
+4. **Train [emulators](glossary.md#emulator)** — build fast statistical surrogates (Bayes linear by default; Gaussian Process Regression and others available) of the simulation
+5. **Find non-implausible points** — generate candidate points and keep those consistent with the observations across *all* emulators trained so far (found via [LHS](glossary.md#lhs) or [ray sampling](glossary.md#ray-resample)); these seed the next iteration
 
-The set of parameters that survive this filtering — the **NROY** set, short for *Not Ruled Out Yet* — shrinks with each iteration, converging on the region of parameter space consistent with the observations.
+The set of parameters that survive this filtering — the **NROY** set — shrinks with each iteration, converging on the region of parameter space consistent with the observations.
 
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '14px'}, 'flowchart': {'rankSpacing': 38, 'nodeSpacing': 28}}}%%
@@ -34,7 +36,7 @@ Each step is detailed in the list above. Two things the diagram makes explicit: 
 
 - **Single-constructor API**: Configure an entire workflow in one `HistoryMatching(...)` call
 - **Interactive engine**: Step-by-step control with `step()` / `commit_step()` / `revert_step()`, or fully automated execution with `run()`
-- **Multiple emulators**: Bayes linear (the default — nearly GPR-quality at a fraction of the cost), linear, GLM, and Gaussian Process Regression (GPflow-based with ARD kernels)
+- **Multiple emulators**: [Bayes linear](glossary.md#bayes-linear) (the default — nearly GPR-quality at a fraction of the cost), [linear](glossary.md#linear), [GLM](glossary.md#glm), and [Gaussian Process Regression](glossary.md#gpr) (GPflow-based with [ARD](glossary.md#ard) kernels)
 - **Pluggable strategies**: Swap sampling (LHS, grid, random), feature selection (automatic by mean-squared z-score, or manual), and emulator types at any point
 - **Domain objects**: `ParameterSpace`, `ObservationData`, `EmulatorBank`, and `IterationResult` for clean data management
 - **Checkpoint/resume**: Save and restore engine state for long-running workflows
@@ -70,5 +72,5 @@ IterationResult                 # Immutable results per iteration
     ├── samples                 # Parameter samples used
     ├── simulation_results      # Model outputs
     ├── emulators               # Trained emulators
-    └── nroy_fraction           # Fresh-LHS acceptance rate (convergence diagnostic)
+    └── nroy_fraction           # Share of fresh prior samples still in the NROY region (convergence diagnostic)
 ```
