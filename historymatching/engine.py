@@ -1552,9 +1552,13 @@ class HistoryMatching:
             try:
                 if not getattr(emulator, 'testing_complete', False):
                     emulator.test()
-                emulator.plot_diagnostics()
                 import matplotlib.pyplot as plt
-                for i, fig_num in enumerate(plt.get_fignums()[-4:]):  # plot_diagnostics creates up to 4 figs
+                before = set(plt.get_fignums())
+                emulator.plot_diagnostics()
+                # Save and close exactly the figures plot_diagnostics created (the
+                # count varies by emulator), so none leak into an inline session.
+                new_figs = [n for n in plt.get_fignums() if n not in before]
+                for i, fig_num in enumerate(new_figs):
                     plt.figure(fig_num)
                     sc.savefig(feat_dir / f"diagnostics_{i}.png", **SAVE_KW)
                     plt.close(fig_num)
