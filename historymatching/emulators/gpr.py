@@ -85,13 +85,16 @@ class GPR(BaseEmulator):
             ),
             mean_function=gpflow.mean_functions.Constant(),
         )
-        # GPflow's default likelihood.variance transform is Shift+Softplus
-        # with a hard floor at ~1e-6.  For stochastic simulators the
-        # optimizer gets trapped at that floor and the GP becomes
-        # overconfident.  Plain Softplus (no shift) lets the noise
-        # variance be optimized freely from any starting point.
+        # Bound the noise variance with a small lower limit.  GPflow's default
+        # Shift+Softplus transform traps the optimizer at its ~1e-6 floor (→ an
+        # overconfident GP), so we use a plain positive bijector — but with no
+        # lower bound the variance collapses toward 0 on near-deterministic
+        # outputs, making K + σ²I singular and failing the Cholesky inside
+        # predict_f (NaN variances, plus noisy TF Cholesky logs).  A lower bound
+        # of 1e-4 (in standardized output units) keeps K positive-definite while
+        # still letting the variance grow freely upward.
         self.model.likelihood.variance = gpflow.Parameter(
-            1.0, transform=gpflow.utilities.positive(),
+            1.0, transform=gpflow.utilities.positive(lower=1e-4),
         )
         opt = gpflow.optimizers.Scipy()
         self.opt_logs = opt.minimize(self.model.training_loss, self.model.trainable_variables)
@@ -118,24 +121,8 @@ class GPR(BaseEmulator):
 
         # Normalize inputs using training-set min/range
         x_gpf = self._normalize_x(x)
-
-        # GPflow adds `jitter` to the covariance diagonal before its Cholesky.
-        # Tightly clustered training points (common in later HM waves) can leave
-        # the matrix near-singular at the 1e-6 default, so the decomposition
-        # fails and GPflow returns NaN variances (with noisy TF Cholesky logs).
-        # Start from a slightly larger jitter and escalate until the predictive
-        # variance is finite.
-        for jitter in (1e-4, 1e-3, 1e-2):
-            with gpflow.config.as_context(gpflow.config.Config(jitter=jitter)):
-                f_mean_z, f_var_z = self.model.predict_f(x_gpf, full_cov=False)
-                y_mean_z, y_var_z = self.model.predict_y(x_gpf)
-            if np.all(np.isfinite(f_var_z.numpy())) and np.all(np.isfinite(y_var_z.numpy())):
-                break
-        else:
-            logger.warning(
-                "GPR predict: covariance remained non-positive-definite up to "
-                "jitter=1e-2; some predictive variances are NaN."
-            )
+        f_mean_z, f_var_z = self.model.predict_f(x_gpf, full_cov=False)
+        y_mean_z, y_var_z = self.model.predict_y(x_gpf)
 
         # Convert to numpy arrays and flatten for pandas compatibility
         def to_flat(tensor_or_array):
