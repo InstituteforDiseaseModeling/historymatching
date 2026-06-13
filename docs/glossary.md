@@ -81,13 +81,14 @@ variance $\sigma_n^2$, and a separate lengthscale $\ell_j$ per parameter
 A score measuring how inconsistent a parameter value is with one observation,
 expressed in standard deviations. For output $f$ at parameter $x$:
 
-$$ I(x) = \frac{\left|\, \mathbb{E}[f(x)] - z \,\right|}{\sqrt{\operatorname{Var}_{\text{emulator}} + \operatorname{Var}_{\text{obs}} + \sigma_{\text{disc}}^2}} $$
+$$ I(x) = \frac{\left|\, \mathbb{E}[f(x)] - z \,\right|}{\sqrt{\operatorname{Var}_{\text{emulator}} + \operatorname{Var}_{\text{obs}} + \operatorname{Var}_{\text{disc}}}} $$
 
 where $z$ is the observed target and the denominator combines the emulator's
 predictive variance, the observation's variance, and an optional **model
-discrepancy** $\sigma_{\text{disc}}$ — a standard deviation accounting for
-structural mismatch between the simulator and reality (`model_discrepancy`,
-default `0`). With several outputs, the implausibility of a point is the
+discrepancy** variance accounting for structural mismatch between the simulator
+and reality. (The discrepancy is supplied as a standard deviation
+$\sigma_{\text{disc}}$ and enters as its square, $\operatorname{Var}_{\text{disc}} = \sigma_{\text{disc}}^2$ — `model_discrepancy`, default `0`.)
+With several outputs, the implausibility of a point is the
 **maximum** over all outputs, so a point must be consistent with *every*
 constraint to survive. A point is *ruled out* when its implausibility exceeds
 the [threshold](#implausibility-threshold).
