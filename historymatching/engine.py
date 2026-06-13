@@ -1616,7 +1616,8 @@ class HistoryMatching:
 
                     n_targets = len(target_names)
                     n_waves = len(all_results)
-                    wave_colors = sc.vectocolor(n_waves, cmap=WAVE_CMAP)
+                    # vectocolor normalizes (v - min)/(max - min); a single wave is 0/0, so pad to 2 and trim.
+                    wave_colors = sc.vectocolor(max(n_waves, 2), cmap=WAVE_CMAP)[:n_waves]
                     bar_width = 0.8 / n_waves
 
                     fig, ax = plt.subplots(figsize=(max(14, n_targets * 0.7), 7))
@@ -1723,7 +1724,8 @@ class HistoryMatching:
                 show_indices = np.linspace(0, len(all_results) - 1, n_show, dtype=int)
                 show_results = [all_results[i] for i in show_indices]
 
-                wave_colors = sc.vectocolor(n_show, cmap=WAVE_CMAP)
+                # vectocolor normalizes (v - min)/(max - min); a single wave is 0/0, so pad to 2 and trim.
+                wave_colors = sc.vectocolor(max(n_show, 2), cmap=WAVE_CMAP)[:n_show]
                 fig, axes = plt.subplots(n_pars, n_pars, figsize=(2.2 * n_pars, 2.2 * n_pars))
                 if n_pars == 1:
                     axes = np.array([[axes]])
