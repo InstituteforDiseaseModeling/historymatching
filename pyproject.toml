@@ -30,7 +30,7 @@ classifiers = [
     "Operating System :: Unix",
     "Operating System :: POSIX",
     "Operating System :: MacOS",
-    "Operating System :: Windows",
+    "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Topic :: Utilities",
 ]
