@@ -14,7 +14,7 @@ authors = [
     {name = "Rafael C. Nunez"},
     {name = "Richard Barnes"},
     {name = "Christopher Lorton"},
-    {name = "Cliff Kerr"},
+    {name = "Cliff C. Kerr"},
 ]
 keywords = [
     "Bayesian History Matching",
@@ -68,8 +68,8 @@ docs = [
 ]
 
 [project.urls]
-Documentation = "https://docs.idmod.org/projects/historymatching/"
-Changelog = "https://docs.idmod.org/projects/historymatching/en/latest/changelog.html"
+Documentation = "https://docs.idmod.org/historymatching/"
+Changelog = "https://docs.idmod.org/historymatching/whatsnew/"
 "Issue Tracker" = "https://github.com/InstituteforDiseaseModeling/historymatching/issues"
 Repository = "https://github.com/InstituteforDiseaseModeling/historymatching"
 
