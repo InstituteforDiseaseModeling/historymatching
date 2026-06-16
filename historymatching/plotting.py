@@ -435,7 +435,8 @@ def plot_zscores_vs_targets(
         raise ValueError("No overlapping targets/waves to plot.")
 
     fig, ax = _get_ax(ax, (max(14, n_targets * 0.7), 7))
-    wave_colors = sc.vectocolor(n_waves, cmap=WAVE_CMAP)
+    # vectocolor normalizes (v - min)/(max - min); a single wave is 0/0, so pad to 2 and trim.
+    wave_colors = sc.vectocolor(max(n_waves, 2), cmap=WAVE_CMAP)[:n_waves]
     bar_width = 0.8 / n_waves
     ymin_data = ymax_data = 0.0
 

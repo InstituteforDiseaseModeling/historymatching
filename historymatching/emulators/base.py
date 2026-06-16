@@ -210,11 +210,12 @@ class BaseEmulator:
         params = self.X_df.columns
         n_params = len( params )
 
+        feature = self.y_df.columns[0] if self.y_df is not None and len(self.y_df.columns) else "output"
         residuals = np.square(self.y_test.flatten() - self.y_test_pred)
         residuals_df = pd.DataFrame( self.X_test_df )
-        residuals_df['residual'] = residuals
+        residuals_df['squared residual'] = residuals
 
-        # Draw plot (wrap to max 5 columns)
+        # Draw plot (one panel per parameter, wrapped to max 5 columns)
         max_cols = min(5, n_params)
         n_cols = max(1, max_cols)
         n_rows = int(np.ceil(n_params / n_cols))
@@ -222,10 +223,13 @@ class BaseEmulator:
                                 sharey=True, squeeze=False)
         axs = axs.flatten()
         for i, param in enumerate(params):
-            residuals_df.plot.scatter(x=param, y='residual', title='Residuals',
-                                     legend=False, ax=axs[i])
+            residuals_df.plot.scatter(x=param, y='squared residual', legend=False, ax=axs[i])
+            # With a shared y-axis, only the leftmost column needs the label
+            if i % n_cols != 0:
+                axs[i].set_ylabel('')
         for i in range(n_params, len(axs)):
             axs[i].set_visible(False)
+        fig.suptitle(f"Emulator squared residuals — {feature}")
         fig.tight_layout()
         
         return
@@ -237,6 +241,7 @@ class BaseEmulator:
         # Get data
         params = self.X_df.columns
         n_params = len( params )
+        feature = self.y_df.columns[0] if self.y_df is not None and len(self.y_df.columns) else "output"
         predictions_df = self.X_test_df.copy()
         predictions_df['true'] = self.y_test
         predictions_df['prediction'] = self.y_test_pred_results.get_mean()
@@ -273,7 +278,9 @@ class BaseEmulator:
         for i, param in enumerate(params):
             predictions_correct.plot( x=param, y='prediction (correct)', style='s', color='tab:green', ax=axs[i] )
             predictions_failed .plot( x=param, y='prediction (failed)' , style='o', color='tab:red'  , ax=axs[i] )
-            predictions_df.plot( x=param, y='true', style='x', color='black', ax=axs[i], title='Prediction Accuracy' )
+            predictions_df.plot( x=param, y='true', style='x', color='black', ax=axs[i] )
+            # With a shared y-axis, only the leftmost column needs the label
+            axs[i].set_ylabel(feature if i % n_cols == 0 else '')
 
             axs[i].vlines( predictions_correct[param].values,
                            predictions_correct['prediction (low)' ].values,
@@ -287,6 +294,7 @@ class BaseEmulator:
                           )
         for i in range(n_params, len(axs)):
             axs[i].set_visible(False)
+        fig.suptitle(f"Prediction accuracy — {feature}")
         fig.tight_layout()
 
 

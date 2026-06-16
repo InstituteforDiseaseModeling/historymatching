@@ -198,8 +198,8 @@ class HistoryMatching:
     Examples:
         import historymatching as hm
 
-        # The simulator takes a DataFrame of samples and returns one row of
-        # outputs per sample.  Each output name must match an observation key.
+        # The simulator takes a DataFrame of samples and returns one row of outputs per sample.
+        # Each output name must match an observation key.
         def run_sir(samples):
             rows = []
             for _, row in samples.iterrows():
@@ -997,6 +997,7 @@ class HistoryMatching:
             KeyError: If the feature was not emulated in the pending step.
 
         Example:
+            ```python
             result = engine.step()
 
             metrics = result.get_emulator_quality_metrics()
@@ -1006,6 +1007,7 @@ class HistoryMatching:
             # Drop any emulator with a poor fit before committing
             engine.drop_emulator_from_pending('output_c')
             engine.commit_step()
+            ```
         """
         if self._pending_snapshot is None:
             raise RuntimeError(
@@ -1550,9 +1552,13 @@ class HistoryMatching:
             try:
                 if not getattr(emulator, 'testing_complete', False):
                     emulator.test()
-                emulator.plot_diagnostics()
                 import matplotlib.pyplot as plt
-                for i, fig_num in enumerate(plt.get_fignums()[-4:]):  # plot_diagnostics creates up to 4 figs
+                before = set(plt.get_fignums())
+                emulator.plot_diagnostics()
+                # Save and close exactly the figures plot_diagnostics created (the
+                # count varies by emulator), so none leak into an inline session.
+                new_figs = [n for n in plt.get_fignums() if n not in before]
+                for i, fig_num in enumerate(new_figs):
                     plt.figure(fig_num)
                     sc.savefig(feat_dir / f"diagnostics_{i}.png", **SAVE_KW)
                     plt.close(fig_num)
@@ -1614,7 +1620,8 @@ class HistoryMatching:
 
                     n_targets = len(target_names)
                     n_waves = len(all_results)
-                    wave_colors = sc.vectocolor(n_waves, cmap=WAVE_CMAP)
+                    # vectocolor normalizes (v - min)/(max - min); a single wave is 0/0, so pad to 2 and trim.
+                    wave_colors = sc.vectocolor(max(n_waves, 2), cmap=WAVE_CMAP)[:n_waves]
                     bar_width = 0.8 / n_waves
 
                     fig, ax = plt.subplots(figsize=(max(14, n_targets * 0.7), 7))
@@ -1721,7 +1728,8 @@ class HistoryMatching:
                 show_indices = np.linspace(0, len(all_results) - 1, n_show, dtype=int)
                 show_results = [all_results[i] for i in show_indices]
 
-                wave_colors = sc.vectocolor(n_show, cmap=WAVE_CMAP)
+                # vectocolor normalizes (v - min)/(max - min); a single wave is 0/0, so pad to 2 and trim.
+                wave_colors = sc.vectocolor(max(n_show, 2), cmap=WAVE_CMAP)[:n_show]
                 fig, axes = plt.subplots(n_pars, n_pars, figsize=(2.2 * n_pars, 2.2 * n_pars))
                 if n_pars == 1:
                     axes = np.array([[axes]])

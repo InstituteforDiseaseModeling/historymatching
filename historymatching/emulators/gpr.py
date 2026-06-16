@@ -85,13 +85,16 @@ class GPR(BaseEmulator):
             ),
             mean_function=gpflow.mean_functions.Constant(),
         )
-        # GPflow's default likelihood.variance transform is Shift+Softplus
-        # with a hard floor at ~1e-6.  For stochastic simulators the
-        # optimizer gets trapped at that floor and the GP becomes
-        # overconfident.  Plain Softplus (no shift) lets the noise
-        # variance be optimized freely from any starting point.
+        # Bound the noise variance with a small lower limit.  GPflow's default
+        # Shift+Softplus transform traps the optimizer at its ~1e-6 floor (→ an
+        # overconfident GP), so we use a plain positive bijector — but with no
+        # lower bound the variance collapses toward 0 on near-deterministic
+        # outputs, making K + σ²I singular and failing the Cholesky inside
+        # predict_f (NaN variances, plus noisy TF Cholesky logs).  A lower bound
+        # of 1e-4 (in standardized output units) keeps K positive-definite while
+        # still letting the variance grow freely upward.
         self.model.likelihood.variance = gpflow.Parameter(
-            1.0, transform=gpflow.utilities.positive(),
+            1.0, transform=gpflow.utilities.positive(lower=1e-4),
         )
         opt = gpflow.optimizers.Scipy()
         self.opt_logs = opt.minimize(self.model.training_loss, self.model.trainable_variables)
@@ -128,12 +131,13 @@ class GPR(BaseEmulator):
             else:
                 return np.asarray(tensor_or_array).flatten()
 
-        # Un-standardize: mean → mean*std + mu, var → var*std²
+        # Un-standardize: mean → mean*std + mu, var → var*std².  Floor at 0 to
+        # absorb tiny negative round-off before the sqrt below.
         ys, ym = self._y_std, self._y_mean
         f_mean = to_flat(f_mean_z) * ys + ym
-        f_var  = to_flat(f_var_z)  * ys ** 2
+        f_var  = np.maximum(to_flat(f_var_z) * ys ** 2, 0.0)
         y_mean = to_flat(y_mean_z) * ys + ym
-        y_var  = to_flat(y_var_z)  * ys ** 2
+        y_var  = np.maximum(to_flat(y_var_z) * ys ** 2, 0.0)
 
         # Compute the uncertainty interval for additional data
         z = 1.96  # 95% confidence interval

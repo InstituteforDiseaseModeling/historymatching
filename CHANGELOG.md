@@ -11,7 +11,7 @@
 
 - **Plotting module — `historymatching.plotting`.** Composable figure helpers, each taking plain data, accepting an `ax=`/`axes=`, and returning the Matplotlib axes: `plot_pairplot` (NROY corner plot), `plot_marginals`, `plot_convergence`, `plot_zscores_vs_targets`, `plot_ensemble_fan`, `plot_constrained_dims`, `plot_emulator_quality`, `plot_predicted_vs_actual`, `plot_targets`, `plot_parameter_bounds`, plus `variance_reduction` / `marginal_variance_reduction`. The common ones are re-exported at the top level (e.g. `hm.plot_pairplot`).
 - **Object-level plotting & summaries** that delegate to the module: `HistoryMatching.plot_convergence` / `plot_marginals` / `plot_nroy` / `plot_zscores` / `plot_constrained_dims` / `nroy_summary`; `IterationResult.quality_table` / `plot_emulator_quality` / `plot_predicted_vs_actual`; `ParameterSpace.plot_bounds` / `summary`; `ObservationData.plot_targets` / `summary`; `EmulatorBank.summary`.
-- **Visualization tutorial** — `docs/tutorials/07_visualization.ipynb`.
+- **Visualization tutorial** — `docs/tutorials/06_visualization.ipynb`.
 
 ### Deprecations
 
