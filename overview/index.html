@@ -371,10 +371,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
+  <a href="#when-to-use-history-matching" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Architecture
+        When to use history matching
       
     </span>
   </a>
@@ -382,10 +382,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-use-history-matching" class="md-nav__link">
+  <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When to use history matching
+        Architecture
       
     </span>
   </a>
@@ -534,7 +534,7 @@
   <span class="md-ellipsis">
     
   
-    Basic SIR Model History Matching
+    Basic Workflow
   
 
     
@@ -562,7 +562,7 @@
   <span class="md-ellipsis">
     
   
-    History Matching: Manual Workflow
+    Manual Workflow
   
 
     
@@ -590,7 +590,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced History Matching Configuration
+    Advanced Configuration
   
 
     
@@ -618,7 +618,7 @@
   <span class="md-ellipsis">
     
   
-    Emulator Showcase and Comparison
+    Emulator Showcase
   
 
     
@@ -639,14 +639,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/05_trajectory_selection/" class="md-nav__link">
+      <a href="../tutorials/05_nroy_sampling_methods/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tutorial 5: Trajectory Selection
+    NROY Sampling Methods
   
 
     
@@ -667,14 +667,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/06_nroy_sampling_methods/" class="md-nav__link">
+      <a href="../tutorials/06_visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    Visualization
   
 
     
@@ -695,14 +695,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/07_visualization/" class="md-nav__link">
+      <a href="../tutorials/07_trajectory_selection/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization &amp; Diagnostics
+    Trajectory Selection
   
 
     
@@ -738,6 +738,33 @@
     
   
     Usage guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
   
 
     
@@ -907,10 +934,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
+  <a href="#when-to-use-history-matching" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Architecture
+        When to use history matching
       
     </span>
   </a>
@@ -918,10 +945,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-use-history-matching" class="md-nav__link">
+  <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When to use history matching
+        Architecture
       
     </span>
   </a>
@@ -949,26 +976,49 @@
 
 
 <h1 id="overview">Overview</h1>
-<p>History matching is an iterative calibration technique that progressively rules out regions of parameter space that are <em>implausible</em> — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it identifies the set of all parameter combinations that could plausibly have produced the observed data.</p>
+<p>History matching is an iterative calibration technique that progressively rules out regions of parameter space that are <a href="../glossary/#implausibility"><em>implausible</em></a> — i.e., where simulated outputs are inconsistent with observations. Rather than finding a single "best fit," it maps out the whole region of parameter space that is not inconsistent with the data — a region you can then sample from. That surviving region is called the <a href="../glossary/#nroy"><strong>NROY</strong></a> ("Not Ruled Out Yet") region, and it is the central output of the method.</p>
+<p>Each iteration is called a <a href="../glossary/#wave"><strong>wave</strong></a>.</p>
 <h2 id="how-it-works">How it works</h2>
 <p>Each iteration of the algorithm:</p>
 <ol>
 <li><strong>Sample</strong> points from the current non-implausible parameter space</li>
 <li><strong>Simulate</strong> the model at each sample point</li>
-<li><strong>Select features</strong> — choose which model outputs to emulate</li>
-<li><strong>Train emulators</strong> — build fast statistical surrogates (e.g., Gaussian Process Regression) of the simulation</li>
-<li><strong>Filter</strong> — use emulator predictions and implausibility scores to discard implausible regions</li>
+<li><strong>Select <a href="../glossary/#feature-output">features</a></strong> — choose which model outputs to emulate (ranked by <a href="../glossary/#mean-sq-z">mean-squared z-score</a>, or specified manually)</li>
+<li><strong>Train <a href="../glossary/#emulator">emulators</a></strong> — build fast statistical surrogates (Bayes linear by default; Gaussian Process Regression and others available) of the simulation</li>
+<li><strong>Find non-implausible points</strong> — generate candidate points and keep those consistent with the observations across <em>all</em> emulators trained so far (found via <a href="../glossary/#lhs">LHS</a> or <a href="../glossary/#ray-resample">ray sampling</a>); these seed the next iteration</li>
 </ol>
-<p>The parameter space shrinks with each iteration until it converges on the region consistent with observations.</p>
+<p>The set of parameters that survive this filtering — the <strong>NROY</strong> set — shrinks with each iteration, converging on the region of parameter space consistent with the observations.</p>
+<pre class="mermaid"><code>%%{init: {'themeVariables': {'fontSize': '14px'}, 'flowchart': {'rankSpacing': 38, 'nodeSpacing': 28}}}%%
+flowchart TD
+    Start(["Parameter space"]) -- "Initial points" --&gt; Sim["Simulate points"]
+    Sim --&gt; Feat["Select features"]
+    Feat --&gt; Train["Train emulators"]
+    Train -- "Add to bank" --&gt; Bank[("Cumulative&lt;br&gt;emulator bank")]
+    Obs[/"Observations"/] --&gt; NROY
+    Bank --&gt; NROY["Find NROY points"]
+    NROY --&gt; Conv{"Converged?"}
+    Conv -- "No — simulate&lt;br&gt;the NROY points" --&gt; Sim
+    Conv -- "Yes" --&gt; Traj(["Trajectory selection"])</code></pre>
+<p>Each step is detailed in the list above. Two things the diagram makes explicit: candidate points are tested against the <strong>entire emulator bank accumulated over all waves</strong> (not just the latest), and the <strong>NROY points found each wave become the next wave's simulation inputs</strong>. On convergence you keep that bank plus a sample of points inside the final NROY region — from which <a href="../tutorials/07_trajectory_selection/">trajectory selection</a> realizes concrete <code>(θ, seed)</code> pairs — where <code>θ</code> is the parameter vector — via a Bayesian method such as sampling importance resampling on a likelihood.</p>
 <h2 id="key-features">Key features</h2>
 <ul>
 <li><strong>Single-constructor API</strong>: Configure an entire workflow in one <code>HistoryMatching(...)</code> call</li>
 <li><strong>Interactive engine</strong>: Step-by-step control with <code>step()</code> / <code>commit_step()</code> / <code>revert_step()</code>, or fully automated execution with <code>run()</code></li>
-<li><strong>Multiple emulators</strong>: Linear, GLM, and Gaussian Process Regression (GPflow-based with ARD kernels)</li>
-<li><strong>Pluggable strategies</strong>: Swap sampling (LHS, grid, random), feature selection (auto Fano-factor, manual), and emulator types at any point</li>
+<li><strong>Multiple emulators</strong>: <a href="../glossary/#bayes-linear">Bayes linear</a> (the default — nearly GPR-quality at a fraction of the cost), <a href="../glossary/#linear">linear</a>, <a href="../glossary/#glm">GLM</a>, and <a href="../glossary/#gpr">Gaussian Process Regression</a> (GPflow-based with <a href="../glossary/#ard">ARD</a> kernels)</li>
+<li><strong>Pluggable strategies</strong>: Swap sampling (LHS, grid, random), feature selection (automatic by mean-squared z-score, or manual), and emulator types at any point</li>
 <li><strong>Domain objects</strong>: <code>ParameterSpace</code>, <code>ObservationData</code>, <code>EmulatorBank</code>, and <code>IterationResult</code> for clean data management</li>
 <li><strong>Checkpoint/resume</strong>: Save and restore engine state for long-running workflows</li>
 </ul>
+<h2 id="when-to-use-history-matching">When to use history matching</h2>
+<p>History matching is well-suited for:</p>
+<ul>
+<li><strong>Expensive simulations</strong> where each run takes minutes to hours</li>
+<li><strong>Multiple uncertain parameters</strong> (2-20+ dimensions)</li>
+<li><strong>Multiple output features</strong> to match against observations</li>
+<li><strong>Uncertainty quantification</strong> — you want the set of plausible parameters, not just a point estimate</li>
+<li><strong>Iterative refinement</strong> — you want to progressively learn which regions of parameter space are viable</li>
+</ul>
+<p>It complements other calibration approaches like MCMC (which finds posterior distributions) and optimization (which finds point estimates).</p>
 <h2 id="architecture">Architecture</h2>
 <div class="highlight"><pre><span></span><code><span class="n">HistoryMatching</span>                 <span class="c1"># Configure and execute the workflow</span>
     <span class="err">├──</span> <span class="n">ParameterSpace</span>          <span class="c1"># Parameter bounds</span>
@@ -986,18 +1036,8 @@
     <span class="err">├──</span> <span class="n">samples</span>                 <span class="c1"># Parameter samples used</span>
     <span class="err">├──</span> <span class="n">simulation_results</span>      <span class="c1"># Model outputs</span>
     <span class="err">├──</span> <span class="n">emulators</span>               <span class="c1"># Trained emulators</span>
-    <span class="err">└──</span> <span class="n">nroy_fraction</span>           <span class="c1"># Fresh-LHS acceptance rate (convergence diagnostic)</span>
+    <span class="err">└──</span> <span class="n">nroy_fraction</span>           <span class="c1"># Share of fresh prior samples still in the NROY region (convergence diagnostic)</span>
 </code></pre></div>
-<h2 id="when-to-use-history-matching">When to use history matching</h2>
-<p>History matching is well-suited for:</p>
-<ul>
-<li><strong>Expensive simulations</strong> where each run takes minutes to hours</li>
-<li><strong>Multiple uncertain parameters</strong> (2-20+ dimensions)</li>
-<li><strong>Multiple output features</strong> to match against observations</li>
-<li><strong>Uncertainty quantification</strong> — you want the set of plausible parameters, not just a point estimate</li>
-<li><strong>Iterative refinement</strong> — you want to progressively learn which regions of parameter space are viable</li>
-</ul>
-<p>It complements other calibration approaches like MCMC (which finds posterior distributions) and optimization (which finds point estimates).</p>
 
 
 
@@ -1067,7 +1107,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 Gates Foundation. All rights reserved.
+      Copyright &copy; 2026 Gates Foundation. All rights reserved.
     </div>
   
   
@@ -1125,6 +1165,8 @@
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

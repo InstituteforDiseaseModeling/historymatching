@@ -443,7 +443,7 @@
   <span class="md-ellipsis">
     
   
-    Basic SIR Model History Matching
+    Basic Workflow
   
 
     
@@ -471,7 +471,7 @@
   <span class="md-ellipsis">
     
   
-    History Matching: Manual Workflow
+    Manual Workflow
   
 
     
@@ -499,7 +499,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced History Matching Configuration
+    Advanced Configuration
   
 
     
@@ -527,7 +527,7 @@
   <span class="md-ellipsis">
     
   
-    Emulator Showcase and Comparison
+    Emulator Showcase
   
 
     
@@ -548,14 +548,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/05_trajectory_selection/" class="md-nav__link">
+      <a href="../tutorials/05_nroy_sampling_methods/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tutorial 5: Trajectory Selection
+    NROY Sampling Methods
   
 
     
@@ -576,14 +576,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/06_nroy_sampling_methods/" class="md-nav__link">
+      <a href="../tutorials/06_visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    Visualization
   
 
     
@@ -604,14 +604,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/07_visualization/" class="md-nav__link">
+      <a href="../tutorials/07_trajectory_selection/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization &amp; Diagnostics
+    Trajectory Selection
   
 
     
@@ -647,6 +647,33 @@
     
   
     Usage guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
   
 
     
@@ -931,7 +958,7 @@
 set up a development environment, run the tests, and submit changes.</p>
 <h2 id="development-setup">Development setup</h2>
 <p>Set up the environment with <a href="https://docs.astral.sh/uv/">uv</a> (recommended). This
-reads the committed <code>uv.lock</code> and reproduces the exact dependency versions CI uses:</p>
+creates a <code>.venv</code> and installs the project with the chosen extras:</p>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/InstituteforDiseaseModeling/historymatching
 <span class="nb">cd</span><span class="w"> </span>historymatching
 uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>notebooks<span class="w"> </span>--extra<span class="w"> </span><span class="nb">test</span><span class="w">    </span><span class="c1"># add --extra mac on Apple Silicon</span>
@@ -1027,7 +1054,7 @@ them):</p>
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 Gates Foundation. All rights reserved.
+      Copyright &copy; 2026 Gates Foundation. All rights reserved.
     </div>
   
   
@@ -1085,6 +1112,8 @@ them):</p>
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

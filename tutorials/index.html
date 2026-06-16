@@ -481,10 +481,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#advanced-workflows" class="md-nav__link">
+  <a href="#during-calibration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Advanced workflows
+        During calibration
       
     </span>
   </a>
@@ -492,10 +492,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#post-calibration" class="md-nav__link">
+  <a href="#after-calibration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Post-calibration
+        After calibration
       
     </span>
   </a>
@@ -525,7 +525,7 @@
   <span class="md-ellipsis">
     
   
-    Basic SIR Model History Matching
+    Basic Workflow
   
 
     
@@ -553,7 +553,7 @@
   <span class="md-ellipsis">
     
   
-    History Matching: Manual Workflow
+    Manual Workflow
   
 
     
@@ -581,7 +581,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced History Matching Configuration
+    Advanced Configuration
   
 
     
@@ -609,7 +609,7 @@
   <span class="md-ellipsis">
     
   
-    Emulator Showcase and Comparison
+    Emulator Showcase
   
 
     
@@ -630,14 +630,14 @@
   
   
     <li class="md-nav__item">
-      <a href="05_trajectory_selection/" class="md-nav__link">
+      <a href="05_nroy_sampling_methods/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tutorial 5: Trajectory Selection
+    NROY Sampling Methods
   
 
     
@@ -658,14 +658,14 @@
   
   
     <li class="md-nav__item">
-      <a href="06_nroy_sampling_methods/" class="md-nav__link">
+      <a href="06_visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    Visualization
   
 
     
@@ -686,14 +686,14 @@
   
   
     <li class="md-nav__item">
-      <a href="07_visualization/" class="md-nav__link">
+      <a href="07_trajectory_selection/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization &amp; Diagnostics
+    Trajectory Selection
   
 
     
@@ -729,6 +729,33 @@
     
   
     Usage guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
   
 
     
@@ -887,10 +914,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#advanced-workflows" class="md-nav__link">
+  <a href="#during-calibration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Advanced workflows
+        During calibration
       
     </span>
   </a>
@@ -898,10 +925,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#post-calibration" class="md-nav__link">
+  <a href="#after-calibration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Post-calibration
+        After calibration
       
     </span>
   </a>
@@ -935,16 +962,16 @@
 <li><a href="01_basic_workflow/">Basic workflow</a> — Complete walkthrough calibrating a model with the single-constructor <code>HistoryMatching</code> API</li>
 <li><a href="02_manual_workflow/">Manual workflow</a> — Fine-grained control over each iteration with manual inspection and decision points</li>
 </ul>
-<h2 id="advanced-workflows">Advanced workflows</h2>
+<h2 id="during-calibration">During calibration</h2>
 <ul>
 <li><a href="03_advanced_configuration/">Advanced configuration</a> — Custom strategies, strategy switching mid-workflow, checkpoint/resume</li>
-<li><a href="04_emulator_showcase/">Emulator showcase</a> — Comparison of Linear, GLM, and GPR emulators on different test functions</li>
+<li><a href="04_emulator_showcase/">Emulator showcase</a> — Comparison of Bayes linear, linear, GLM, and GPR emulators; a key takeaway is that <strong>Bayes linear matches GPR quality at a fraction of the cost</strong> (hence the default)</li>
+<li><a href="05_nroy_sampling_methods/">NROY sampling methods</a> — Comparison of sampling strategies for exploring the non-implausible space</li>
+<li><a href="06_visualization/">Visualization</a> — Composable plotting helpers for NROY corner plots, convergence, marginals, and emulator quality</li>
 </ul>
-<h2 id="post-calibration">Post-calibration</h2>
+<h2 id="after-calibration">After calibration</h2>
 <ul>
-<li><a href="05_trajectory_selection/">Trajectory selection</a> — Select plausible <code>(parameter, seed)</code> pairs for stochastic simulation using importance resampling</li>
-<li><a href="06_nroy_sampling_methods/">NROY sampling methods</a> — Comparison of sampling strategies for exploring the NROY space</li>
-<li><a href="07_visualization/">Visualization</a> — Composable plotting helpers for NROY corner plots, convergence, marginals, and emulator quality</li>
+<li><a href="07_trajectory_selection/">Trajectory selection</a> — Draw plausible <code>(θ, seed)</code> pairs (here <code>θ = (β, γ)</code>) for stochastic simulation using importance resampling</li>
 </ul>
 
 
@@ -992,13 +1019,13 @@
         
         
           
-          <a href="01_basic_workflow/" class="md-footer__link md-footer__link--next" aria-label="Next: Basic SIR Model History Matching">
+          <a href="01_basic_workflow/" class="md-footer__link md-footer__link--next" aria-label="Next: Basic Workflow">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Basic SIR Model History Matching
+                Basic Workflow
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1015,7 +1042,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 Gates Foundation. All rights reserved.
+      Copyright &copy; 2026 Gates Foundation. All rights reserved.
     </div>
   
   
@@ -1073,6 +1100,8 @@
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

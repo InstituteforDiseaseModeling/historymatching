@@ -588,7 +588,7 @@
   <span class="md-ellipsis">
     
   
-    Basic SIR Model History Matching
+    Basic Workflow
   
 
     
@@ -616,7 +616,7 @@
   <span class="md-ellipsis">
     
   
-    History Matching: Manual Workflow
+    Manual Workflow
   
 
     
@@ -644,7 +644,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced History Matching Configuration
+    Advanced Configuration
   
 
     
@@ -672,7 +672,7 @@
   <span class="md-ellipsis">
     
   
-    Emulator Showcase and Comparison
+    Emulator Showcase
   
 
     
@@ -693,14 +693,14 @@
   
   
     <li class="md-nav__item">
-      <a href="tutorials/05_trajectory_selection/" class="md-nav__link">
+      <a href="tutorials/05_nroy_sampling_methods/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tutorial 5: Trajectory Selection
+    NROY Sampling Methods
   
 
     
@@ -721,14 +721,14 @@
   
   
     <li class="md-nav__item">
-      <a href="tutorials/06_nroy_sampling_methods/" class="md-nav__link">
+      <a href="tutorials/06_visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    Visualization
   
 
     
@@ -749,14 +749,14 @@
   
   
     <li class="md-nav__item">
-      <a href="tutorials/07_visualization/" class="md-nav__link">
+      <a href="tutorials/07_trajectory_selection/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization &amp; Diagnostics
+    Trajectory Selection
   
 
     
@@ -792,6 +792,33 @@
     
   
     Usage guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
   
 
     
@@ -1060,7 +1087,7 @@
 
 <h1 id="history-matching">History Matching</h1>
 <p>A Python implementation of the <a href="https://en.wikipedia.org/wiki/Bayesian_history_matching">Bayesian history matching</a> algorithm for model calibration and uncertainty quantification.</p>
-<p>History matching iteratively constrains a model's parameter space by comparing simulation outputs against observed data through statistical emulators. It is particularly useful for calibrating expensive computational models where exhaustive parameter sweeps are impractical.</p>
+<p>History matching iteratively constrains a model's parameter space by comparing simulation outputs against observed data through <strong>emulators</strong> — fast statistical surrogates of the simulator. Each iteration, or <strong>wave</strong>, rules out more of the space; rather than returning a single best-fit point, the method homes in on the <strong>NROY</strong> ("Not Ruled Out Yet") region: the set of all parameter values not yet shown to be inconsistent with the data. It is particularly useful for calibrating expensive computational models where exhaustive parameter sweeps are impractical.</p>
 <p>This library provides a modern, object-oriented API built around a single <code>HistoryMatching</code> engine configured in one constructor call, with pluggable strategies for sampling, feature selection, and emulation.</p>
 <h2 id="requirements">Requirements</h2>
 <p>Python 3.9+, with TensorFlow 2.18+.</p>
@@ -1069,13 +1096,12 @@
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>historymatching
 </code></pre></div>
 <p>Add optional extras as needed — <code>notebooks</code> for the tutorial notebooks, <code>mac</code> for Metal GPU acceleration on Apple Silicon. Combine them in a single bracket to install both at once:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;historymatching[notebooks]</span>
-
-<span class="s2">pip install &quot;</span>historymatching<span class="o">[</span>notebooks,mac<span class="o">]</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;historymatching[notebooks]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;historymatching[notebooks,mac]&quot;</span>
 </code></pre></div>
 <p>If you use <a href="https://docs.astral.sh/uv/">uv</a>, <code>uv pip install</code> is a drop-in replacement for the <code>pip install</code> commands above, and is typically faster and more reliable than plain <code>pip</code>.</p>
 <h3 id="developing-historymatching">Developing <code>historymatching</code></h3>
-<p>To work on historymatching itself, clone the repository and set up the environment with <a href="https://docs.astral.sh/uv/">uv</a> (recommended). Unlike <code>uv pip</code>, <code>uv sync</code> reads the committed <code>uv.lock</code>, creates a <code>.venv</code> automatically, and reproduces the <em>exact</em> dependency versions CI uses (pruning anything not in the lock) — so your environment matches CI:</p>
+<p>To work on historymatching itself, clone the repository and set up the environment with <a href="https://docs.astral.sh/uv/">uv</a> (recommended). Unlike <code>uv pip</code>, <code>uv sync</code> creates a <code>.venv</code> automatically and installs the project with the chosen extras, keeping the environment in step with <code>pyproject.toml</code> (pruning anything not declared):</p>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/InstituteforDiseaseModeling/historymatching
 <span class="nb">cd</span><span class="w"> </span>historymatching
 uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>notebooks<span class="w"> </span>--extra<span class="w"> </span><span class="nb">test</span><span class="w">    </span><span class="c1"># add --extra mac on Apple Silicon</span>
@@ -1143,7 +1169,7 @@ uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </
 <span class="p">)</span>
 </code></pre></div>
 <h2 id="documentation">Documentation</h2>
-<p>Full documentation, tutorials, and API reference are available at <a href="https://docs.idmod.org/historymatching/">docs.idmod.org/historymatching</a>.</p>
+<p>Full documentation, tutorials, and API reference are available at <a href="https://docs.idmod.org/historymatching/">docs.idmod.org/historymatching</a>. New to history matching? The <a href="glossary/">glossary</a> defines NROY, implausibility, emulators, and the other key terms used throughout.</p>
 <h2 id="license">License</h2>
 <p>MIT License. See <a href="https://github.com/InstituteforDiseaseModeling/historymatching/blob/main/LICENSE">LICENSE</a> for details.</p>
 
@@ -1199,7 +1225,7 @@ uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 Gates Foundation. All rights reserved.
+      Copyright &copy; 2026 Gates Foundation. All rights reserved.
     </div>
   
   
@@ -1257,6 +1283,8 @@ uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </
     
     
       <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

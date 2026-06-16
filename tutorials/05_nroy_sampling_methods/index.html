@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://institutefordiseasemodeling.github.io/historymatching/tutorials/06_nroy_sampling_methods/">
+        <link rel="canonical" href="https://institutefordiseasemodeling.github.io/historymatching/tutorials/05_nroy_sampling_methods/">
       
       
-        <link rel="prev" href="../05_trajectory_selection/">
+        <link rel="prev" href="../04_emulator_showcase/">
       
       
-        <link rel="next" href="../07_visualization/">
+        <link rel="next" href="../06_visualization/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>NROY Sampling Methods: LHS vs Ray-Resample - History Matching</title>
+        <title>NROY Sampling Methods - History Matching</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#nroy-sampling-methods-lhs-vs-ray-resample" class="md-skip">
+        <a href="#nroy-sampling-methods" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              NROY Sampling Methods: LHS vs Ray-Resample
+              NROY Sampling Methods
             
           </span>
         </div>
@@ -445,7 +445,7 @@
   <span class="md-ellipsis">
     
   
-    Basic SIR Model History Matching
+    Basic Workflow
   
 
     
@@ -473,7 +473,7 @@
   <span class="md-ellipsis">
     
   
-    History Matching: Manual Workflow
+    Manual Workflow
   
 
     
@@ -501,7 +501,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced History Matching Configuration
+    Advanced Configuration
   
 
     
@@ -529,35 +529,7 @@
   <span class="md-ellipsis">
     
   
-    Emulator Showcase and Comparison
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../05_trajectory_selection/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tutorial 5: Trajectory Selection
+    Emulator Showcase
   
 
     
@@ -594,7 +566,7 @@
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    NROY Sampling Methods
   
 
     
@@ -612,7 +584,7 @@
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    NROY Sampling Methods
   
 
     
@@ -769,14 +741,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../07_visualization/" class="md-nav__link">
+      <a href="../06_visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization &amp; Diagnostics
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07_trajectory_selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trajectory Selection
   
 
     
@@ -812,6 +812,33 @@
     
   
     Usage guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
   
 
     
@@ -1821,7 +1848,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="nroy-sampling-methods-lhs-vs-ray-resample">NROY Sampling Methods: LHS vs Ray-Resample<a class="anchor-link" href="#nroy-sampling-methods-lhs-vs-ray-resample">¶</a></h1><p>This notebook compares two methods for generating NROY (Not Ruled Out Yet) samples
+<h1 id="nroy-sampling-methods">NROY Sampling Methods<a class="anchor-link" href="#nroy-sampling-methods">¶</a></h1><p>This notebook compares two methods for generating NROY (Not Ruled Out Yet) samples
 between history matching waves:</p>
 <ul>
 <li><strong><code>lhs</code></strong>: Pure Latin Hypercube rejection sampling — brute force, guaranteed unbiased,
@@ -1859,6 +1886,7 @@ but could introduce bias.</li>
 </clipboard-copy>
 </div>
 <div class="highlight-ipynb hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">historymatching</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">hm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span><span class="p">;</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">"historymatching"</span><span class="p">)</span><span class="o">.</span><span class="n">propagate</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># keep INFO logs out of the rendered docs</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
@@ -1869,6 +1897,7 @@ but could introduce bias.</li>
 <span class="o">%</span><span class="n">matplotlib</span> <span class="n">inline</span>
 </pre></div>
 <div class="clipboard-copy-txt" id="cell-1">import historymatching as hm
+import logging; logging.getLogger("historymatching").propagate = False  # keep INFO logs out of the rendered docs
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -1889,8 +1918,8 @@ np.random.seed(42)
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1780871466.726310 2119575 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1780871466.800105 2119575 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+I0000 00:00:1781652718.860153   56549 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1781652718.893203   56549 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
 To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 </pre>
 </div>
@@ -1899,14 +1928,14 @@ To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, re
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1780871468.227497 2119575 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1781652719.560354   56549 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>/software/conda/envs/hm/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
+<pre>/home/cliffk/idm/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources
 </pre>
 </div>
@@ -2119,7 +2148,7 @@ print("Expected ~1-5% — if much higher, tighten target stds")
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>WARNING:historymatching.emulators.bayes_linear:Bayes Linear theta optimization did not converge: ABNORMAL: . The fitted model may still be usable.
+<pre>Bayes Linear theta optimization did not converge: ABNORMAL: . The fitted model may still be usable.
 </pre>
 </div>
 </div>
@@ -2292,7 +2321,7 @@ print(f"Speedup: {t_lhs/t_ray:.1f}x")
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Ground truth: 2000 points in 8.38s
+<pre>Ground truth: 2000 points in 5.15s
 LHS rejection...
 </pre>
 </div>
@@ -2300,7 +2329,7 @@ LHS rejection...
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>LHS rejection: 500 points in 2.92s
+<pre>LHS rejection: 500 points in 1.76s
 Ray-resample...
 </pre>
 </div>
@@ -2308,8 +2337,8 @@ Ray-resample...
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Ray-resample:  500 points in 4.22s
-Speedup: 0.7x
+<pre>Ray-resample:  500 points in 2.28s
+Speedup: 0.8x
 </pre>
 </div>
 </div>
@@ -2692,48 +2721,6 @@ print(f'\nFinal: {len(nroy_verbose)} NROY points')</div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  LHS seed: generating 500 candidates...
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  LHS seed: 6/500 (1.2%)
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  RAY MODE: 6 LHS seed points → ray + importance sampling
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  Ray sampling: 200 rays × 500 pts (scaled 83x for shortfall, seeded with 6 points)...
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  Ray sampling: +7227, pool=7233/500 [1.5s]
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=6, ray=7227 [2.2s]
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>
 Final: 500 NROY points
@@ -2820,48 +2807,6 @@ print(f'Tuned: {len(nroy_tuned)} NROY points')</div>
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
 <div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  LHS seed: generating 500 candidates...
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  LHS seed: 10/500 (2.0%)
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  RAY MODE: 10 LHS seed points → ray + importance sampling
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  Ray sampling: 200 rays × 500 pts (scaled 50x for shortfall, seeded with 10 points)...
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  Ray sampling: +20881, pool=20891/500 [4.0s]
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>INFO:historymatching.nroy_sampling:  NROY SUMMARY: 500/500 [OK] — sources: LHS=10, ray=20881 [5.1s]
-</pre>
-</div>
-</div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
@@ -2974,7 +2919,7 @@ small and hard to find.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../05_trajectory_selection/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Tutorial 5: Trajectory Selection">
+          <a href="../04_emulator_showcase/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Emulator Showcase">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2984,20 +2929,20 @@ small and hard to find.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Tutorial 5: Trajectory Selection
+                Emulator Showcase
               </div>
             </div>
           </a>
         
         
           
-          <a href="../07_visualization/" class="md-footer__link md-footer__link--next" aria-label="Next: Visualization &amp;amp; Diagnostics">
+          <a href="../06_visualization/" class="md-footer__link md-footer__link--next" aria-label="Next: Visualization">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Visualization &amp; Diagnostics
+                Visualization
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -3014,7 +2959,7 @@ small and hard to find.</p>
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 Gates Foundation. All rights reserved.
+      Copyright &copy; 2026 Gates Foundation. All rights reserved.
     </div>
   
   
@@ -3072,6 +3017,8 @@ small and hard to find.</p>
     
     
       <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

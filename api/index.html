@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://institutefordiseasemodeling.github.io/historymatching/api/">
       
       
-        <link rel="prev" href="../usage/">
+        <link rel="prev" href="../glossary/">
       
       
         <link rel="next" href="../contributing/">
@@ -443,7 +443,7 @@
   <span class="md-ellipsis">
     
   
-    Basic SIR Model History Matching
+    Basic Workflow
   
 
     
@@ -471,7 +471,7 @@
   <span class="md-ellipsis">
     
   
-    History Matching: Manual Workflow
+    Manual Workflow
   
 
     
@@ -499,7 +499,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced History Matching Configuration
+    Advanced Configuration
   
 
     
@@ -527,7 +527,7 @@
   <span class="md-ellipsis">
     
   
-    Emulator Showcase and Comparison
+    Emulator Showcase
   
 
     
@@ -548,14 +548,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/05_trajectory_selection/" class="md-nav__link">
+      <a href="../tutorials/05_nroy_sampling_methods/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tutorial 5: Trajectory Selection
+    NROY Sampling Methods
   
 
     
@@ -576,14 +576,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/06_nroy_sampling_methods/" class="md-nav__link">
+      <a href="../tutorials/06_visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    Visualization
   
 
     
@@ -604,14 +604,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/07_visualization/" class="md-nav__link">
+      <a href="../tutorials/07_trajectory_selection/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization &amp; Diagnostics
+    Trajectory Selection
   
 
     
@@ -647,6 +647,33 @@
     
   
     Usage guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
   
 
     
@@ -748,10 +775,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#historymatching.HistoryMatching--the-simulator-takes-a-dataframe-of-samples-and-returns-one-row-of" class="md-nav__link">
+  <a href="#historymatching.HistoryMatching--the-simulator-takes-a-dataframe-of-samples-and-returns-one-row-of-outputs-per-sample" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The simulator takes a DataFrame of samples and returns one row of
+        The simulator takes a DataFrame of samples and returns one row of outputs per sample.
       
     </span>
   </a>
@@ -759,10 +786,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#historymatching.HistoryMatching--outputs-per-sample-each-output-name-must-match-an-observation-key" class="md-nav__link">
+  <a href="#historymatching.HistoryMatching--each-output-name-must-match-an-observation-key" class="md-nav__link">
     <span class="md-ellipsis">
       
-        outputs per sample. Each output name must match an observation key.
+        Each output name must match an observation key.
       
     </span>
   </a>
@@ -942,23 +969,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label=" drop_emulator_from_pending">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#historymatching.HistoryMatching.drop_emulator_from_pending--drop-any-emulator-with-a-poor-fit-before-committing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Drop any emulator with a poor fit before committing
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3260,10 +3270,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#historymatching.HistoryMatching--the-simulator-takes-a-dataframe-of-samples-and-returns-one-row-of" class="md-nav__link">
+  <a href="#historymatching.HistoryMatching--the-simulator-takes-a-dataframe-of-samples-and-returns-one-row-of-outputs-per-sample" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The simulator takes a DataFrame of samples and returns one row of
+        The simulator takes a DataFrame of samples and returns one row of outputs per sample.
       
     </span>
   </a>
@@ -3271,10 +3281,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#historymatching.HistoryMatching--outputs-per-sample-each-output-name-must-match-an-observation-key" class="md-nav__link">
+  <a href="#historymatching.HistoryMatching--each-output-name-must-match-an-observation-key" class="md-nav__link">
     <span class="md-ellipsis">
       
-        outputs per sample. Each output name must match an observation key.
+        Each output name must match an observation key.
       
     </span>
   </a>
@@ -3454,23 +3464,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label=" drop_emulator_from_pending">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#historymatching.HistoryMatching.drop_emulator_from_pending--drop-any-emulator-with-a-poor-fit-before-committing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Drop any emulator with a poor fit before committing
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -5678,14 +5671,14 @@ defaults are used for anything you omit.</p>
 
 <p><span class="doc-section-title">Examples:</span></p>
     <p>import historymatching as hm</p>
-<h2 id="historymatching.HistoryMatching--the-simulator-takes-a-dataframe-of-samples-and-returns-one-row-of">The simulator takes a DataFrame of samples and returns one row of</h2>
-<h2 id="historymatching.HistoryMatching--outputs-per-sample-each-output-name-must-match-an-observation-key">outputs per sample.  Each output name must match an observation key.</h2>
+<h2 id="historymatching.HistoryMatching--the-simulator-takes-a-dataframe-of-samples-and-returns-one-row-of-outputs-per-sample">The simulator takes a DataFrame of samples and returns one row of outputs per sample.</h2>
+<h2 id="historymatching.HistoryMatching--each-output-name-must-match-an-observation-key">Each output name must match an observation key.</h2>
 <p>def run_sir(samples):
     rows = []
     for _, row in samples.iterrows():
         rows.append({'peak_incidence': simulate_peak(row['beta'], row['gamma'])})
     return rows   # a DataFrame is also accepted</p>
-<p>engine = hm.HistoryMatching(
+<p>engine = HistoryMatching(
     function=run_sir,
     bounds={'beta': (0.5, 3.0), 'gamma': (0.1, 1.0)},
     observations={'peak_incidence': (120.0, 50.0)},  # (mean, std)
@@ -6485,13 +6478,16 @@ dropped. The remaining emulators are committed as normal.</p>
 
 <details class="example" open>
   <summary>Example</summary>
-  <p>result = engine.step()</p>
-<p>metrics = result.get_emulator_quality_metrics()
-for output in result.emulated_outputs:
-    print(f"{output}: R²={metrics[output]['r2']:.3f}")</p>
-<h3 id="historymatching.HistoryMatching.drop_emulator_from_pending--drop-any-emulator-with-a-poor-fit-before-committing">Drop any emulator with a poor fit before committing</h3>
-<p>engine.drop_emulator_from_pending('output_c')
-engine.commit_step()</p>
+  <div class="highlight"><pre><span></span><code><span class="n">result</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
+<span class="n">metrics</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get_emulator_quality_metrics</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">emulated_outputs</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s2">: R²=</span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="n">output</span><span class="p">][</span><span class="s1">&#39;r2&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Drop any emulator with a poor fit before committing</span>
+<span class="n">engine</span><span class="o">.</span><span class="n">drop_emulator_from_pending</span><span class="p">(</span><span class="s1">&#39;output_c&#39;</span><span class="p">)</span>
+<span class="n">engine</span><span class="o">.</span><span class="n">commit_step</span><span class="p">()</span>
+</code></pre></div>
 </details>
 
     </div>
@@ -15044,6 +15040,8 @@ seed : int, optional
 
 <a id="historymatching.nroy_sampling.NROYResult"></a>
     <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sciris.prettyobj">prettyobj</span></code></p>
 
 
 
@@ -15729,7 +15727,7 @@ vectors.</p>
               </div>
             </td>
             <td>
-                  <code><span title="historymatching.plotting.NROY_COLOR">NROY_COLOR</span></code>
+                  <code><span title="historymatching.constants.NROY_COLOR">NROY_COLOR</span></code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -15745,7 +15743,7 @@ vectors.</p>
               </div>
             </td>
             <td>
-                  <code><span title="historymatching.plotting.TRUTH_COLOR">TRUTH_COLOR</span></code>
+                  <code><span title="historymatching.constants.TRUTH_COLOR">TRUTH_COLOR</span></code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -16062,7 +16060,7 @@ omitted.</p>
               </div>
             </td>
             <td>
-                  <code><span title="historymatching.plotting.NROY_COLOR">NROY_COLOR</span></code>
+                  <code><span title="historymatching.constants.NROY_COLOR">NROY_COLOR</span></code>
             </td>
           </tr>
       </tbody>
@@ -16287,7 +16285,7 @@ readable for high-dimensional problems).</p>
               </div>
             </td>
             <td>
-                  <code><span title="historymatching.plotting.NROY_COLOR">NROY_COLOR</span></code>
+                  <code><span title="historymatching.constants.NROY_COLOR">NROY_COLOR</span></code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -16972,7 +16970,7 @@ prior, 1 means fully collapsed.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../usage/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Usage guide">
+          <a href="../glossary/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Glossary">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -16982,7 +16980,7 @@ prior, 1 means fully collapsed.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Usage guide
+                Glossary
               </div>
             </div>
           </a>
@@ -17012,7 +17010,7 @@ prior, 1 means fully collapsed.</p>
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 Gates Foundation. All rights reserved.
+      Copyright &copy; 2026 Gates Foundation. All rights reserved.
     </div>
   
   
@@ -17070,6 +17068,8 @@ prior, 1 means fully collapsed.</p>
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

@@ -441,7 +441,7 @@
   <span class="md-ellipsis">
     
   
-    Basic SIR Model History Matching
+    Basic Workflow
   
 
     
@@ -469,7 +469,7 @@
   <span class="md-ellipsis">
     
   
-    History Matching: Manual Workflow
+    Manual Workflow
   
 
     
@@ -497,7 +497,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced History Matching Configuration
+    Advanced Configuration
   
 
     
@@ -525,7 +525,7 @@
   <span class="md-ellipsis">
     
   
-    Emulator Showcase and Comparison
+    Emulator Showcase
   
 
     
@@ -546,14 +546,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/05_trajectory_selection/" class="md-nav__link">
+      <a href="../tutorials/05_nroy_sampling_methods/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tutorial 5: Trajectory Selection
+    NROY Sampling Methods
   
 
     
@@ -574,14 +574,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/06_nroy_sampling_methods/" class="md-nav__link">
+      <a href="../tutorials/06_visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    Visualization
   
 
     
@@ -602,14 +602,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/07_visualization/" class="md-nav__link">
+      <a href="../tutorials/07_trajectory_selection/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization &amp; Diagnostics
+    Trajectory Selection
   
 
     
@@ -645,6 +645,33 @@
     
   
     Usage guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
   
 
     
@@ -1326,7 +1353,7 @@ release — they are all part of the <code>v1.0.0</code> tag.</p>
 <ul>
 <li><strong>Plotting module — <code>historymatching.plotting</code>.</strong> Composable figure helpers, each taking plain data, accepting an <code>ax=</code>/<code>axes=</code>, and returning the Matplotlib axes: <code>plot_pairplot</code> (NROY corner plot), <code>plot_marginals</code>, <code>plot_convergence</code>, <code>plot_zscores_vs_targets</code>, <code>plot_ensemble_fan</code>, <code>plot_constrained_dims</code>, <code>plot_emulator_quality</code>, <code>plot_predicted_vs_actual</code>, <code>plot_targets</code>, <code>plot_parameter_bounds</code>, plus <code>variance_reduction</code> / <code>marginal_variance_reduction</code>. The common ones are re-exported at the top level (e.g. <code>hm.plot_pairplot</code>).</li>
 <li><strong>Object-level plotting &amp; summaries</strong> that delegate to the module: <code>HistoryMatching.plot_convergence</code> / <code>plot_marginals</code> / <code>plot_nroy</code> / <code>plot_zscores</code> / <code>plot_constrained_dims</code> / <code>nroy_summary</code>; <code>IterationResult.quality_table</code> / <code>plot_emulator_quality</code> / <code>plot_predicted_vs_actual</code>; <code>ParameterSpace.plot_bounds</code> / <code>summary</code>; <code>ObservationData.plot_targets</code> / <code>summary</code>; <code>EmulatorBank.summary</code>.</li>
-<li><strong>Visualization tutorial</strong> — <code>docs/tutorials/07_visualization.ipynb</code>.</li>
+<li><strong>Visualization tutorial</strong> — <code>docs/tutorials/06_visualization.ipynb</code>.</li>
 </ul>
 <h3 id="deprecations">Deprecations</h3>
 <ul>
@@ -1475,7 +1502,7 @@ release — they are all part of the <code>v1.0.0</code> tag.</p>
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 Gates Foundation. All rights reserved.
+      Copyright &copy; 2026 Gates Foundation. All rights reserved.
     </div>
   
   
@@ -1533,6 +1560,8 @@ release — they are all part of the <code>v1.0.0</code> tag.</p>
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

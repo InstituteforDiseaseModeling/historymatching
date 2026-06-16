@@ -13,10 +13,10 @@
         <link rel="canonical" href="https://institutefordiseasemodeling.github.io/historymatching/usage/">
       
       
-        <link rel="prev" href="../tutorials/07_visualization/">
+        <link rel="prev" href="../tutorials/07_trajectory_selection/">
       
       
-        <link rel="next" href="../api/">
+        <link rel="next" href="../glossary/">
       
       
         
@@ -443,7 +443,7 @@
   <span class="md-ellipsis">
     
   
-    Basic SIR Model History Matching
+    Basic Workflow
   
 
     
@@ -471,7 +471,7 @@
   <span class="md-ellipsis">
     
   
-    History Matching: Manual Workflow
+    Manual Workflow
   
 
     
@@ -499,7 +499,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced History Matching Configuration
+    Advanced Configuration
   
 
     
@@ -527,7 +527,7 @@
   <span class="md-ellipsis">
     
   
-    Emulator Showcase and Comparison
+    Emulator Showcase
   
 
     
@@ -548,14 +548,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/05_trajectory_selection/" class="md-nav__link">
+      <a href="../tutorials/05_nroy_sampling_methods/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tutorial 5: Trajectory Selection
+    NROY Sampling Methods
   
 
     
@@ -576,14 +576,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/06_nroy_sampling_methods/" class="md-nav__link">
+      <a href="../tutorials/06_visualization/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    NROY Sampling Methods: LHS vs Ray-Resample
+    Visualization
   
 
     
@@ -604,14 +604,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../tutorials/07_visualization/" class="md-nav__link">
+      <a href="../tutorials/07_trajectory_selection/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Visualization &amp; Diagnostics
+    Trajectory Selection
   
 
     
@@ -896,6 +896,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1301,9 +1328,9 @@
     <span class="n">sampling_strategy</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;lhs&#39;</span><span class="p">,</span> <span class="s1">&#39;criterion&#39;</span><span class="p">:</span> <span class="s1">&#39;maximin&#39;</span><span class="p">},</span>  <span class="c1"># How to sample</span>
     <span class="n">feature_selection</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;method&#39;</span><span class="p">:</span> <span class="s1">&#39;fano&#39;</span><span class="p">,</span> <span class="s1">&#39;max_features&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>    <span class="c1"># Which outputs to emulate</span>
     <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;bayes_linear&#39;</span><span class="p">,</span>                            <span class="c1"># Statistical surrogate type (default)</span>
-    <span class="n">n_samples</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>                                           <span class="c1"># Parameter samples per wave</span>
+    <span class="n">n_samples</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>                                           <span class="c1"># Parameter samples per wave (one wave = one iteration)</span>
     <span class="n">max_iterations</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>                                       <span class="c1"># Stopping criterion</span>
-    <span class="n">implausibility_threshold</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>                            <span class="c1"># Implausibility cutoff</span>
+    <span class="n">implausibility_threshold</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>                            <span class="c1"># Drop points &gt;3 std devs from target (~95% for any unimodal dist.; see Glossary)</span>
     <span class="n">random_seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>                                          <span class="c1"># Reproducibility</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -1365,7 +1392,7 @@ values as the constructor:</p>
 <span class="n">engine</span><span class="o">.</span><span class="n">commit_step</span><span class="p">()</span>
 </code></pre></div>
 <h2 id="emulator-types">Emulator types</h2>
-<p>The library includes four emulator types:</p>
+<p>The library includes four <a href="../glossary/#emulator">emulator</a> types:</p>
 <table>
 <thead>
 <tr>
@@ -1450,7 +1477,7 @@ values as the constructor:</p>
 </tr>
 <tr>
 <td><code>{'method': 'fano'}</code></td>
-<td>Automatic selection via Fano factor</td>
+<td>Automatic selection via Fano factor — the variance-to-mean ratio of each output</td>
 </tr>
 <tr>
 <td><code>{'method': 'var'}</code></td>
@@ -1483,7 +1510,7 @@ values as the constructor:</p>
       <span class="o">...</span>
     <span class="n">convergence</span><span class="o">.</span><span class="n">png</span>         <span class="c1"># NROY fraction bar chart</span>
     <span class="n">zscores_vs_targets</span><span class="o">.</span><span class="n">png</span>  <span class="c1"># sim outputs vs ALL targets across waves</span>
-    <span class="n">pairplot</span><span class="o">.</span><span class="n">png</span>            <span class="c1"># parameter space shrinkage (top 8 by ARD)</span>
+    <span class="n">pairplot</span><span class="o">.</span><span class="n">png</span>            <span class="c1"># parameter space shrinkage (top 8 most-constrained parameters)</span>
     <span class="n">nroy_samples</span><span class="o">.</span><span class="n">csv</span>        <span class="c1"># candidates for next wave</span>
   <span class="n">wave2</span><span class="o">/</span>
     <span class="o">...</span>
@@ -1512,6 +1539,9 @@ values as the constructor:</p>
 <span class="n">loaded</span><span class="o">.</span><span class="n">function</span> <span class="o">=</span> <span class="n">my_model</span>
 </code></pre></div>
 <h2 id="nroy-samples-and-trajectory-selection">NROY samples and trajectory selection</h2>
+<p>The <strong>NROY</strong> ("Not Ruled Out Yet") region is the part of parameter space that has
+not been ruled out as <a href="../glossary/#implausibility">implausible</a> — see the
+<a href="../glossary/#nroy">Glossary</a>.</p>
 <p>After <code>run()</code> completes, draw NROY samples filtered through ALL emulators:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Default: returns pre-computed samples (~n_samples)</span>
 <span class="n">nroy</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">get_nroy_samples</span><span class="p">()</span>
@@ -1548,7 +1578,7 @@ values as the constructor:</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../tutorials/07_visualization/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Visualization &amp;amp; Diagnostics">
+          <a href="../tutorials/07_trajectory_selection/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Trajectory Selection">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1558,20 +1588,20 @@ values as the constructor:</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Visualization &amp; Diagnostics
+                Trajectory Selection
               </div>
             </div>
           </a>
         
         
           
-          <a href="../api/" class="md-footer__link md-footer__link--next" aria-label="Next: API reference">
+          <a href="../glossary/" class="md-footer__link md-footer__link--next" aria-label="Next: Glossary">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                API reference
+                Glossary
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1588,7 +1618,7 @@ values as the constructor:</p>
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2025 Gates Foundation. All rights reserved.
+      Copyright &copy; 2026 Gates Foundation. All rights reserved.
     </div>
   
   
@@ -1646,6 +1676,8 @@ values as the constructor:</p>
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       
