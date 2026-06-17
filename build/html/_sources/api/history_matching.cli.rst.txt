@@ -1,7 +1,0 @@
-history\_matching.cli module
-============================
-
-.. automodule:: history_matching.cli
-   :members:
-   :undoc-members:
-   :show-inheritance:

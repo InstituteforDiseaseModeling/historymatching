@@ -1,7 +1,0 @@
-history\_matching.emulators.gaussian\_process module
-====================================================
-
-.. automodule:: history_matching.emulators.gaussian_process
-   :members:
-   :undoc-members:
-   :show-inheritance:

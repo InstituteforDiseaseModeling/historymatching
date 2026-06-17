@@ -1,7 +1,0 @@
-history\_matching.emulators.tfgpr module
-========================================
-
-.. automodule:: history_matching.emulators.tfgpr
-   :members:
-   :undoc-members:
-   :show-inheritance:

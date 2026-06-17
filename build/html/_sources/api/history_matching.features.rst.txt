@@ -1,7 +1,0 @@
-history\_matching.features module
-=================================
-
-.. automodule:: history_matching.features
-   :members:
-   :undoc-members:
-   :show-inheritance:

@@ -1,7 +1,0 @@
-history\_matching.constrict module
-==================================
-
-.. automodule:: history_matching.constrict
-   :members:
-   :undoc-members:
-   :show-inheritance:

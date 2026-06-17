@@ -1,7 +1,0 @@
-history\_matching.situation module
-==================================
-
-.. automodule:: history_matching.situation
-   :members:
-   :undoc-members:
-   :show-inheritance:

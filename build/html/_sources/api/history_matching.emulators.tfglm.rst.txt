@@ -1,7 +1,0 @@
-history\_matching.emulators.tfglm module
-========================================
-
-.. automodule:: history_matching.emulators.tfglm
-   :members:
-   :undoc-members:
-   :show-inheritance:

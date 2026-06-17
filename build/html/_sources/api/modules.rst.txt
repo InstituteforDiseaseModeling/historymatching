@@ -1,8 +1,0 @@
-=============
-API reference
-=============
-
-.. toctree::
-   :maxdepth: 4
-
-   history_matching
