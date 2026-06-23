@@ -15,14 +15,14 @@ Python 3.9+, with TensorFlow 2.18+.
 Available on PyPI:
 
 ```bash
-pip install historymatching
+pip install git+https://github.com/InstituteforDiseaseModeling/historymatching
 ```
 
 Add optional extras as needed — `notebooks` for the tutorial notebooks, `mac` for Metal GPU acceleration on Apple Silicon. Combine them in a single bracket to install both at once:
 
 ```bash
-pip install "historymatching[notebooks]"
-pip install "historymatching[notebooks,mac]"
+pip install "git+https://github.com/InstituteforDiseaseModeling/historymatching[notebooks]"
+pip install "git+https://github.com/InstituteforDiseaseModeling/historymatching[notebooks,mac]"
 ```
 
 If you use [uv](https://docs.astral.sh/uv/), `uv pip install` is a drop-in replacement for the `pip install` commands above, and is typically faster and more reliable than plain `pip`.
