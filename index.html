@@ -1093,11 +1093,11 @@
 <p>Python 3.9+, with TensorFlow 2.18+.</p>
 <h2 id="installation">Installation</h2>
 <p>Available on PyPI:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>historymatching
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/InstituteforDiseaseModeling/historymatching
 </code></pre></div>
 <p>Add optional extras as needed — <code>notebooks</code> for the tutorial notebooks, <code>mac</code> for Metal GPU acceleration on Apple Silicon. Combine them in a single bracket to install both at once:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;historymatching[notebooks]&quot;</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;historymatching[notebooks,mac]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;git+https://github.com/InstituteforDiseaseModeling/historymatching[notebooks]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;git+https://github.com/InstituteforDiseaseModeling/historymatching[notebooks,mac]&quot;</span>
 </code></pre></div>
 <p>If you use <a href="https://docs.astral.sh/uv/">uv</a>, <code>uv pip install</code> is a drop-in replacement for the <code>pip install</code> commands above, and is typically faster and more reliable than plain <code>pip</code>.</p>
 <h3 id="developing-historymatching">Developing <code>historymatching</code></h3>
