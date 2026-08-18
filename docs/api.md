@@ -62,26 +62,39 @@ The single public entry point. Configure and run an entire workflow through one 
 
 ::: historymatching.emulators.gpr.GPR
 
-### Bayes linear learned nugget
+### Bayes linear stochastic noise
 
 ::: historymatching.emulators.bayes_linear.BayesLinear
 
-`BayesLinear` accepts two scalar nugget modes:
+`BayesLinear` accepts three nugget modes:
 
 | Nugget | Behavior |
 |--------|----------|
 | `1e-6` or another number | Fixed scalar diagonal noise term, preserving the default deterministic behavior |
 | `'mle'` | Learn a single scalar nugget with the squared-exponential correlation lengths |
+| `'adaptive'` | Learn a smoothly varying simulator-variance surface from replicated parameter sites |
 
-Use `nugget='mle'` for stochastic simulators when replicate noise is close to
-constant across the input space:
+Use `nugget='mle'` when replicate noise is close to constant across the input
+space. Use `nugget='adaptive'` for heteroskedastic stochastic simulators where
+replicated sites can estimate simulator variance across the region of interest:
 
 ```python
 factory = hm.EmulatorFactory(
     default_type='bayes_linear',
-    nugget='mle',
+    nugget='adaptive',
 )
 ```
+
+Adaptive nuggets follow hmer's variance-emulator pattern at a smaller scope:
+training rows with identical parameter values are collapsed into per-site means,
+sites with at least two replicates train an internal log-variance emulator, and
+the mean emulator is trained with per-site variance divided by replicate count.
+The adaptive mode uses `exp(E[log(sample_variance)])` as a positive plug-in
+estimate of raw simulator variance, so hmer's truncated negative-variance
+correction is intentionally out of scope.
+You may include unreplicated sites for the mean surface as long as the replicated
+subset spans the parameter region; otherwise the variance surface must
+extrapolate.
 
 ::: historymatching.emulators.results.EmulationResults
 
