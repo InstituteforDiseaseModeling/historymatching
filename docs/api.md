@@ -62,7 +62,26 @@ The single public entry point. Configure and run an entire workflow through one 
 
 ::: historymatching.emulators.gpr.GPR
 
+### Bayes linear learned nugget
+
 ::: historymatching.emulators.bayes_linear.BayesLinear
+
+`BayesLinear` accepts two scalar nugget modes:
+
+| Nugget | Behavior |
+|--------|----------|
+| `1e-6` or another number | Fixed scalar diagonal noise term, preserving the default deterministic behavior |
+| `'mle'` | Learn a single scalar nugget with the squared-exponential correlation lengths |
+
+Use `nugget='mle'` for stochastic simulators when replicate noise is close to
+constant across the input space:
+
+```python
+factory = hm.EmulatorFactory(
+    default_type='bayes_linear',
+    nugget='mle',
+)
+```
 
 ::: historymatching.emulators.results.EmulationResults
 
