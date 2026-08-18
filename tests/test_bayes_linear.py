@@ -39,6 +39,47 @@ def noisy_repeated_training_data():
     return X, y
 
 
+@pytest.fixture
+def sparse_replicated_training_data():
+    """Create replicated corners plus unreplicated interior mean sites."""
+    rng = np.random.default_rng(456)
+    replicated_sites = np.array([
+        [0.0, 0.0],
+        [0.0, 1.0],
+        [1.0, 0.0],
+        [1.0, 1.0],
+    ])
+    interior_sites = np.array([
+        [0.25, 0.25],
+        [0.25, 0.75],
+        [0.50, 0.50],
+        [0.75, 0.25],
+        [0.75, 0.75],
+    ])
+
+    rows = []
+    outputs = []
+    for x1, x2 in replicated_sites:
+        simulator_variance = 0.02 + 0.3 * x1 + 0.5 * x2
+        for _ in range(8):
+            rows.append((x1, x2))
+            outputs.append(
+                1.0
+                + x1
+                - 0.5 * x2
+                + rng.normal(0, np.sqrt(simulator_variance))
+            )
+
+    for x1, x2 in interior_sites:
+        rows.append((x1, x2))
+        outputs.append(1.0 + x1 - 0.5 * x2)
+
+    X = pd.DataFrame(rows, columns=['x1', 'x2'])
+    y = pd.DataFrame({'output': outputs})
+
+    return X, y
+
+
 def test_numeric_nugget_remains_fixed(smooth_training_data):
     """Numeric nuggets should not be optimized."""
     np.random.seed(42)
@@ -72,6 +113,73 @@ def test_mle_nugget_moves_above_lower_bound_on_replicates(noisy_repeated_trainin
     assert emulator.nugget > lower_bound * 10
     assert hyperparameters['nugget'] == pytest.approx(emulator.nugget)
     assert hyperparameters['nugget_learned'] is True
+
+
+def test_adaptive_nugget_trains_from_sparse_replicated_subset(
+    sparse_replicated_training_data,
+):
+    """Adaptive nuggets learn variance from replicated sites only."""
+    X, y = sparse_replicated_training_data
+    emulator = hm.BayesLinear(X, y, nugget='adaptive', test_fraction=0)
+
+    emulator.train()
+    hyperparameters = emulator.get_hyperparameters()
+    results = emulator.predict(pd.DataFrame({
+        'x1': [0.2, 0.8],
+        'x2': [0.2, 0.8],
+    }))
+    additional = results.get_additional_data()
+
+    assert hyperparameters['nugget'] == 'adaptive'
+    assert hyperparameters['nugget_adaptive'] is True
+    assert hyperparameters['n_train'] == len(X)
+    assert hyperparameters['n_adjusted'] == len(X.drop_duplicates())
+    assert emulator._variance_emulator is not None
+    assert emulator._variance_emulator.get_hyperparameters()['n_train'] == 4
+    assert emulator._noise_diag_train.shape == (len(X.drop_duplicates()),)
+    assert np.all(additional['simulator_variance'] > 0)
+
+
+def test_adaptive_nugget_adds_known_noise_outside_profiled_sigma2(
+    sparse_replicated_training_data,
+):
+    """Adaptive simulator variance should be additive, not scaled by sigma^2."""
+    X, y = sparse_replicated_training_data
+    emulator = hm.BayesLinear(X, y, nugget='adaptive', test_fraction=0)
+
+    emulator.train()
+
+    expected_noise_diag = (
+        emulator._simulator_variance_train
+        / emulator._sample_counts_train
+        / emulator._y_std ** 2
+    )
+    expected_data_cov = (
+        emulator._sigma2
+        * emulator._sq_exp_corr(
+            emulator._X_train_norm,
+            emulator._X_train_norm,
+            emulator._theta,
+        )
+        + np.diag(expected_noise_diag)
+    )
+
+    np.testing.assert_allclose(emulator._noise_diag_train, expected_noise_diag)
+    np.testing.assert_allclose(emulator._data_cov_train, expected_data_cov)
+
+
+def test_holdout_split_groups_replicated_parameter_sites(noisy_repeated_training_data):
+    """Repeated parameter sites must not be split between train and test."""
+    np.random.seed(42)
+    X, y = noisy_repeated_training_data
+    emulator = hm.BayesLinear(X, y, nugget='mle', test_fraction=0.3)
+
+    train_sites = set(map(tuple, emulator.X_train))
+    test_sites = set(map(tuple, emulator.X_test))
+
+    assert train_sites.isdisjoint(test_sites)
+    assert len(train_sites) == 7
+    assert len(test_sites) == 3
 
 
 def test_emulator_factory_passes_mle_nugget_to_bayes_linear(

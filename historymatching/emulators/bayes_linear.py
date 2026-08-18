@@ -16,6 +16,7 @@ import pandas as pd
 import sciris as sc
 from scipy.optimize import minimize
 from scipy.linalg import cho_factor, cho_solve
+from sklearn import model_selection
 
 from .base import BaseEmulator
 from .results import EmulationResults
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 # [exp(-4), exp(4)] ~= [0.018, 55], a deliberately wide range that spans
 # near-independent inputs (short lengths) to nearly-flat ones (long lengths).
 LOG_THETA_BOUNDS = (-4.0, 4.0)
+LOG_SIGMA2_BOUNDS = (-20.0, 20.0)
 
 
 class BayesLinear(BaseEmulator):
@@ -39,23 +41,37 @@ class BayesLinear(BaseEmulator):
         test_fraction: Fraction of unique parameter sites to reserve for
             testing.
         nugget: Observation noise model. Numeric values are fixed diagonal
-            variance terms and ``'mle'`` learns one global scalar nugget.
+            variance terms, ``'mle'`` learns one global scalar nugget, and
+            ``'adaptive'`` learns a simulator-variance surface from replicated
+            parameter sites.
         nugget_bounds: Lower and upper bounds for ``nugget='mle'``.
+        variance_floor: Minimum raw simulator variance used by
+            ``nugget='adaptive'``.
         ftol: L-BFGS-B function tolerance.
         gtol: L-BFGS-B gradient tolerance.
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
                  test_fraction=0.25, nugget=1e-6, nugget_bounds=(1e-8, 1.0),
-                 ftol=1e-6, gtol=1e-4):
+                 variance_floor=1e-12, ftol=1e-6, gtol=1e-4):
         self._learn_nugget = nugget == 'mle'
+        self._adaptive_nugget = nugget == 'adaptive'
         self._validate_nugget(nugget)
 
-        super().__init__(x, y, test_fraction)
+        super().__init__(None, None, test_fraction)
+        if (x is not None) and (y is not None):
+            self._initialize_data(x, y, test_fraction)
+
         self.nugget = nugget
         self.nugget_bounds = nugget_bounds
+        self.variance_floor = variance_floor
         self.ftol = ftol
         self.gtol = gtol
+        self._variance_emulator = None
+        self._noise_diag_train = None
+        self._data_cov_train = None
+        self._simulator_variance_train = None
+        self._sample_counts_train = None
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -65,12 +81,55 @@ class BayesLinear(BaseEmulator):
     def _validate_nugget(nugget):
         """Validate the requested nugget mode."""
         if isinstance(nugget, str):
-            if nugget != 'mle':
-                raise ValueError("nugget must be numeric or 'mle'")
+            if nugget not in {'mle', 'adaptive'}:
+                raise ValueError("nugget must be numeric, 'mle', or 'adaptive'")
             return
 
         if nugget < 0:
             raise ValueError("nugget must be non-negative")
+
+    def _initialize_data(self, x, y, test_fraction):
+        """Initialize data while grouping repeated parameter sites in holdouts."""
+        X = x.to_numpy()
+        Y = y.to_numpy()
+
+        group_ids = x.groupby(list(x.columns), sort=False).ngroup().to_numpy()
+        has_replicates = len(np.unique(group_ids)) < len(group_ids)
+
+        if test_fraction == 0:
+            test_mask = np.zeros(len(x), dtype=bool)
+        elif has_replicates:
+            groups = np.unique(group_ids)
+            _, test_groups = model_selection.train_test_split(
+                groups,
+                test_size=test_fraction,
+            )
+            test_mask = np.isin(group_ids, test_groups)
+        else:
+            self.X_train, self.X_test, self.y_train, self.y_test = model_selection.train_test_split(
+                X,
+                Y,
+                test_size=test_fraction,
+            )
+            self.X_train_df = pd.DataFrame(self.X_train, columns=x.columns)
+            self.X_test_df = pd.DataFrame(self.X_test, columns=x.columns)
+            self.Y_train_df = pd.DataFrame(self.y_train, columns=y.columns)
+            self.Y_test_df = pd.DataFrame(self.y_test, columns=y.columns)
+            self.X_df = pd.DataFrame(x)
+            self.y_df = pd.DataFrame(y)
+            self.emulator_metrics = {}
+            return
+
+        train_mask = ~test_mask
+        self.X_train, self.X_test = X[train_mask], X[test_mask]
+        self.y_train, self.y_test = Y[train_mask], Y[test_mask]
+        self.X_train_df = pd.DataFrame(self.X_train, columns=x.columns)
+        self.X_test_df = pd.DataFrame(self.X_test, columns=x.columns)
+        self.Y_train_df = pd.DataFrame(self.y_train, columns=y.columns)
+        self.Y_test_df = pd.DataFrame(self.y_test, columns=y.columns)
+        self.X_df = pd.DataFrame(x)
+        self.y_df = pd.DataFrame(y)
+        self.emulator_metrics = {}
 
     def _normalize_x(self, x):
         """Normalize inputs to [0, 1] using training-set min/range."""
@@ -108,17 +167,89 @@ class BayesLinear(BaseEmulator):
 
         return np.log(lower), np.log(upper)
 
-    def _correlation_with_noise(self, X_norm, theta, nugget):
-        """Return a correlation matrix with scalar observation noise."""
-        R = self._sq_exp_corr(X_norm, X_norm, theta)
-        return R + nugget * np.eye(len(X_norm))
+    def _prepare_adaptive_nugget_data(self, x_raw, y_raw):
+        """Collapse replicates and estimate per-site simulator variances."""
+        x_columns = list(self.X_train_df.columns)
+        train_data = self.X_train_df.copy()
+        train_data['_bayes_linear_y'] = y_raw
 
-    def _concentrated_nll(self, log_hyperparameters, X_norm, residuals):
+        site_stats = (
+            train_data
+            .groupby(x_columns, sort=False)['_bayes_linear_y']
+            .agg(['mean', 'count', 'var'])
+            .reset_index()
+            .rename(columns={'var': 'variance'})
+        )
+        replicated = site_stats[site_stats['count'] > 1].copy()
+
+        if len(replicated) < x_raw.shape[1] + 1:
+            raise ValueError(
+                "nugget='adaptive' requires at least n_dims + 1 replicated "
+                "parameter sites to train a variance surface."
+            )
+
+        train_min = site_stats[x_columns].min()
+        train_max = site_stats[x_columns].max()
+        rep_min = replicated[x_columns].min()
+        rep_max = replicated[x_columns].max()
+        if ((rep_min > train_min) | (rep_max < train_max)).any():
+            logger.warning(
+                "Replicated sites do not cover the full BayesLinear training range; "
+                "nugget='adaptive' will extrapolate simulator variance."
+            )
+
+        variance_values = np.maximum(
+            replicated['variance'].to_numpy(dtype=np.float64),
+            self.variance_floor,
+        )
+        variance_emulator = BayesLinear(
+            replicated[x_columns],
+            pd.DataFrame({'log_variance': np.log(variance_values)}),
+            test_fraction=0,
+            nugget=1e-6,
+            ftol=self.ftol,
+            gtol=self.gtol,
+        )
+        variance_emulator.train()
+
+        self._variance_emulator = variance_emulator
+        self._sample_counts_train = site_stats['count'].to_numpy(dtype=np.float64)
+
+        x_mean = site_stats[x_columns].to_numpy(dtype=np.float64)
+        y_mean = site_stats['mean'].to_numpy(dtype=np.float64)
+        return x_mean, y_mean
+
+    def _predict_simulator_variance(self, x):
+        """Predict raw simulator variance for adaptive-nugget emulators.
+
+        The internal variance emulator is trained on ``log(sample_variance)``.
+        Exponentiating its adjusted expectation gives a positive plug-in
+        estimate, rather than the posterior expectation of raw variance.
+        """
+        variance_results = self._variance_emulator.predict(
+            pd.DataFrame(x, columns=self.X_train_df.columns)
+        )
+        log_variance = variance_results.get_mean().to_numpy(dtype=np.float64)
+        return np.maximum(np.exp(log_variance), self.variance_floor)
+
+    def _correlation_with_noise(self, X_norm, theta, nugget, noise_diag):
+        """Return a correlation matrix with scalar or per-site observation noise."""
+        R = self._sq_exp_corr(X_norm, X_norm, theta)
+        if noise_diag is None:
+            return R + nugget * np.eye(len(X_norm))
+        return R + np.diag(noise_diag)
+
+    def _covariance_with_known_noise(self, X_norm, theta, sigma2, noise_diag):
+        """Return sigma^2 * R plus a known per-site noise diagonal."""
+        R = self._sq_exp_corr(X_norm, X_norm, theta)
+        return sigma2 * R + np.diag(noise_diag)
+
+    def _concentrated_nll(self, log_hyperparameters, X_norm, residuals, noise_diag):
         """Concentrated negative log-likelihood for theta optimisation.
 
         With sigma^2 profiled out analytically, the NLL reduces to:
-            NLL(theta) = 0.5 * (n * log(sigma^2_hat) + log|R + nug*I|)
-        where sigma^2_hat = r^T (R + nug*I)^{-1} r / n.
+            NLL(theta) = 0.5 * (n * log(sigma^2_hat) + log|R + K|)
+        where sigma^2_hat = r^T (R + K)^{-1} r / n.
         """
         if self._learn_nugget:
             log_theta = log_hyperparameters[:-1]
@@ -131,7 +262,7 @@ class BayesLinear(BaseEmulator):
         n = len(residuals)
         if hasattr(self, '_nll_eval_count'):
             self._nll_eval_count += 1
-        R_nug = self._correlation_with_noise(X_norm, theta, nugget)
+        R_nug = self._correlation_with_noise(X_norm, theta, nugget, noise_diag)
 
         try:
             L, lower = cho_factor(R_nug)
@@ -146,6 +277,32 @@ class BayesLinear(BaseEmulator):
         # log|R_nug| = 2 * sum(log(diag(L)))
         log_det = 2.0 * np.sum(np.log(np.diag(L)))
         nll = 0.5 * (n * np.log(sigma2_hat) + log_det)
+        return nll
+
+    def _known_noise_nll(self, log_hyperparameters, X_norm, residuals, noise_diag):
+        """Negative log-likelihood for adaptive, known simulator-noise variance."""
+        log_theta = log_hyperparameters[:-1]
+        sigma2 = float(np.exp(log_hyperparameters[-1]))
+        theta = np.exp(log_theta)
+
+        if hasattr(self, '_nll_eval_count'):
+            self._nll_eval_count += 1
+
+        covariance = self._covariance_with_known_noise(
+            X_norm,
+            theta,
+            sigma2,
+            noise_diag,
+        )
+
+        try:
+            L, lower = cho_factor(covariance)
+        except np.linalg.LinAlgError:
+            return 1e10
+
+        alpha = cho_solve((L, lower), residuals)
+        log_det = 2.0 * np.sum(np.log(np.diag(L)))
+        nll = 0.5 * (log_det + residuals @ alpha)
         return nll
 
     # ------------------------------------------------------------------
@@ -163,10 +320,16 @@ class BayesLinear(BaseEmulator):
         """
         t0 = sc.timer()
 
-        x_raw = np.asarray(self.X_train, dtype=np.float64)
-        y_raw = np.asarray(self.y_train, dtype=np.float64).ravel()
-        n_train, n_dims = x_raw.shape
+        x_raw_all = np.asarray(self.X_train, dtype=np.float64)
+        y_raw_all = np.asarray(self.y_train, dtype=np.float64).ravel()
+        n_train, n_dims = x_raw_all.shape
         logger.info(f"    Training Bayes Linear: {n_train} points, {n_dims} dims")
+
+        if self._adaptive_nugget:
+            x_raw, y_raw = self._prepare_adaptive_nugget_data(x_raw_all, y_raw_all)
+            logger.info(f"    Collapsed {n_train} stochastic runs to {len(x_raw)} parameter sites")
+        else:
+            x_raw, y_raw = x_raw_all, y_raw_all
 
         # --- Input normalization (min-max to unit box) ---
         self._x_min = x_raw.min(axis=0)
@@ -193,6 +356,16 @@ class BayesLinear(BaseEmulator):
             self._beta_hat, _, _, _ = np.linalg.lstsq(G, y_std, rcond=None)
         residuals = y_std - G @ self._beta_hat
 
+        if self._adaptive_nugget:
+            self._simulator_variance_train = self._predict_simulator_variance(x_raw)
+            noise_diag = (
+                self._simulator_variance_train
+                / self._sample_counts_train
+                / self._y_std ** 2
+            )
+        else:
+            noise_diag = None
+
         # --- Optimize theta (correlation lengths) and optionally nugget ---
         if self._learn_nugget:
             logger.info(f"    Optimizing theta ({d} correlation lengths) and nugget "
@@ -204,7 +377,7 @@ class BayesLinear(BaseEmulator):
         self._opt_t0 = sc.timer()
 
         def _opt_callback(xk):
-            nll = objective(xk, X_norm, residuals)
+            nll = objective(xk, X_norm, residuals, noise_diag)
             self._nll_best = min(self._nll_best, nll)
             elapsed = self._opt_t0.total
             logger.info(f"    L-BFGS-B iter {self._nll_eval_count}: NLL={self._nll_best:.4f} [{elapsed:.0f}s]")
@@ -213,23 +386,31 @@ class BayesLinear(BaseEmulator):
         initial_guess = log_theta0
         bounds = [LOG_THETA_BOUNDS] * d
 
-        if self._learn_nugget:
+        if self._adaptive_nugget:
+            initial_guess = np.append(log_theta0, 0.0)
+            bounds = [LOG_THETA_BOUNDS] * d + [LOG_SIGMA2_BOUNDS]
+            objective = self._known_noise_nll
+        elif self._learn_nugget:
             log_nugget_bounds = self._get_nugget_log_bounds()
             initial_guess = np.append(initial_guess, np.mean(log_nugget_bounds))
             bounds.append(log_nugget_bounds)
-
-        objective = self._concentrated_nll
+            objective = self._concentrated_nll
+        else:
+            objective = self._concentrated_nll
 
         result = minimize(
             objective,
             initial_guess,
-            args=(X_norm, residuals),
+            args=(X_norm, residuals, noise_diag),
             method='L-BFGS-B',
             bounds=bounds,
             options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
             callback=_opt_callback,
         )
-        if self._learn_nugget:
+        if self._adaptive_nugget:
+            log_theta = result.x[:-1]
+            self._sigma2 = float(np.exp(result.x[-1]))
+        elif self._learn_nugget:
             log_theta = result.x[:-1]
             self.nugget = float(np.exp(result.x[-1]))
         else:
@@ -248,16 +429,32 @@ class BayesLinear(BaseEmulator):
 
         # --- Build correlation matrix and pre-compute Cholesky ---
         logger.info(f"    Building {n}x{n} correlation matrix and Cholesky...")
-        R_nug = self._correlation_with_noise(X_norm, self._theta, self.nugget)
-        self._L, self._lower = cho_factor(R_nug)
+        if self._adaptive_nugget:
+            self._data_cov_train = self._covariance_with_known_noise(
+                X_norm,
+                self._theta,
+                self._sigma2,
+                noise_diag,
+            )
+        else:
+            self._data_cov_train = self._correlation_with_noise(
+                X_norm,
+                self._theta,
+                self.nugget,
+                noise_diag,
+            )
+
+        self._L, self._lower = cho_factor(self._data_cov_train)
         self._alpha = cho_solve((self._L, self._lower), residuals)
 
         # Estimate residual variance (sigma^2)
-        self._sigma2 = float(residuals @ self._alpha) / n
+        if not self._adaptive_nugget:
+            self._sigma2 = float(residuals @ self._alpha) / n
 
         # Store normalised training inputs and residuals for prediction
         self._X_train_norm = X_norm
         self._residuals = residuals
+        self._noise_diag_train = noise_diag
 
         self.training_complete = True
         logger.info(f"    Training complete — sigma²={self._sigma2:.4f}, "
@@ -273,22 +470,37 @@ class BayesLinear(BaseEmulator):
         # --- Adjusted expectation ---
         # E_D[f(x*)] = g(x*)^T beta + c(x*, X) @ alpha
         c_new = self._sq_exp_corr(X_new, self._X_train_norm, self._theta)  # (n_new, n_train)
-        mean_z = G_new @ self._beta_hat + c_new @ self._alpha
+        if self._adaptive_nugget:
+            residual_cov = self._sigma2 * c_new
+            prior_residual_var = self._sigma2
+        else:
+            residual_cov = c_new
+            prior_residual_var = 1.0
+
+        mean_z = G_new @ self._beta_hat + residual_cov @ self._alpha
 
         # --- Adjusted variance ---
         # Var_D[f(x*)] = sigma^2 * (1 - c(x*, X) @ C^{-1} @ c(X, x*))
-        v = cho_solve((self._L, self._lower), c_new.T)  # (n_train, n_new)
-        var_reduction = np.sum(c_new.T * v, axis=0)      # diagonal of c @ C^{-1} @ c^T
-        pred_var_z = np.maximum(self._sigma2 * (1.0 - var_reduction), 0.0)
-
-        # Observation variance adds sigma^2 * nugget (noise term)
-        obs_var_z = pred_var_z + self._sigma2 * self.nugget
+        v = cho_solve((self._L, self._lower), residual_cov.T)
+        var_reduction = np.sum(residual_cov.T * v, axis=0)
+        pred_var_z = np.maximum(
+            prior_residual_var - var_reduction,
+            0.0,
+        )
+        if not self._adaptive_nugget:
+            pred_var_z *= self._sigma2
 
         # --- Un-standardize ---
         ys, ym = self._y_std, self._y_mean
         mean = mean_z * ys + ym
         pred_var = pred_var_z * ys ** 2
-        obs_var = obs_var_z * ys ** 2
+        if self._adaptive_nugget:
+            simulator_variance = self._predict_simulator_variance(
+                np.asarray(x, dtype=np.float64)
+            )
+        else:
+            simulator_variance = np.full(n_new, self._sigma2 * self.nugget * ys ** 2)
+        obs_var = pred_var + simulator_variance
 
         pred_std = np.sqrt(pred_var)
         obs_std = np.sqrt(obs_var)
@@ -299,6 +511,7 @@ class BayesLinear(BaseEmulator):
             'ci_obs_high': mean + z * obs_std,
             'ci_pred_low': mean - z * pred_std,
             'ci_pred_high': mean + z * pred_std,
+            'simulator_variance': simulator_variance,
         }, index=x.index)
 
         return EmulationResults(
@@ -321,15 +534,21 @@ class BayesLinear(BaseEmulator):
 
         return {
             'type': 'bayes_linear',
-            'nugget': float(self.nugget),
+            'nugget': self.nugget if self._adaptive_nugget else float(self.nugget),
             'nugget_learned': bool(self._learn_nugget),
+            'nugget_adaptive': bool(self._adaptive_nugget),
             'sigma_sq': float(self._sigma2 * self._y_std ** 2),
             'sigma_sq_standardized': float(self._sigma2),
+            'simulator_variance': (
+                None if self._simulator_variance_train is None
+                else float(np.mean(self._simulator_variance_train))
+            ),
             'theta': {name: float(t) for name, t in zip(param_names, self._theta)},
             'beta': {name: float(b) for name, b in zip(['intercept'] + param_names, beta_raw)},
             'optimizer_converged': bool(self._opt_result.success),
             'nll': float(self._opt_result.fun),
             'n_train': int(len(self.X_train)),
+            'n_adjusted': int(len(self._X_train_norm)),
             'n_dims': int(len(self._theta)),
         }
 
