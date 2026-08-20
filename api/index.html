@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2772,6 +2772,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label=" train">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bayes-linear-learned-nugget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bayes linear learned nugget
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5267,6 +5284,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label=" train">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bayes-linear-learned-nugget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bayes linear learned nugget
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -6482,10 +6516,10 @@ dropped. The remaining emulators are committed as normal.</p>
 
 <span class="n">metrics</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get_emulator_quality_metrics</span><span class="p">()</span>
 <span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">emulated_outputs</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s2">: R²=</span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="n">output</span><span class="p">][</span><span class="s1">&#39;r2&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s2">: R²=</span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="n">output</span><span class="p">][</span><span class="s1">'r2'</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Drop any emulator with a poor fit before committing</span>
-<span class="n">engine</span><span class="o">.</span><span class="n">drop_emulator_from_pending</span><span class="p">(</span><span class="s1">&#39;output_c&#39;</span><span class="p">)</span>
+<span class="n">engine</span><span class="o">.</span><span class="n">drop_emulator_from_pending</span><span class="p">(</span><span class="s1">'output_c'</span><span class="p">)</span>
 <span class="n">engine</span><span class="o">.</span><span class="n">commit_step</span><span class="p">()</span>
 </code></pre></div>
 </details>
@@ -6836,7 +6870,7 @@ its 95% interval.</p>
 
 
 <h2 id="historymatching.HistoryMatching.plot_ensemble_fan" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="o">.</span><span class="n">plot_ensemble_fan</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">observed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Index&#39;</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Value&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Ensemble vs observed&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="o">.</span><span class="n">plot_ensemble_fan</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="n">observed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">'Index'</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">'Value'</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Ensemble vs observed'</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
@@ -13056,7 +13090,7 @@ with support for custom emulator registration and default parameters.</p>
 
 
 <h2 id="historymatching.emulators.factory.EmulatorFactory.with_defaults_class" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">emulators</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">EmulatorFactory</span><span class="o">.</span><span class="n">with_defaults_class</span><span class="p">(</span><span class="n">default_type</span><span class="o">=</span><span class="s1">&#39;bayes_linear&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">default_kwargs</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">emulators</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">EmulatorFactory</span><span class="o">.</span><span class="n">with_defaults_class</span><span class="p">(</span><span class="n">default_type</span><span class="o">=</span><span class="s1">'bayes_linear'</span><span class="p">,</span> <span class="o">**</span><span class="n">default_kwargs</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -14588,7 +14622,8 @@ for the trained emulator.</p>
 
     </div>
 
-</div>
+</div><h3 id="bayes-linear-learned-nugget">Bayes linear learned nugget</h3>
+
 
 <div class="doc doc-object doc-class">
 
@@ -14602,6 +14637,131 @@ for the trained emulator.</p>
 
 
         <p>Bayes Linear emulator with OLS trend and squared-exponential residual correlation.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>x</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="pandas.DataFrame">DataFrame</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Input data. Pandas dataframe with columns representing parameter
+values.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>y</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="pandas.DataFrame">DataFrame</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Output data. Pandas dataframe with one output column.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>test_fraction</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Fraction of unique parameter sites to reserve for
+testing.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.25</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>nugget</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Observation noise model. Numeric values are fixed diagonal
+variance terms and <code>'mle'</code> learns one global scalar nugget.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1e-06</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>nugget_bounds</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Lower and upper bounds for <code>nugget='mle'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(1e-08, 1.0)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ftol</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>L-BFGS-B function tolerance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1e-06</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>gtol</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>L-BFGS-B gradient tolerance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0001</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
 
@@ -14707,7 +14867,33 @@ for the trained emulator.</p>
 
     </div>
 
-</div>
+</div><p><code>BayesLinear</code> accepts two scalar nugget modes:</p>
+<table>
+<thead>
+<tr>
+<th>Nugget</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1e-6</code> or another number</td>
+<td>Fixed scalar diagonal noise term, preserving the default deterministic behavior</td>
+</tr>
+<tr>
+<td><code>'mle'</code></td>
+<td>Learn a single scalar nugget with the squared-exponential correlation lengths</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>nugget='mle'</code> for stochastic simulators when replicate noise is close to
+constant across the input space:</p>
+<div class="highlight"><pre><span></span><code><span class="n">factory</span> <span class="o">=</span> <span class="n">hm</span><span class="o">.</span><span class="n">EmulatorFactory</span><span class="p">(</span>
+    <span class="n">default_type</span><span class="o">=</span><span class="s1">'bayes_linear'</span><span class="p">,</span>
+    <span class="n">nugget</span><span class="o">=</span><span class="s1">'mle'</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
 
 <div class="doc doc-object doc-class">
 
@@ -15223,7 +15409,7 @@ parameters to show in a pairplot.</p>
 
 
 <h2 id="historymatching.plotting.plot_constrained_dims" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">plot_constrained_dims</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_top</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Constrained directions&#39;</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">plot_constrained_dims</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_top</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Constrained directions'</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -15363,7 +15549,7 @@ top component — which parameters combine to form that constrained direction
 
 
 <h2 id="historymatching.plotting.plot_convergence" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">plot_convergence</span><span class="p">(</span><span class="n">iterations</span><span class="p">,</span> <span class="n">fractions</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;NROY convergence&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">plot_convergence</span><span class="p">(</span><span class="n">iterations</span><span class="p">,</span> <span class="n">fractions</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">'NROY convergence'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -15593,7 +15779,7 @@ by :meth:<code>IterationResult.get_emulator_quality_metrics</code>.</p>
 
 
 <h2 id="historymatching.plotting.plot_ensemble_fan" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">plot_ensemble_fan</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">observed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ci</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span> <span class="n">member_color</span><span class="o">=</span><span class="s1">&#39;#888888&#39;</span><span class="p">,</span> <span class="n">mean_color</span><span class="o">=</span><span class="n">NROY_COLOR</span><span class="p">,</span> <span class="n">obs_color</span><span class="o">=</span><span class="n">TRUTH_COLOR</span><span class="p">,</span> <span class="n">show_members</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_band</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Index&#39;</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Value&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Ensemble vs observed&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">plot_ensemble_fan</span><span class="p">(</span><span class="n">trajectories</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">observed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ci</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span> <span class="n">member_color</span><span class="o">=</span><span class="s1">'#888888'</span><span class="p">,</span> <span class="n">mean_color</span><span class="o">=</span><span class="n">NROY_COLOR</span><span class="p">,</span> <span class="n">obs_color</span><span class="o">=</span><span class="n">TRUTH_COLOR</span><span class="p">,</span> <span class="n">show_members</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_band</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">'Index'</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">'Value'</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Ensemble vs observed'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -16463,7 +16649,7 @@ normalise against (e.g. to show how much each parameter shrank).</p>
 
 
 <h2 id="historymatching.plotting.plot_predicted_vs_actual" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">plot_predicted_vs_actual</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">r2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mse</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_train</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Predicted vs actual&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">plot_predicted_vs_actual</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">r2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mse</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_train</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">'Predicted vs actual'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -17067,7 +17253,7 @@ prior, 1 means fully collapsed.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "content.code.copy", "navigation.indexes"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../javascripts/mathjax.js"></script>
       

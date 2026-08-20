@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1047,23 +1047,23 @@
 <strong>constructor</strong>, <code>HistoryMatching(...)</code>. This is a breaking change for any code
 written against v1.</p>
 <p><strong>Staying on v1.</strong> The last release with the builder API is tagged <code>v1.0.0</code>:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;historymatching @ git+https://github.com/InstituteforDiseaseModeling/historymatching@v1.0.0&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"historymatching @ git+https://github.com/InstituteforDiseaseModeling/historymatching@v1.0.0"</span>
 </code></pre></div>
 <h2 id="at-a-glance">At a glance</h2>
 <p><strong>v1 (builder):</strong></p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">historymatching</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">hm</span>
 
 <span class="n">builder</span> <span class="o">=</span> <span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatchingBuilder</span><span class="o">.</span><span class="n">from_data</span><span class="p">(</span>
-    <span class="n">parameter_bounds</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;beta&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="s1">&#39;gamma&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)},</span>
-    <span class="n">observations</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;peak_infected&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">150.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">)},</span>
+    <span class="n">parameter_bounds</span><span class="o">=</span><span class="p">{</span><span class="s1">'beta'</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="s1">'gamma'</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)},</span>
+    <span class="n">observations</span><span class="o">=</span><span class="p">{</span><span class="s1">'peak_infected'</span><span class="p">:</span> <span class="p">(</span><span class="mf">150.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">)},</span>
 <span class="p">)</span>
 <span class="n">engine</span> <span class="o">=</span> <span class="p">(</span><span class="n">builder</span>
-    <span class="o">.</span><span class="n">with_sampling_strategy</span><span class="p">(</span><span class="s1">&#39;lhs&#39;</span><span class="p">)</span>
-    <span class="o">.</span><span class="n">with_emulator_type</span><span class="p">(</span><span class="s1">&#39;bayes_linear&#39;</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">with_sampling_strategy</span><span class="p">(</span><span class="s1">'lhs'</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">with_emulator_type</span><span class="p">(</span><span class="s1">'bayes_linear'</span><span class="p">)</span>
     <span class="o">.</span><span class="n">with_samples_per_iteration</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span>
     <span class="o">.</span><span class="n">with_max_iterations</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
-    <span class="o">.</span><span class="n">with_output_dir</span><span class="p">(</span><span class="s1">&#39;./hm_output&#39;</span><span class="p">)</span>
-    <span class="o">.</span><span class="n">with_run_name</span><span class="p">(</span><span class="s1">&#39;my_calibration&#39;</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">with_output_dir</span><span class="p">(</span><span class="s1">'./hm_output'</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">with_run_name</span><span class="p">(</span><span class="s1">'my_calibration'</span><span class="p">)</span>
     <span class="o">.</span><span class="n">build</span><span class="p">())</span>
 <span class="n">engine</span><span class="o">.</span><span class="n">set_simulation_function</span><span class="p">(</span><span class="n">my_model</span><span class="p">)</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
@@ -1073,14 +1073,14 @@ written against v1.</p>
 
 <span class="n">engine</span> <span class="o">=</span> <span class="n">hm</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="p">(</span>
     <span class="n">function</span><span class="o">=</span><span class="n">my_model</span><span class="p">,</span>
-    <span class="n">bounds</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;beta&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="s1">&#39;gamma&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)},</span>
-    <span class="n">observations</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;peak_infected&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">150.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">)},</span>
-    <span class="n">sampling_strategy</span><span class="o">=</span><span class="s1">&#39;lhs&#39;</span><span class="p">,</span>
-    <span class="n">emulator_type</span><span class="o">=</span><span class="s1">&#39;bayes_linear&#39;</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="o">=</span><span class="p">{</span><span class="s1">'beta'</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="s1">'gamma'</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)},</span>
+    <span class="n">observations</span><span class="o">=</span><span class="p">{</span><span class="s1">'peak_infected'</span><span class="p">:</span> <span class="p">(</span><span class="mf">150.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">)},</span>
+    <span class="n">sampling_strategy</span><span class="o">=</span><span class="s1">'lhs'</span><span class="p">,</span>
+    <span class="n">emulator_type</span><span class="o">=</span><span class="s1">'bayes_linear'</span><span class="p">,</span>
     <span class="n">n_samples</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
     <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-    <span class="n">output_dir</span><span class="o">=</span><span class="s1">&#39;./hm_output&#39;</span><span class="p">,</span>
-    <span class="n">run_name</span><span class="o">=</span><span class="s1">&#39;my_calibration&#39;</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s1">'./hm_output'</span><span class="p">,</span>
+    <span class="n">run_name</span><span class="o">=</span><span class="s1">'my_calibration'</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
@@ -1393,7 +1393,7 @@ all behave exactly as before.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "content.code.copy", "navigation.indexes"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../javascripts/mathjax.js"></script>
       
