@@ -93,13 +93,14 @@ class GLM(BaseEmulator):
         predicted_mean = prediction_results.predicted_mean
 
         # Compute the confidence interval of the predicted mean
-        low_mean = prediction_results.conf_int()[:,0]
-        high_mean = prediction_results.conf_int()[:,1]
+        conf_int = prediction_results.conf_int()
+        low_mean = conf_int[:,0]
+        high_mean = conf_int[:,1]
 
-        # Compute the prediction intervals 
-        pred_ci = self.results.get_prediction( x_pred, linear=False)
-        low = pred_ci.conf_int(obs=True)[:,0]
-        high = pred_ci.conf_int(obs=True)[:,1]
+        # Prediction intervals: statsmodels' GLM prediction results only expose
+        # intervals for the mean, so these match the confidence intervals above
+        low = low_mean
+        high = high_mean
 
         # Create additional data for emulator-specific outputs
         additional = pd.DataFrame({
@@ -111,7 +112,7 @@ class GLM(BaseEmulator):
         
         return EmulationResults(
             mean=predicted_mean,
-            std=pred_ci.se_mean,  # Standard error is already std
+            std=prediction_results.se_mean,  # Standard error is already std
             additional_data=additional,
             index=x.index,
         )
