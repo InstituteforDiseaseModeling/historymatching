@@ -67,8 +67,8 @@ website:
           text: "**Overview**"
         - href: installation.qmd
           text: "**Installation**"
-        - section: "**Tutorials**"
-          href: tutorials.qmd
+        - section: "<b>Tutorials</b>"   # HTML, not Markdown: a section with an href
+          href: tutorials.qmd            # does not render Markdown (quarto-cli#14520)
           contents:
             - tutorials/01_basic_workflow.ipynb
             - tutorials/02_manual_workflow.ipynb

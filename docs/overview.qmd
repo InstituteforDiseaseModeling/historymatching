@@ -18,7 +18,8 @@ Each iteration of the algorithm:
 
 The set of parameters that survive this filtering — the **NROY** set — shrinks with each iteration, converging on the region of parameter space consistent with the observations.
 
-```mermaid
+```{mermaid}
+%%| echo: false
 %%{init: {'themeVariables': {'fontSize': '14px'}, 'flowchart': {'rankSpacing': 38, 'nodeSpacing': 28}}}%%
 flowchart TD
     Start(["Parameter space"]) -- "Initial points" --> Sim["Simulate points"]

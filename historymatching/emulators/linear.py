@@ -28,13 +28,15 @@ class LinearModel(BaseEmulator):
     uncertainty estimates.
 
     Example:
-        >>> import numpy as np, pandas as pd
-        >>> from historymatching.emulators.linear import LinearModel
-        >>> x = pd.DataFrame({'beta': np.random.rand(40), 'gamma': np.random.rand(40)})
-        >>> y = pd.DataFrame({'peak': 2 * x['beta'] - x['gamma']})
-        >>> em = LinearModel(x, y)
-        >>> em.train()
-        >>> pred = em.predict(x)  # doctest: +SKIP
+        ```python
+        import numpy as np, pandas as pd
+        from historymatching.emulators.linear import LinearModel
+        x = pd.DataFrame({'beta': np.random.rand(40), 'gamma': np.random.rand(40)})
+        y = pd.DataFrame({'peak': 2 * x['beta'] - x['gamma']})
+        em = LinearModel(x, y)
+        em.train()
+        pred = em.predict(x)
+        ```
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction: float = 0.25) -> None:

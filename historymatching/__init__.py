@@ -4,15 +4,17 @@ The entry point is `HistoryMatching`: configure a run with plain
 arguments (your simulator `function`, parameter bounds, and observations),
 then call `HistoryMatching.run`.
 
-    import historymatching as hm
+```python
+import historymatching as hm
 
-    engine = hm.HistoryMatching(
-        function=my_simulator,
-        bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
-        observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
-    )
-    results = engine.run()
-    plausible = engine.get_nroy_samples()
+engine = hm.HistoryMatching(
+    function=my_simulator,
+    bounds={'beta': (0.1, 0.5), 'gamma': (0.01, 0.1)},
+    observations={'peak_infected': (150.0, 20.0)},  # (mean, std)
+)
+results = engine.run()
+plausible = engine.get_nroy_samples()
+```
 
 All the public building blocks are available at the top level (e.g.
 `hm.ParameterSpace`, `hm.RandomSampling`, `hm.GPR`) so you rarely need to

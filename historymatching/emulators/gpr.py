@@ -31,13 +31,15 @@ class GPR(BaseEmulator):
     small-to-medium training sets where prediction quality matters most.
 
     Example:
-        >>> import numpy as np, pandas as pd
-        >>> from historymatching.emulators.gpr import GPR
-        >>> x = pd.DataFrame({'beta': np.random.rand(40), 'gamma': np.random.rand(40)})
-        >>> y = pd.DataFrame({'peak': np.sin(3 * x['beta']) + x['gamma'] ** 2})
-        >>> em = GPR(x, y)
-        >>> em.train()
-        >>> pred = em.predict(x)  # doctest: +SKIP
+        ```python
+        import numpy as np, pandas as pd
+        from historymatching.emulators.gpr import GPR
+        x = pd.DataFrame({'beta': np.random.rand(40), 'gamma': np.random.rand(40)})
+        y = pd.DataFrame({'peak': np.sin(3 * x['beta']) + x['gamma'] ** 2})
+        em = GPR(x, y)
+        em.train()
+        pred = em.predict(x)
+        ```
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction=0.25):

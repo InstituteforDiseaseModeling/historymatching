@@ -53,14 +53,16 @@ class BayesLinear(BaseEmulator):
         gtol: Gradient tolerance for the same optimization.
 
     Example:
-        >>> import numpy as np, pandas as pd
-        >>> from historymatching.emulators.bayes_linear import BayesLinear
-        >>> x = pd.DataFrame({'beta': np.random.rand(50), 'gamma': np.random.rand(50)})
-        >>> y = pd.DataFrame({'peak': 3 * x['beta'] + x['gamma']})
-        >>> em = BayesLinear(x, y)
-        >>> em.train()
-        >>> pred = em.predict(x)
-        >>> pred.get_mean()  # predictive means; pred.get_variance() for uncertainty  # doctest: +SKIP
+        ```python
+        import numpy as np, pandas as pd
+        from historymatching.emulators.bayes_linear import BayesLinear
+        x = pd.DataFrame({'beta': np.random.rand(50), 'gamma': np.random.rand(50)})
+        y = pd.DataFrame({'peak': 3 * x['beta'] + x['gamma']})
+        em = BayesLinear(x, y)
+        em.train()
+        pred = em.predict(x)
+        pred.get_mean()  # predictive means; pred.get_variance() for uncertainty
+        ```
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,

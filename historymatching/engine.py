@@ -196,6 +196,7 @@ class HistoryMatching:
     defaults are used for anything you omit.
 
     Examples:
+        ```python
         import historymatching as hm
 
         # The simulator takes a DataFrame of samples and returns one row of outputs per sample.
@@ -224,6 +225,7 @@ class HistoryMatching:
         engine.commit_step()               # accept it (or engine.revert_step())
         engine.feature_selection = ['different_output']   # reconfigure on the fly
         result = engine.step()
+        ```
 
     The simulator `function` receives a pandas DataFrame of parameter samples
     (one row per sample) and may return either a DataFrame or a list of dicts
@@ -617,8 +619,10 @@ class HistoryMatching:
         """Iterate over committed waves as `(iteration, result, samples)` tuples.
 
         Example:
+            ```python
             for i, result, samples in engine.enumerate():
                 print(i, result.nroy_fraction, len(samples))
+            ```
         """
         for result in self.results:
             yield result.iteration, result, result.samples
@@ -1384,12 +1388,14 @@ class HistoryMatching:
             DataFrame of NROY samples, or empty DataFrame if no iterations committed.
 
         Example:
+            ```python
             results = engine.run()
             nroy = engine.get_nroy_samples()                    # cached from last wave
             nroy = engine.get_nroy_samples(10000)               # larger draw (default method)
             nroy = engine.get_nroy_samples(5000, method='lhs')  # unbiased for posterior
             nroy = engine.get_nroy_samples(5000, method='auto',
                                            n_lines=40, points_per_line=100)
+            ```
         """
         if not self._snapshots:
             return pd.DataFrame()
@@ -1430,12 +1436,14 @@ class HistoryMatching:
             DataFrame of proposed samples for next iteration, or None if no step is pending
 
         Example:
+            ```python
             result = engine.step()
             next_samples = engine.get_pending_next_samples()
             if next_samples is not None:
                 print(f"Proposed {len(next_samples)} samples for next iteration")
                 # Inspect the samples before deciding to commit
                 engine.commit_step()  # or engine.revert_step()
+            ```
         """
         if self._pending_snapshot is None:
             return None
