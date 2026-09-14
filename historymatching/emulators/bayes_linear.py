@@ -8,8 +8,8 @@ estimated by maximizing a concentrated log-likelihood on the residuals.
 Pure numpy/scipy -- no TensorFlow or GPflow dependency.
 """
 
-from typing import Optional
 import logging
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -37,6 +37,21 @@ class BayesLinear(BaseEmulator):
     near-GPR-quality predictions and calibrated uncertainty at a fraction of the
     cost, using only numpy/scipy (no TensorFlow/GPflow).
 
+
+    Args:
+        x: Input data. Pandas DataFrame with columns representing parameter
+            values.
+        y: Output data. Pandas DataFrame with columns representing
+            observations and rows representing samples. Each row must match
+            the corresponding row in ``x``.
+        test_fraction: Fraction of ``x`` and ``y`` held out for testing
+            (scalar between 0 and 1).
+        nugget: Small value added to the kernel diagonal for numerical
+            stability (jitter). Larger values smooth the fit.
+        ftol: Function-value tolerance for the L-BFGS-B correlation-length
+            optimization (convergence criterion).
+        gtol: Gradient tolerance for the same optimization.
+
     Example:
         >>> import numpy as np, pandas as pd
         >>> from historymatching.emulators.bayes_linear import BayesLinear
@@ -49,31 +64,31 @@ class BayesLinear(BaseEmulator):
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
-                 test_fraction=0.25, nugget=1e-6, ftol=1e-6, gtol=1e-4):
-        """Initialize the Bayes Linear emulator.
+                 test_fraction=0.25, nugget=1e-6, nugget_bounds=(1e-8, 1.0),
+                 ftol=1e-6, gtol=1e-4):
+        self._learn_nugget = nugget == 'mle'
+        self._validate_nugget(nugget)
 
-        Args:
-            x: Input data. Pandas DataFrame with columns representing parameter
-                values.
-            y: Output data. Pandas DataFrame with columns representing
-                observations and rows representing samples. Each row must match
-                the corresponding row in ``x``.
-            test_fraction: Fraction of ``x`` and ``y`` held out for testing
-                (scalar between 0 and 1).
-            nugget: Small value added to the kernel diagonal for numerical
-                stability (jitter). Larger values smooth the fit.
-            ftol: Function-value tolerance for the L-BFGS-B correlation-length
-                optimization (convergence criterion).
-            gtol: Gradient tolerance for the same optimization.
-        """
         super().__init__(x, y, test_fraction)
         self.nugget = nugget
+        self.nugget_bounds = nugget_bounds
         self.ftol = ftol
         self.gtol = gtol
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _validate_nugget(nugget):
+        """Validate the requested nugget mode."""
+        if isinstance(nugget, str):
+            if nugget != 'mle':
+                raise ValueError("nugget must be numeric or 'mle'")
+            return
+
+        if nugget < 0:
+            raise ValueError("nugget must be non-negative")
 
     def _normalize_x(self, x):
         """Normalize inputs to [0, 1] using training-set min/range."""
@@ -101,19 +116,40 @@ class BayesLinear(BaseEmulator):
         sq_dist = np.sum((diff / theta) ** 2, axis=2)        # (n, m)
         return np.exp(-sq_dist)
 
-    def _concentrated_nll(self, log_theta, X_norm, residuals):
+    def _get_nugget_log_bounds(self):
+        """Return nugget bounds in log-space for optimizer use."""
+        lower, upper = self.nugget_bounds
+        if lower <= 0:
+            raise ValueError("nugget_bounds lower value must be positive")
+        if upper <= lower:
+            raise ValueError("nugget_bounds upper value must be greater than lower")
+
+        return np.log(lower), np.log(upper)
+
+    def _correlation_with_noise(self, X_norm, theta, nugget):
+        """Return a correlation matrix with scalar observation noise."""
+        R = self._sq_exp_corr(X_norm, X_norm, theta)
+        return R + nugget * np.eye(len(X_norm))
+
+    def _concentrated_nll(self, log_hyperparameters, X_norm, residuals):
         """Concentrated negative log-likelihood for theta optimisation.
 
         With sigma^2 profiled out analytically, the NLL reduces to:
             NLL(theta) = 0.5 * (n * log(sigma^2_hat) + log|R + nug*I|)
         where sigma^2_hat = r^T (R + nug*I)^{-1} r / n.
         """
+        if self._learn_nugget:
+            log_theta = log_hyperparameters[:-1]
+            nugget = float(np.exp(log_hyperparameters[-1]))
+        else:
+            log_theta = log_hyperparameters
+            nugget = self.nugget
+
         theta = np.exp(log_theta)
         n = len(residuals)
         if hasattr(self, '_nll_eval_count'):
             self._nll_eval_count += 1
-        R = self._sq_exp_corr(X_norm, X_norm, theta)
-        R_nug = R + self.nugget * np.eye(n)
+        R_nug = self._correlation_with_noise(X_norm, theta, nugget)
 
         try:
             L, lower = cho_factor(R_nug)
@@ -169,32 +205,55 @@ class BayesLinear(BaseEmulator):
         logger.info(f"    OLS trend fit [{t0.total:.1f}s]")
         G = self._design_matrix(X_norm)  # (n, d+1)
         GtG = G.T @ G
-        self._beta_hat = np.linalg.solve(GtG, G.T @ y_std)
+        try:
+            self._beta_hat = np.linalg.solve(GtG, G.T @ y_std)
+        except np.linalg.LinAlgError:
+            self._beta_hat, _, _, _ = np.linalg.lstsq(G, y_std, rcond=None)
         residuals = y_std - G @ self._beta_hat
 
-        # --- Optimize theta (correlation lengths) ---
-        logger.info(f"    Optimizing theta ({d} correlation lengths, {n}x{n} Cholesky per eval)...")
+        # --- Optimize theta (correlation lengths) and optionally nugget ---
+        if self._learn_nugget:
+            logger.info(f"    Optimizing theta ({d} correlation lengths) and nugget "
+                        f"({n}x{n} Cholesky per eval)...")
+        else:
+            logger.info(f"    Optimizing theta ({d} correlation lengths, {n}x{n} Cholesky per eval)...")
         self._nll_eval_count = 0
         self._nll_best = np.inf
         self._opt_t0 = sc.timer()
 
         def _opt_callback(xk):
-            nll = self._concentrated_nll(xk, X_norm, residuals)
+            nll = objective(xk, X_norm, residuals)
             self._nll_best = min(self._nll_best, nll)
             elapsed = self._opt_t0.total
             logger.info(f"    L-BFGS-B iter {self._nll_eval_count}: NLL={self._nll_best:.4f} [{elapsed:.0f}s]")
 
         log_theta0 = np.zeros(d)  # initial guess: theta=1 in normalised space
+        initial_guess = log_theta0
+        bounds = [LOG_THETA_BOUNDS] * d
+
+        if self._learn_nugget:
+            log_nugget_bounds = self._get_nugget_log_bounds()
+            initial_guess = np.append(initial_guess, np.mean(log_nugget_bounds))
+            bounds.append(log_nugget_bounds)
+
+        objective = self._concentrated_nll
+
         result = minimize(
-            self._concentrated_nll,
-            log_theta0,
+            objective,
+            initial_guess,
             args=(X_norm, residuals),
             method='L-BFGS-B',
-            bounds=[LOG_THETA_BOUNDS] * d,
+            bounds=bounds,
             options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
             callback=_opt_callback,
         )
-        self._theta = np.exp(result.x)
+        if self._learn_nugget:
+            log_theta = result.x[:-1]
+            self.nugget = float(np.exp(result.x[-1]))
+        else:
+            log_theta = result.x
+
+        self._theta = np.exp(log_theta)
         self._opt_result = result
         logger.info(f"    Theta optimization: {result.nit} L-BFGS iters, {self._nll_eval_count} NLL evals, "
                     f"final NLL={result.fun:.4f} [{t0.total:.1f}s]")
@@ -207,8 +266,7 @@ class BayesLinear(BaseEmulator):
 
         # --- Build correlation matrix and pre-compute Cholesky ---
         logger.info(f"    Building {n}x{n} correlation matrix and Cholesky...")
-        R = self._sq_exp_corr(X_norm, X_norm, self._theta)
-        R_nug = R + self.nugget * np.eye(n)
+        R_nug = self._correlation_with_noise(X_norm, self._theta, self.nugget)
         self._L, self._lower = cho_factor(R_nug)
         self._alpha = cho_solve((self._L, self._lower), residuals)
 
@@ -282,6 +340,7 @@ class BayesLinear(BaseEmulator):
         return {
             'type': 'bayes_linear',
             'nugget': float(self.nugget),
+            'nugget_learned': bool(self._learn_nugget),
             'sigma_sq': float(self._sigma2 * self._y_std ** 2),
             'sigma_sq_standardized': float(self._sigma2),
             'theta': {name: float(t) for name, t in zip(param_names, self._theta)},
