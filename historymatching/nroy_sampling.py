@@ -498,8 +498,16 @@ def _filter_nroy(
                 failures = np.asarray(feature_impl > threshold, dtype=bool).ravel()
                 mask[mask] &= ~failures
             except Exception as e:
-                logger.warning(f"Filter failed for '{feature_name}': {e}")
-                continue
+                # Do NOT swallow this: if a feature's emulator fails to predict,
+                # silently skipping it drops that feature's constraint from the
+                # filter, so points that should be ruled implausible survive and
+                # the NROY region is wrong. Fail loud instead.
+                raise RuntimeError(
+                    f"NROY filtering failed for feature '{feature_name}' "
+                    f"(iteration {iteration}): {e}. The emulator could not predict "
+                    f"on the candidate points, so the NROY region cannot be computed "
+                    f"reliably. Inspect this emulator or retrain the wave."
+                ) from e
 
     return candidates[mask]
 

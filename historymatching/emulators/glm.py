@@ -1,3 +1,11 @@
+"""
+Generalized Linear Model (GLM) emulator.
+
+Extends linear regression to non-Gaussian responses via a link function
+(currently Gaussian/``'linear'`` or ``'poisson'``), built on statsmodels. Useful
+when outputs are counts or otherwise not well modeled by plain OLS.
+"""
+
 from typing import Optional
 import logging
 
@@ -9,7 +17,21 @@ from .results import EmulationResults
 
 
 class GLM(BaseEmulator):
-    """ Generalized Linear Model (GLM) emulator.
+    """Generalized Linear Model (GLM) emulator.
+
+    Fits a generalized linear model with a configurable ``link`` function
+    (``'linear'`` for a Gaussian family, ``'poisson'`` for count data), allowing
+    non-Gaussian output distributions while keeping the model fast and
+    interpretable.
+
+    Example:
+        >>> import numpy as np, pandas as pd
+        >>> from historymatching.emulators.glm import GLM
+        >>> x = pd.DataFrame({'beta': np.random.rand(40), 'gamma': np.random.rand(40)})
+        >>> y = pd.DataFrame({'cases': (50 * x['beta']).round()})
+        >>> em = GLM(x, y, link='poisson')
+        >>> em.train()
+        >>> pred = em.predict(x)  # doctest: +SKIP
     """
 
     def __init__(self, x: Optional[pd.DataFrame]=None, y: Optional[pd.DataFrame]=None, test_fraction: float=0.25, link='linear') -> None:

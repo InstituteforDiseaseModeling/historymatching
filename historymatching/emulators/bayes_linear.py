@@ -30,10 +30,42 @@ LOG_THETA_BOUNDS = (-4.0, 4.0)
 
 
 class BayesLinear(BaseEmulator):
-    """Bayes Linear emulator with OLS trend and squared-exponential residual correlation."""
+    """Bayes Linear emulator with OLS trend and squared-exponential residual correlation.
+
+    This is the default emulator. It pairs an ordinary-least-squares regression
+    trend with a correlated residual process (squared-exponential kernel), giving
+    near-GPR-quality predictions and calibrated uncertainty at a fraction of the
+    cost, using only numpy/scipy (no TensorFlow/GPflow).
+
+    Example:
+        >>> import numpy as np, pandas as pd
+        >>> from historymatching.emulators.bayes_linear import BayesLinear
+        >>> x = pd.DataFrame({'beta': np.random.rand(50), 'gamma': np.random.rand(50)})
+        >>> y = pd.DataFrame({'peak': 3 * x['beta'] + x['gamma']})
+        >>> em = BayesLinear(x, y)
+        >>> em.train()
+        >>> pred = em.predict(x)
+        >>> pred.get_mean()  # predictive means; pred.get_variance() for uncertainty  # doctest: +SKIP
+    """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
                  test_fraction=0.25, nugget=1e-6, ftol=1e-6, gtol=1e-4):
+        """Initialize the Bayes Linear emulator.
+
+        Args:
+            x: Input data. Pandas DataFrame with columns representing parameter
+                values.
+            y: Output data. Pandas DataFrame with columns representing
+                observations and rows representing samples. Each row must match
+                the corresponding row in ``x``.
+            test_fraction: Fraction of ``x`` and ``y`` held out for testing
+                (scalar between 0 and 1).
+            nugget: Small value added to the kernel diagonal for numerical
+                stability (jitter). Larger values smooth the fit.
+            ftol: Function-value tolerance for the L-BFGS-B correlation-length
+                optimization (convergence criterion).
+            gtol: Gradient tolerance for the same optimization.
+        """
         super().__init__(x, y, test_fraction)
         self.nugget = nugget
         self.ftol = ftol

@@ -47,6 +47,7 @@ nav:
       - tutorials/06_visualization.ipynb
       - tutorials/07_trajectory_selection.ipynb
   - Usage guide: usage.md
+  - Extending: extending.md
   - Glossary: glossary.md
   - API reference: api.md
   - Contributing: contributing.md

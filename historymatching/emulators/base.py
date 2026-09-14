@@ -13,7 +13,37 @@ from .results import EmulationResults
 
 
 class BaseEmulator:
-    """Base class for emulators."""
+    """Abstract base class for all emulators.
+
+    An emulator is a fast statistical surrogate of the user's simulator: it is
+    trained on a set of parameter samples ``x`` and the corresponding simulator
+    outputs ``y``, and then predicts the output (with uncertainty) at new
+    parameter points. History matching uses those predictions to decide which
+    regions of parameter space are implausible.
+
+    This class handles the train/test split and the shared diagnostics
+    (:meth:`test`, :meth:`get_implausibility`); concrete emulators only need to
+    implement the fitting and prediction logic.
+
+    To write your own emulator, subclass ``BaseEmulator`` and implement the four
+    abstract methods:
+
+    - :meth:`train` — fit the emulator on ``self.X_train`` / ``self.y_train``
+      and set ``self.training_complete = True``.
+    - :meth:`predict` — return an :class:`~historymatching.emulators.results.EmulationResults`
+      with a predictive mean and variance for the given input DataFrame.
+    - :meth:`print_emulator_description` — print the fitted specification
+      (coefficients, lengthscales, etc.).
+    - :meth:`get_hyperparameters` — return the fitted hyperparameters as a
+      JSON-serializable dict.
+
+    Register the subclass with
+    :class:`~historymatching.emulators.factory.EmulatorFactory` to make it
+    selectable via ``emulator_type=`` on :class:`~historymatching.HistoryMatching`.
+
+    See :class:`BayesLinear` (the default), :class:`GPR`, :class:`LinearModel`,
+    and :class:`GLM` for reference implementations.
+    """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction=0.25):
         """Initialize the emulator.

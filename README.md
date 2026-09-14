@@ -12,7 +12,7 @@ Python 3.9+, with TensorFlow 2.18+.
 
 ## Installation
 
-Available on PyPI:
+Install the latest version from GitHub:
 
 ```bash
 pip install git+https://github.com/InstituteforDiseaseModeling/historymatching
