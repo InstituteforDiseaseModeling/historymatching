@@ -21,12 +21,12 @@ class IterationResult:
 
     Holds the parameter samples run this wave, the simulator outputs, the
     outputs that were emulated, the trained emulators, and the fraction of
-    parameter space still plausible (``nroy_fraction``).
+    parameter space still plausible (`nroy_fraction`).
 
     The NROY (Not Ruled Out Yet) set itself is not stored here — it is defined
-    implicitly by the emulator bank.  Use :meth:`HistoryMatching.get_nroy_samples`
-    to draw plausible samples.  The final wave's ``samples`` +
-    ``simulation_results`` can be fed directly into trajectory selection.
+    implicitly by the emulator bank.  Use `HistoryMatching.get_nroy_samples`
+    to draw plausible samples.  The final wave's `samples` +
+    `simulation_results` can be fed directly into trajectory selection.
     """
 
     iteration: int
@@ -80,7 +80,7 @@ class IterationResult:
 
         Returns:
             Dict mapping each output name to a metrics dict with keys
-            ``r2`` (test R²), ``mse`` (test MSE), and ``n_train`` (training points).
+            `r2` (test R²), `mse` (test MSE), and `n_train` (training points).
             A key is absent if that metric could not be computed.
         """
         metrics = {}
@@ -109,7 +109,7 @@ class IterationResult:
 
     def quality_table(self) -> pd.DataFrame:
         """Per-output emulator quality as a table (rows = outputs; columns
-        ``r2``/``mse``/``n_train``). Renders nicely in notebooks."""
+        `r2`/`mse`/`n_train`). Renders nicely in notebooks."""
         metrics = self.get_emulator_quality_metrics()
         if not metrics:
             return pd.DataFrame()
@@ -117,14 +117,14 @@ class IterationResult:
 
     def plot_emulator_quality(self, *, ax=None, **kwargs):
         """Bar chart of per-output emulator R² (delegates to
-        :func:`historymatching.plotting.plot_emulator_quality`)."""
+        `historymatching.plotting.plot_emulator_quality`)."""
         from . import plotting
         return plotting.plot_emulator_quality(self.get_emulator_quality_metrics(), ax=ax, **kwargs)
 
     def plot_predicted_vs_actual(self, output: str, *, ax=None, **kwargs):
         """Predicted-vs-actual scatter for one output's emulator on its held-out
         test set (delegates to
-        :func:`historymatching.plotting.plot_predicted_vs_actual`)."""
+        `historymatching.plotting.plot_predicted_vs_actual`)."""
         from . import plotting
         em = self.get_emulator(output)
         if hasattr(em, "test") and not getattr(em, "testing_complete", False):
@@ -164,21 +164,21 @@ class IterationResult:
 
     def save(self, directory: str, all_results: Optional[list] = None) -> str:
         """
-        Save everything about this wave to ``{directory}/wave{N}/``.
+        Save everything about this wave to `{directory}/wave{N}/`.
 
-        Writes the parameter ``samples.csv`` and ``simulation_results.csv``, a
-        pickle of each emulator under ``emulators/``, per-output diagnostic
+        Writes the parameter `samples.csv` and `simulation_results.csv`, a
+        pickle of each emulator under `emulators/`, per-output diagnostic
         figures (predicted-vs-actual, and ARD lengthscales for GPR), a
-        ``metrics.json``, and — when ``all_results`` is supplied — a
-        ``convergence.png`` showing the plausible fraction across waves.
+        `metrics.json`, and — when `all_results` is supplied — a
+        `convergence.png` showing the plausible fraction across waves.
 
         Args:
-            directory: Parent directory; a ``wave{N}/`` subfolder is created.
+            directory: Parent directory; a `wave{N}/` subfolder is created.
             all_results: Optional list of all waves so far, used for the
                 convergence plot.
 
         Returns:
-            The path to the ``wave{N}/`` directory that was written.
+            The path to the `wave{N}/` directory that was written.
         """
         import matplotlib  # noqa: F401  (ensure a backend is selected)
         import matplotlib.pyplot as plt

@@ -2,9 +2,9 @@
 HistoryMatching — the main user-facing class for running a calibration.
 
 Configure everything in one constructor call (parameter bounds, observations,
-simulator function, and options), then call :meth:`HistoryMatching.run` for an
-automated workflow or :meth:`HistoryMatching.step` / :meth:`commit_step` /
-:meth:`revert_step` for interactive, wave-by-wave control.
+simulator function, and options), then call `HistoryMatching.run` for an
+automated workflow or `HistoryMatching.step` / `commit_step` /
+`revert_step` for interactive, wave-by-wave control.
 """
 
 from typing import Any, Callable, Optional, Union
@@ -190,7 +190,7 @@ class HistoryMatching:
     """
     Bayesian history matching — configure everything in one constructor call.
 
-    Pass your parameter bounds, observations, and simulator ``function`` as plain
+    Pass your parameter bounds, observations, and simulator `function` as plain
     arguments.  Friendly values (strings, dicts, lists) are accepted for the
     strategy options and turned into the underlying objects for you; sensible
     defaults are used for anything you omit.
@@ -225,7 +225,7 @@ class HistoryMatching:
         engine.feature_selection = ['different_output']   # reconfigure on the fly
         result = engine.step()
 
-    The simulator ``function`` receives a pandas DataFrame of parameter samples
+    The simulator `function` receives a pandas DataFrame of parameter samples
     (one row per sample) and may return either a DataFrame or a list of dicts
     (one dict per sample) mapping output names to values.
     """
@@ -269,7 +269,7 @@ class HistoryMatching:
         Configure a history matching run.
 
         An "output" is a named scalar your simulator produces that you have an
-        observed target for (e.g. ``'peak_infected'``).  Each wave trains an
+        observed target for (e.g. `'peak_infected'`).  Each wave trains an
         emulator for one or more outputs and rules out parameter regions whose
         emulated outputs are implausibly far from the observations.
 
@@ -277,27 +277,27 @@ class HistoryMatching:
             function: The simulator.  A callable taking a DataFrame of parameter
                 samples and returning a DataFrame (or list of dicts) of outputs,
                 whose column/key names match the observation names.  May also be
-                set later with ``engine.function = my_simulator``.
+                set later with `engine.function = my_simulator`.
             bounds: The parameter space to search.  A dict mapping
-                ``name -> (min, max)``, a DataFrame with ``parameter/minimum/maximum``
-                columns, or a :class:`ParameterSpace`.
-            observations: The target data.  A dict mapping ``output -> (mean, std)``
+                `name -> (min, max)`, a DataFrame with `parameter/minimum/maximum`
+                columns, or a `ParameterSpace`.
+            observations: The target data.  A dict mapping `output -> (mean, std)`
                 (the second value is the standard deviation, not the variance),
-                a DataFrame with ``feature/mean/std`` columns, or an
-                :class:`ObservationData`.
-            sampling_strategy: ``'lhs'`` (default) / ``'grid'`` / ``'random'``, a
-                :class:`SamplingStrategy`, or a config dict (e.g. ``{'type': 'lhs',
-                'criterion': 'center'}``).
+                a DataFrame with `feature/mean/std` columns, or an
+                `ObservationData`.
+            sampling_strategy: `'lhs'` (default) / `'grid'` / `'random'`, a
+                `SamplingStrategy`, or a config dict (e.g. `{'type': 'lhs',
+                'criterion': 'center'}`).
             feature_selection: which outputs to emulate each wave.  A name or list
-                of names (emulate exactly these), a config dict (e.g. ``{'method':
-                'fano', 'max_features': 3}``), a :class:`FeatureSelectionStrategy`,
-                or ``None`` for the automatic default (``method='mean_sq_z'`` —
+                of names (emulate exactly these), a config dict (e.g. `{'method':
+                'fano', 'max_features': 3}`), a `FeatureSelectionStrategy`,
+                or `None` for the automatic default (`method='mean_sq_z'` —
                 ranks outputs by mean squared z-score, i.e. how far each sits from
                 its target in std units — one output per wave).
-            emulator_type: ``'bayes_linear'`` (default) / ``'gpr'`` / ``'glm'`` / ``'linear'``.
-            emulator_factory: a pre-built :class:`EmulatorFactory` (overrides
-                ``emulator_type``; use it to pass emulator kwargs).
-            emulator_bank: a pre-populated :class:`EmulatorBank` (for resuming).
+            emulator_type: `'bayes_linear'` (default) / `'gpr'` / `'glm'` / `'linear'`.
+            emulator_factory: a pre-built `EmulatorFactory` (overrides
+                `emulator_type`; use it to pass emulator kwargs).
+            emulator_bank: a pre-populated `EmulatorBank` (for resuming).
             n_samples: parameter samples generated per wave.
             implausibility_threshold: implausibility cutoff, typically 2.5-4.0.
             max_iterations: maximum number of waves to run.
@@ -306,15 +306,15 @@ class HistoryMatching:
             oversample_factor: oversampling factor for rejection filtering (>= 1.0).
             max_batch_size: max candidates per NROY sampling batch (>= 100).
             output_dir: where to auto-save waves, diagnostics, and checkpoints.
-                Nothing is written until the first :meth:`run`/:meth:`step`; set
-                ``output_dir=None`` to disable disk output entirely.
-            run_name: subdirectory under ``output_dir`` (auto-generated if None).
+                Nothing is written until the first `run`/`step`; set
+                `output_dir=None` to disable disk output entirely.
+            run_name: subdirectory under `output_dir` (auto-generated if None).
             convergence_threshold: stop early once the plausible (NROY) fraction
-                falls below this; ``0.0`` (default) disables early stopping.
-            nroy_method: NROY sampler — ``'auto'`` (default) / ``'lhs'`` / ``'ray'``.
+                falls below this; `0.0` (default) disables early stopping.
+            nroy_method: NROY sampler — `'auto'` (default) / `'lhs'` / `'ray'`.
             nroy_options: dict of advanced options forwarded to the NROY sampler.
             max_candidate_factor: cap on candidates per wave as a multiple of
-                ``n_samples`` (safety valve for near-empty NROY spaces).
+                `n_samples` (safety valve for near-empty NROY spaces).
         """
         # Core components — coerce friendly inputs into domain objects.
         self.parameter_space = self._coerce_parameter_space(bounds)
@@ -358,7 +358,7 @@ class HistoryMatching:
         self._iteration_callbacks: list[Callable] = []
         self._progress_callbacks: list[Callable] = []
 
-        # Simulator function (assign with ``engine.function = my_simulator``).
+        # Simulator function (assign with `engine.function = my_simulator`).
         self.function: Optional[Callable] = function
 
         # Output is created lazily on the first run()/step() so that merely
@@ -375,8 +375,8 @@ class HistoryMatching:
     def _ensure_output(self) -> None:
         """Create the run directory + file logging on first use (idempotent).
 
-        Deferred from ``__init__`` so that constructing a HistoryMatching has no
-        side effects; called at the start of :meth:`run`/:meth:`step`.
+        Deferred from `__init__` so that constructing a HistoryMatching has no
+        side effects; called at the start of `run`/`step`.
         """
         if self._output_ready or self._output_dir is None:
             self._output_ready = True
@@ -387,7 +387,7 @@ class HistoryMatching:
         self.run_dir = Path(self._output_dir) / run_name
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
-        # Attach a single file handler to the top-level ``historymatching``
+        # Attach a single file handler to the top-level `historymatching`
         # logger (sub-loggers propagate to it), replacing any handler a previous
         # engine attached so we don't leak handlers or duplicate log lines.
         pkg_logger = logging.getLogger('historymatching')
@@ -497,7 +497,7 @@ class HistoryMatching:
 
     @property
     def results(self) -> list:
-        """All committed :class:`IterationResult` objects, in order."""
+        """All committed `IterationResult` objects, in order."""
         return [s.result for s in self._snapshots if s.result is not None]
 
     @property
@@ -524,23 +524,23 @@ class HistoryMatching:
     ):
         """Fan/spaghetti plot of an ensemble of trajectories vs observed data.
 
-        Delegates to :func:`historymatching.plotting.plot_ensemble_fan`. Handy for
+        Delegates to `historymatching.plotting.plot_ensemble_fan`. Handy for
         eyeballing how well a set of plausible (NROY) parameter sets reproduces the
         data.
 
         Args:
-            trajectories: 2-D array-like, shape ``(n_runs, n_timepoints)`` — one row
+            trajectories: 2-D array-like, shape `(n_runs, n_timepoints)` — one row
                 per simulated trajectory.
-            observed: Optional observed series of length ``n_timepoints``.
-            x: Optional x-axis values (defaults to ``0..n_timepoints-1``).
+            observed: Optional observed series of length `n_timepoints`.
+            x: Optional x-axis values (defaults to `0..n_timepoints-1`).
             xlabel, ylabel, title: Axis labels / title.
             ax: Optional matplotlib Axes to draw into (a new figure is made if None).
-            show: If True, call ``plt.show()`` before returning.
-            **kwargs: Forwarded to the plotting function (e.g. ``ci``,
-                ``show_members``, ``show_band``).
+            show: If True, call `plt.show()` before returning.
+            **kwargs: Forwarded to the plotting function (e.g. `ci`,
+                `show_members`, `show_band`).
 
         Returns:
-            The Matplotlib ``Axes``.
+            The Matplotlib `Axes`.
         """
         from . import plotting
         ax = plotting.plot_ensemble_fan(
@@ -554,7 +554,7 @@ class HistoryMatching:
     # -- Reconfigurable options: assign friendly values, coerced like the constructor --
     @property
     def sampling_strategy(self) -> SamplingStrategy:
-        """Sampling strategy. Assign a name/dict/strategy to change it (e.g. ``engine.sampling_strategy = 'grid'``)."""
+        """Sampling strategy. Assign a name/dict/strategy to change it (e.g. `engine.sampling_strategy = 'grid'`)."""
         return self._sampling_strategy
 
     @sampling_strategy.setter
@@ -564,7 +564,7 @@ class HistoryMatching:
 
     @property
     def feature_selection(self) -> FeatureSelectionStrategy:
-        """Which outputs to emulate each wave. Assign a name/list/dict/strategy (e.g. ``engine.feature_selection = ['peak']``)."""
+        """Which outputs to emulate each wave. Assign a name/list/dict/strategy (e.g. `engine.feature_selection = ['peak']`)."""
         return self._feature_selection_strategy
 
     @feature_selection.setter
@@ -574,7 +574,7 @@ class HistoryMatching:
 
     @property
     def emulator_factory(self) -> EmulatorFactory:
-        """The emulator factory. Assign an :class:`EmulatorFactory` for full control."""
+        """The emulator factory. Assign an `EmulatorFactory` for full control."""
         return self._emulator_factory
 
     @emulator_factory.setter
@@ -584,7 +584,7 @@ class HistoryMatching:
 
     @property
     def emulator_type(self) -> str:
-        """Emulator type as a string. Assign ``'gpr'``/``'glm'``/``'linear'`` to change it."""
+        """Emulator type as a string. Assign `'gpr'`/`'glm'`/`'linear'` to change it."""
         return self._emulator_factory.get_default_type()
 
     @emulator_type.setter
@@ -614,7 +614,7 @@ class HistoryMatching:
         return len(self._snapshots)
 
     def enumerate(self):
-        """Iterate over committed waves as ``(iteration, result, samples)`` tuples.
+        """Iterate over committed waves as `(iteration, result, samples)` tuples.
 
         Example:
             for i, result, samples in engine.enumerate():
@@ -637,7 +637,7 @@ class HistoryMatching:
 
         Checks that the required components are present and that all numeric and
         enumerated options are within their valid ranges.  Called automatically at
-        the start of :meth:`run` and :meth:`step` (configuration attributes are
+        the start of `run` and `step` (configuration attributes are
         public and may be changed after construction); may also be called directly.
 
         Raises:
@@ -1031,7 +1031,7 @@ class HistoryMatching:
         Get a human-readable, multi-line summary of the current status.
 
         (To reconfigure mid-run, just assign to the matching attribute, e.g.
-        ``engine.feature_selection = ['peak']`` or ``engine.max_iterations = 20``.)
+        `engine.feature_selection = ['peak']` or `engine.max_iterations = 20`.)
         """
         summary = [
             "=== History Matching Status ===",
@@ -1201,14 +1201,14 @@ class HistoryMatching:
         return metrics
 
     def save_diagnostics(self, directory: str, verbose: bool = False) -> None:
-        """Save every committed wave's artifacts under ``directory``.
+        """Save every committed wave's artifacts under `directory`.
 
-        Writes one ``wave{N}/`` subdirectory per wave (samples, simulator
+        Writes one `wave{N}/` subdirectory per wave (samples, simulator
         outputs, pickled emulators, predicted-vs-actual + ARD diagnostic plots,
-        a convergence figure, and ``metrics.json``) by calling
-        :meth:`IterationResult.save` for each wave.  This is the manual
+        a convergence figure, and `metrics.json`) by calling
+        `IterationResult.save` for each wave.  This is the manual
         equivalent of the per-wave output written automatically when
-        ``output_dir`` is set.
+        `output_dir` is set.
 
         Args:
             directory: Directory to write into (created if needed).
@@ -1232,12 +1232,12 @@ class HistoryMatching:
         fig_kwargs: Optional[dict] = None,
         show: bool = False,
     ):
-        """Deprecated alias for :meth:`plot_nroy`.
+        """Deprecated alias for `plot_nroy`.
 
-        .. deprecated:: 2.0.1
-            Use :meth:`plot_nroy` instead (``true_parameters=`` is now ``truth=``).
-            Retained as a thin forwarder that returns ``(fig, axes)`` for
-            backwards compatibility; ``fig_kwargs`` is no longer applied.
+        **Deprecated since v2.0.1.**
+            Use `plot_nroy` instead (`true_parameters=` is now `truth=`).
+            Retained as a thin forwarder that returns `(fig, axes)` for
+            backwards compatibility; `fig_kwargs` is no longer applied.
         """
         import warnings
 
@@ -1258,12 +1258,12 @@ class HistoryMatching:
 
     # ── Convenience plot/summary wrappers (delegate to historymatching.plotting) ──
     def _bounds_dict(self) -> dict:
-        """``{parameter: (min, max)}`` from the current parameter space."""
+        """`{parameter: (min, max)}` from the current parameter space."""
         ps = self.parameter_space
         return {name: ps.get_bounds(name) for name in ps.get_parameter_names()}
 
     def _targets_dict(self) -> dict:
-        """``{feature: (mean, std)}`` from the observations."""
+        """`{feature: (mean, std)}` from the observations."""
         obs = self.observations
         return {f: obs.get_target_for_feature(f) for f in obs.get_feature_names()}
 
@@ -1283,7 +1283,7 @@ class HistoryMatching:
 
     def plot_convergence(self, *, ax=None, **kwargs):
         """Plot the NROY fraction per wave (delegates to
-        :func:`historymatching.plotting.plot_convergence`)."""
+        `historymatching.plotting.plot_convergence`)."""
         from . import plotting
         results = self.get_all_results()
         if not results:
@@ -1295,7 +1295,7 @@ class HistoryMatching:
 
     def plot_marginals(self, *, truth=None, axes=None, **kwargs):
         """Marginal histograms of the NROY samples (delegates to
-        :func:`historymatching.plotting.plot_marginals`)."""
+        `historymatching.plotting.plot_marginals`)."""
         from . import plotting
         return plotting.plot_marginals(
             self._nroy_for_plot(), truth=truth,
@@ -1303,10 +1303,10 @@ class HistoryMatching:
 
     def plot_nroy(self, *, samples=None, truth=None, derived=None, bins=25, axes=None, **kwargs):
         """Corner/pairplot of the NROY parameter cloud (delegates to
-        :func:`historymatching.plotting.plot_pairplot`).
+        `historymatching.plotting.plot_pairplot`).
 
-        Pass ``derived`` to overlay computed quantities, e.g.
-        ``{'R0': lambda df: df['beta'] / df['gamma']}``.
+        Pass `derived` to overlay computed quantities, e.g.
+        `{'R0': lambda df: df['beta'] / df['gamma']}`.
         """
         from . import plotting
         return plotting.plot_pairplot(
@@ -1315,7 +1315,7 @@ class HistoryMatching:
 
     def plot_zscores(self, *, ax=None, **kwargs):
         """Standardised outputs vs targets across waves (delegates to
-        :func:`historymatching.plotting.plot_zscores_vs_targets`)."""
+        `historymatching.plotting.plot_zscores_vs_targets`)."""
         from . import plotting
         waves = [
             {"iteration": r.iteration,
@@ -1329,7 +1329,7 @@ class HistoryMatching:
 
     def plot_constrained_dims(self, *, n_top=5, axes=None, **kwargs):
         """Constrained-direction (variance-reduction) plot of the NROY cloud
-        (delegates to :func:`historymatching.plotting.plot_constrained_dims`)."""
+        (delegates to `historymatching.plotting.plot_constrained_dims`)."""
         from . import plotting
         return plotting.plot_constrained_dims(
             self._nroy_for_plot(), self._bounds_dict(),
@@ -1365,20 +1365,20 @@ class HistoryMatching:
 
         Returns the NROY ("Not Ruled Out Yet") samples: parameter sets that pass
         ALL committed emulators' implausibility checks.  By default returns the
-        pre-computed set from the last wave (``n_samples`` of them).  Pass ``n``
+        pre-computed set from the last wave (`n_samples` of them).  Pass `n`
         to draw a fresh, larger set filtered through the current emulator bank.
         No new simulations are run — only fast emulator predictions are used.
 
         Args:
             n: Number of NROY samples to return.  If None, returns the
                pre-computed set from the last committed wave.
-            method: NROY sampling method: ``'auto'`` (LHS first, escalates
-               to ray+importance if needed), ``'lhs'`` (pure rejection only),
+            method: NROY sampling method: `'auto'` (LHS first, escalates
+               to ray+importance if needed), `'lhs'` (pure rejection only),
                or None (uses engine default). For unbiased final samples
-               (e.g. trajectory selection), use ``method='lhs'``.
-            **kwargs: Extra options passed to ``generate_nroy_design()``:
-               ``n_lines``, ``points_per_line`` (ray_resample);
-               ``max_candidates`` (lhs); ``imp_scale``, ``maximin_reps``, etc.
+               (e.g. trajectory selection), use `method='lhs'`.
+            **kwargs: Extra options passed to `generate_nroy_design()`:
+               `n_lines`, `points_per_line` (ray_resample);
+               `max_candidates` (lhs); `imp_scale`, `maximin_reps`, etc.
 
         Returns:
             DataFrame of NROY samples, or empty DataFrame if no iterations committed.
@@ -1976,45 +1976,20 @@ class HistoryMatching:
         return plausible
 
     def _filter_samples_slow(self, candidates: pd.DataFrame, emulator_bank) -> pd.DataFrame:
-        """Implausibility filter with short-circuit evaluation for non-GPR emulators."""
-        import numpy as np
+        """Implausibility filter with short-circuit evaluation for non-GPR emulators.
 
-        param_cols = self.parameter_space.get_parameter_names()
-        mask = np.ones(len(candidates), dtype=bool)
-        n_emulators = 0
+        Delegates to the canonical implementation in `historymatching.nroy_sampling`
+        so the engine and the public `generate_nroy_design` path cannot drift apart.
+        """
+        from .nroy_sampling import _filter_nroy
 
-        for iteration in reversed(emulator_bank.get_all_iterations()):
-            emulators = emulator_bank.get_emulators_for_iteration(iteration)
-            for feature_name, emulator in emulators.items():
-                if mask.sum() == 0:
-                    break
-                if not self.observations.has_feature(feature_name):
-                    continue
-                try:
-                    active = candidates.loc[mask, param_cols]
-                    predictions = emulator.predict(active)
-                    feature_impl = self.observations.calculate_implausibility(
-                        feature_name, predictions.get_mean(), predictions.get_variance()
-                    )
-                    failures = feature_impl > self.implausibility_threshold
-                    n_rejected = int(failures.sum())
-                    mask[mask] &= ~failures.values
-                    n_emulators += 1
-
-                    logger.debug(
-                        f"  {feature_name}: {len(active)} tested, "
-                        f"{n_rejected} rejected, {mask.sum()} surviving"
-                    )
-                except Exception as e:
-                    logger.warning(f"Implausibility calc failed for '{feature_name}': {e}")
-                    continue
-
-        plausible = candidates[mask]
-        logger.debug(
-            f"Slow filter: {len(candidates)} \u2192 {len(plausible)} "
-            f"({len(plausible)/len(candidates):.2%}) through {n_emulators} emulators"
+        return _filter_nroy(
+            candidates,
+            emulator_bank,
+            self.observations,
+            self.implausibility_threshold,
+            self.parameter_space.get_parameter_names(),
         )
-        return plausible
 
     def _run_simulation(self, samples: pd.DataFrame) -> pd.DataFrame:
         """Run the simulator and normalize its output to a DataFrame.
@@ -2060,7 +2035,7 @@ class HistoryMatching:
         """Create and train emulators for selected features.
 
         Only parameter-space columns are passed to emulators — any extra
-        columns (e.g. ``rand_seed``) added by the simulation function are
+        columns (e.g. `rand_seed`) added by the simulation function are
         excluded so they don't become spurious input dimensions.
         """
         param_cols = self.parameter_space.get_parameter_names()
@@ -2173,7 +2148,7 @@ class HistoryMatching:
         Returns True only when the acceptance rate (fraction of LHS candidates
         passing the emulator filter) drops below the configurable threshold.
 
-        The threshold is set via the ``convergence_threshold`` option and
+        The threshold is set via the `convergence_threshold` option and
         defaults to 0.0, which disables early stopping; set it to a small
         positive value (e.g. 0.01) to stop once the NROY acceptance rate falls
         below that fraction.

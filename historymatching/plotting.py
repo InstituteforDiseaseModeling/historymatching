@@ -12,14 +12,14 @@ and the engine's on-disk output alike):
 * Every function takes **primitive data** (DataFrames, dicts, arrays) rather
   than history-matching objects, so there are no import cycles and the
   functions can be reused anywhere.
-* Every function accepts an ``ax`` (or ``axes``) argument.  When omitted a new
+* Every function accepts an `ax` (or `axes`) argument.  When omitted a new
   figure is created; when supplied the function draws into the caller's axes so
   plots can be composed into larger grids.
-* Every function **returns** the Matplotlib ``Axes`` (or array of axes) it drew
-  into.  Nothing calls ``plt.show()`` or ``savefig`` — the caller decides
+* Every function **returns** the Matplotlib `Axes` (or array of axes) it drew
+  into.  Nothing calls `plt.show()` or `savefig` — the caller decides
   whether to display, save, or further customise the result.
 
-Where the engine or a domain object exposes a convenience ``plot_*`` method, it
+Where the engine or a domain object exposes a convenience `plot_*` method, it
 delegates to the corresponding function here.
 """
 
@@ -57,7 +57,7 @@ __all__ = [
 
 # ── Small helpers ─────────────────────────────────────────────────────────────
 def _get_ax(ax: Optional[plt.Axes], figsize: Tuple[float, float]) -> Tuple[plt.Figure, plt.Axes]:
-    """Return ``(fig, ax)``, creating a new figure if ``ax`` is None."""
+    """Return `(fig, ax)`, creating a new figure if `ax` is None."""
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     else:
@@ -99,14 +99,14 @@ def plot_convergence(
 
     Args:
         iterations: Wave numbers (x-axis).
-        fractions: NROY fraction for each wave, in ``[0, 1]``.
+        fractions: NROY fraction for each wave, in `[0, 1]`.
         ax: Existing axes to draw into; a new figure is created if omitted.
         log: Use a logarithmic y-axis (recommended — fractions span orders of
             magnitude as constraints tighten).
         title: Axes title.
 
     Returns:
-        The Matplotlib ``Axes`` containing the plot.
+        The Matplotlib `Axes` containing the plot.
     """
     fig, ax = _get_ax(ax, (7, 4))
     iterations = list(iterations)
@@ -153,22 +153,22 @@ def plot_marginals(
     Args:
         samples: DataFrame of parameter samples (e.g. an NROY cloud).
         params: Which columns to plot; defaults to all numeric columns.
-        truth: Optional ``{name: value}`` of known true values, drawn as a
+        truth: Optional `{name: value}` of known true values, drawn as a
             dashed vertical line (useful for synthetic-recovery demos).
-        bounds: Optional ``{name: (lo, hi)}`` to fix each x-axis to the prior
+        bounds: Optional `{name: (lo, hi)}` to fix each x-axis to the prior
             range, so shrinkage is visible.
         prior: Optional second sample set drawn faintly behind (e.g. the
             prior or first wave) to show how the marginal tightened.
         show_median: Draw a solid line at each parameter's sample median.
         bins: Histogram bin count.
-        ncols: Columns in the subplot grid; defaults to ``len(params)`` capped
+        ncols: Columns in the subplot grid; defaults to `len(params)` capped
             at 4.
         axes: Existing axes array to draw into; a new figure is created if
             omitted.
         color: Histogram colour.
 
     Returns:
-        A flat NumPy array of the ``Axes`` used.
+        A flat NumPy array of the `Axes` used.
     """
     params = _resolve_params(samples, params)
     n = len(params)
@@ -229,30 +229,30 @@ def plot_pairplot(
     scatter below it.
 
     This is the canonical history-matching output — the shape of the
-    non-implausible (NROY) region.  Pass ``truth`` to overlay known values and
-    ``prior`` to show the cloud you started from.
+    non-implausible (NROY) region.  Pass `truth` to overlay known values and
+    `prior` to show the cloud you started from.
 
     Args:
         samples: DataFrame of parameter samples (foreground cloud).
         params: Columns to show; defaults to all numeric columns, capped at
-            ``max_params``.
-        truth: ``{name: value}`` drawn as crosshairs / vertical lines.
-        derived: ``{name: callable}`` of extra quantities to add to the grid,
+            `max_params`.
+        truth: `{name: value}` drawn as crosshairs / vertical lines.
+        derived: `{name: callable}` of extra quantities to add to the grid,
             each callable taking the samples DataFrame and returning a column
-            (e.g. ``{'R0': lambda df: df['beta'] / df['gamma']}``).
+            (e.g. `{'R0': lambda df: df['beta'] / df['gamma']}`).
         prior: Optional background cloud (e.g. prior or first-wave samples).
-        bounds: ``{name: (lo, hi)}`` to fix axis ranges to the prior, making
+        bounds: `{name: (lo, hi)}` to fix axis ranges to the prior, making
             shrinkage visible.
         max_params: Cap on the number of parameters shown (keeps the grid
             readable for high-dimensional problems).
         bins: Diagonal histogram bins.
         s: Scatter marker size.
         color: Foreground cloud colour.
-        axes: Existing ``(p, p)`` axes array to draw into.
+        axes: Existing `(p, p)` axes array to draw into.
         title: Optional figure suptitle.
 
     Returns:
-        The 2-D NumPy array of ``Axes`` (shape ``(p, p)``).
+        The 2-D NumPy array of `Axes` (shape `(p, p)`).
     """
     if derived:
         samples = samples.copy()
@@ -342,23 +342,23 @@ def plot_ensemble_fan(
     vectors.
 
     Args:
-        trajectories: 2-D array/DataFrame/list of shape ``(n_members, n_points)``.
-        observed: Optional observed series (length ``n_points``) drawn on top.
-        x: Optional x-axis values (defaults to ``0..n_points-1``).
+        trajectories: 2-D array/DataFrame/list of shape `(n_members, n_points)`.
+        observed: Optional observed series (length `n_points`) drawn on top.
+        x: Optional x-axis values (defaults to `0..n_points-1`).
         ax: Existing axes to draw into.
-        ci: Central probability mass for the shaded band (e.g. ``0.95``).
+        ci: Central probability mass for the shaded band (e.g. `0.95`).
         member_color: Colour of individual trajectory lines.
         mean_color: Colour of the ensemble mean and band.
         obs_color: Colour of the observed series.
         show_members: Draw each member as a faint line.
         show_mean: Draw the ensemble mean.
-        show_band: Shade the central ``ci`` band.
+        show_band: Shade the central `ci` band.
         xlabel: X-axis label.
         ylabel: Y-axis label.
         title: Axes title.
 
     Returns:
-        The Matplotlib ``Axes`` containing the plot.
+        The Matplotlib `Axes` containing the plot.
     """
     arr = np.asarray(trajectories.values if isinstance(trajectories, pd.DataFrame)
                      else trajectories, dtype=float)
@@ -411,21 +411,21 @@ def plot_zscores_vs_targets(
 ) -> plt.Axes:
     """Plot standardised simulation outputs against every observation target.
 
-    For each target the band shows ``(simulated - target_mean) / target_std``
+    For each target the band shows `(simulated - target_mean) / target_std`
     across the wave's samples: a thick bar for the inter-quartile range, a thin
     line for the 5th–95th percentile, and a dot at the median.  Outputs inside
-    the green ``±threshold`` band are consistent with the target; bands drifting
+    the green `±threshold` band are consistent with the target; bands drifting
     toward zero across waves show the calibration converging.
 
     Args:
-        waves: List of ``{'iteration': int, 'sim_results': DataFrame,
-            'selected_features': list[str]}`` dicts, one per wave.
-        targets: ``{feature: (mean, std)}`` observation targets.
+        waves: List of `{'iteration': int, 'sim_results': DataFrame,
+            'selected_features': list[str]}` dicts, one per wave.
+        targets: `{feature: (mean, std)}` observation targets.
         ax: Existing axes to draw into.
         threshold: Half-width of the shaded acceptance band (in sigma).
 
     Returns:
-        The Matplotlib ``Axes`` containing the plot.
+        The Matplotlib `Axes` containing the plot.
     """
     target_names = [k for k in targets
                     if any(k in w["sim_results"].columns for w in waves)]
@@ -504,17 +504,17 @@ def variance_reduction(
 ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """PCA-based variance reduction of an NROY cloud vs a uniform prior.
 
-    Samples are normalised to ``[0, 1]^d`` using the prior bounds and PCA is
-    fit.  Per principal component, ``reduction = 1 - NROY_var / prior_var``
-    where the prior (uniform) variance is ``1/12``: 0 means as wide as the
+    Samples are normalised to `[0, 1]^d` using the prior bounds and PCA is
+    fit.  Per principal component, `reduction = 1 - NROY_var / prior_var`
+    where the prior (uniform) variance is `1/12`: 0 means as wide as the
     prior, 1 means fully collapsed.
 
     Args:
         samples: NROY parameter samples.
-        bounds: ``{name: (lo, hi)}`` prior bounds for each parameter.
+        bounds: `{name: (lo, hi)}` prior bounds for each parameter.
 
     Returns:
-        ``(reduction, components, param_names)`` sorted most-constrained first.
+        `(reduction, components, param_names)` sorted most-constrained first.
     """
     from sklearn.decomposition import PCA
 
@@ -544,10 +544,10 @@ def marginal_variance_reduction(
 
     Args:
         samples: NROY parameter samples.
-        bounds: ``{name: (lo, hi)}`` prior bounds.
+        bounds: `{name: (lo, hi)}` prior bounds.
 
     Returns:
-        ``{name: reduction}`` with each reduction in ``[0, 1]``.
+        `{name: reduction}` with each reduction in `[0, 1]`.
     """
     prior_var = 1.0 / 12.0
     result = {}
@@ -570,17 +570,17 @@ def plot_constrained_dims(
     The top panel shows the variance-reduction spectrum (most-constrained
     principal components first).  Each following panel shows the loadings of one
     top component — which parameters combine to form that constrained direction
-    (bar height = ``|loading|``, red = positive, blue = negative).
+    (bar height = `|loading|`, red = positive, blue = negative).
 
     Args:
         samples: NROY parameter samples.
-        bounds: ``{name: (lo, hi)}`` prior bounds.
+        bounds: `{name: (lo, hi)}` prior bounds.
         n_top: Number of most-constrained components to detail.
         title: Figure suptitle.
-        axes: Existing axes array (length ``1 + n_top``) to draw into.
+        axes: Existing axes array (length `1 + n_top`) to draw into.
 
     Returns:
-        The array of ``Axes`` used.
+        The array of `Axes` used.
     """
     reduction, components, param_names = variance_reduction(samples, bounds)
     n_params = len(param_names)
@@ -641,11 +641,11 @@ def plot_targets(
     """Plot observation targets as means with ±1σ error bars.
 
     Args:
-        targets: ``{feature: (mean, std)}`` observation targets.
+        targets: `{feature: (mean, std)}` observation targets.
         ax: Existing axes to draw into.
 
     Returns:
-        The Matplotlib ``Axes`` containing the plot.
+        The Matplotlib `Axes` containing the plot.
     """
     names = list(targets.keys())
     means = np.array([targets[k][0] for k in names])
@@ -672,18 +672,18 @@ def plot_parameter_bounds(
 ) -> plt.Axes:
     """Plot parameter bounds as horizontal ranges, optionally vs a reference.
 
-    Bounds are normalised to each ``reference`` range so shrinkage is visible on
+    Bounds are normalised to each `reference` range so shrinkage is visible on
     one axis.  Without a reference, raw widths are shown (each on its own scale
     label).
 
     Args:
-        bounds: ``{name: (lo, hi)}`` current bounds.
-        reference: Optional ``{name: (lo, hi)}`` original/prior bounds to
+        bounds: `{name: (lo, hi)}` current bounds.
+        reference: Optional `{name: (lo, hi)}` original/prior bounds to
             normalise against (e.g. to show how much each parameter shrank).
         ax: Existing axes to draw into.
 
     Returns:
-        The Matplotlib ``Axes`` containing the plot.
+        The Matplotlib `Axes` containing the plot.
     """
     names = list(bounds.keys())
     fig, ax = _get_ax(ax, (7, max(3, len(names) * 0.5)))
@@ -719,12 +719,12 @@ def plot_emulator_quality(
     """Bar chart of per-feature emulator R² (a quick fit-quality overview).
 
     Args:
-        quality: ``{feature: {'r2': ..., 'mse': ..., ...}}`` as returned
-            by :meth:`IterationResult.get_emulator_quality_metrics`.
+        quality: `{feature: {'r2': ..., 'mse': ..., ...}}` as returned
+            by `IterationResult.get_emulator_quality_metrics`.
         ax: Existing axes to draw into.
 
     Returns:
-        The Matplotlib ``Axes`` containing the plot.
+        The Matplotlib `Axes` containing the plot.
     """
     feats = list(quality.keys())
     r2 = [quality[f].get("r2") for f in feats]
@@ -770,7 +770,7 @@ def plot_predicted_vs_actual(
         title: Base title.
 
     Returns:
-        The Matplotlib ``Axes`` containing the plot.
+        The Matplotlib `Axes` containing the plot.
     """
     y_true = np.asarray(y_true, dtype=float).flatten()
     y_pred = np.asarray(y_pred, dtype=float).flatten()

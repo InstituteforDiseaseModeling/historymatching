@@ -181,6 +181,7 @@ class GPR(BaseEmulator):
             mean=y_mean,
             std=np.sqrt(y_var),
             additional_data=additional,
+            index=x.index,
         )
 
 

@@ -2,7 +2,7 @@
 Generalized Linear Model (GLM) emulator.
 
 Extends linear regression to non-Gaussian responses via a link function
-(currently Gaussian/``'linear'`` or ``'poisson'``), built on statsmodels. Useful
+(currently Gaussian/`'linear'` or `'poisson'`), built on statsmodels. Useful
 when outputs are counts or otherwise not well modeled by plain OLS.
 """
 
@@ -19,8 +19,8 @@ from .results import EmulationResults
 class GLM(BaseEmulator):
     """Generalized Linear Model (GLM) emulator.
 
-    Fits a generalized linear model with a configurable ``link`` function
-    (``'linear'`` for a Gaussian family, ``'poisson'`` for count data), allowing
+    Fits a generalized linear model with a configurable `link` function
+    (`'linear'` for a Gaussian family, `'poisson'` for count data), allowing
     non-Gaussian output distributions while keeping the model fast and
     interpretable.
 
@@ -110,7 +110,8 @@ class GLM(BaseEmulator):
         return EmulationResults(
             mean=predicted_mean,
             std=pred_ci.se_mean,  # Standard error is already std
-            additional_data=additional
+            additional_data=additional,
+            index=x.index,
         )
 
     

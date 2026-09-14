@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Render the full documentation site into docs/_site.
+set -euo pipefail
+
+SECONDS=0
+cd "$(dirname "$0")"
+
+# Quarto executes the tutorial notebooks in place; restore the pristine copies
+# afterwards even if the render fails, so the git tree stays clean.
+trap 'uv run python quarto_utils.py post' EXIT
+
+uv run quarto render "$@"
+
+echo "Done: docs built in ${SECONDS} s"
+echo "Index: $(pwd)/_site/index.html"

@@ -1,6 +1,6 @@
 """End-to-end pytest coverage of checkpoint creation, resume, and serial NROY.
 
-Previously this file only ran its assertions under ``if __name__ == '__main__'``,
+Previously this file only ran its assertions under `if __name__ == '__main__'`,
 so pytest never collected it and the checkpoint/resume path was untested in CI.
 It is now a set of collected pytest tests sharing a module-scoped engine.
 """

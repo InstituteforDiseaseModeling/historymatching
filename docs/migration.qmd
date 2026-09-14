@@ -1,4 +1,6 @@
-# Migrating from v1 to v2
+---
+title: "Migrating from v1 to v2"
+---
 
 `historymatching` v2.0.0 replaces the fluent **builder** API
 (`HistoryMatchingBuilder` + `.with_*()` + `.build()`) with a single flat

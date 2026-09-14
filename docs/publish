@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Build the documentation and publish it to GitHub Pages (the gh-pages branch).
+#
+# Notebooks are executed as part of the render, so this can take a few minutes.
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+# Restore the pristine notebooks even if the render fails (see docs/render).
+trap 'uv run python quarto_utils.py post' EXIT
+
+uv run quarto render --cache-refresh
+uv run quarto publish gh-pages --no-render --no-prompt --no-browser

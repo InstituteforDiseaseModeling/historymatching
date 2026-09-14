@@ -118,7 +118,7 @@ engine = hm.HistoryMatching(
 
 ## Documentation
 
-Full documentation, tutorials, and API reference are available at [docs.idmod.org/historymatching](https://docs.idmod.org/historymatching/). New to history matching? The [glossary](docs/glossary.md) defines NROY, implausibility, emulators, and the other key terms used throughout.
+Full documentation, tutorials, and API reference are available at [docs.idmod.org/historymatching](https://docs.idmod.org/historymatching/). New to history matching? The [glossary](https://docs.idmod.org/historymatching/glossary.html) defines NROY, implausibility, emulators, and the other key terms used throughout.
 
 ## License
 

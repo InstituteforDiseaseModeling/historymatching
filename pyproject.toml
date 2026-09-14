@@ -58,13 +58,15 @@ test = [
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",  # for parallel testing
 ]
+# The docs site is built with Quarto (https://quarto.org), which must be installed
+# separately -- these are the Python-side pieces it shells out to.
 docs = [
-    "mkdocs>=1.5",
-    "mkdocs-material>=9.0",
-    "mkdocstrings[python]>=0.24",
-    "mkdocs-jupyter>=0.24",
-    "mkdocs-include-markdown-plugin>=6.0",
-    "pymdown-extensions>=10.21.3",
+    "quartodoc>=0.7",      # generates docs/api/*.qmd from docstrings
+    "sphobjinv>=2.3",      # resolves interlinks to numpy/pandas/etc. inventories
+    "jupyter>=1.0",        # executes the tutorial notebooks during the render
+    "jupyter-cache>=1.0",  # caches notebook output between renders
+    "nbformat>=5.9",
+    "nbclient>=0.9",
 ]
 
 [project.urls]

@@ -1,8 +1,8 @@
 """History Matching — Bayesian calibration of simulation models.
 
-The entry point is :class:`HistoryMatching`: configure a run with plain
-arguments (your simulator ``function``, parameter bounds, and observations),
-then call :meth:`~HistoryMatching.run`.
+The entry point is `HistoryMatching`: configure a run with plain
+arguments (your simulator `function`, parameter bounds, and observations),
+then call `HistoryMatching.run`.
 
     import historymatching as hm
 
@@ -15,7 +15,7 @@ then call :meth:`~HistoryMatching.run`.
     plausible = engine.get_nroy_samples()
 
 All the public building blocks are available at the top level (e.g.
-``hm.ParameterSpace``, ``hm.RandomSampling``, ``hm.GPR``) so you rarely need to
+`hm.ParameterSpace`, `hm.RandomSampling`, `hm.GPR`) so you rarely need to
 import from submodules.
 """
 
@@ -53,7 +53,7 @@ from .engine import HistoryMatching, EngineState  # noqa: F401 isort: skip
 from .emulators.results import EmulationResults  # noqa: F401 isort: skip
 from .nroy_sampling import generate_nroy_design, NROYResult  # noqa: F401 isort: skip
 
-# Plotting helpers — also available as the ``historymatching.plotting`` module.
+# Plotting helpers — also available as the `historymatching.plotting` module.
 from . import plotting  # noqa: F401 isort: skip
 from .plotting import (  # noqa: F401 isort: skip
     plot_convergence,

@@ -108,7 +108,8 @@ class LinearModel(BaseEmulator):
         return EmulationResults(
             mean=predicted_mean,
             std=prediction_results.summary_frame()['mean_se'],  # Standard error is already std
-            additional_data=additional
+            additional_data=additional,
+            index=x.index,
         )
 
     
@@ -216,7 +217,8 @@ class LinearModelScipy(BaseEmulator):
         return EmulationResults(
             mean=y_pred.flatten(),  # sklearn returns 2D (n_samples, 1), flatten to 1D
             std=np.full(len(y_pred), sigma),  # Create array of constant std values
-            additional_data=additional
+            additional_data=additional,
+            index=x.index,
         )
 
     

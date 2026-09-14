@@ -19,12 +19,15 @@
 
 ### Fixes
 
+- **Emulator predictions are now consistently indexed, fixing a crash in the NROY filter.** `EmulationResults` built its mean from whatever the emulator passed — a numpy array (getting a fresh `RangeIndex`) or a pandas Series (carrying the caller's labels) — and its std independently. When the two disagreed, downstream arithmetic like `abs(mean - target) / np.sqrt(variance)` aligned them *by label* rather than elementwise, returning the union of both indexes. Since the NROY filter predicts on `candidates.loc[mask]`, whose labels are non-contiguous after the first wave, this surfaced as `operands could not be broadcast together with shapes (15,) (29,) (15,)` from `_filter_nroy`. `LinearModel` was the emulator that actually tripped it (statsmodels returns an ndarray mean but a labelled Series for `mean_se`). All emulators now label mean, std, and additional data with the index of the DataFrame they predicted on, and `EmulationResults` forces the three onto a single shared index so the failure mode cannot recur.
+- **The engine's implausibility filter no longer silently drops constraints.** `HistoryMatching._filter_samples_slow` was a near-verbatim copy of `_filter_nroy` in `historymatching.nroy_sampling`, but with one consequential difference: it caught emulator failures, logged a warning, and continued. Skipping a feature drops its constraint entirely, so points that should have been ruled implausible survived and the NROY region came out too wide — the exact failure mode the canonical implementation documents and deliberately guards against. The engine now delegates to `_filter_nroy`, so the two paths cannot drift apart and a failing emulator raises instead. Per-feature debug logging moved into the shared implementation and is unchanged.
 - `plot_emulator_quality` reads the `r2` metric key produced by `get_emulator_quality_metrics()` (previously `r2_score`, which silently produced empty charts).
 - `BaseEmulator.get_implausibility` now adds `model_discrepancy` in quadrature (i.e. squared), consistent with the production path `ObservationData.calculate_implausibility`. This diagnostic helper previously added it un-squared; the main implausibility filtering was already correct and is unaffected.
 - Corrected the BIC value reported by `BaseEmulator.test()`: the parameter penalty was `2·k·log(n)` and is now the standard `k·log(n)` (AIC was already correct).
 
 ### Internal
 
+- Hardened the emulator diagnostic plots (`plot_predictions`, `plot_zscores`) against index mismatches: columns built from emulator output are now assigned by position rather than relying on pandas label alignment, which would fill them with NaN rather than raise if the indexes ever disagreed.
 - Removed unused legacy rejection-sampling methods (`_get_nroy_samples_serial`, `_compute_next_samples_serial`) and the now-orphaned `_filter_samples_with_bank` helper. The adaptive rejection-sampling loop now lives in a single place (`_generate_plausible_samples`); the public NROY path is unchanged (`generate_nroy_design`).
 - Replaced the hardcoded Bayes-linear correlation-length optimisation bounds with a named, documented `LOG_THETA_BOUNDS` constant.
 - Added `benchmarks/benchmark_predict.py` (and `benchmarks/README.md`) comparing the numba fast-predict path against GPflow, with a mean-agreement correctness guard that doubles as a regression check.
@@ -35,7 +38,7 @@
 
 ### Breaking changes
 
-- **New flat constructor API.** The fluent `HistoryMatchingBuilder` (`.with_*()` + `.build()`) is **removed** in favour of a single `HistoryMatching(...)` constructor that takes all options as keyword arguments. See the **[migration guide](docs/migration.md)** for the full v1→v2 mapping.
+- **New flat constructor API.** The fluent `HistoryMatchingBuilder` (`.with_*()` + `.build()`) is **removed** in favour of a single `HistoryMatching(...)` constructor that takes all options as keyword arguments. See the **[migration guide](https://docs.idmod.org/historymatching/migration.html)** for the full v1→v2 mapping.
 - **`engine.set_simulation_function(f)` removed** — pass `function=f` to the constructor, or set `engine.function = f`.
 - **`engine.update_*()` methods removed** — reconfigure via attribute assignment (e.g. `engine.max_iterations = n`).
 - **`IterationResult` methods renamed/removed**: `summary_statistics()` → `summary()`, `get_emulator_for_feature()` → `get_emulator()`, `export_*()` → `save()`; `get_implausibility_scores()` removed.

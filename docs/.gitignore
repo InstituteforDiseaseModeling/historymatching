@@ -1,0 +1,16 @@
+# Quarto build artifacts
+_site/
+.quarto/
+_freeze/
+.jupyter_cache/
+tutorials/.jupyter_cache/
+objects.json
+objects.inv
+_inv/
+.nb-snapshot/
+**/*.quarto_ipynb
+
+# Auto-generated API reference pages (rebuilt by quartodoc on every render)
+/api/*.qmd
+
+/.quarto/

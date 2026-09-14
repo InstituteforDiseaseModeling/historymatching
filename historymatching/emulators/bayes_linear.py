@@ -43,8 +43,8 @@ class BayesLinear(BaseEmulator):
             values.
         y: Output data. Pandas DataFrame with columns representing
             observations and rows representing samples. Each row must match
-            the corresponding row in ``x``.
-        test_fraction: Fraction of ``x`` and ``y`` held out for testing
+            the corresponding row in `x`.
+        test_fraction: Fraction of `x` and `y` held out for testing
             (scalar between 0 and 1).
         nugget: Small value added to the kernel diagonal for numerical
             stability (jitter). Larger values smooth the fit.
@@ -323,6 +323,7 @@ class BayesLinear(BaseEmulator):
             mean=mean,
             std=obs_std,
             additional_data=additional,
+            index=x.index,
         )
 
     def get_hyperparameters(self) -> dict:
