@@ -1,0 +1,259 @@
+project:
+  type: website
+  pre-render: python quarto_utils.py pre
+  post-render: python quarto_utils.py post
+  output-dir: _site
+  title: "History Matching"
+  execute-dir: file
+  resources:
+    - objects.json
+    - objects.inv
+
+website:
+  title: "History Matching"
+  image: /assets/idm-logo-transparent.png
+  favicon: /assets/favicon.ico
+  description: Bayesian History Matching for model calibration and uncertainty quantification
+
+  repo-url: https://github.com/InstituteforDiseaseModeling/historymatching
+  repo-actions: [issue]
+  page-navigation: true
+  search:
+    type: overlay
+
+  page-footer:
+    center: "Docs built for History Matching v{{< var version >}} ({{< var versiondate >}}).<br>© 2026, Gates Foundation. All rights reserved. [Privacy and Cookies Notice](https://www.gatesfoundation.org/Privacy-and-Cookies-Notice) | [Terms of Use](https://www.gatesfoundation.org/Terms-of-Use)"
+    right:
+      - icon: github
+        href: https://github.com/InstituteforDiseaseModeling/historymatching
+        aria-label: GitHub
+      - icon: envelope-at-fill
+        href: mailto:idm@gatesfoundation.org
+      - icon: globe
+        href: https://idmod.org
+
+  navbar:
+    logo: /assets/idm-logo-transparent.png
+    title: false
+    collapse-below: lg
+
+    tools:
+      - icon: github
+        href: https://github.com/InstituteforDiseaseModeling/historymatching
+      - icon: envelope-at-fill
+        href: mailto:idm@gatesfoundation.org
+      - icon: globe
+        href: https://idmod.org
+
+    left:
+      - href: index.qmd
+        text: Home
+      - href: overview.qmd
+        text: Overview
+      - href: tutorials.qmd
+        text: Tutorials
+      - href: usage.qmd
+        text: Usage guide
+      - href: api/index.qmd
+        text: API reference
+
+  sidebar:
+    - id: main
+      collapse-level: 3
+      contents:
+        - href: index.qmd
+          text: "**Home**"
+        - href: overview.qmd
+          text: "**Overview**"
+        - href: installation.qmd
+          text: "**Installation**"
+        - section: "<b>Tutorials</b>"   # HTML, not Markdown: a section with an href
+          href: tutorials.qmd            # does not render Markdown (quarto-cli#14520)
+          contents:
+            - tutorials/01_basic_workflow.ipynb
+            - tutorials/02_manual_workflow.ipynb
+            - tutorials/03_advanced_configuration.ipynb
+            - tutorials/04_emulator_showcase.ipynb
+            - tutorials/05_nroy_sampling_methods.ipynb
+            - tutorials/06_visualization.ipynb
+            - tutorials/07_trajectory_selection.ipynb
+        - href: usage.qmd
+          text: "**Usage guide**"
+        - href: glossary.qmd
+          text: "**Glossary**"
+        - href: contributing.qmd
+          text: "**Contributing**"
+        - href: migration.qmd
+          text: "**Migrating to v2**"
+        - href: whatsnew.qmd
+          text: "**What's new**"
+    - id: api
+      collapse-level: 2
+      contents:
+        - href: index.qmd
+          text: "**Home**"
+        - href: api/index.qmd
+          text: "**API reference**"
+        - section: "**Core**"
+          contents:
+            - api/engine.qmd
+            - api/parameter_space.qmd
+            - api/observation_data.qmd
+            - api/emulator_bank.qmd
+            - api/iteration_result.qmd
+        - section: "**Strategies**"
+          contents:
+            - api/sampling.qmd
+            - api/feature_selection.qmd
+            - api/nroy_sampling.qmd
+        - section: "**Emulators**"
+          contents:
+            - api/emulators.base.qmd
+            - api/emulators.bayes_linear.qmd
+            - api/emulators.gpr.qmd
+            - api/emulators.glm.qmd
+            - api/emulators.linear.qmd
+            - api/emulators.factory.qmd
+            - api/emulators.results.qmd
+            - api/emulators.fast_predict.qmd
+        - section: "**Plotting**"
+          contents:
+            - api/plotting.qmd
+
+quartodoc:
+  package: historymatching
+  title: API reference
+  style: pkgdown
+  dir: api
+  parser: google
+  render_interlinks: true
+  sections:
+    - title: Core
+      desc: |
+        The `HistoryMatching` engine and the domain objects it operates on.
+      contents:
+        - engine
+        - parameter_space
+        - observation_data
+        - emulator_bank
+        - iteration_result
+    - title: Strategies
+      desc: |
+        Pluggable components for drawing samples, choosing which outputs to emulate,
+        and sampling the NROY region.
+      contents:
+        - sampling
+        - feature_selection
+        - nroy_sampling
+    - title: Emulators
+      desc: |
+        Emulator implementations and the factory that creates them. `BayesLinear`
+        is the default; subclass `BaseEmulator` and register it with
+        `EmulatorFactory` to add your own.
+      contents:
+        - kind: page
+          path: emulators.base
+          package: historymatching
+          contents:
+            - kind: auto
+              name: emulators.base
+              children: embedded
+        - kind: page
+          path: emulators.bayes_linear
+          package: historymatching
+          contents:
+            - kind: auto
+              name: emulators.bayes_linear
+              children: embedded
+        - kind: page
+          path: emulators.gpr
+          package: historymatching
+          contents:
+            - kind: auto
+              name: emulators.gpr
+              children: embedded
+        - kind: page
+          path: emulators.glm
+          package: historymatching
+          contents:
+            - kind: auto
+              name: emulators.glm
+              children: embedded
+        - kind: page
+          path: emulators.linear
+          package: historymatching
+          contents:
+            - kind: auto
+              name: emulators.linear
+              children: embedded
+        - kind: page
+          path: emulators.factory
+          package: historymatching
+          contents:
+            - kind: auto
+              name: emulators.factory
+              children: embedded
+        - kind: page
+          path: emulators.results
+          package: historymatching
+          contents:
+            - kind: auto
+              name: emulators.results
+              children: embedded
+        - kind: page
+          path: emulators.fast_predict
+          package: historymatching
+          contents:
+            - kind: auto
+              name: emulators.fast_predict
+              children: embedded
+    - title: Plotting
+      desc: |
+        Composable plotting helpers. Each returns Matplotlib axes and accepts an
+        `ax=`/`axes=` argument; the most commonly used are re-exported at the top
+        level, e.g. `historymatching.plot_pairplot`.
+      contents:
+        - plotting
+
+format:
+  html:
+    theme:
+      light: cosmo
+      dark: darkly
+    toc: true
+    toc-expand: true
+    toc-depth: 3
+    highlight-style: github
+
+filters:
+  - interlinks
+
+interlinks:
+  fast: false
+  sources:
+    python:
+      url: https://docs.python.org/3/
+    numpy:
+      url: https://numpy.org/doc/stable/
+    pandas:
+      url: https://pandas.pydata.org/pandas-docs/stable/
+    scipy:
+      url: https://docs.scipy.org/doc/scipy/
+    matplotlib:
+      url: https://matplotlib.org/stable/
+  autolink: true
+  aliases:
+    numpy: [np]
+    pandas: [pd]
+    matplotlib: [plt]
+    historymatching: [null, hm]
+
+execute:
+  # The tutorial notebooks are committed without stored outputs, so they have to be
+  # executed at render time.
+  enabled: true
+  freeze: auto   # Only re-execute notebooks that have changed
+  cache: true
+  error: false   # Do not continue if a notebook raises
+  echo: true
+  warning: true

@@ -1,4 +1,6 @@
-# Installation
+---
+title: "Installation"
+---
 
 ## Prerequisites
 
@@ -26,10 +28,13 @@ faster drop-in replacement for `pip install`. And if you maintain your own proje
 with a `pyproject.toml`, `uv add historymatching` installs it *and* records it as a
 dependency there.
 
-!!! note "Apple Silicon (Metal GPU)"
-    The `mac` extra installs the TensorFlow Metal plugin for GPU acceleration. Note
-    that Cholesky decomposition (used internally by GPflow) is not yet implemented on
-    Metal, so GPR training falls back to CPU for that operation.
+::: {.callout-note}
+## Apple Silicon (Metal GPU)
+
+The `mac` extra installs the TensorFlow Metal plugin for GPU acceleration. Note
+that Cholesky decomposition (used internally by GPflow) is not yet implemented on
+Metal, so GPR training falls back to CPU for that operation.
+:::
 
 ## Development setup (recommended: uv)
 

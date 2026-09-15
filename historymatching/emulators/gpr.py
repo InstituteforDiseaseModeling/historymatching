@@ -1,3 +1,12 @@
+"""
+Gaussian Process Regression (GPR) emulator.
+
+A flexible non-parametric emulator built on GPflow, using an automatic relevance
+determination (ARD) squared-exponential kernel. It captures nonlinear responses
+and gives excellent calibrated uncertainty, at higher computational cost than the
+linear/Bayes-linear emulators; best for small-to-medium training sets.
+"""
+
 from typing import Optional
 import logging
 
@@ -13,10 +22,25 @@ logger = logging.getLogger(__name__)
 
 
 
-
-
 class GPR(BaseEmulator):
-    """Gaussian Process Regression emulator implemented in GPFlow."""
+    """Gaussian Process Regression emulator implemented in GPflow.
+
+    Uses an ARD squared-exponential kernel to model nonlinear parameter-output
+    relationships with well-calibrated predictive uncertainty. More expensive
+    than the linear/Bayes-linear emulators, so it is best suited to
+    small-to-medium training sets where prediction quality matters most.
+
+    Example:
+        ```python
+        import numpy as np, pandas as pd
+        from historymatching.emulators.gpr import GPR
+        x = pd.DataFrame({'beta': np.random.rand(40), 'gamma': np.random.rand(40)})
+        y = pd.DataFrame({'peak': np.sin(3 * x['beta']) + x['gamma'] ** 2})
+        em = GPR(x, y)
+        em.train()
+        pred = em.predict(x)
+        ```
+    """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction=0.25):
         """Initialise the Gaussian Process Regression (GPR) emulator.
@@ -159,6 +183,7 @@ class GPR(BaseEmulator):
             mean=y_mean,
             std=np.sqrt(y_var),
             additional_data=additional,
+            index=x.index,
         )
 
 

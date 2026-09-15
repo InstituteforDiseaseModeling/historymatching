@@ -1,4 +1,6 @@
-# Tutorials
+---
+title: "Tutorials"
+---
 
 These tutorials walk through how to use the history matching library, from basic setup to advanced workflows. To run locally, start a Jupyter environment in the `docs/tutorials` folder.
 

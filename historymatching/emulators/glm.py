@@ -1,3 +1,11 @@
+"""
+Generalized Linear Model (GLM) emulator.
+
+Extends linear regression to non-Gaussian responses via a link function
+(currently Gaussian/`'linear'` or `'poisson'`), built on statsmodels. Useful
+when outputs are counts or otherwise not well modeled by plain OLS.
+"""
+
 from typing import Optional
 import logging
 
@@ -9,7 +17,23 @@ from .results import EmulationResults
 
 
 class GLM(BaseEmulator):
-    """ Generalized Linear Model (GLM) emulator.
+    """Generalized Linear Model (GLM) emulator.
+
+    Fits a generalized linear model with a configurable `link` function
+    (`'linear'` for a Gaussian family, `'poisson'` for count data), allowing
+    non-Gaussian output distributions while keeping the model fast and
+    interpretable.
+
+    Example:
+        ```python
+        import numpy as np, pandas as pd
+        from historymatching.emulators.glm import GLM
+        x = pd.DataFrame({'beta': np.random.rand(40), 'gamma': np.random.rand(40)})
+        y = pd.DataFrame({'cases': (50 * x['beta']).round()})
+        em = GLM(x, y, link='poisson')
+        em.train()
+        pred = em.predict(x)
+        ```
     """
 
     def __init__(self, x: Optional[pd.DataFrame]=None, y: Optional[pd.DataFrame]=None, test_fraction: float=0.25, link='linear') -> None:
@@ -69,13 +93,14 @@ class GLM(BaseEmulator):
         predicted_mean = prediction_results.predicted_mean
 
         # Compute the confidence interval of the predicted mean
-        low_mean = prediction_results.conf_int()[:,0]
-        high_mean = prediction_results.conf_int()[:,1]
+        conf_int = prediction_results.conf_int()
+        low_mean = conf_int[:,0]
+        high_mean = conf_int[:,1]
 
-        # Compute the prediction intervals 
-        pred_ci = self.results.get_prediction( x_pred, linear=False)
-        low = pred_ci.conf_int(obs=True)[:,0]
-        high = pred_ci.conf_int(obs=True)[:,1]
+        # Prediction intervals: statsmodels' GLM prediction results only expose
+        # intervals for the mean, so these match the confidence intervals above
+        low = low_mean
+        high = high_mean
 
         # Create additional data for emulator-specific outputs
         additional = pd.DataFrame({
@@ -87,8 +112,9 @@ class GLM(BaseEmulator):
         
         return EmulationResults(
             mean=predicted_mean,
-            std=pred_ci.se_mean,  # Standard error is already std
-            additional_data=additional
+            std=prediction_results.se_mean,  # Standard error is already std
+            additional_data=additional,
+            index=x.index,
         )
 
     

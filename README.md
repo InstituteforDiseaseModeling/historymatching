@@ -12,7 +12,7 @@ Python 3.9+, with TensorFlow 2.18+.
 
 ## Installation
 
-Available on PyPI:
+Install the latest version from GitHub:
 
 ```bash
 pip install git+https://github.com/InstituteforDiseaseModeling/historymatching
@@ -118,7 +118,7 @@ engine = hm.HistoryMatching(
 
 ## Documentation
 
-Full documentation, tutorials, and API reference are available at [docs.idmod.org/historymatching](https://docs.idmod.org/historymatching/). New to history matching? The [glossary](docs/glossary.md) defines NROY, implausibility, emulators, and the other key terms used throughout.
+Full documentation, tutorials, and API reference are available at [docs.idmod.org/historymatching](https://docs.idmod.org/historymatching/). New to history matching? The [glossary](https://docs.idmod.org/historymatching/glossary.html) defines NROY, implausibility, emulators, and the other key terms used throughout.
 
 ## License
 

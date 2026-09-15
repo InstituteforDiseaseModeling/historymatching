@@ -154,3 +154,70 @@ class TestNROYFractionReporting:
             f"lhs_tested={result.lhs_tested} — ray mode should report "
             f"actual seed LHS size, not max_candidates"
         )
+
+
+class TestNROYRegionCorrectness:
+    """Verify that the filtered NROY samples actually satisfy the implausibility
+    constraint — i.e. the retained region is correct, not just the right size."""
+
+    def test_returned_samples_are_within_the_plausible_region(self, simple_setup):
+        """With target x1 ≈ 0.5 ± 0.1 and threshold 3.0, every returned sample's
+        first parameter must lie within |x1 - 0.5| <= 3 * 0.1, i.e. [0.2, 0.8]."""
+        param_space, obs_data, bank = simple_setup
+
+        result = hm.generate_nroy_design(
+            n_points=200,
+            parameter_space=param_space,
+            emulator_bank=bank,
+            observations=obs_data,
+            threshold=3.0,
+            method='auto',
+            seed=7,
+        )
+
+        # Every returned sample must actually pass the implausibility test for
+        # the constraining feature: |pred - target| / sqrt(pred_var + obs_var)
+        # <= threshold. The passthrough emulator predicts mean=x1 with
+        # var=0.001, against target 0.5 with std 0.1 (var=0.01).
+        x1 = result.samples['x1'].to_numpy()
+        implausibility = np.abs(x1 - 0.5) / np.sqrt(0.001 + 0.01)
+        assert np.all(implausibility <= 3.0 + 1e-6), (
+            "NROY filter returned implausible samples (implausibility > threshold): "
+            f"max implausibility={implausibility.max():.4f}"
+        )
+
+
+class TestNROYFilterFailsLoud:
+    """An emulator that cannot predict must NOT be silently skipped: dropping a
+    feature's constraint corrupts the NROY region, so filtering should raise."""
+
+    class _FailingEmulator(hm.BaseEmulator):
+        def __init__(self, feature_name="output"):
+            super().__init__(feature_name)
+
+        def train(self, X, y):  # pragma: no cover - not exercised
+            pass
+
+        def predict(self, X):
+            raise ValueError("emulator is broken")
+
+        def get_hyperparameters(self):
+            return {"type": "failing"}
+
+    def test_filter_raises_when_an_emulator_predict_fails(self):
+        param_space = hm.ParameterSpace({"x1": (0.0, 1.0), "x2": (0.0, 1.0)})
+        obs_data = hm.ObservationData({"output": (0.5, 0.1)})
+
+        bank = hm.EmulatorBank()
+        bank.add_emulator(1, "output", self._FailingEmulator("output"))
+
+        with pytest.raises(RuntimeError, match=r"NROY filtering failed for feature 'output'"):
+            hm.generate_nroy_design(
+                n_points=20,
+                parameter_space=param_space,
+                emulator_bank=bank,
+                observations=obs_data,
+                threshold=3.0,
+                method='auto',
+                seed=1,
+            )

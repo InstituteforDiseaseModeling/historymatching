@@ -88,3 +88,6 @@ hm_output/
 # Jupyter[-Lab]
 *checkpoint.ipynb
 .ipynb_checkpoints/
+
+# Quarto extensions (installed by docs/render via `quarto add`)
+docs/_extensions/

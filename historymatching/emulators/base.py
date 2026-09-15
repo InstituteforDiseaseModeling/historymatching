@@ -1,3 +1,5 @@
+"""Abstract base class that every history matching emulator implements."""
+
 from typing import Optional
 import itertools
 import logging
@@ -13,7 +15,36 @@ from .results import EmulationResults
 
 
 class BaseEmulator:
-    """Base class for emulators."""
+    """Abstract base class for all emulators.
+
+    An emulator is a fast statistical surrogate of the user's simulator: it is
+    trained on a set of parameter samples `x` and the corresponding simulator
+    outputs `y`, and then predicts the output (with uncertainty) at new
+    parameter points. History matching uses those predictions to decide which
+    regions of parameter space are implausible.
+
+    This class handles the train/test split and the shared diagnostics
+    (`test`, `get_implausibility`); concrete emulators only need to
+    implement the fitting and prediction logic.
+
+    To write your own emulator, subclass `BaseEmulator` and implement the four
+    abstract methods:
+
+    - `train` — fit the emulator on `self.X_train` / `self.y_train`
+      and set `self.training_complete = True`.
+    - `predict` — return an `EmulationResults` with a predictive mean and
+      variance for the given input DataFrame.
+    - `print_emulator_description` — print the fitted specification
+      (coefficients, lengthscales, etc.).
+    - `get_hyperparameters` — return the fitted hyperparameters as a
+      JSON-serializable dict.
+
+    Register the subclass with `EmulatorFactory` to make it selectable via
+    `emulator_type=` on `HistoryMatching`.
+
+    See `BayesLinear` (the default), `GPR`, `LinearModel`, and `GLM` for
+    reference implementations.
+    """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction=0.25):
         """Initialize the emulator.
@@ -103,7 +134,7 @@ class BaseEmulator:
             model_discrepancy: Model discrepancy, expressed as a standard
                 deviation (sigma), quantifying the difference between the model
                 output and real-life data. It is added in quadrature, matching
-                :meth:`ObservationData.calculate_implausibility`.
+                `ObservationData.calculate_implausibility`.
         Returns:
             Numpy array with implausibility values for each of the data points
             in x.
@@ -244,19 +275,23 @@ class BaseEmulator:
         feature = self.y_df.columns[0] if self.y_df is not None and len(self.y_df.columns) else "output"
         predictions_df = self.X_test_df.copy()
         predictions_df['true'] = self.y_test
-        predictions_df['prediction'] = self.y_test_pred_results.get_mean()
+        # Assign by position (.to_numpy()) rather than letting pandas align on
+        # labels: emulator results and X_test_df should share an index, but a
+        # silent label mismatch would fill these columns with NaN instead of
+        # raising, so don't depend on it.
+        predictions_df['prediction'] = self.y_test_pred_results.get_mean().to_numpy()
         # Use observation CIs (includes noise variance) so that stochastic
         # test points are classified correctly.  Latent-function CIs (ci_pred)
         # exclude noise and will over-count "failed" predictions.
         additional_data = self.y_test_pred_results.get_additional_data()
         if additional_data is not None and 'ci_obs_low' in additional_data.columns:
-            predictions_df['prediction (low)'] = additional_data['ci_obs_low']
-            predictions_df['prediction (high)'] = additional_data['ci_obs_high']
+            predictions_df['prediction (low)'] = additional_data['ci_obs_low'].to_numpy()
+            predictions_df['prediction (high)'] = additional_data['ci_obs_high'].to_numpy()
         else:
             # Compute confidence intervals if not available
             ci_low, ci_high = self.y_test_pred_results.get_ci(0.95)
-            predictions_df['prediction (low)'] = ci_low
-            predictions_df['prediction (high)'] = ci_high
+            predictions_df['prediction (low)'] = ci_low.to_numpy()
+            predictions_df['prediction (high)'] = ci_high.to_numpy()
         predictions_df['error (normalized)'] = ( predictions_df['true'] - predictions_df['prediction'] )    \
                                                .div( predictions_df['true'] )
 
@@ -558,10 +593,10 @@ class BaseEmulator:
             data['predicted'] = pred_results.get_mean().values
             additional = pred_results.get_additional_data()
             if additional is not None and 'ci_obs_high' in additional.columns:
-                data['predicted_obs_var' ] = ( ( additional['ci_obs_high'] - additional['ci_obs_low'] )/3 )**2
-                data['predicted_pred_var'] = ( ( additional['ci_pred_high'] - additional['ci_pred_low'] )/3 )**2
+                data['predicted_obs_var' ] = ( ( additional['ci_obs_high'] - additional['ci_obs_low'] ).to_numpy()/3 )**2
+                data['predicted_pred_var'] = ( ( additional['ci_pred_high'] - additional['ci_pred_low'] ).to_numpy()/3 )**2
             else:
-                std = pred_results.get_std()
+                std = pred_results.get_std().to_numpy()
                 data['predicted_obs_var'] = std**2
                 data['predicted_pred_var'] = std**2
             data['error'] = y_true.flatten() - pred_results.get_mean().values
