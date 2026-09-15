@@ -29,6 +29,11 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+      # docs/_extensions is gitignored, so the interlinks filter has to be
+      # fetched before rendering.
+      - name: Install Quarto extensions
+        working-directory: docs
+        run: quarto add machow/quartodoc --no-prompt
       - name: Render and publish
         working-directory: docs
         run: |

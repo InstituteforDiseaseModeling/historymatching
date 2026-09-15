@@ -5,6 +5,12 @@ set -euo pipefail
 SECONDS=0
 cd "$(dirname "$0")"
 
+# The interlinks filter is not committed (docs/_extensions is gitignored), so
+# install it on first use.
+if [[ ! -d _extensions/machow/interlinks ]]; then
+    quarto add machow/quartodoc --no-prompt
+fi
+
 # Quarto executes the tutorial notebooks in place; restore the pristine copies
 # afterwards even if the render fails, so the git tree stays clean.
 trap 'uv run python quarto_utils.py post' EXIT
