@@ -87,7 +87,16 @@ factory = hm.EmulatorFactory(
 
 ## NROY sampling
 
+To test points you supply — a known truth, a uniform or Sobol design, MCMC
+proposals — use `HistoryMatching.in_nroy()`, and `HistoryMatching.implausibility()`
+to see which wave and target ruled a point out. Both apply the same test as
+`generate_nroy_design`. `nroy_mask` is that test as a function of an emulator
+bank, for use without the engine, for example when filtering candidates in
+chunks on worker processes.
+
 ::: historymatching.nroy_sampling.generate_nroy_design
+
+::: historymatching.nroy_sampling.nroy_mask
 
 ::: historymatching.nroy_sampling.NROYResult
 

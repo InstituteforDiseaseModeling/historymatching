@@ -1418,6 +1418,113 @@ class HistoryMatching:
             **nroy_opts,
         ).samples
 
+    def in_nroy(self, samples: pd.DataFrame,
+                batch_size: Optional[int] = None) -> "np.ndarray":
+        """
+        Test whether each parameter point is inside the current NROY region.
+
+        A point is in NROY when it lies inside the parameter bounds and passes
+        the implausibility threshold for every committed emulator. This is
+        the same test ``get_nroy_samples()`` applies to its candidates, so the
+        two always agree. Use it for points you supply yourself: a known truth
+        in a re-identification run, a uniform or Sobol design for trajectory
+        selection, an MCMC proposal, or samples from another method.
+
+        No simulations are run — only emulator predictions. Pending
+        (uncommitted) emulators are not used.
+
+        Args:
+            samples: DataFrame with one column per parameter; extra columns
+                are ignored.
+            batch_size: Optional number of rows to test at a time, to bound
+                the memory of emulator predictions on very large candidate
+                sets.
+
+        Returns:
+            Boolean array of shape ``(len(samples),)``, in row order.
+
+        Raises:
+            ValueError: If a parameter column is missing.
+
+        Example:
+            mask = engine.in_nroy(candidates)
+            nroy = candidates[mask]
+            engine.in_nroy(pd.DataFrame([true_params]))[0]  # truth ruled out?
+        """
+        import numpy as np
+
+        from .nroy_sampling import nroy_mask
+
+        param_cols = self.parameter_space.get_parameter_names()
+        missing = [c for c in param_cols if c not in samples.columns]
+        if missing:
+            raise ValueError(f"samples is missing parameter column(s): {missing}")
+
+        X = samples[param_cols].reset_index(drop=True)
+        in_bounds = np.ones(len(X), dtype=bool)
+        for name in param_cols:
+            lo, hi = self.parameter_space.get_bounds(name)
+            values = X[name].to_numpy(dtype=float)
+            in_bounds &= (values >= lo) & (values <= hi)
+
+        if not self.emulator_bank.has_emulators():
+            return in_bounds
+
+        step = batch_size or len(X) or 1
+        mask = np.zeros(len(X), dtype=bool)
+        for start in range(0, len(X), step):
+            chunk = X.iloc[start:start + step]
+            mask[start:start + step] = nroy_mask(
+                chunk, self.emulator_bank, self.observations,
+                self.implausibility_threshold, param_cols,
+                mask=in_bounds[start:start + step],
+            )
+        return mask
+
+    def implausibility(self, samples: pd.DataFrame) -> pd.DataFrame:
+        """
+        Implausibility of each parameter point under every committed emulator.
+
+        A diagnostic companion to ``in_nroy()``: it evaluates every emulator
+        on every point, without short-circuiting, so you can see which wave
+        and target ruled a point out, and by how much. A point is in NROY when
+        it is inside the bounds and every value in its row is at most
+        ``implausibility_threshold``.
+
+        Args:
+            samples: DataFrame with one column per parameter.
+
+        Returns:
+            DataFrame indexed like ``samples``, with one column per committed
+            emulator. Columns are a MultiIndex of (iteration, feature). Use
+            ``.max(axis=1)`` for each point's maximum implausibility.
+
+        Raises:
+            ValueError: If a parameter column is missing.
+        """
+        import numpy as np
+
+        param_cols = self.parameter_space.get_parameter_names()
+        missing = [c for c in param_cols if c not in samples.columns]
+        if missing:
+            raise ValueError(f"samples is missing parameter column(s): {missing}")
+
+        columns = {}
+        for iteration in self.emulator_bank.get_all_iterations():
+            emulators = self.emulator_bank.get_emulators_for_iteration(iteration)
+            for feature_name, emulator in emulators.items():
+                if not self.observations.has_feature(feature_name):
+                    continue
+                predictions = emulator.predict(samples[param_cols])
+                impl = self.observations.calculate_implausibility(
+                    feature_name, predictions.get_mean(), predictions.get_variance()
+                )
+                columns[(iteration, feature_name)] = np.asarray(impl, dtype=float).ravel()
+
+        table = pd.DataFrame(columns, index=samples.index)
+        table.columns = pd.MultiIndex.from_tuples(list(columns), names=["iteration", "feature"])
+        return table
+
     def get_pending_next_samples(self) -> Optional[pd.DataFrame]:
         """
         Get the proposed samples for the next iteration, if available.
@@ -1904,12 +2011,14 @@ class HistoryMatching:
         # Return exactly the requested number of samples
         return plausible_samples.head(self.n_samples)
 
-    def _build_fast_predictors(self, emulator_bank=None):
+    def _build_fast_predictors(self, emulator_bank=None, covered=None):
         """Build FastGPRPredictor objects for all GPR emulators in the bank.
 
         Returns a list of (FastGPRPredictor, obs_mean, obs_std, feature_name)
-        tuples suitable for filter_nroy().  Non-GPR emulators are skipped
-        (they fall back to the slow path).
+        tuples suitable for filter_nroy().  Non-GPR emulators, and GPR
+        emulators whose fast predictor can't be built, are left out; pass a
+        set as ``covered`` to receive the ``id()`` of each emulator that was
+        included, so the caller can apply the rest on the slow path.
         """
         from .emulators.fast_predict import FastGPRPredictor
 
@@ -1929,6 +2038,8 @@ class HistoryMatching:
                     fast = FastGPRPredictor.from_emulator(emulator)
                     obs_mean, obs_std = self.observations.get_target_for_feature(feature_name)
                     predictors.append((fast, obs_mean, obs_std, feature_name))
+                    if covered is not None:
+                        covered.add(id(emulator))
                 except Exception as e:
                     logger.warning(f"Could not build fast predictor for '{feature_name}': {e}")
 
@@ -1950,13 +2061,17 @@ class HistoryMatching:
     def _filter_fast(self, candidates: pd.DataFrame, emulator_bank) -> pd.DataFrame:
         """Fast NROY filter using numba predictors with short-circuit evaluation.
 
-        Falls back to the standard GPflow path for non-GPR emulators.
+        GPR emulators go through the numba fast path; every other emulator
+        (for example Bayes linear, in a bank that mixes emulator types) is then
+        applied to the survivors on the standard path.
         """
         import numpy as np
 
         from .emulators.fast_predict import filter_nroy
+        from .nroy_sampling import nroy_mask
 
-        fast_predictors = self._build_fast_predictors(emulator_bank)
+        covered: set = set()
+        fast_predictors = self._build_fast_predictors(emulator_bank, covered=covered)
 
         if not fast_predictors:
             # No GPR emulators — fall back to standard (slow) path
@@ -1967,6 +2082,11 @@ class HistoryMatching:
         X = candidates[param_cols].values.astype(np.float64)
 
         mask = filter_nroy(X, fast_predictors, threshold=self.implausibility_threshold)
+
+        # Emulators the fast path didn't cover still have to be applied
+        mask = nroy_mask(candidates, emulator_bank, self.observations,
+                         self.implausibility_threshold, param_cols,
+                         mask=mask, skip=lambda em: id(em) in covered)
 
         plausible = candidates[mask]
         logger.debug(

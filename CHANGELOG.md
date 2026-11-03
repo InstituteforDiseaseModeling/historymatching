@@ -5,6 +5,17 @@
 > milestones (previously labelled "1.1.0" and "1.2.0"). None shipped as a separate
 > release — they are all part of the `v1.0.0` tag.
 
+## Unreleased
+
+### New features
+
+- **Public NROY membership test.** `HistoryMatching.in_nroy(samples, batch_size=None)` returns a boolean mask: True where a point is inside the bounds and passes every committed emulator. `HistoryMatching.implausibility(samples)` returns each point's implausibility under every committed emulator, with (iteration, feature) columns. Both use the same test as `generate_nroy_design`. Use them for points you supply: a known truth in a re-identification run, uniform candidates for trajectory selection, MCMC proposals, or samples from another method.
+- `historymatching.nroy_sampling.nroy_mask` is that test as a function of an emulator bank, for filtering without the engine.
+
+### Fixes
+
+- In a bank that mixes GPR and other emulators (for example after switching emulator type mid-run), the engine's next-wave filter applied only the GPR emulators once any fast predictor existed; the others, such as Bayes linear, were skipped. Every emulator is now applied.
+
 ## v2.0.1 (2026-06-07)
 
 ### New features
