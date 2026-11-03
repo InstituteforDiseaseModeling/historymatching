@@ -323,6 +323,42 @@ class TestSimulationFunction:
             hm.HistoryMatching._coerce_simulation_output([{"a": 1}], 3)
 
 
+class TestPerWaveSeeds:
+    """A seeded engine must draw a fresh design each wave, not restart one candidate stream."""
+
+    def _run(self, parameter_bounds, observations, seed):
+        def sim(samples):
+            # Outputs sit on the targets everywhere, so the whole box stays plausible. With one
+            # shared seed, every wave's design would then be the same LHS draw.
+            n = len(samples)
+            return pd.DataFrame({"output1": 25.0 + 0.01 * samples["param1"].to_numpy(),
+                                 "output2": np.full(n, 100.0), "output3": np.full(n, 0.5)})
+
+        engine = make(parameter_bounds, observations, function=sim, emulator_type="linear",
+                      feature_selection=["output1"], n_samples=30, max_iterations=3, random_seed=seed)
+        engine.run()
+        return engine
+
+    def test_wave_seed(self, parameter_bounds, observations):
+        engine = make(parameter_bounds, observations, random_seed=7)
+        assert engine._wave_seed(1) == 7                       # first wave unchanged
+        assert len({engine._wave_seed(w) for w in range(2, 12)}) == 10
+        assert make(parameter_bounds, observations, random_seed=None)._wave_seed(3) is None
+
+    def test_consecutive_waves_share_no_design_points(self, parameter_bounds, observations):
+        engine = self._run(parameter_bounds, observations, seed=7)
+        designs = [r.samples.round(12) for r in engine.results]
+        assert len(designs) == 3
+        for a, b in zip(designs, designs[1:]):
+            assert a.merge(b, how="inner").empty
+
+    def test_seeded_runs_are_reproducible(self, parameter_bounds, observations):
+        e1 = self._run(parameter_bounds, observations, seed=7)
+        e2 = self._run(parameter_bounds, observations, seed=7)
+        for r1, r2 in zip(e1.results, e2.results):
+            pd.testing.assert_frame_equal(r1.samples.reset_index(drop=True), r2.samples.reset_index(drop=True))
+
+
 class TestConveniences:
     """End-to-end checks of the friendly accessors after a short run."""
 

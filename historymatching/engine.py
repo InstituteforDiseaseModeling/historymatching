@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import sciris as sc
 
@@ -1414,7 +1415,7 @@ class HistoryMatching:
             threshold=self.implausibility_threshold,
             sampling_strategy=self.sampling_strategy,
             method=method,
-            seed=self.random_seed,
+            seed=self._wave_seed(self.current_iteration + 1),
             **nroy_opts,
         ).samples
 
@@ -1809,6 +1810,20 @@ class HistoryMatching:
 
         logger.info(f"Wave {result.iteration} output saved to {wave_dir}")
 
+    def _wave_seed(self, wave: int) -> Optional[int]:
+        """Seed for wave ``wave``'s design sampling.
+
+        Wave 1 uses ``random_seed`` itself, so seeded first-wave designs are unchanged. Later waves get
+        their own seed derived from ``(random_seed, wave)``. Re-using ``random_seed`` every wave would
+        restart the candidate stream, so consecutive waves would re-draw the same points. Unseeded
+        engines (``random_seed=None``) stay unseeded.
+        """
+        if self.random_seed is None:
+            return None
+        if wave <= 1:
+            return self.random_seed
+        return int(np.random.SeedSequence([int(self.random_seed), int(wave)]).generate_state(1, dtype=np.uint32)[0])
+
     def _generate_plausible_samples(self) -> pd.DataFrame:
         """
         Generate plausible parameter samples by filtering through existing emulators.
@@ -1827,7 +1842,7 @@ class HistoryMatching:
         plausible_samples = pd.DataFrame()
         total_candidates_generated = 0
         batch_num = 0
-        batch_seed = self.random_seed  # Incremented each batch for fresh LHS draws
+        batch_seed = self._wave_seed(self.current_iteration + 1)  # Per-wave stream, incremented each batch
         max_candidate_factor = self.max_candidate_factor
         max_candidates = self.n_samples * max_candidate_factor
         last_pct_logged = -10
@@ -2142,7 +2157,7 @@ class HistoryMatching:
             threshold=self.implausibility_threshold,
             sampling_strategy=self.sampling_strategy,
             method=nroy_method,
-            seed=self.random_seed,
+            seed=self._wave_seed(current_iteration + 1),   # the design is for the next wave
             max_candidates=self.n_samples * self.max_candidate_factor,
             **nroy_opts,
         )

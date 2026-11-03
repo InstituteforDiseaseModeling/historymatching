@@ -5,6 +5,12 @@
 > milestones (previously labelled "1.1.0" and "1.2.0"). None shipped as a separate
 > release — they are all part of the `v1.0.0` tag.
 
+## Unreleased
+
+### Fixes
+
+- **Seeded runs no longer re-draw the same design points every wave.** With `random_seed` set, each wave's candidate generation restarted from the same seed, so the plausible designs of consecutive waves overlapped heavily. In a 21-parameter, 10-wave run, 34% of all design points repeated earlier ones. Each wave now draws from its own stream, derived from `(random_seed, wave)`, so runs stay reproducible but every wave explores fresh points. Wave 1 is unchanged. Unseeded runs are unaffected. Seeded results from wave 2 on will differ from earlier versions.
+
 ## v2.0.1 (2026-06-07)
 
 ### New features
