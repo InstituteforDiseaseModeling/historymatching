@@ -76,7 +76,8 @@ class TestConstruction:
         assert engine.n_samples == 1000
         assert engine.implausibility_threshold == 3.0
         assert engine.max_iterations == 10
-        assert engine.random_seed is None
+        assert isinstance(engine.random_seed, int)            # drawn from OS entropy, and recorded
+        assert engine.random_seed_source == 'entropy'
         assert engine.auto_reduce_space is False
         assert engine.oversample_factor == 1.1
 
@@ -341,9 +342,24 @@ class TestPerWaveSeeds:
 
     def test_wave_seed(self, parameter_bounds, observations):
         engine = make(parameter_bounds, observations, random_seed=7)
-        assert engine._wave_seed(1) == 7                       # first wave unchanged
-        assert len({engine._wave_seed(w) for w in range(2, 12)}) == 10
-        assert make(parameter_bounds, observations, random_seed=None)._wave_seed(3) is None
+        assert engine.random_seed_source == 'user'
+        seeds = [engine._wave_seed(w) for w in range(1, 12)]
+        assert len(set(seeds)) == 11                          # every wave, wave 1 included, has its own stream
+        assert seeds == [make(parameter_bounds, observations, random_seed=7)._wave_seed(w) for w in range(1, 12)]
+
+    def test_unseeded_engine_draws_and_records_a_seed(self, parameter_bounds, observations):
+        e1, e2 = make(parameter_bounds, observations), make(parameter_bounds, observations)
+        assert e1.random_seed != e2.random_seed               # fresh per run (a 32-bit collision is ~1e-10)
+        assert e1.random_seed_source == e2.random_seed_source == 'entropy'
+
+    def test_checkpoint_restores_the_seed(self, parameter_bounds, observations, tmp_path):
+        engine = make(parameter_bounds, observations)        # entropy-drawn seed
+        ckpt = tmp_path / "checkpoint.pkl"
+        engine.save_checkpoint(ckpt)
+        resumed = make(parameter_bounds, observations)       # a different entropy-drawn seed
+        resumed._load_checkpoint_state(ckpt)
+        assert resumed.random_seed == engine.random_seed
+        assert resumed.random_seed_source == 'entropy'
 
     def test_consecutive_waves_share_no_design_points(self, parameter_bounds, observations):
         engine = self._run(parameter_bounds, observations, seed=7)

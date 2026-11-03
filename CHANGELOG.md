@@ -9,7 +9,8 @@
 
 ### Fixes
 
-- **Seeded runs no longer re-draw the same design points every wave.** With `random_seed` set, each wave's candidate generation restarted from the same seed, so the plausible designs of consecutive waves overlapped heavily. In a 21-parameter, 10-wave run, 34% of all design points repeated earlier ones. Each wave now draws from its own stream, derived from `(random_seed, wave)`, so runs stay reproducible but every wave explores fresh points. Wave 1 is unchanged. Unseeded runs are unaffected. Seeded results from wave 2 on will differ from earlier versions.
+- **Every wave draws a fresh design, and every run records its seed.** Previously, each wave's candidate generation restarted from `random_seed`, so consecutive waves re-drew the same plausible points. In a 21-parameter, 10-wave run, 34% of all design points repeated earlier ones. Each wave, wave 1 included, now draws from its own stream, derived from `(random_seed, wave)`.
+- **`random_seed=None` (the default) now draws a seed from OS entropy instead of running unseeded.** The seed used, and whether it was user-supplied or drawn, is logged, written to `run_config.json` and stored in checkpoints, and resuming restores it. Any run can be reproduced by passing that seed back. Seeded results differ from earlier versions.
 
 ## v2.0.1 (2026-06-07)
 

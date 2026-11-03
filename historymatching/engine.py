@@ -302,7 +302,10 @@ class HistoryMatching:
             n_samples: parameter samples generated per wave.
             implausibility_threshold: implausibility cutoff, typically 2.5-4.0.
             max_iterations: maximum number of waves to run.
-            random_seed: seed for reproducibility.
+            random_seed: base seed for the run. Each wave's design is drawn from a seed derived from
+                ``(random_seed, wave)``. If ``None`` (default), a seed is drawn from OS entropy. Either way
+                the seed used is logged, written to ``run_config.json`` and stored in checkpoints, so any
+                run can be reproduced by passing it back.
             auto_reduce_space: enable automatic parameter-space reduction.
             oversample_factor: oversampling factor for rejection filtering (>= 1.0).
             max_batch_size: max candidates per NROY sampling batch (>= 100).
@@ -329,7 +332,12 @@ class HistoryMatching:
         self.n_samples = n_samples
         self.implausibility_threshold = implausibility_threshold
         self._max_iterations = max_iterations
-        self.random_seed = random_seed
+        if random_seed is None:   # draw one, but record it, so every run can be reproduced
+            random_seed = int(np.random.SeedSequence().generate_state(1, dtype=np.uint32)[0])
+            self.random_seed_source = 'entropy'
+        else:
+            self.random_seed_source = 'user'
+        self.random_seed = int(random_seed)
         self.auto_reduce_space = auto_reduce_space
         self.oversample_factor = oversample_factor
         self.max_batch_size = max_batch_size
@@ -419,7 +427,7 @@ class HistoryMatching:
         logger.info(f"  Max iterations:           {self.max_iterations}")
         logger.info(f"  Implausibility threshold: {self.implausibility_threshold}")
         logger.info(f"  Auto space reduction:     {'enabled' if self.auto_reduce_space else 'disabled'}")
-        logger.info(f"  Random seed:              {self.random_seed}")
+        logger.info(f"  Random seed:              {self.random_seed} ({self.random_seed_source})")
         logger.info(f"  Oversample factor:        {self.oversample_factor}")
         logger.info(f"  Max batch size:           {self.max_batch_size}")
         logger.info(f"  Output directory:         {self.run_dir}")
@@ -1449,6 +1457,8 @@ class HistoryMatching:
             "observations": self.observations,
             "emulator_bank": self.emulator_bank,
             "progress": {name: getattr(self, name) for name in self._PROGRESS_ATTRS},
+            "random_seed": self.random_seed,
+            "random_seed_source": self.random_seed_source,
             "snapshots": self._snapshots,
             "max_iterations": self.max_iterations,
             "implausibility_threshold": self.implausibility_threshold,
@@ -1488,11 +1498,13 @@ class HistoryMatching:
             nroy_method=data.get("nroy_method", "auto"),
             nroy_options=data.get("nroy_options"),
             max_candidate_factor=data.get("max_candidate_factor", 1000),
+            random_seed=data.get("random_seed"),   # None for pre-seed-recording checkpoints
         )
 
         # Restore state
         engine._restore_progress(data["progress"])
         engine._snapshots = data["snapshots"]
+        engine.random_seed_source = data.get("random_seed_source", engine.random_seed_source)
         engine.state = EngineState.PAUSED
 
         logger.info(f"Engine loaded from checkpoint {filepath}")
@@ -1507,6 +1519,12 @@ class HistoryMatching:
         self.emulator_bank = data["emulator_bank"]
         self._restore_progress(data["progress"])
         self._snapshots = data["snapshots"]
+        if data.get("random_seed") is not None:   # continue the run's own seed streams
+            if data["random_seed"] != self.random_seed:
+                logger.info(f"Resuming with the checkpoint's random seed {data['random_seed']} "
+                            f"(not {self.random_seed})")
+            self.random_seed = int(data["random_seed"])
+            self.random_seed_source = data.get("random_seed_source", "checkpoint")
         self.state = EngineState.PAUSED
         logger.info(f"Loaded checkpoint: {len(self._snapshots)} waves completed")
 
@@ -1803,6 +1821,8 @@ class HistoryMatching:
                     'n_samples': self.n_samples,
                     'max_iterations': self.max_iterations,
                     'implausibility_threshold': self.implausibility_threshold,
+                    'random_seed': self.random_seed,
+                    'random_seed_source': self.random_seed_source,
                 }
                 sc.savejson(config_path, config, indent=2)
             except Exception as e:
@@ -1811,17 +1831,11 @@ class HistoryMatching:
         logger.info(f"Wave {result.iteration} output saved to {wave_dir}")
 
     def _wave_seed(self, wave: int) -> Optional[int]:
-        """Seed for wave ``wave``'s design sampling.
+        """Seed for wave ``wave``'s design sampling, derived from ``(random_seed, wave)``.
 
-        Wave 1 uses ``random_seed`` itself, so seeded first-wave designs are unchanged. Later waves get
-        their own seed derived from ``(random_seed, wave)``. Re-using ``random_seed`` every wave would
-        restart the candidate stream, so consecutive waves would re-draw the same points. Unseeded
-        engines (``random_seed=None``) stay unseeded.
+        Every wave gets its own stream. Re-using ``random_seed`` itself each wave would restart the
+        candidate stream, so consecutive waves would re-draw the same points.
         """
-        if self.random_seed is None:
-            return None
-        if wave <= 1:
-            return self.random_seed
         return int(np.random.SeedSequence([int(self.random_seed), int(wave)]).generate_state(1, dtype=np.uint32)[0])
 
     def _generate_plausible_samples(self) -> pd.DataFrame:
@@ -1833,7 +1847,7 @@ class HistoryMatching:
         """
         if not self.emulator_bank.has_emulators():
             # First iteration - no filtering needed
-            samples = self.sampling_strategy.generate_samples(self.parameter_space, self.n_samples, seed=self.random_seed)
+            samples = self.sampling_strategy.generate_samples(self.parameter_space, self.n_samples, seed=self._wave_seed(1))
             self.samples_generated += len(samples)
             self.acceptance_rate = 1.0
             return samples
