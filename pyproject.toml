@@ -97,3 +97,8 @@ filterwarnings = [
     # (importing it re-triggers the warning under the "error" filter).
     "ignore:urllib3 .* doesn't match a supported version:Warning",
 ]
+
+[tool.uv]
+# One `uv sync` resolution must work on every supported Python. Without this floor it settles on
+# tensorflow 2.18.x, which has no Python 3.13 wheels, so `uv sync` (the notebooks CI job) fails on 3.13.
+constraint-dependencies = ["tensorflow>=2.20"]
