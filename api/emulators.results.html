@@ -515,6 +515,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#classes" id="toc-classes" class="nav-link" data-scroll-target="#classes">Classes</a>
   <ul class="collapse">
   <li><a href="#historymatching.emulators.results.EmulationResults" id="toc-historymatching.emulators.results.EmulationResults" class="nav-link" data-scroll-target="#historymatching.emulators.results.EmulationResults">EmulationResults</a></li>
+  <li><a href="#historymatching.emulators.results.PredictionBounds" id="toc-historymatching.emulators.results.PredictionBounds" class="nav-link" data-scroll-target="#historymatching.emulators.results.PredictionBounds">PredictionBounds</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -544,6 +545,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td><a href="#historymatching.emulators.results.EmulationResults">EmulationResults</a></td>
 <td>Standardized container for emulator prediction results.</td>
+</tr>
+<tr class="even">
+<td><a href="#historymatching.emulators.results.PredictionBounds">PredictionBounds</a></td>
+<td>Cheap bounds on what <code>predict</code> would return, for screening candidates.</td>
 </tr>
 </tbody>
 </table>
@@ -648,10 +653,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h5 class="anchored" data-anchor-id="historymatching.emulators.results.EmulationResults.get_variance">get_variance</h5>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>emulators.results.EmulationResults.get_variance()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get predicted variances (computed from std).</p>
-
-
 </section>
 </section>
+</section>
+<section id="historymatching.emulators.results.PredictionBounds" class="level3">
+<h3 class="anchored" data-anchor-id="historymatching.emulators.results.PredictionBounds">PredictionBounds</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>emulators.results.PredictionBounds()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Cheap bounds on what <code>predict</code> would return, for screening candidates.</p>
+<p>Returned by <code>BaseEmulator.predict_bounds</code>. At every point, the mean <code>predict(x).get_mean()</code> lies within <code>mean ± mean_tol</code> and the variance <code>predict(x).get_variance()</code> lies within <code>[var_lo, var_hi]</code>. All four are arrays of shape <code>(len(x),)</code>.</p>
+
+
 </section>
 </section>
 </section>

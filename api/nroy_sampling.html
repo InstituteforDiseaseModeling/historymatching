@@ -625,6 +625,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Boolean mask of candidates that pass every emulator in the bank.</p>
 <p>Emulators are applied newest wave first with short-circuit evaluation: a candidate that fails one emulator is not tested against the rest. This is the single definition of NROY membership used by <code>generate_nroy_design</code> and by <code>HistoryMatching.in_nroy</code>.</p>
+<p>An emulator that implements <code>predict_bounds</code>, such as <code>BayesLinear</code>, is screened first: a point is ruled out if it is implausible even with its mean at the edge of the tolerance nearest the target and its variance at the upper bound, and ruled in if it is plausible even with its mean at the far edge and its variance at the lower bound. Only the points in between go through <code>predict</code>. Because <code>predict</code>’s mean and variance always lie within the bounds, and the screen keeps a relative margin of <code>1e-9</code> for rounding, the mask is the same as calling <code>predict</code> on every point. (That mask can itself depend, at the level of rounding, on how candidates are batched, since BLAS results for one row can depend on the other rows; screening adds nothing beyond that.) Other emulators go through <code>predict</code> for every point.</p>
 <section id="parameters-1" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
 <table class="caption-top table">
@@ -696,6 +697,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td></td>
 <td><a href="https://numpy.org/doc/stable/reference/index.html#module-numpy">np</a>.<a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray">ndarray</a></td>
 <td>out.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError">RuntimeError</a></td>
+<td>An emulator failed to predict on the candidates.</td>
 </tr>
 </tbody>
 </table>

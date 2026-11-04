@@ -519,13 +519,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793777287.667182    3732 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1793777287.667639    3732 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793777287.705074    3732 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX512_FP16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1793828532.917106    4092 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793828532.964431    4092 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793777288.576783    3732 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1793777288.577090    3732 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793828534.119126    4092 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 /home/runner/work/historymatching/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources</code></pre>
 </div>
@@ -574,9 +572,6 @@ I0000 00:00:1793777288.577090    3732 cudart_stub.cc:31] Could not find cuda dri
 <span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> engine.run()</span>
 <span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Completed </span><span class="sc">{</span><span class="bu">len</span>(results)<span class="sc">}</span><span class="ss"> waves."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Bayes Linear theta optimization did not converge: ABNORMAL: . The fitted model may still be usable.</code></pre>
-</div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Completed 3 waves.</code></pre>
 </div>
@@ -586,13 +581,13 @@ I0000 00:00:1793777288.577090    3732 cudart_stub.cc:31] Could not find cuda dri
 <h2 class="anchored" data-anchor-id="text-summaries">Text summaries</h2>
 <p><code>engine.get_status_summary()</code> folds the per-wave convergence and the surviving parameter ranges into one report. <code>engine.nroy_summary()</code> returns the same per-parameter information as a tidy DataFrame.</p>
 <div id="fb97f851" class="cell" data-execution_count="3">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(engine.get_status_summary())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(engine.get_status_summary())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>=== History Matching Status ===
 State: completed
 Progress: 3/3 waves
-Acceptance rate: 7.6%
-Total samples generated: 19,671
+Acceptance rate: 7.8%
+Total samples generated: 19,217
 Total samples accepted: 1,800
 Emulators trained: 6
 [OK] Simulator function configured
@@ -600,7 +595,7 @@ Emulators trained: 6
 </div>
 </div>
 <div id="e6d873ff" class="cell" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>engine.nroy_summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>engine.nroy_summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>NROY summary
 ------------------------------------------------
@@ -608,11 +603,11 @@ Emulators trained: 6
   NROY samples:  300
   NROY fraction: 4.151%
   parameter               median   95% interval
-  beta                     1.479   [1.105, 1.8]
-  gamma                   0.6481   [0.2863, 0.9636]</code></pre>
+  beta                     1.475   [0.9638, 1.8]
+  gamma                    0.647   [0.1627, 0.9636]</code></pre>
 </div>
 <div class="cell-output cell-output-display" data-execution_count="4">
-<pre><code>'NROY summary\n------------------------------------------------\n  waves run:     3\n  NROY samples:  300\n  NROY fraction: 4.151%\n  parameter               median   95% interval\n  beta                     1.479   [1.105, 1.8]\n  gamma                   0.6481   [0.2863, 0.9636]'</code></pre>
+<pre><code>'NROY summary\n------------------------------------------------\n  waves run:     3\n  NROY samples:  300\n  NROY fraction: 4.151%\n  parameter               median   95% interval\n  beta                     1.475   [0.9638, 1.8]\n  gamma                    0.647   [0.1627, 0.9636]'</code></pre>
 </div>
 </div>
 </section>
@@ -620,7 +615,7 @@ Emulators trained: 6
 <h2 class="anchored" data-anchor-id="convergence">Convergence</h2>
 <p>The NROY fraction is the share of fresh prior samples passing <em>all</em> emulator constraints so far. A steadily falling fraction means the calibration is successfully ruling out parameter space.</p>
 <div id="f0313dee" class="cell" data-execution_count="5">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>engine.plot_convergence()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>engine.plot_convergence()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
@@ -634,8 +629,8 @@ Emulators trained: 6
 <h2 class="anchored" data-anchor-id="the-nroy-parameter-cloud">The NROY parameter cloud</h2>
 <p>The headline result: a corner plot of the non-implausible region — marginals on the diagonal, pairwise scatter below. We overlay the known true values with <code>truth=</code>.</p>
 <div id="359ba73b" class="cell" data-execution_count="6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>truth <span class="op">=</span> {<span class="st">"beta"</span>: beta_true, <span class="st">"gamma"</span>: gamma_true}</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>engine.plot_nroy(truth<span class="op">=</span>truth)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>truth <span class="op">=</span> {<span class="st">"beta"</span>: beta_true, <span class="st">"gamma"</span>: gamma_true}</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>engine.plot_nroy(truth<span class="op">=</span>truth)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
@@ -646,7 +641,7 @@ Emulators trained: 6
 </div>
 <p><code>plot_marginals</code> shows just the one-dimensional posteriors, with the sample median and the true value marked.</p>
 <div id="7ed673a4" class="cell" data-execution_count="7">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>engine.plot_marginals(truth<span class="op">=</span>truth)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>engine.plot_marginals(truth<span class="op">=</span>truth)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
@@ -660,7 +655,7 @@ Emulators trained: 6
 <h2 class="anchored" data-anchor-id="z-scores-vs-targets">Z-scores vs targets</h2>
 <p>For every target, the distribution of <code>(simulated - target) / target_std</code> across the NROY samples, by wave. Bands inside the green ±threshold region and centred on zero are consistent with the data.</p>
 <div id="abcd32ef" class="cell" data-execution_count="8">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>engine.plot_zscores()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>engine.plot_zscores()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
@@ -674,7 +669,7 @@ Emulators trained: 6
 <h2 class="anchored" data-anchor-id="constrained-directions">Constrained directions</h2>
 <p>A PCA view of which <em>combinations</em> of parameters the data constrained most — useful for spotting non-identifiable directions that marginal plots miss.</p>
 <div id="d263a722" class="cell" data-execution_count="9">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>engine.plot_constrained_dims(n_top<span class="op">=</span><span class="dv">2</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>engine.plot_constrained_dims(n_top<span class="op">=</span><span class="dv">2</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
@@ -688,8 +683,8 @@ Emulators trained: 6
 <h2 class="anchored" data-anchor-id="emulator-quality">Emulator quality</h2>
 <p>The emulators are only trustworthy if they reproduce the simulator. Inspect the fit per feature for the final wave.</p>
 <div id="f04de43d" class="cell" data-execution_count="10">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>final <span class="op">=</span> results[<span class="op">-</span><span class="dv">1</span>]</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>final.quality_table()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>final <span class="op">=</span> results[<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>final.quality_table()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="10">
 <div>
 
@@ -706,14 +701,14 @@ Emulators trained: 6
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">peak_incidence</th>
-<td>0.783834</td>
-<td>4534.473859</td>
+<td>0.804852</td>
+<td>5218.839971</td>
 <td>225.0</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">incidence_10</th>
-<td>0.819556</td>
-<td>1545.006917</td>
+<td>0.814368</td>
+<td>1543.690145</td>
 <td>225.0</td>
 </tr>
 </tbody>
@@ -723,7 +718,7 @@ Emulators trained: 6
 </div>
 </div>
 <div id="f59d702d" class="cell" data-execution_count="11">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>final.plot_emulator_quality()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>final.plot_emulator_quality()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
@@ -733,11 +728,11 @@ Emulators trained: 6
 </div>
 </div>
 <div id="c27e138a" class="cell" data-execution_count="12">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>final.plot_predicted_vs_actual(<span class="st">"peak_incidence"</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>final.plot_predicted_vs_actual(<span class="st">"peak_incidence"</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="06_visualization_files/figure-html/cell-13-output-1.png" width="451" height="472" class="figure-img"></p>
+<p><img src="06_visualization_files/figure-html/cell-13-output-1.png" width="459" height="472" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -747,14 +742,14 @@ Emulators trained: 6
 <h2 class="anchored" data-anchor-id="ensemble-fan-plot-vs-observed-data">Ensemble fan plot vs observed data</h2>
 <p>History matching constrains <em>parameters</em>; to check the <em>outputs</em>, re-run the simulator at NROY parameter sets and compare the trajectories to the observed data. <code>hm.HistoryMatching.plot_ensemble_fan</code> is model-agnostic — give it a 2-D array of trajectories and an observed series.</p>
 <div id="aeb56174" class="cell" data-execution_count="13">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>nroy <span class="op">=</span> engine.get_nroy_samples(<span class="dv">40</span>, method<span class="op">=</span><span class="st">"lhs"</span>)  <span class="co"># unbiased draw</span></span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>trajectories <span class="op">=</span> np.array([</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    SIR(beta<span class="op">=</span>r[<span class="st">"beta"</span>], gamma<span class="op">=</span>r[<span class="st">"gamma"</span>], s0<span class="op">=</span>population_size <span class="op">-</span> n_seed, i0<span class="op">=</span>n_seed).get_incidence()</span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _, r <span class="kw">in</span> nroy.iterrows()</span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>])</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>hm.HistoryMatching.plot_ensemble_fan(trajectories, observed<span class="op">=</span>incidence_obs.values,</span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>                     xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"Daily incidence"</span>,</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>                     title<span class="op">=</span><span class="st">"NROY trajectories vs observed"</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>nroy <span class="op">=</span> engine.get_nroy_samples(<span class="dv">40</span>, method<span class="op">=</span><span class="st">"lhs"</span>)  <span class="co"># unbiased draw</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>trajectories <span class="op">=</span> np.array([</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    SIR(beta<span class="op">=</span>r[<span class="st">"beta"</span>], gamma<span class="op">=</span>r[<span class="st">"gamma"</span>], s0<span class="op">=</span>population_size <span class="op">-</span> n_seed, i0<span class="op">=</span>n_seed).get_incidence()</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _, r <span class="kw">in</span> nroy.iterrows()</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>hm.HistoryMatching.plot_ensemble_fan(trajectories, observed<span class="op">=</span>incidence_obs.values,</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>                     xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"Daily incidence"</span>,</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>                     title<span class="op">=</span><span class="st">"NROY trajectories vs observed"</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
@@ -768,11 +763,11 @@ Emulators trained: 6
 <h2 class="anchored" data-anchor-id="domain-object-views">Domain-object views</h2>
 <p><code>ParameterSpace</code>, <code>ObservationData</code>, and <code>EmulatorBank</code> each have a <code>summary()</code> and (where it makes sense) a plot.</p>
 <div id="feb9f922" class="cell" data-execution_count="14">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(engine.parameter_space.summary())</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(engine.observations.summary())</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(engine.emulator_bank.summary())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(engine.parameter_space.summary())</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(engine.observations.summary())</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(engine.emulator_bank.summary())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>ParameterSpace: 2 parameter(s)
   beta                 [0.5, 3]
@@ -790,10 +785,10 @@ EmulatorBank: 6 emulator(s) across 3 wave(s)
 </div>
 </div>
 <div id="ae536947" class="cell" data-execution_count="15">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>engine.parameter_space.plot_bounds(reference<span class="op">=</span>engine.parameter_space, ax<span class="op">=</span>axes[<span class="dv">0</span>])</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>engine.observations.plot_targets(ax<span class="op">=</span>axes[<span class="dv">1</span>])</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>engine.parameter_space.plot_bounds(reference<span class="op">=</span>engine.parameter_space, ax<span class="op">=</span>axes[<span class="dv">0</span>])</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>engine.observations.plot_targets(ax<span class="op">=</span>axes[<span class="dv">1</span>])</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">

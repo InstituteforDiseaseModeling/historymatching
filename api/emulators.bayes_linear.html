@@ -649,10 +649,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Predict using the trained Bayes Linear emulator.</td>
 </tr>
 <tr class="odd">
+<td><a href="#historymatching.emulators.bayes_linear.BayesLinear.predict_bounds">predict_bounds</a></td>
+<td>Cheap bounds on the mean and observation variance <code>predict</code> returns.</td>
+</tr>
+<tr class="even">
 <td><a href="#historymatching.emulators.bayes_linear.BayesLinear.print_emulator_description">print_emulator_description</a></td>
 <td>Display Bayes Linear emulator specifications.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#historymatching.emulators.bayes_linear.BayesLinear.train">train</a></td>
 <td>Train the Bayes Linear emulator.</td>
 </tr>
@@ -668,14 +672,66 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>emulators.bayes_linear.BayesLinear.predict(x)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Predict using the trained Bayes Linear emulator.</p>
 </section>
+<section id="historymatching.emulators.bayes_linear.BayesLinear.predict_bounds" class="level5">
+<h5 class="anchored" data-anchor-id="historymatching.emulators.bayes_linear.BayesLinear.predict_bounds">predict_bounds</h5>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>emulators.bayes_linear.BayesLinear.predict_bounds(x)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Cheap bounds on the mean and observation variance <code>predict</code> returns.</p>
+<p>The variance needs a triangular solve against all <code>n_train</code> training points, about <code>n_train / d</code> times the work of the mean. Here it is replaced by bounds, so <a href="../api/nroy_sampling.html#historymatching.nroy_sampling.nroy_mask" title="0"><code>historymatching.nroy_sampling.nroy_mask</code></a> can decide most points without calling <code>predict</code>:</p>
+<ul>
+<li>Mean: computed as <code>predict</code> does. BLAS rounding for one row can depend on the other rows in the batch, so <code>mean_tol</code> bounds how far it can move between calls: the error bound on the correlations (see <code>_sq_exp_corr</code>), each relative to itself, summed against the weights, plus rounding in the products, with a safety factor of 4.</li>
+<li>Variance, lower bound: <code>sigma2 * nugget</code>, since the predictive variance is never negative.</li>
+<li>Variance, upper bound: the variance given only the first <code>m</code> training points. Conditioning on fewer points never reduces the variance more. With the Cholesky factor of the training correlations, that variance reduction is the partial sum over the first <code>m</code> rows of the solve <code>predict</code> does, so it costs about <code>(m / n_train)^2</code> of the full variance. <code>m</code> is <code>SCREENING_PREFIX</code> (500), or a quarter of the training points if that is fewer. The bound is widened for the correlation error and for rounding in the solve (<code>_screening_slack</code>), and is never above <code>sigma2 * (1 + nugget)</code>, the variance far from all training points.</li>
+</ul>
+<p>All bounds are on the output scale.</p>
+<section id="parameters-1" class="level6 doc-section doc-section-parameters">
+<h6 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h6>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>x</td>
+<td><a href="https://pandas.pydata.org/pandas-docs/stable/index.html#module-pandas">pd</a>.<a href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame">DataFrame</a></td>
+<td>Input data, with the training parameter columns.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level6 doc-section doc-section-returns">
+<h6 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h6>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../api/emulators.results.html#historymatching.emulators.results.PredictionBounds">PredictionBounds</a></td>
+<td>A <code>PredictionBounds</code> with arrays of shape <code>(len(x),)</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
 <section id="historymatching.emulators.bayes_linear.BayesLinear.print_emulator_description" class="level5">
 <h5 class="anchored" data-anchor-id="historymatching.emulators.bayes_linear.BayesLinear.print_emulator_description">print_emulator_description</h5>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>emulators.bayes_linear.BayesLinear.print_emulator_description()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>emulators.bayes_linear.BayesLinear.print_emulator_description()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Display Bayes Linear emulator specifications.</p>
 </section>
 <section id="historymatching.emulators.bayes_linear.BayesLinear.train" class="level5">
 <h5 class="anchored" data-anchor-id="historymatching.emulators.bayes_linear.BayesLinear.train">train</h5>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>emulators.bayes_linear.BayesLinear.train()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>emulators.bayes_linear.BayesLinear.train()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Train the Bayes Linear emulator.</p>
 <p>Steps: 1. Normalize inputs to [0, 1], standardize outputs. 2. OLS regression for the trend. 3. Optimize correlation lengths theta via concentrated log-likelihood. 4. Pre-compute Cholesky factor and weight vector for fast prediction.</p>
 

@@ -609,14 +609,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Predict an output using the trained emulator.</td>
 </tr>
 <tr class="even">
+<td><a href="#historymatching.emulators.base.BaseEmulator.predict_bounds">predict_bounds</a></td>
+<td>Cheap bounds on the mean and variance <code>predict</code> would return; optional.</td>
+</tr>
+<tr class="odd">
 <td><a href="#historymatching.emulators.base.BaseEmulator.print_emulator_description">print_emulator_description</a></td>
 <td>Display detailed specifications (for example, emulator coefficients)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#historymatching.emulators.base.BaseEmulator.test">test</a></td>
 <td>Tests and runs diagnostics on the trained emulator.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#historymatching.emulators.base.BaseEmulator.train">train</a></td>
 <td>Trains the emulator.</td>
 </tr>
@@ -854,19 +858,75 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 </section>
 </section>
+<section id="historymatching.emulators.base.BaseEmulator.predict_bounds" class="level5">
+<h5 class="anchored" data-anchor-id="historymatching.emulators.base.BaseEmulator.predict_bounds">predict_bounds</h5>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>emulators.base.BaseEmulator.predict_bounds(x)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Cheap bounds on the mean and variance <code>predict</code> would return; optional.</p>
+<p>An emulator whose variance costs much more than its mean can implement this to speed up the NROY test. It returns a <code>PredictionBounds</code>: an approximate mean with a tolerance, and lower and upper bounds on the variance, such that <code>predict(x)</code> is within them at every point, up to floating-point rounding. <a href="../api/nroy_sampling.html#historymatching.nroy_sampling.nroy_mask" title="0"><code>historymatching.nroy_sampling.nroy_mask</code></a> then rules a point out if it is implausible for every mean and variance within the bounds, and in if it is plausible for all of them, and calls <code>predict</code> only on the points in between. The mask is the same as without screening.</p>
+<section id="parameters-4" class="level6 doc-section doc-section-parameters">
+<h6 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-4">Parameters</h6>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>x</td>
+<td><a href="https://pandas.pydata.org/pandas-docs/stable/index.html#module-pandas">pd</a>.<a href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame">DataFrame</a></td>
+<td>Input data. Pandas dataframe with columns representing parameter values.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level6 doc-section doc-section-returns">
+<h6 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h6>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="https://docs.python.org/3/library/typing.html#typing.Optional">Optional</a>[<a href="../api/emulators.results.html#historymatching.emulators.results.PredictionBounds">PredictionBounds</a>]</td>
+<td>A <code>PredictionBounds</code>, or None if the emulator does not offer</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><a href="https://docs.python.org/3/library/typing.html#typing.Optional">Optional</a>[<a href="../api/emulators.results.html#historymatching.emulators.results.PredictionBounds">PredictionBounds</a>]</td>
+<td>screening (the default), in which case <code>nroy_mask</code> calls <code>predict</code></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><a href="https://docs.python.org/3/library/typing.html#typing.Optional">Optional</a>[<a href="../api/emulators.results.html#historymatching.emulators.results.PredictionBounds">PredictionBounds</a>]</td>
+<td>on every point.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
 <section id="historymatching.emulators.base.BaseEmulator.print_emulator_description" class="level5">
 <h5 class="anchored" data-anchor-id="historymatching.emulators.base.BaseEmulator.print_emulator_description">print_emulator_description</h5>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>emulators.base.BaseEmulator.print_emulator_description()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>emulators.base.BaseEmulator.print_emulator_description()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Display detailed specifications (for example, emulator coefficients) for the trained emulator.</p>
 </section>
 <section id="historymatching.emulators.base.BaseEmulator.test" class="level5">
 <h5 class="anchored" data-anchor-id="historymatching.emulators.base.BaseEmulator.test">test</h5>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>emulators.base.BaseEmulator.test()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>emulators.base.BaseEmulator.test()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Tests and runs diagnostics on the trained emulator.</p>
 </section>
 <section id="historymatching.emulators.base.BaseEmulator.train" class="level5">
 <h5 class="anchored" data-anchor-id="historymatching.emulators.base.BaseEmulator.train">train</h5>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>emulators.base.BaseEmulator.train()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>emulators.base.BaseEmulator.train()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Trains the emulator.</p>
 
 
