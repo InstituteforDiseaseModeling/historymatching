@@ -183,3 +183,28 @@ class TestEveryEmulatorApplied:
 
         assert filtered.index.tolist() == samples.index[expected(samples)].tolist()
         assert first.calls >= 1 and second.calls >= 1
+
+
+class SeenCounter(LinearInOneParam):
+    """LinearInOneParam that also records how many points it was asked to predict."""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.seen = 0
+
+    def predict(self, x):
+        self.seen += len(x)
+        return super().predict(x)
+
+
+def test_emulators_applied_oldest_wave_first(engine):
+    """Wave 1's emulator sees every candidate; wave 2's only wave 1's survivors (#279)."""
+    first, second = SeenCounter("param1", 10.0), SeenCounter("param2", 10.0)
+    engine.emulator_bank.add_emulator(1, "output1", first)
+    engine.emulator_bank.add_emulator(2, "output2", second)
+    samples = grid()
+    mask = engine.in_nroy(samples)
+    passes_wave1 = (samples["param1"] >= 0.2 - 1e-12) & (samples["param1"] <= 0.8 + 1e-12)
+    assert first.seen == len(samples)
+    assert second.seen == int(passes_wave1.sum())
+    np.testing.assert_array_equal(mask, expected(samples))

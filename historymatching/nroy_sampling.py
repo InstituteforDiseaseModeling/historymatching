@@ -494,8 +494,11 @@ def nroy_mask(
 ) -> np.ndarray:
     """Boolean mask of candidates that pass every emulator in the bank.
 
-    Emulators are applied newest wave first with short-circuit evaluation: a
-    candidate that fails one emulator is not tested against the rest. This is
+    Emulators are applied oldest wave first with short-circuit evaluation: a
+    candidate that fails one emulator is not tested against the rest. The
+    early waves' emulators were trained over the whole box and reject most
+    far-away points, so this order evaluates far fewer points than newest
+    first (#279); the mask doesn't depend on the order. This is
     the single definition of NROY membership used by `generate_nroy_design`
     and by `HistoryMatching.in_nroy`.
 
@@ -531,7 +534,7 @@ def nroy_mask(
             else np.asarray(mask, dtype=bool).copy())
     n_emulators = 0
 
-    for iteration in reversed(emulator_bank.get_all_iterations()):
+    for iteration in emulator_bank.get_all_iterations():
         emulators = emulator_bank.get_emulators_for_iteration(iteration)
         for feature_name, emulator in emulators.items():
             if mask.sum() == 0:
