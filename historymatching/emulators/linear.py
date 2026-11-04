@@ -43,7 +43,7 @@ class LinearModel(BaseEmulator):
         """
         logging.debug("... training emulator")
 
-        x = sm.add_constant( self.X_train )
+        x = sm.add_constant(self.X_train, has_constant='add')  # as in predict()
         self.model = sm.OLS( self.y_train, x )
         self.results = self.model.fit()
         
@@ -64,30 +64,25 @@ class LinearModel(BaseEmulator):
         """
         logging.debug("... predicting outputs using the trained emulator")
 
-        # Compute the prediction
-        x_pred = sm.add_constant( x )
-        prediction_results = self.results.get_prediction( x_pred )
-        predicted_mean = prediction_results.predicted_mean
-        
-        # Compute the confidence interval of the predicted mean
-        low_mean = prediction_results.conf_int()[:,0]
-        high_mean = prediction_results.conf_int()[:,1]
+        # has_constant='add': a single row looks constant in every column, and the
+        # default ('skip') would then leave out the intercept column.
+        x_pred = sm.add_constant(x, has_constant='add')
+        prediction_results = self.results.get_prediction(x_pred)
+        frame = prediction_results.summary_frame()
 
-        # Compute the prediction intervals 
-        low = prediction_results.summary_frame()['obs_ci_lower']
-        high = prediction_results.summary_frame()['obs_ci_upper']
-        
-        # Create additional data for emulator-specific outputs
         additional = pd.DataFrame({
-            'ci_obs_low': low,    # CI of prediction
-            'ci_obs_high': high,
-            'ci_pred_low': low_mean,    # CI of predicted mean
-            'ci_pred_high': high_mean
+            'ci_obs_low': frame['obs_ci_lower'].to_numpy(),    # interval for a new run
+            'ci_obs_high': frame['obs_ci_upper'].to_numpy(),
+            'ci_pred_low': frame['mean_ci_lower'].to_numpy(),  # interval for the mean
+            'ci_pred_high': frame['mean_ci_upper'].to_numpy(),
         }, index=x.index)
-        
+
+        # The std of a new simulator run at x: uncertainty in the fitted mean plus
+        # the residual variance, as BayesLinear's nugget term and GPR's predict_y
+        # include. The mean's standard error alone understates it, which over-prunes.
         return EmulationResults(
-            mean=predicted_mean,
-            std=prediction_results.summary_frame()['mean_se'],  # Standard error is already std
+            mean=np.asarray(prediction_results.predicted_mean).ravel(),
+            std=np.asarray(prediction_results.se_obs).ravel(),
             additional_data=additional
         )
 
@@ -152,6 +147,17 @@ class LinearModelScipy(BaseEmulator):
         self.regression_model = sklm.LinearRegression()
         self.regression_model.fit(self.X_train, self.y_train)
 
+        # Pieces of the OLS predictive variance s^2 (1 + x0' (X'X)^-1 x0), which
+        # sklearn does not provide.
+        design = np.column_stack([np.ones(len(self.X_train)), self.X_train])
+        dof = len(design) - design.shape[1]
+        if dof <= 0:
+            raise ValueError(f"LinearModelScipy needs more training points ({len(design)}) "
+                             f"than coefficients ({design.shape[1]}) to estimate its residual variance")
+        residuals = np.ravel(self.y_train) - np.ravel(self.regression_model.predict(self.X_train))
+        self._residual_var = float(residuals @ residuals) / dof
+        self._xtx_inv = np.linalg.pinv(design.T @ design)
+
         self.training_complete = True
         logging.debug("     training complete")
         return
@@ -175,27 +181,25 @@ class LinearModelScipy(BaseEmulator):
                 X_pred = X_pred.reshape(-1, 1)
             else:
                 X_pred = X_pred.reshape(1, -1)
-        y_pred = self.regression_model.predict(X_pred)
+        y_pred = np.ravel(self.regression_model.predict(X_pred))  # sklearn returns (n, 1)
 
-        # Compute uncertainty bounds
-        # NOTE: sklearn does not compute the variance of the predicted mean. 
-        # We are using the variance of the samples here. However, this needs
-        # to be updated to compute the variance of the predicted mean. 
-        variance = np.var(self.y_train)
-        sigma = variance**0.5
-        
-        # Compute default confidence intervals for additional data
-        low = scipy.stats.norm.ppf(q=0.05, scale=sigma)
-        hi = scipy.stats.norm.ppf(q=0.95, scale=sigma)
-        
+        # The std of a new simulator run at x, the same quantity LinearModel reports:
+        # residual variance times (1 + leverage). The spread of the training outputs,
+        # used before, also counts the variation the regression explains.
+        design = np.column_stack([np.ones(len(X_pred)), X_pred])
+        leverage = np.einsum('ij,jk,ik->i', design, self._xtx_inv, design)
+        sigma = np.sqrt(self._residual_var * (1.0 + leverage))
+
+        # Central 90% interval for a new run
+        z = scipy.stats.norm.ppf(0.95)
         additional = pd.DataFrame({
-            "low": y_pred.flatten() + low,
-            "high": y_pred.flatten() + hi
+            "low": y_pred - z * sigma,
+            "high": y_pred + z * sigma
         }, index=x.index)
 
         return EmulationResults(
-            mean=y_pred.flatten(),  # sklearn returns 2D (n_samples, 1), flatten to 1D
-            std=np.full(len(y_pred), sigma),  # Create array of constant std values
+            mean=y_pred,
+            std=sigma,
             additional_data=additional
         )
 
