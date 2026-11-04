@@ -2,7 +2,7 @@
 EmulationResults class for standardized emulator output handling.
 """
 
-from typing import Optional, Tuple, Union
+from typing import NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -111,3 +111,17 @@ class EmulationResults:
         """String representation."""
         return (f"EmulationResults(n_predictions={len(self)}, "
                 f"has_additional_data={self._additional_data is not None})")
+
+class PredictionBounds(NamedTuple):
+    """Cheap bounds on what `predict` would return, for screening candidates.
+
+    Returned by `BaseEmulator.predict_bounds`. At every point, the mean
+    `predict(x).get_mean()` lies within `mean ± mean_tol` and the variance
+    `predict(x).get_variance()` lies within `[var_lo, var_hi]`. All four are
+    arrays of shape `(len(x),)`.
+    """
+
+    mean: np.ndarray
+    mean_tol: np.ndarray
+    var_lo: np.ndarray
+    var_hi: np.ndarray

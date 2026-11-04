@@ -11,7 +11,7 @@ from sklearn import metrics, model_selection
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-from .results import EmulationResults
+from .results import EmulationResults, PredictionBounds
 
 
 class BaseEmulator:
@@ -120,7 +120,30 @@ class BaseEmulator:
         """
         raise NotImplementedError
 
-    
+    def predict_bounds(self, x: pd.DataFrame) -> Optional[PredictionBounds]:
+        """Cheap bounds on the mean and variance `predict` would return; optional.
+
+        An emulator whose variance costs much more than its mean can implement
+        this to speed up the NROY test. It returns a `PredictionBounds`: an
+        approximate mean with a tolerance, and lower and upper bounds on the
+        variance, such that `predict(x)` is within them at every point, up to
+        floating-point rounding. `historymatching.nroy_sampling.nroy_mask`
+        then rules a point out if it is implausible for every mean and variance
+        within the bounds, and in if it is plausible for all of them, and calls
+        `predict` only on the points in between. The mask is the same as
+        without screening.
+
+        Args:
+            x: Input data. Pandas dataframe with columns representing parameter
+                values.
+
+        Returns:
+            A `PredictionBounds`, or None if the emulator does not offer
+            screening (the default), in which case `nroy_mask` calls `predict`
+            on every point.
+        """
+        return None
+
     def get_implausibility(self, x: pd.DataFrame, target, target_var, model_discrepancy=0):
         """Get implausibility for a given set of parameters.
 
