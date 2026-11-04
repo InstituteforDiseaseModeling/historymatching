@@ -844,6 +844,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#new-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fixes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -872,7 +883,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#new-features" class="md-nav__link">
+  <a href="#new-features_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         New features
@@ -972,7 +983,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#new-features_1" class="md-nav__link">
+  <a href="#new-features_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         New features
@@ -1000,7 +1011,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#new-features_2" class="md-nav__link">
+  <a href="#new-features_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         New features
@@ -1050,7 +1061,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#new-features_3" class="md-nav__link">
+  <a href="#new-features_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         New features
@@ -1134,6 +1145,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#new-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fixes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1162,7 +1184,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#new-features" class="md-nav__link">
+  <a href="#new-features_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         New features
@@ -1262,7 +1284,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#new-features_1" class="md-nav__link">
+  <a href="#new-features_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         New features
@@ -1290,7 +1312,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#new-features_2" class="md-nav__link">
+  <a href="#new-features_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         New features
@@ -1340,7 +1362,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#new-features_3" class="md-nav__link">
+  <a href="#new-features_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         New features
@@ -1405,14 +1427,22 @@ milestones (previously labelled "1.1.0" and "1.2.0"). None shipped as a separate
 release — they are all part of the <code>v1.0.0</code> tag.</p>
 </blockquote>
 <h2 id="unreleased">Unreleased</h2>
+<h3 id="new-features">New features</h3>
+<ul>
+<li><strong>Public NROY membership test.</strong> <code>HistoryMatching.in_nroy(samples, batch_size=None)</code> returns a boolean mask: True where a point is inside the bounds and passes every committed emulator. <code>HistoryMatching.implausibility(samples)</code> returns each point's implausibility under every committed emulator, with (iteration, feature) columns. Both use the same test as <code>generate_nroy_design</code>. Use them for points you supply: a known truth in a re-identification run, uniform candidates for trajectory selection, MCMC proposals, or samples from another method.</li>
+<li><code>historymatching.nroy_sampling.nroy_mask</code> is that test as a function of an emulator bank, for filtering without the engine.</li>
+</ul>
 <h3 id="fixes">Fixes</h3>
 <ul>
+<li>In a bank that mixes GPR and other emulators, the engine's internal rejection filter (<code>_filter_fast</code>) applied only the GPR emulators once any fast predictor existed; the others, such as Bayes linear, were skipped. Every emulator is now applied. That filter runs only when wave 1 starts with emulators already in the bank; each later wave's design comes from <code>generate_nroy_design</code>, which was not affected.</li>
 <li><strong>The linear-model and GLM emulators report the std of a new simulator run, so their implausibility is right.</strong> Implausibility divides by the target's data uncertainty plus the emulator's variance, so that variance has to include the simulator's run-to-run noise, as <code>BayesLinear</code> (<code>sigma_sq * nugget</code>) and <code>GPR</code> (<code>predict_y</code>) already do. <code>LinearModel</code> (<code>'linear'</code>) and <code>GLM</code> (<code>'glm'</code>) returned only the standard error of the fitted mean, which understates it and rules out too much; <code>LinearModelScipy</code> returned the spread of all training outputs, which overstates it. They now return the predictive std: residual variance plus the mean's variance for <code>LinearModel</code> and <code>LinearModelScipy</code>, and the family's variance at the mean (scale for Gaussian, the mean for Poisson) plus the mean's variance for <code>GLM</code>. In a test with known noise, the standard deviation of (new run − predicted mean) / predicted std was 10.9 (<code>LinearModel</code>) and 0.44 (<code>LinearModelScipy</code>) before, and 0.99 for all of them now. Their interval columns follow the same definitions. (#273)</li>
 <li><strong><code>GLM.predict</code> works on statsmodels 0.15</strong>, which removed the <code>linear=</code> argument it used.</li>
 <li><strong><code>LinearModel</code> and <code>GLM</code> can predict a single point.</strong> <code>statsmodels.add_constant</code> skips the intercept when every column is constant, which a one-row frame always is, so one-point predictions failed with a shape error; in the NROY filter that happened whenever one candidate was left. The intercept is now always added, in training and prediction. <code>LinearModel</code>'s interval columns also no longer come back as NaN for frames with non-contiguous index labels.</li>
+<li><strong>Every wave draws a fresh design, and every run records its seed.</strong> Previously, each wave's candidate generation restarted from <code>random_seed</code>, so consecutive waves re-drew the same plausible points. In a 21-parameter, 10-wave run, 34% of all design points repeated earlier ones. Each wave, wave 1 included, now draws from its own stream, derived from <code>(random_seed, wave)</code>.</li>
+<li><strong><code>random_seed=None</code> (the default) now draws a seed from OS entropy instead of running unseeded.</strong> The seed used, and whether it was user-supplied or drawn, is logged, written to <code>run_config.json</code> and stored in checkpoints, and resuming restores it. Passing that seed back reproduces the run under the same package version. This release changes which run a given seed produces, so seeded results differ from earlier versions.</li>
 </ul>
 <h2 id="v201-2026-06-07">v2.0.1 (2026-06-07)</h2>
-<h3 id="new-features">New features</h3>
+<h3 id="new-features_1">New features</h3>
 <ul>
 <li><strong>Plotting module — <code>historymatching.plotting</code>.</strong> Composable figure helpers, each taking plain data, accepting an <code>ax=</code>/<code>axes=</code>, and returning the Matplotlib axes: <code>plot_pairplot</code> (NROY corner plot), <code>plot_marginals</code>, <code>plot_convergence</code>, <code>plot_zscores_vs_targets</code>, <code>plot_ensemble_fan</code>, <code>plot_constrained_dims</code>, <code>plot_emulator_quality</code>, <code>plot_predicted_vs_actual</code>, <code>plot_targets</code>, <code>plot_parameter_bounds</code>, plus <code>variance_reduction</code> / <code>marginal_variance_reduction</code>. The common ones are re-exported at the top level (e.g. <code>hm.plot_pairplot</code>).</li>
 <li><strong>Object-level plotting &amp; summaries</strong> that delegate to the module: <code>HistoryMatching.plot_convergence</code> / <code>plot_marginals</code> / <code>plot_nroy</code> / <code>plot_zscores</code> / <code>plot_constrained_dims</code> / <code>nroy_summary</code>; <code>IterationResult.quality_table</code> / <code>plot_emulator_quality</code> / <code>plot_predicted_vs_actual</code>; <code>ParameterSpace.plot_bounds</code> / <code>summary</code>; <code>ObservationData.plot_targets</code> / <code>summary</code>; <code>EmulatorBank.summary</code>.</li>
@@ -1451,7 +1481,7 @@ release — they are all part of the <code>v1.0.0</code> tag.</p>
 <p>The last release with the builder API is tagged <strong><code>v1.0.0</code></strong>.</p>
 <hr />
 <h2 id="v100-development-later-additions-untagged">v1.0.0 development — later additions (untagged)</h2>
-<h3 id="new-features_1">New features</h3>
+<h3 id="new-features_2">New features</h3>
 <ul>
 <li><strong>Bayes Linear emulator</strong>: New <code>BayesLinear</code> emulator type (<code>'bayes_linear'</code>) inspired by the hmer R package. Uses an OLS regression trend plus squared-exponential correlated residuals with ARD correlation lengths. Pure numpy/scipy — no TensorFlow dependency. Good uncertainty quantification comparable to GPR, with faster training for moderate datasets.</li>
 <li><strong>Ray-resample NROY sampling</strong>: New 4-stage pipeline for finding NROY samples, inspired by hmer's <code>generate_new_design()</code>. Stages: (1) LHS rejection, (2) ray sampling along pairs of distant NROY points, (3) PCA-oriented importance sampling, (4) maximin thinning for space-filling coverage. Much faster than pure rejection at low acceptance rates (&lt;1%). Was the default in v1 (changed to <code>'auto'</code> in v2.0.0); pass <code>nroy_method='lhs'</code> for pure rejection or <code>'ray_resample'</code> to always use this pipeline. Tune via <code>nroy_options=dict(n_lines=20, points_per_line=50, ...)</code>.</li>
@@ -1460,7 +1490,7 @@ release — they are all part of the <code>v1.0.0</code> tag.</p>
 </ul>
 <hr />
 <h2 id="v100-development-earlier-additions-untagged">v1.0.0 development — earlier additions (untagged)</h2>
-<h3 id="new-features_2">New features</h3>
+<h3 id="new-features_3">New features</h3>
 <ul>
 <li><strong>Auto-checkpointing</strong>: Engine saves emulators, diagnostics, and checkpoint after each wave by default. Configure with the <code>output_dir=</code> and <code>run_name=</code> arguments. Disable with <code>output_dir=None</code></li>
 <li><strong>Resume from checkpoint</strong>: <code>engine.run(resume=True)</code> loads the latest checkpoint and continues from where it left off</li>
@@ -1486,7 +1516,7 @@ release — they are all part of the <code>v1.0.0</code> tag.</p>
 </ul>
 <hr />
 <h2 id="v100-2025-tagged-release-the-complete-v1">v1.0.0 (2025) — tagged release (the complete v1)</h2>
-<h3 id="new-features_3">New features</h3>
+<h3 id="new-features_4">New features</h3>
 <ul>
 <li><strong>Object-oriented API</strong>: New <code>HistoryMatching</code> class for single-call workflow configuration and execution</li>
 <li><strong>Domain objects</strong>: <code>ParameterSpace</code>, <code>ObservationData</code>, <code>EmulatorBank</code>, and <code>IterationResult</code> for clean data management</li>

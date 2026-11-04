@@ -1039,6 +1039,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#historymatching.HistoryMatching.implausibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;implausibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historymatching.HistoryMatching.in_nroy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;in_nroy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#historymatching.HistoryMatching.load_checkpoint" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2981,6 +3003,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historymatching.nroy_sampling.nroy_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;nroy_mask
+      
+    </span>
+  </a>
   
 </li>
       
@@ -3551,6 +3584,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#historymatching.HistoryMatching.implausibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;implausibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historymatching.HistoryMatching.in_nroy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;in_nroy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#historymatching.HistoryMatching.load_checkpoint" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5497,6 +5552,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#historymatching.nroy_sampling.nroy_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;nroy_mask
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#historymatching.nroy_sampling.NROYResult" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5951,7 +6017,10 @@ its target in std units — one output per wave).</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>seed for reproducibility.</p>
+                <p>base seed for the run. Each wave's design is drawn from a seed derived from
+<code>(random_seed, wave)</code>. If <code>None</code> (default), a seed is drawn from OS entropy. Either way
+the seed used is logged, written to <code>run_config.json</code> and stored in checkpoints, so any
+run can be reproduced by passing it back.</p>
               </div>
             </td>
             <td>
@@ -6781,6 +6850,255 @@ if next_samples is not None:
 <p>(To reconfigure mid-run, just assign to the matching attribute, e.g.
 <code>engine.feature_selection = ['peak']</code> or <code>engine.max_iterations = 20</code>.)</p>
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="historymatching.HistoryMatching.implausibility" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="o">.</span><span class="n">implausibility</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Implausibility of each parameter point under every committed emulator.</p>
+<p>A diagnostic companion to <code>in_nroy()</code>: it evaluates every emulator
+on every point, without short-circuiting, so you can see which wave
+and target ruled a point out, and by how much. A point is in NROY when
+it is inside the bounds and every value in its row is at most
+<code>implausibility_threshold</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>samples</code>
+            </td>
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>DataFrame with one column per parameter.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>DataFrame indexed like <code>samples</code>, with one column per committed</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>emulator. Columns are a MultiIndex of (iteration, feature). Use</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>.max(axis=1)</code> for each point's maximum implausibility.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a parameter column is missing.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="historymatching.HistoryMatching.in_nroy" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">historymatching</span><span class="o">.</span><span class="n">HistoryMatching</span><span class="o">.</span><span class="n">in_nroy</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Test whether each parameter point is inside the current NROY region.</p>
+<p>A point is in NROY when it lies inside the parameter bounds and passes
+the implausibility threshold for every committed emulator. This is
+the same test <code>get_nroy_samples()</code> applies to its candidates, so the
+two always agree. Use it for points you supply yourself: a known truth
+in a re-identification run, a uniform or Sobol design for trajectory
+selection, an MCMC proposal, or samples from another method.</p>
+<p>No simulations are run — only emulator predictions. Pending
+(uncommitted) emulators are not used.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>samples</code>
+            </td>
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>DataFrame with one column per parameter; extra columns
+are ignored.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>batch_size</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional number of rows to test at a time, to bound
+the memory of emulator predictions on very large candidate
+sets.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Boolean array of shape <code>(len(samples),)</code>, in row order.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a parameter column is missing.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>mask = engine.in_nroy(candidates)
+nroy = candidates[mask]
+engine.in_nroy(pd.DataFrame([true_params]))[0]  # truth ruled out?</p>
+</details>
 
     </div>
 
@@ -15181,6 +15499,12 @@ with optional additional data for emulator-specific outputs.</p>
     </div>
 
 </div><h2 id="nroy-sampling">NROY sampling</h2>
+<p>To test points you supply — a known truth, a uniform or Sobol design, MCMC
+proposals — use <code>HistoryMatching.in_nroy()</code>, and <code>HistoryMatching.implausibility()</code>
+to see which wave and target ruled a point out. Both apply the same test as
+<code>generate_nroy_design</code>. <code>nroy_mask</code> is that test as a function of an emulator
+bank, for use without the engine, for example when filtering candidates in
+chunks on worker processes.</p>
 
 
 <div class="doc doc-object doc-function">
@@ -15214,6 +15538,184 @@ seed : int, optional
 <h3 id="historymatching.nroy_sampling.generate_nroy_design--returns">Returns</h3>
 <p>pd.DataFrame
     Up to <em>n_points</em> rows of NROY parameter samples.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="historymatching.nroy_sampling.nroy_mask"></a>
+    <div class="doc doc-contents first">
+
+        <p>Boolean mask of candidates that pass every emulator in the bank.</p>
+<p>Emulators are applied newest wave first with short-circuit evaluation: a
+candidate that fails one emulator is not tested against the rest. This is
+the single definition of NROY membership used by <code>generate_nroy_design</code>
+and by <code>HistoryMatching.in_nroy</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>candidates</code>
+            </td>
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameter samples, one row per point.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>emulator_bank</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="historymatching.emulator_bank.EmulatorBank" href="#historymatching.EmulatorBank">EmulatorBank</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Trained emulators, by iteration and feature.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>observations</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="historymatching.observation_data.ObservationData" href="#historymatching.ObservationData">ObservationData</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Targets the emulators are compared against.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>threshold</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Implausibility cut-off.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>param_cols</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameter columns passed to the emulators.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>mask</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="numpy.ndarray">ndarray</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional starting mask; only rows already True are tested.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>skip</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional <code>callable(emulator) -&gt; bool</code> for emulators already
+applied elsewhere (for example, by the numba fast path).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Array of shape <code>(len(candidates),)</code>, True where a point is not ruled</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>out.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>

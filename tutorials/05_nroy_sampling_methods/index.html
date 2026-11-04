@@ -1417,8 +1417,8 @@ np.random.seed(42)
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793772777.817760    3431 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793772777.859065    3431 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+I0000 00:00:1793773897.316800    3351 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793773897.357614    3351 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
 To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 </pre>
 </div>
@@ -1427,7 +1427,7 @@ To enable the following instructions: AVX2 FMA, in other operations, rebuild Ten
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793772779.000127    3431 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793773898.485471    3351 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 </pre>
 </div>
 </div>
@@ -1815,7 +1815,7 @@ print(f"Speedup: {t_lhs/t_ray:.1f}x")
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Ground truth: 2000 points in 3.44s
+<pre>Ground truth: 2000 points in 3.55s
 LHS rejection...
 </pre>
 </div>
@@ -1823,7 +1823,7 @@ LHS rejection...
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>LHS rejection: 500 points in 1.00s
+<pre>LHS rejection: 500 points in 1.01s
 Ray-resample...
 </pre>
 </div>
@@ -1831,7 +1831,7 @@ Ray-resample...
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Ray-resample:  500 points in 2.33s
+<pre>Ray-resample:  500 points in 2.37s
 Speedup: 0.4x
 </pre>
 </div>
