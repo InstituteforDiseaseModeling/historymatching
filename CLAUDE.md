@@ -23,7 +23,7 @@ uv run pytest tests/
 uv run python -c "import historymatching"
 ```
 
-Set up the dev environment (reproduces the locked versions CI uses):
+Set up the dev environment (the same `uv sync` resolution the notebooks CI job uses; `uv.lock` is not committed):
 ```bash
 uv sync --extra notebooks --extra test
 ```
