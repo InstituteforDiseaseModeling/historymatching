@@ -237,8 +237,8 @@ def test_bounds_contain_predict(waves):
             assert np.all(0 < lo) and np.all(lo <= hi)
             np.testing.assert_allclose(lo, s2 * emulator.nugget * ys2, rtol=1e-12)
             assert np.all(hi <= s2 * (1 + emulator.nugget) * ys2 * (1 + 1e-12))
-            assert np.all(variance >= lo * (1 - 1e-12))
-            assert np.all(variance <= hi * (1 + 1e-12))
+            assert np.all(variance >= lo)   # exactly, for get_variance() itself
+            assert np.all(variance <= hi)
             # Next to the first training points, which the bound conditions on,
             # it is much tighter than the variance far from the data...
             m = min(500, len(emulator._X_train_norm) // 4)
@@ -305,3 +305,24 @@ def test_prediction_failure_still_raises(waves):
     screened, _ = make_banks(waves)
     with pytest.raises(RuntimeError, match='NROY filtering failed'):
         nroy_mask(candidates, screened, observations, 3.0, PARAMS)
+
+
+
+def test_variance_bounds_hold_exactly_after_the_std_round_trip():
+    """Far from the data the variance equals the upper bound's cap, and get_variance() (std**2)
+    can exceed the computed variance by about one ulp. The bounds must still contain it exactly.
+    Checked on emulators with many output scales, since whether std**2 rounds up depends on it."""
+    rng = np.random.default_rng(278)
+    d, n = 5, 40
+    cols = [f"p{i}" for i in range(d)]
+    far = pd.DataFrame(rng.uniform(1e3, 2e3, (20, d)), columns=cols)
+    for k in range(40):
+        x = pd.DataFrame(rng.uniform(0, 1, (n, d)), columns=cols)
+        y = pd.DataFrame({"y": rng.lognormal(0, 2) * np.sin(x.to_numpy() @ rng.normal(0, 1, d)) + rng.normal(0, 0.1, n)})
+        np.random.seed(k)
+        em = hm.BayesLinear(x=x, y=y, nugget=float(10.0 ** rng.uniform(-6, 0)))
+        em.train()
+        bounds = em.predict_bounds(far)
+        variance = em.predict(far).get_variance().to_numpy()
+        assert np.all(variance >= bounds.var_lo), k
+        assert np.all(variance <= bounds.var_hi), k

@@ -480,8 +480,13 @@ class BayesLinear(BaseEmulator):
             prefix_z = s2 * np.maximum(1.0 - (root ** 2 - slack), 0.0) + noise
             hi_z = np.minimum(hi_z, prefix_z)
 
+        # `predict` stores the std, and `get_variance()` squares it back, which can move the
+        # variance by about one unit in the last place. Widen both bounds by 8 so they hold
+        # exactly for `get_variance()`, not just up to rounding.
+        widen = 8 * u
         return PredictionBounds(mean=mean, mean_tol=mean_tol,
-                                var_lo=np.full(n_new, noise * ys2), var_hi=hi_z * ys2)
+                                var_lo=np.full(n_new, noise * ys2 * (1 - widen)),
+                                var_hi=hi_z * ys2 * (1 + widen))
 
     def get_hyperparameters(self) -> dict:
         """Return Bayes Linear hyperparameters as a JSON-serializable dict."""
