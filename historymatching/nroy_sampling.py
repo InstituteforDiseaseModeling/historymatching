@@ -6,6 +6,13 @@ Provides two methods for generating non-implausible parameter samples:
 - 'ray_resample': 4-stage pipeline (LHS → ray sampling → importance sampling
   → maximin thinning) that efficiently explores small NROY regions
 
+To test points you supply (a known truth, a uniform or Sobol design, MCMC
+proposals), use `HistoryMatching.in_nroy()`, and `HistoryMatching.implausibility()`
+to see which wave and target ruled a point out. Both apply the same test as
+`generate_nroy_design`. `nroy_mask` is that test as a function of an emulator
+bank, for use without the engine, for example when filtering candidates in
+chunks on worker processes.
+
 Reference: Iskauskas (2024), "Emulation and History Matching using the hmer
 Package", Journal of Statistical Software.
 """
@@ -470,15 +477,38 @@ def _maximin_thin(
 # Shared NROY filter
 # ---------------------------------------------------------------------------
 
-def _filter_nroy(
+def nroy_mask(
     candidates: pd.DataFrame,
     emulator_bank: EmulatorBank,
     observations: ObservationData,
     threshold: float,
     param_cols: list,
-) -> pd.DataFrame:
-    """Filter candidates through all emulators with short-circuit evaluation."""
-    mask = np.ones(len(candidates), dtype=bool)
+    mask: Optional[np.ndarray] = None,
+    skip=None,
+) -> np.ndarray:
+    """Boolean mask of candidates that pass every emulator in the bank.
+
+    Emulators are applied newest wave first with short-circuit evaluation: a
+    candidate that fails one emulator is not tested against the rest. This is
+    the single definition of NROY membership used by ``generate_nroy_design``
+    and by ``HistoryMatching.in_nroy``.
+
+    Args:
+        candidates: Parameter samples, one row per point.
+        emulator_bank: Trained emulators, by iteration and feature.
+        observations: Targets the emulators are compared against.
+        threshold: Implausibility cut-off.
+        param_cols: Parameter columns passed to the emulators.
+        mask: Optional starting mask; only rows already True are tested.
+        skip: Optional ``callable(emulator) -> bool`` for emulators already
+            applied elsewhere (for example, by the numba fast path).
+
+    Returns:
+        Array of shape ``(len(candidates),)``, True where a point is not ruled
+        out.
+    """
+    mask = (np.ones(len(candidates), dtype=bool) if mask is None
+            else np.asarray(mask, dtype=bool).copy())
     n_emulators = 0
 
     for iteration in reversed(emulator_bank.get_all_iterations()):
@@ -487,6 +517,8 @@ def _filter_nroy(
             if mask.sum() == 0:
                 break
             if not observations.has_feature(feature_name):
+                continue
+            if skip is not None and skip(emulator):
                 continue
             try:
                 active = candidates.loc[mask, param_cols]
@@ -517,12 +549,21 @@ def _filter_nroy(
                     f"reliably. Inspect this emulator or retrain the wave."
                 ) from e
 
-    plausible = candidates[mask]
-    logger.debug(
-        f"NROY filter: {len(candidates)} \u2192 {len(plausible)} "
-        f"({len(plausible)/len(candidates):.2%}) through {n_emulators} emulators"
-    )
-    return plausible
+    logger.debug(f"NROY filter: {int(mask.sum())} of {len(candidates)} candidates "
+                 f"pass {n_emulators} emulators")
+    return mask
+
+
+def _filter_nroy(
+    candidates: pd.DataFrame,
+    emulator_bank: EmulatorBank,
+    observations: ObservationData,
+    threshold: float,
+    param_cols: list,
+) -> pd.DataFrame:
+    """Filter candidates through all emulators with short-circuit evaluation."""
+    return candidates[nroy_mask(candidates, emulator_bank, observations,
+                                threshold, param_cols)]
 
 
 # ---------------------------------------------------------------------------
