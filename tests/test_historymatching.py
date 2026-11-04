@@ -76,7 +76,8 @@ class TestConstruction:
         assert engine.n_samples == 1000
         assert engine.implausibility_threshold == 3.0
         assert engine.max_iterations == 10
-        assert engine.random_seed is None
+        assert isinstance(engine.random_seed, int)            # drawn from OS entropy, and recorded
+        assert engine.random_seed_source == 'entropy'
         assert engine.auto_reduce_space is False
         assert engine.oversample_factor == 1.1
 
@@ -321,6 +322,57 @@ class TestSimulationFunction:
     def test_output_wrong_length_raises(self):
         with pytest.raises(ValueError, match="exactly one row"):
             hm.HistoryMatching._coerce_simulation_output([{"a": 1}], 3)
+
+
+class TestPerWaveSeeds:
+    """A seeded engine must draw a fresh design each wave, not restart one candidate stream."""
+
+    def _run(self, parameter_bounds, observations, seed):
+        def sim(samples):
+            # Outputs sit on the targets everywhere, so the whole box stays plausible. With one
+            # shared seed, every wave's design would then be the same LHS draw.
+            n = len(samples)
+            return pd.DataFrame({"output1": 25.0 + 0.01 * samples["param1"].to_numpy(),
+                                 "output2": np.full(n, 100.0), "output3": np.full(n, 0.5)})
+
+        engine = make(parameter_bounds, observations, function=sim, emulator_type="linear",
+                      feature_selection=["output1"], n_samples=30, max_iterations=3, random_seed=seed)
+        engine.run()
+        return engine
+
+    def test_wave_seed(self, parameter_bounds, observations):
+        engine = make(parameter_bounds, observations, random_seed=7)
+        assert engine.random_seed_source == 'user'
+        seeds = [engine._wave_seed(w) for w in range(1, 12)]
+        assert len(set(seeds)) == 11                          # every wave, wave 1 included, has its own stream
+        assert seeds == [make(parameter_bounds, observations, random_seed=7)._wave_seed(w) for w in range(1, 12)]
+
+    def test_unseeded_engine_draws_and_records_a_seed(self, parameter_bounds, observations):
+        e1, e2 = make(parameter_bounds, observations), make(parameter_bounds, observations)
+        assert e1.random_seed != e2.random_seed               # fresh per run (a 32-bit collision is ~1e-10)
+        assert e1.random_seed_source == e2.random_seed_source == 'entropy'
+
+    def test_checkpoint_restores_the_seed(self, parameter_bounds, observations, tmp_path):
+        engine = make(parameter_bounds, observations)        # entropy-drawn seed
+        ckpt = tmp_path / "checkpoint.pkl"
+        engine.save_checkpoint(ckpt)
+        resumed = make(parameter_bounds, observations)       # a different entropy-drawn seed
+        resumed._load_checkpoint_state(ckpt)
+        assert resumed.random_seed == engine.random_seed
+        assert resumed.random_seed_source == 'entropy'
+
+    def test_consecutive_waves_share_no_design_points(self, parameter_bounds, observations):
+        engine = self._run(parameter_bounds, observations, seed=7)
+        designs = [r.samples.round(12) for r in engine.results]
+        assert len(designs) == 3
+        for a, b in zip(designs, designs[1:]):
+            assert a.merge(b, how="inner").empty
+
+    def test_seeded_runs_are_reproducible(self, parameter_bounds, observations):
+        e1 = self._run(parameter_bounds, observations, seed=7)
+        e2 = self._run(parameter_bounds, observations, seed=7)
+        for r1, r2 in zip(e1.results, e2.results):
+            pd.testing.assert_frame_equal(r1.samples.reset_index(drop=True), r2.samples.reset_index(drop=True))
 
 
 class TestConveniences:
