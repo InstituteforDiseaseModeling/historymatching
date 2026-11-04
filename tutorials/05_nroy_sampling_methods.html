@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -522,11 +522,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>matplotlib inline</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793828407.105629    3706 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793828407.152283    3706 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1793829416.350060    3520 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793829416.350678    3520 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793829416.385262    3520 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793828408.307274    3706 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793829417.235500    3520 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793829417.235857    3520 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 /home/runner/work/historymatching/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources</code></pre>
 </div>
@@ -599,8 +601,8 @@ I0000 00:00:1793828408.307274    3706 cudart_stub.cc:31] Could not find cuda dri
 <pre><code>  y1: R²=0.9989
   y2: R²=0.9988
   y3: R²=0.9970
-  y4: R²=0.9925
-LHS acceptance rate: 1.64% (820/50000)
+  y4: R²=0.9926
+LHS acceptance rate: 1.64% (819/50000)
 Expected ~1-5% — if much higher, tighten target stds</code></pre>
 </div>
 </div>
@@ -658,12 +660,12 @@ Expected ~1-5% — if much higher, tighten target stds</code></pre>
 <span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Speedup: </span><span class="sc">{</span>t_lhs<span class="op">/</span>t_ray<span class="sc">:.1f}</span><span class="ss">x"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Generating ground truth (large LHS)...
-Ground truth: 2000 points in 2.43s
+Ground truth: 2000 points in 1.25s
 LHS rejection...
-LHS rejection: 500 points in 0.83s
+LHS rejection: 500 points in 0.37s
 Ray-resample...
-Ray-resample:  500 points in 1.55s
-Speedup: 0.5x</code></pre>
+Ray-resample:  500 points in 0.87s
+Speedup: 0.4x</code></pre>
 </div>
 </div>
 </section>
@@ -692,7 +694,7 @@ Speedup: 0.5x</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05_nroy_sampling_methods_files/figure-html/cell-6-output-1.png" width="1911" height="381" class="figure-img"></p>
+<p><img src="05_nroy_sampling_methods_files/figure-html/cell-6-output-1.png" width="1912" height="381" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -738,7 +740,7 @@ Speedup: 0.5x</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="05_nroy_sampling_methods_files/figure-html/cell-7-output-2.png" width="1157" height="1134" class="figure-img"></p>
+<p><img src="05_nroy_sampling_methods_files/figure-html/cell-7-output-2.png" width="1149" height="1134" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -770,11 +772,11 @@ Speedup: 0.5x</code></pre>
 
 Param    KS(LHS)    p(LHS)     KS(ray)    p(ray)    
 ------------------------------------------------
-x0       0.0320     0.8001     0.1570     0.0000     &lt;-- bias?
-x1       0.0245     0.9672     0.2440     0.0000     &lt;-- bias?
-x2       0.0300     0.8579     0.2075     0.0000     &lt;-- bias?
-x3       0.0335     0.7527     0.0920     0.0022     &lt;-- bias?
-x4       0.0270     0.9280     0.4340     0.0000     &lt;-- bias?
+x0       0.0435     0.4284     0.1875     0.0000     &lt;-- bias?
+x1       0.0350     0.7032     0.1995     0.0000     &lt;-- bias?
+x2       0.0310     0.8299     0.2145     0.0000     &lt;-- bias?
+x3       0.0385     0.5856     0.0720     0.0307     &lt;-- bias?
+x4       0.0230     0.9822     0.4275     0.0000     &lt;-- bias?
 
 If p(ray) &lt; 0.05 but p(LHS) &gt; 0.05, ray_resample is biased for that parameter.
 If both have low p-values, it may just be sampling noise (n=500 vs n=2000).</code></pre>

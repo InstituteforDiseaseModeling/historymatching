@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -624,7 +624,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    mask<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Boolean mask of candidates that pass every emulator in the bank.</p>
-<p>Emulators are applied newest wave first with short-circuit evaluation: a candidate that fails one emulator is not tested against the rest. This is the single definition of NROY membership used by <code>generate_nroy_design</code> and by <code>HistoryMatching.in_nroy</code>.</p>
+<p>Emulators are applied oldest wave first with short-circuit evaluation: a candidate that fails one emulator is not tested against the rest. The early waves’ emulators were trained over the whole box and reject most far-away points, so this order evaluates far fewer points than newest first (#279); the mask doesn’t depend on the order. This is the single definition of NROY membership used by <code>generate_nroy_design</code> and by <code>HistoryMatching.in_nroy</code>.</p>
 <p>An emulator that implements <code>predict_bounds</code>, such as <code>BayesLinear</code>, is screened first: a point is ruled out if it is implausible even with its mean at the edge of the tolerance nearest the target and its variance at the upper bound, and ruled in if it is plausible even with its mean at the far edge and its variance at the lower bound. Only the points in between go through <code>predict</code>. Because <code>predict</code>’s mean and variance always lie within the bounds, and the screen keeps a relative margin of <code>1e-9</code> for rounding, the mask is the same as calling <code>predict</code> on every point. (That mask can itself depend, at the level of rounding, on how candidates are batched, since BLAS results for one row can depend on the other rows; screening adds nothing beyond that.) Other emulators go through <code>predict</code> for every point.</p>
 <section id="parameters-1" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>

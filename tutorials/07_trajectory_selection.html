@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -556,11 +556,13 @@ window.Quarto = {
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>matplotlib inline</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793828335.895269    3481 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793828335.939435    3481 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1793829201.360380    2592 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793829201.360970    2592 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793829201.395541    2592 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793828337.048882    3481 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793829202.250050    2592 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793829202.250417    2592 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 /home/runner/work/historymatching/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources</code></pre>
 </div>
@@ -674,7 +676,7 @@ HistoryMatching(
   outputs=3 ['peak_incidence', 'attack_rate', 'incidence_5'],
   emulator=bayes_linear, simulator=set,
   n_samples=500, implausibility_threshold=3.0,
-  state=completed, wave 5/5, acceptance_rate=0.125
+  state=completed, wave 5/5, acceptance_rate=0.151
 )</code></pre>
 </div>
 </div>
@@ -733,7 +735,7 @@ HistoryMatching(
 <span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  γ range:    [</span><span class="sc">{</span>nroy_samples[<span class="st">'gamma'</span>]<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.3f}</span><span class="ss">, </span><span class="sc">{</span>nroy_samples[<span class="st">'gamma'</span>]<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.3f}</span><span class="ss">]"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>NROY parameter pool: 10000 (β, γ, seed) triples
-  β range:    [0.323, 1.142]
+  β range:    [0.322, 1.136]
   γ range:    [0.100, 0.800]</code></pre>
 </div>
 <div class="cell-output cell-output-display">
@@ -904,7 +906,7 @@ HistoryMatching(
 <span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Tolerance ε = 7.1 cases/day
-Effective sample size: 319  (out of 10,000 total)</code></pre>
+Effective sample size: 317  (out of 10,000 total)</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div>
@@ -956,15 +958,15 @@ Effective sample size: 319  (out of 10,000 total)</code></pre>
 <span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"All checks passed — selected trajectories are reproducible."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Selected 15 trajectories
-β range in selected set:  0.524 – 0.825
-γ range in selected set:  0.291 – 0.509
+β range in selected set:  0.615 – 0.901
+γ range in selected set:  0.359 – 0.596
 
 Reproducibility check (re-running 5 selected trajectories):
-  idx=6456  β=0.671  γ=0.402  seed=6456  match=True
-  idx=2636  β=0.825  γ=0.509  seed=2636  match=True
-  idx= 541  β=0.653  γ=0.378  seed=541  match=True
-  idx= 161  β=0.672  γ=0.394  seed=161  match=True
-  idx=7934  β=0.707  γ=0.461  seed=7934  match=True
+  idx=6935  β=0.674  γ=0.399  seed=6935  match=True
+  idx=2957  β=0.626  γ=0.359  seed=2957  match=True
+  idx= 301  β=0.709  γ=0.414  seed=301  match=True
+  idx= 130  β=0.671  γ=0.414  seed=130  match=True
+  idx=8242  β=0.667  γ=0.397  seed=8242  match=True
 All checks passed — selected trajectories are reproducible.</code></pre>
 </div>
 </div>
@@ -1071,40 +1073,36 @@ All checks passed — selected trajectories are reproducible.</code></pre>
 <span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'NROY ensemble  →  Trajectory selection'</span>, fontsize<span class="op">=</span><span class="dv">13</span>)</span>
 <span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>/tmp/ipykernel_3481/2755473129.py:98: UserWarning: Creating legend with loc="best" can be slow with large amounts of data.
-  fig.tight_layout()</code></pre>
-</div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="07_trajectory_selection_files/figure-html/cell-11-output-2.png" width="1625" height="945" class="figure-img"></p>
+<p><img src="07_trajectory_selection_files/figure-html/cell-11-output-1.png" width="1625" height="945" class="figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
 <div id="cell-19" class="cell" data-execution_count="11">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameter distributions: NROY pool vs. selected set</span></span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>fig, axs <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="dv">4</span>))</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, param, true_val <span class="kw">in</span> <span class="bu">zip</span>(axs, [<span class="st">'beta'</span>, <span class="st">'gamma'</span>], [BETA_TRUE, GAMMA_TRUE]):</span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    ax.hist(nroy_samples[param], bins<span class="op">=</span><span class="dv">20</span>, density<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>            alpha<span class="op">=</span><span class="fl">0.5</span>, color<span class="op">=</span><span class="st">'steelblue'</span>, label<span class="op">=</span><span class="st">'NROY pool'</span>)</span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>    ax.hist(selected_df[param], bins<span class="op">=</span><span class="dv">20</span>, density<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>            alpha<span class="op">=</span><span class="fl">0.7</span>, color<span class="op">=</span><span class="st">'purple'</span>, label<span class="op">=</span><span class="st">'Selected'</span>)</span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    ax.axvline(true_val, color<span class="op">=</span><span class="st">'red'</span>, ls<span class="op">=</span><span class="st">'--'</span>, lw<span class="op">=</span><span class="fl">1.5</span>, label<span class="op">=</span><span class="ss">f'True (</span><span class="sc">{</span>true_val<span class="sc">}</span><span class="ss">)'</span>)</span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(param)</span>
-<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">'Density'</span>)</span>
-<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f'Distribution of </span><span class="sc">{</span>param<span class="sc">}</span><span class="ss">'</span>)</span>
-<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    ax.legend(fontsize<span class="op">=</span><span class="dv">8</span>)</span>
-<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    ax.grid(ls<span class="op">=</span><span class="st">':'</span>)</span>
-<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Parameter distributions before and after trajectory selection'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
-<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameter distributions: NROY pool vs. selected set</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>fig, axs <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="dv">4</span>))</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, param, true_val <span class="kw">in</span> <span class="bu">zip</span>(axs, [<span class="st">'beta'</span>, <span class="st">'gamma'</span>], [BETA_TRUE, GAMMA_TRUE]):</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    ax.hist(nroy_samples[param], bins<span class="op">=</span><span class="dv">20</span>, density<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>            alpha<span class="op">=</span><span class="fl">0.5</span>, color<span class="op">=</span><span class="st">'steelblue'</span>, label<span class="op">=</span><span class="st">'NROY pool'</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    ax.hist(selected_df[param], bins<span class="op">=</span><span class="dv">20</span>, density<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>            alpha<span class="op">=</span><span class="fl">0.7</span>, color<span class="op">=</span><span class="st">'purple'</span>, label<span class="op">=</span><span class="st">'Selected'</span>)</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    ax.axvline(true_val, color<span class="op">=</span><span class="st">'red'</span>, ls<span class="op">=</span><span class="st">'--'</span>, lw<span class="op">=</span><span class="fl">1.5</span>, label<span class="op">=</span><span class="ss">f'True (</span><span class="sc">{</span>true_val<span class="sc">}</span><span class="ss">)'</span>)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(param)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">'Density'</span>)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f'Distribution of </span><span class="sc">{</span>param<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    ax.legend(fontsize<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    ax.grid(ls<span class="op">=</span><span class="st">':'</span>)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Parameter distributions before and after trajectory selection'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="07_trajectory_selection_files/figure-html/cell-12-output-1.png" width="1049" height="381" class="figure-img"></p>
+<p><img src="07_trajectory_selection_files/figure-html/cell-12-output-1.png" width="1048" height="381" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1115,32 +1113,32 @@ All checks passed — selected trajectories are reproducible.</code></pre>
 <p>The tolerance <code>ε</code> is the key tuning parameter. Here we sweep over several values to show the trade-off between <strong>specificity</strong> (small ε → selected trajectories are close to the observed data) and <strong>coverage</strong> (large ε → selected trajectories span the full NROY ensemble).</p>
 <p>A useful diagnostic is the <strong>effective sample size</strong> <span class="math inline">\(N_{\mathrm{eff}} = \left(\sum_i w_i^2\right)^{-1}\)</span>. When <span class="math inline">\(N_{\mathrm{eff}} \ll N\)</span> the weight distribution is too concentrated; when <span class="math inline">\(N_{\mathrm{eff}} \approx N\)</span> the selection is almost uniform (lenient).</p>
 <div id="cell-21" class="cell" data-execution_count="12">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>epsilons <span class="op">=</span> [obs_peak <span class="op">*</span> f <span class="cf">for</span> f <span class="kw">in</span> [<span class="fl">0.02</span>, <span class="fl">0.05</span>, <span class="fl">0.10</span>, <span class="fl">0.20</span>, <span class="fl">0.40</span>]]</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>fig, axs <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="bu">len</span>(epsilons), figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">4</span>), sharey<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, eps <span class="kw">in</span> <span class="bu">zip</span>(axs, epsilons):</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    w   <span class="op">=</span> gaussian_weights(inc_matrix, obs_array, epsilon<span class="op">=</span>eps)</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    nef <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> (w<span class="op">**</span><span class="dv">2</span>).<span class="bu">sum</span>()</span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    idx_sel <span class="op">=</span> rng.choice(<span class="bu">len</span>(ensemble_df), size<span class="op">=</span>N_SELECT, replace<span class="op">=</span><span class="va">False</span>, p<span class="op">=</span>w)</span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    sel_inc <span class="op">=</span> inc_matrix[idx_sel]</span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    ax.fill_between(</span>
-<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">range</span>(N_DAYS),</span>
-<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>        np.percentile(sel_inc, <span class="dv">10</span>, axis<span class="op">=</span><span class="dv">0</span>),</span>
-<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>        np.percentile(sel_inc, <span class="dv">90</span>, axis<span class="op">=</span><span class="dv">0</span>),</span>
-<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>        alpha<span class="op">=</span><span class="fl">0.3</span>, color<span class="op">=</span><span class="st">'purple'</span>, label<span class="op">=</span><span class="st">'10–90 pct'</span>,</span>
-<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>    ax.plot(sel_inc.mean(axis<span class="op">=</span><span class="dv">0</span>), color<span class="op">=</span><span class="st">'purple'</span>, lw<span class="op">=</span><span class="dv">2</span>)</span>
-<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>    ax.plot(obs_array, <span class="st">'ko-'</span>, ms<span class="op">=</span><span class="dv">3</span>, lw<span class="op">=</span><span class="fl">1.5</span>, zorder<span class="op">=</span><span class="dv">5</span>)</span>
-<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f'ε = </span><span class="sc">{</span>eps<span class="sc">:.1f}</span><span class="ch">\n</span><span class="ss">Neff = </span><span class="sc">{</span>nef<span class="sc">:.0f}</span><span class="ss">'</span>)</span>
-<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(<span class="st">'Day'</span>)</span>
-<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>    ax.grid(ls<span class="op">=</span><span class="st">':'</span>)</span>
-<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>axs[<span class="dv">0</span>].set_ylabel(<span class="st">'Daily new cases'</span>)</span>
-<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Trajectory selection sensitivity to tolerance ε'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
-<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>epsilons <span class="op">=</span> [obs_peak <span class="op">*</span> f <span class="cf">for</span> f <span class="kw">in</span> [<span class="fl">0.02</span>, <span class="fl">0.05</span>, <span class="fl">0.10</span>, <span class="fl">0.20</span>, <span class="fl">0.40</span>]]</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>fig, axs <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="bu">len</span>(epsilons), figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="dv">4</span>), sharey<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, eps <span class="kw">in</span> <span class="bu">zip</span>(axs, epsilons):</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>    w   <span class="op">=</span> gaussian_weights(inc_matrix, obs_array, epsilon<span class="op">=</span>eps)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>    nef <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> (w<span class="op">**</span><span class="dv">2</span>).<span class="bu">sum</span>()</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    idx_sel <span class="op">=</span> rng.choice(<span class="bu">len</span>(ensemble_df), size<span class="op">=</span>N_SELECT, replace<span class="op">=</span><span class="va">False</span>, p<span class="op">=</span>w)</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    sel_inc <span class="op">=</span> inc_matrix[idx_sel]</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    ax.fill_between(</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">range</span>(N_DAYS),</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>        np.percentile(sel_inc, <span class="dv">10</span>, axis<span class="op">=</span><span class="dv">0</span>),</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>        np.percentile(sel_inc, <span class="dv">90</span>, axis<span class="op">=</span><span class="dv">0</span>),</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>        alpha<span class="op">=</span><span class="fl">0.3</span>, color<span class="op">=</span><span class="st">'purple'</span>, label<span class="op">=</span><span class="st">'10–90 pct'</span>,</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>    ax.plot(sel_inc.mean(axis<span class="op">=</span><span class="dv">0</span>), color<span class="op">=</span><span class="st">'purple'</span>, lw<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>    ax.plot(obs_array, <span class="st">'ko-'</span>, ms<span class="op">=</span><span class="dv">3</span>, lw<span class="op">=</span><span class="fl">1.5</span>, zorder<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f'ε = </span><span class="sc">{</span>eps<span class="sc">:.1f}</span><span class="ch">\n</span><span class="ss">Neff = </span><span class="sc">{</span>nef<span class="sc">:.0f}</span><span class="ss">'</span>)</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(<span class="st">'Day'</span>)</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>    ax.grid(ls<span class="op">=</span><span class="st">':'</span>)</span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>axs[<span class="dv">0</span>].set_ylabel(<span class="st">'Daily new cases'</span>)</span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Trajectory selection sensitivity to tolerance ε'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
