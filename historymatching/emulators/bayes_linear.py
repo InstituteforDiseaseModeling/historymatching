@@ -118,33 +118,43 @@ class BayesLinear(BaseEmulator):
         return np.column_stack([np.ones(n), X])
 
     @staticmethod
-    def _sq_exp_corr(X1, X2, theta, block_elements=2**20):
+    def _scaled(X, theta):
+        """Inputs centred on the unit box and divided by the correlation lengths."""
+        return (X - 0.5) / theta
+
+    @classmethod
+    def _sq_exp_corr(cls, X1, X2, theta):
         """Squared-exponential correlation matrix between two point sets.
 
-        The scaled differences are formed a block of rows of `X1` at a time,
-        so the temporary array holds about `block_elements` values instead of
-        `n * m * d`. Every entry is computed by the same operations in the same
-        order as the one-shot broadcast, so the result is identical to it, bit
-        for bit.
+        The scaled squared distances come from `|a|^2 + |b|^2 - 2 a.b`, one
+        matrix product, instead of an `(n, m, d)` array of differences: memory
+        is `O(n * m)` and the work runs as BLAS GEMM. Rounding moves each
+        squared distance by at most about `(4d + 16) * eps/2 * (|a|^2 + |b|^2)`;
+        centring the inputs on the unit box keeps `|a|^2` small. Tiny negative
+        distances from rounding are clipped to zero. When `X1 is X2` the
+        result is exactly symmetric with a unit diagonal.
 
         Args:
-            X1: Points, shape `(n, d)`.
-            X2: Points, shape `(m, d)`.
+            X1: Normalized points, shape `(n, d)`.
+            X2: Normalized points, shape `(m, d)`.
             theta: Correlation lengths, shape `(d,)`.
-            block_elements: Approximate size of the temporary difference array.
 
         Returns:
             Correlation matrix, shape `(n, m)`.
         """
-        n, m = X1.shape[0], X2.shape[0]
-        R = np.empty((n, m))
-        rows = max(1, block_elements // max(m * X1.shape[1], 1))
-        for start in range(0, n, rows):
-            # Scaled squared distances: sum_i (x1_i - x2_i)^2 / theta_i^2
-            diff = X1[start:start + rows, np.newaxis, :] - X2[np.newaxis, :, :]
-            np.divide(diff, theta, out=diff)
-            np.square(diff, out=diff)
-            np.sum(diff, axis=2, out=R[start:start + rows])
+        A = cls._scaled(X1, theta)
+        B = A if X2 is X1 else cls._scaled(X2, theta)
+        a2 = np.einsum('ij,ij->i', A, A)
+        b2 = a2 if B is A else np.einsum('ij,ij->i', B, B)
+        R = A @ B.T
+        R *= -2.0
+        R += a2[:, np.newaxis]
+        R += b2[np.newaxis, :]
+        if B is A:
+            R += R.T
+            R *= 0.5
+            np.fill_diagonal(R, 0.0)
+        np.maximum(R, 0.0, out=R)
         np.negative(R, out=R)
         np.exp(R, out=R)
         return R
@@ -390,19 +400,16 @@ class BayesLinear(BaseEmulator):
     def predict_bounds(self, x: pd.DataFrame) -> PredictionBounds:
         """Cheap bounds on the mean and observation variance `predict` returns.
 
-        `predict` forms the correlations with the training points from exact
-        coordinate differences, and the variance needs a triangular solve
-        against all `n_train` points. Here both are replaced by cheaper steps
-        whose error is bounded, so `historymatching.nroy_sampling.nroy_mask`
-        can decide most points without calling `predict`:
+        The variance needs a triangular solve against all `n_train` training
+        points, about `n_train / d` times the work of the mean. Here it is
+        replaced by bounds, so `historymatching.nroy_sampling.nroy_mask` can
+        decide most points without calling `predict`:
 
-        - The correlations come from the expansion
-          `|a - b|^2 = |a|^2 + |b|^2 - 2 a.b` of the scaled coordinates, one
-          matrix product. Rounding moves each squared distance by at most
-          about `(4d + 16) * eps/2 * (|a|^2 + |b|^2)`, and so each correlation
-          by that much relative to itself. Summed over the training points,
-          this bounds the error in the mean (`mean_tol`, with a safety factor
-          of 4) and in the correlations used below.
+        - Mean: computed as `predict` does. BLAS rounding for one row can
+          depend on the other rows in the batch, so `mean_tol` bounds how far
+          it can move between calls: the error bound on the correlations (see
+          `_sq_exp_corr`), each relative to itself, summed against the weights,
+          plus rounding in the products, with a safety factor of 4.
         - Variance, lower bound: `sigma2 * nugget`, since the predictive
           variance is never negative.
         - Variance, upper bound: the variance given only the first `m`
@@ -425,26 +432,19 @@ class BayesLinear(BaseEmulator):
             A `PredictionBounds` with arrays of shape `(len(x),)`.
         """
         u = np.finfo(float).eps / 2
+        mean_z, c = self._mean_z(x)
         X_new = self._normalize_x(x)
         n_new, d = X_new.shape
         n_train = len(self._X_train_norm)
-        A = X_new / self._theta
-        B = self._X_train_norm / self._theta
+        A = self._scaled(X_new, self._theta)
+        B = self._scaled(self._X_train_norm, self._theta)
         a2 = np.einsum('ij,ij->i', A, A)
         b2 = np.einsum('ij,ij->i', B, B)
-        c = A @ B.T
-        c *= -2.0
-        c += a2[:, np.newaxis]
-        c += b2[np.newaxis, :]
-        np.maximum(c, 0.0, out=c)
-        np.negative(c, out=c)
-        np.exp(c, out=c)  # (n_new, n_train)
-
         G_new = self._design_matrix(X_new)
-        mean_z = G_new @ self._beta_hat + c @ self._alpha
 
-        # Error bound on each correlation. The two ways of forming the scaled
-        # squared distance differ by at most E_ij = k u (|a_i|^2 + |b_j|^2),
+        # Error bound on each correlation. Any two evaluations of a scaled
+        # squared distance (in different batches) lie within
+        # E_ij = k u (|a_i|^2 + |b_j|^2) of each other,
         # so the correlations differ by at most c_ij (h_i E_ij + 3u), with
         # h_i >= expm1(E)/E for every E in row i, and 3u for rounding in exp.
         k = 4 * d + 16

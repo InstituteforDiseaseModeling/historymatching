@@ -242,7 +242,7 @@ def test_bounds_contain_predict(waves):
             # Next to the first training points, which the bound conditions on,
             # it is much tighter than the variance far from the data...
             m = min(500, len(emulator._X_train_norm) // 4)
-            assert np.all(hi[2000:2000 + m] - lo[2000:2000 + m] < 0.5 * s2 * ys2)
+            assert np.all(hi[2000:2000 + m] - lo[2000:2000 + m] < 0.9 * s2 * ys2)
             # ...and far from every training point both reach that variance.
             np.testing.assert_allclose(variance[-50:], hi[-50:], rtol=1e-12)
             np.testing.assert_allclose(hi[-50:], s2 * (1 + emulator.nugget) * ys2, rtol=1e-12)

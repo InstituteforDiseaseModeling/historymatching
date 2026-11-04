@@ -94,18 +94,26 @@ def test_emulator_factory_passes_mle_nugget_to_bayes_linear(
     assert 1e-8 < hyperparameters['nugget'] <= 1.0
 
 
-@pytest.mark.parametrize('block_elements', [1, 7, 64, 2**20])
-def test_blocked_correlation_matches_one_shot_broadcast(block_elements):
-    """The blocked correlation matrix equals the one-shot broadcast, bit for bit."""
+def test_correlation_matches_exact_differences():
+    """The matrix-product correlations agree with the difference form to ~1e-12."""
     rng = np.random.default_rng(7)
-    X1, X2 = rng.uniform(size=(37, 5)), rng.uniform(size=(23, 5))
-    theta = np.exp(rng.uniform(-2, 1, 5))
-    diff = X1[:, np.newaxis, :] - X2[np.newaxis, :, :]
-    expected = np.exp(-np.sum((diff / theta) ** 2, axis=2))
+    X1, X2 = rng.uniform(size=(300, 21)), rng.uniform(size=(200, 21))
+    X1[:50] = X2[:50] + 1e-6 * rng.normal(size=(50, 21))  # near-coincident pairs
+    for theta in (np.exp(rng.uniform(-4, 4, 21)), np.full(21, 0.3)):
+        diff = X1[:, np.newaxis, :] - X2[np.newaxis, :, :]
+        expected = np.exp(-np.sum((diff / theta) ** 2, axis=2))
 
-    R = hm.BayesLinear._sq_exp_corr(X1, X2, theta, block_elements=block_elements)
+        R = hm.BayesLinear._sq_exp_corr(X1, X2, theta)
 
-    np.testing.assert_array_equal(R, expected)
+        np.testing.assert_allclose(R, expected, rtol=1e-10, atol=1e-12)
+
+
+def test_training_correlation_is_symmetric_with_unit_diagonal():
+    rng = np.random.default_rng(8)
+    X = rng.uniform(size=(150, 6))
+    R = hm.BayesLinear._sq_exp_corr(X, X, np.exp(rng.uniform(-2, 1, 6)))
+    np.testing.assert_array_equal(R, R.T)
+    np.testing.assert_array_equal(np.diag(R), 1.0)
 
 
 @pytest.fixture
