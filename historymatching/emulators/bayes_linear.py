@@ -113,20 +113,36 @@ class BayesLinear(BaseEmulator):
         return np.column_stack([np.ones(n), X])
 
     @staticmethod
-    def _sq_exp_corr(X1, X2, theta):
+    def _sq_exp_corr(X1, X2, theta, block_elements=2**20):
         """Squared-exponential correlation matrix between two point sets.
 
-        Parameters
-        ----------
-        X1 : (n, d)  X2 : (m, d)  theta : (d,) correlation lengths
-        Returns
-        -------
-        R : (n, m) correlation matrix
+        The scaled differences are formed a block of rows of `X1` at a time,
+        so the temporary array holds about `block_elements` values instead of
+        `n * m * d`. Every entry is computed by the same operations in the same
+        order as the one-shot broadcast, so the result is identical to it, bit
+        for bit.
+
+        Args:
+            X1: Points, shape `(n, d)`.
+            X2: Points, shape `(m, d)`.
+            theta: Correlation lengths, shape `(d,)`.
+            block_elements: Approximate size of the temporary difference array.
+
+        Returns:
+            Correlation matrix, shape `(n, m)`.
         """
-        # Scaled squared distances: sum_i (x1_i - x2_i)^2 / theta_i^2
-        diff = X1[:, np.newaxis, :] - X2[np.newaxis, :, :]  # (n, m, d)
-        sq_dist = np.sum((diff / theta) ** 2, axis=2)        # (n, m)
-        return np.exp(-sq_dist)
+        n, m = X1.shape[0], X2.shape[0]
+        R = np.empty((n, m))
+        rows = max(1, block_elements // max(m * X1.shape[1], 1))
+        for start in range(0, n, rows):
+            # Scaled squared distances: sum_i (x1_i - x2_i)^2 / theta_i^2
+            diff = X1[start:start + rows, np.newaxis, :] - X2[np.newaxis, :, :]
+            np.divide(diff, theta, out=diff)
+            np.square(diff, out=diff)
+            np.sum(diff, axis=2, out=R[start:start + rows])
+        np.negative(R, out=R)
+        np.exp(R, out=R)
+        return R
 
     def _get_nugget_log_bounds(self):
         """Return nugget bounds in log-space for optimizer use."""

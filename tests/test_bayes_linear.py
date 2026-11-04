@@ -92,3 +92,17 @@ def test_emulator_factory_passes_mle_nugget_to_bayes_linear(
     assert isinstance(emulator, hm.BayesLinear)
     assert hyperparameters['nugget_learned'] is True
     assert 1e-8 < hyperparameters['nugget'] <= 1.0
+
+
+@pytest.mark.parametrize('block_elements', [1, 7, 64, 2**20])
+def test_blocked_correlation_matches_one_shot_broadcast(block_elements):
+    """The blocked correlation matrix equals the one-shot broadcast, bit for bit."""
+    rng = np.random.default_rng(7)
+    X1, X2 = rng.uniform(size=(37, 5)), rng.uniform(size=(23, 5))
+    theta = np.exp(rng.uniform(-2, 1, 5))
+    diff = X1[:, np.newaxis, :] - X2[np.newaxis, :, :]
+    expected = np.exp(-np.sum((diff / theta) ** 2, axis=2))
+
+    R = hm.BayesLinear._sq_exp_corr(X1, X2, theta, block_elements=block_elements)
+
+    np.testing.assert_array_equal(R, expected)
