@@ -71,7 +71,7 @@ docs = [
 
 [project.urls]
 Documentation = "https://docs.idmod.org/historymatching/"
-Changelog = "https://docs.idmod.org/historymatching/whatsnew/"
+Changelog = "https://docs.idmod.org/historymatching/whatsnew.html"
 "Issue Tracker" = "https://github.com/InstituteforDiseaseModeling/historymatching/issues"
 Repository = "https://github.com/InstituteforDiseaseModeling/historymatching"
 

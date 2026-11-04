@@ -46,8 +46,18 @@ class BayesLinear(BaseEmulator):
             the corresponding row in `x`.
         test_fraction: Fraction of `x` and `y` held out for testing
             (scalar between 0 and 1).
-        nugget: Small value added to the kernel diagonal for numerical
-            stability (jitter). Larger values smooth the fit.
+        nugget: Variance of the noise in a single simulator run, as a fraction
+            of the residual process variance (`sigma_sq` in
+            `get_hyperparameters()`). It is added to the diagonal of the
+            training correlation matrix, and `sigma_sq * nugget` is added to
+            every predictive variance, so implausibility already counts
+            run-to-run noise through the emulator: give the targets their data
+            uncertainty only. A number fixes the nugget; the default `1e-6` is
+            a small jitter suited to deterministic simulators. `'mle'` learns
+            one value, shared across the input space, by maximum likelihood;
+            use it for stochastic simulators.
+        nugget_bounds: Lower and upper bounds on the learned nugget when
+            `nugget='mle'`; ignored otherwise.
         ftol: Function-value tolerance for the L-BFGS-B correlation-length
             optimization (convergence criterion).
         gtol: Gradient tolerance for the same optimization.
