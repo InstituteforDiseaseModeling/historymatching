@@ -103,8 +103,8 @@ class ParameterSpace:
 
     def plot_bounds(self, *, reference=None, ax=None, **kwargs):
         """Plot each parameter's bounds as a horizontal range, optionally against
-        a ``reference`` ParameterSpace to show shrinkage (delegates to
-        :func:`historymatching.plotting.plot_parameter_bounds`)."""
+        a `reference` ParameterSpace to show shrinkage (delegates to
+        `historymatching.plotting.plot_parameter_bounds`)."""
         from . import plotting
         bounds = {n: self.get_bounds(n) for n in self.get_parameter_names()}
         ref = None

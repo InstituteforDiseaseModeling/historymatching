@@ -26,7 +26,7 @@ class ObservationData:
         Args:
             observations: DataFrame with columns ['feature', 'mean', 'std']
                          or dict mapping each observed output name to a
-                         ``(mean, std)`` tuple.  The second value is the
+                         `(mean, std)` tuple.  The second value is the
                          standard deviation (sigma), *not* the variance.
         """
         if isinstance(observations, dict):
@@ -114,7 +114,7 @@ class ObservationData:
 
     def plot_targets(self, *, ax=None, **kwargs):
         """Plot observation targets as means with ±1σ error bars (delegates to
-        :func:`historymatching.plotting.plot_targets`)."""
+        `historymatching.plotting.plot_targets`)."""
         from . import plotting
         return plotting.plot_targets(self.get_all_targets(), ax=ax, **kwargs)
 

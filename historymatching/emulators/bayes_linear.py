@@ -32,17 +32,47 @@ LOG_THETA_BOUNDS = (-4.0, 4.0)
 class BayesLinear(BaseEmulator):
     """Bayes Linear emulator with OLS trend and squared-exponential residual correlation.
 
+    This is the default emulator. It pairs an ordinary-least-squares regression
+    trend with a correlated residual process (squared-exponential kernel), giving
+    near-GPR-quality predictions and calibrated uncertainty at a fraction of the
+    cost, using only numpy/scipy (no TensorFlow/GPflow).
+
+
     Args:
-        x: Input data. Pandas dataframe with columns representing parameter
+        x: Input data. Pandas DataFrame with columns representing parameter
             values.
-        y: Output data. Pandas dataframe with one output column.
-        test_fraction: Fraction of unique parameter sites to reserve for
-            testing.
-        nugget: Observation noise model. Numeric values are fixed diagonal
-            variance terms and ``'mle'`` learns one global scalar nugget.
-        nugget_bounds: Lower and upper bounds for ``nugget='mle'``.
-        ftol: L-BFGS-B function tolerance.
-        gtol: L-BFGS-B gradient tolerance.
+        y: Output data. Pandas DataFrame with columns representing
+            observations and rows representing samples. Each row must match
+            the corresponding row in `x`.
+        test_fraction: Fraction of `x` and `y` held out for testing
+            (scalar between 0 and 1).
+        nugget: Variance of the noise in a single simulator run, as a fraction
+            of the residual process variance (`sigma_sq` in
+            `get_hyperparameters()`). It is added to the diagonal of the
+            training correlation matrix, and `sigma_sq * nugget` is added to
+            every predictive variance, so implausibility already counts
+            run-to-run noise through the emulator: give the targets their data
+            uncertainty only. A number fixes the nugget; the default `1e-6` is
+            a small jitter suited to deterministic simulators. `'mle'` learns
+            one value, shared across the input space, by maximum likelihood;
+            use it for stochastic simulators.
+        nugget_bounds: Lower and upper bounds on the learned nugget when
+            `nugget='mle'`; ignored otherwise.
+        ftol: Function-value tolerance for the L-BFGS-B correlation-length
+            optimization (convergence criterion).
+        gtol: Gradient tolerance for the same optimization.
+
+    Example:
+        ```python
+        import numpy as np, pandas as pd
+        from historymatching.emulators.bayes_linear import BayesLinear
+        x = pd.DataFrame({'beta': np.random.rand(50), 'gamma': np.random.rand(50)})
+        y = pd.DataFrame({'peak': 3 * x['beta'] + x['gamma']})
+        em = BayesLinear(x, y)
+        em.train()
+        pred = em.predict(x)
+        pred.get_mean()  # predictive means; pred.get_variance() for uncertainty
+        ```
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
@@ -305,6 +335,7 @@ class BayesLinear(BaseEmulator):
             mean=mean,
             std=obs_std,
             additional_data=additional,
+            index=x.index,
         )
 
     def get_hyperparameters(self) -> dict:

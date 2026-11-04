@@ -1,4 +1,6 @@
-# Glossary
+---
+title: "Glossary"
+---
 
 Terms used throughout this documentation. History matching borrows vocabulary
 from Bayesian calibration, design of experiments, and the emulation literature;

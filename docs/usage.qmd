@@ -1,4 +1,6 @@
-# Usage guide
+---
+title: "Usage guide"
+---
 
 This guide covers the core concepts and common patterns for using the history matching library.
 
@@ -152,7 +154,7 @@ engine.commit_step()
 
 ## Emulator types
 
-The library includes four [emulator](glossary.md#emulator) types:
+The library includes four [emulator](glossary.qmd#emulator) types:
 
 | Emulator | Best for | Speed | Uncertainty |
 |----------|----------|-------|-------------|
@@ -257,8 +259,8 @@ loaded.function = my_model
 ## NROY samples and trajectory selection
 
 The **NROY** ("Not Ruled Out Yet") region is the part of parameter space that has
-not been ruled out as [implausible](glossary.md#implausibility) — see the
-[Glossary](glossary.md#nroy).
+not been ruled out as [implausible](glossary.qmd#implausibility) — see the
+[Glossary](glossary.qmd#nroy).
 
 After `run()` completes, draw NROY samples filtered through ALL emulators:
 

@@ -6,6 +6,13 @@ Provides two methods for generating non-implausible parameter samples:
 - 'ray_resample': 4-stage pipeline (LHS → ray sampling → importance sampling
   → maximin thinning) that efficiently explores small NROY regions
 
+To test points you supply (a known truth, a uniform or Sobol design, MCMC
+proposals), use `HistoryMatching.in_nroy()`, and `HistoryMatching.implausibility()`
+to see which wave and target ruled a point out. Both apply the same test as
+`generate_nroy_design`. `nroy_mask` is that test as a function of an emulator
+bank, for use without the engine, for example when filtering candidates in
+chunks on worker processes.
+
 Reference: Iskauskas (2024), "Emulation and History Matching using the hmer
 Package", Journal of Statistical Software.
 """
@@ -84,9 +91,9 @@ def generate_nroy_design(
     sampling_strategy : SamplingStrategy, optional
         Strategy for generating initial LHS candidates. Defaults to LHS maximin.
     method : str
-        ``'auto'`` (default) runs LHS rejection and escalates to the
+        `'auto'` (default) runs LHS rejection and escalates to the
         ray + importance-sampling pipeline only if LHS underfills;
-        ``'lhs'`` does pure rejection sampling; ``'ray'`` seeds with a
+        `'lhs'` does pure rejection sampling; `'ray'` seeds with a
         small LHS draw then goes straight to ray + importance sampling.
     seed : int, optional
         Random seed for reproducibility.
@@ -502,6 +509,7 @@ def nroy_mask(
     """
     mask = (np.ones(len(candidates), dtype=bool) if mask is None
             else np.asarray(mask, dtype=bool).copy())
+    n_emulators = 0
 
     for iteration in reversed(emulator_bank.get_all_iterations()):
         emulators = emulator_bank.get_emulators_for_iteration(iteration)
@@ -521,11 +529,28 @@ def nroy_mask(
                     feature_name, pred_mean, pred_var
                 )
                 failures = np.asarray(feature_impl > threshold, dtype=bool).ravel()
+                n_rejected = int(failures.sum())
                 mask[mask] &= ~failures
-            except Exception as e:
-                logger.warning(f"Filter failed for '{feature_name}': {e}")
-                continue
+                n_emulators += 1
 
+                logger.debug(
+                    f"  {feature_name}: {len(active)} tested, "
+                    f"{n_rejected} rejected, {mask.sum()} surviving"
+                )
+            except Exception as e:
+                # Do NOT swallow this: if a feature's emulator fails to predict,
+                # silently skipping it drops that feature's constraint from the
+                # filter, so points that should be ruled implausible survive and
+                # the NROY region is wrong. Fail loud instead.
+                raise RuntimeError(
+                    f"NROY filtering failed for feature '{feature_name}' "
+                    f"(iteration {iteration}): {e}. The emulator could not predict "
+                    f"on the candidate points, so the NROY region cannot be computed "
+                    f"reliably. Inspect this emulator or retrain the wave."
+                ) from e
+
+    logger.debug(f"NROY filter: {int(mask.sum())} of {len(candidates)} candidates "
+                 f"pass {n_emulators} emulators")
     return mask
 
 

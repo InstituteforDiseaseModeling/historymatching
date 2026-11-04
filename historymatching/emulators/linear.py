@@ -1,3 +1,11 @@
+"""
+Ordinary least squares (OLS) linear regression emulator.
+
+The simplest emulator: fast to fit, but assumes a linear relationship between
+parameters and outputs and provides only limited uncertainty information. Useful
+for prototyping or for genuinely near-linear responses.
+"""
+
 from typing import Optional
 import logging
 
@@ -12,9 +20,23 @@ from .results import EmulationResults
 
 
 class LinearModel(BaseEmulator):
-    """
-    Emulator based on an ordinary least squares linear regression.
-    The emulator fits a linear regression model to minimize the residual sum of squares between observed targets in the training data and the targets predicted by the linear approximation.
+    """Emulator based on an ordinary least squares linear regression.
+
+    Fits a linear regression model that minimizes the residual sum of squares
+    between the observed training targets and the targets predicted by the
+    linear approximation. Fast, but assumes linearity and gives limited
+    uncertainty estimates.
+
+    Example:
+        ```python
+        import numpy as np, pandas as pd
+        from historymatching.emulators.linear import LinearModel
+        x = pd.DataFrame({'beta': np.random.rand(40), 'gamma': np.random.rand(40)})
+        y = pd.DataFrame({'peak': 2 * x['beta'] - x['gamma']})
+        em = LinearModel(x, y)
+        em.train()
+        pred = em.predict(x)
+        ```
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None, test_fraction: float = 0.25) -> None:
@@ -83,7 +105,8 @@ class LinearModel(BaseEmulator):
         return EmulationResults(
             mean=np.asarray(prediction_results.predicted_mean).ravel(),
             std=np.asarray(prediction_results.se_obs).ravel(),
-            additional_data=additional
+            additional_data=additional,
+            index=x.index,
         )
 
     
@@ -200,7 +223,8 @@ class LinearModelScipy(BaseEmulator):
         return EmulationResults(
             mean=y_pred,
             std=sigma,
-            additional_data=additional
+            additional_data=additional,
+            index=x.index,
         )
 
     

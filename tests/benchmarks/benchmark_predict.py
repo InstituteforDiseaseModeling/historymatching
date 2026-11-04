@@ -2,8 +2,8 @@
 Benchmark: numba fast-predict path vs the GPflow GPR predict path.
 
 History matching spends most of its wall-clock time in the NROY rejection
-loop, calling ``emulator.predict`` on large batches of candidate points.  To
-make this affordable the library extracts a :class:`FastGPRPredictor` from each
+loop, calling `emulator.predict` on large batches of candidate points.  To
+make this affordable the library extracts a `FastGPRPredictor` from each
 trained GPflow model and runs predictions in pure numpy/numba, bypassing
 TensorFlow's Python->graph overhead.
 
@@ -47,7 +47,7 @@ def _make_training_data(n_train, n_dims, seed):
 
 
 def _time_call(fn, repeats):
-    """Return the best (minimum) wall-clock time over ``repeats`` calls."""
+    """Return the best (minimum) wall-clock time over `repeats` calls."""
     best = np.inf
     for _ in range(repeats):
         t0 = time.perf_counter()
