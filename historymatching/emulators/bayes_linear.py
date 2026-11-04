@@ -71,8 +71,12 @@ class BayesLinear(BaseEmulator):
         nugget_bounds: Lower and upper bounds on the learned nugget when
             `nugget='mle'`; ignored otherwise.
         ftol: Function-value tolerance for the L-BFGS-B correlation-length
-            optimization (convergence criterion).
-        gtol: Gradient tolerance for the same optimization.
+            optimization (convergence criterion). It is relative, so it means
+            the same at any number of training points.
+        gtol: Gradient tolerance for the same optimization. The fixed-nugget
+            search applies it to the gradient of the NLL; the `nugget='mle'`
+            searches, which minimize NLL / n with an analytic gradient, apply
+            it to the gradient of NLL / n.
         mle_starts: Starting points for the `nugget='mle'` search; ignored
             otherwise. The likelihood often has more than one optimum, so
             each start runs its own L-BFGS-B search and the lowest NLL wins.
@@ -89,12 +93,13 @@ class BayesLinear(BaseEmulator):
             - A number: correlation lengths 1 and that nugget, clipped to
               `nugget_bounds`.
 
-            The default, `('warm', 'midpoint', 1e-2)`, costs about three
-            single fits. Every start's result is in
-            `get_hyperparameters()['mle_starts']`.
+            The default is `('warm', 'midpoint', 1e-2)`. Every run's NLL,
+            nugget, iterations and message is in
+            `get_hyperparameters()['mle_starts']`, the chosen one marked
+            `'selected'`.
         warm_nugget: Fixed nugget for the `'warm'` start, clipped to
             `nugget_bounds`. The default, `1e-2`, is run-to-run noise of 1% of
-            the residual variance: inside the default bounds, large enough to
+            the residual process variance: inside the default bounds, large enough to
             keep the correlation matrix well conditioned, and small enough not
             to hide signal.
 
