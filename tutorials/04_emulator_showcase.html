@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -540,11 +540,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Testing different emulator types on various synthetic problems"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793775103.369734    3067 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793775103.410135    3067 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1793777224.595150    3388 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777224.595608    3388 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777224.632847    3388 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX512_FP16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793775104.567634    3067 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.</code></pre>
+I0000 00:00:1793777225.497665    3388 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777225.497976    3388 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.</code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code> Emulator Showcase and Comparison
@@ -949,7 +951,7 @@ Testing different emulator types on various synthetic problems</code></pre>
 ==================================================</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>E0000 00:00:1793775106.642768    3067 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)</code></pre>
+<pre><code>E0000 00:00:1793777227.057083    3388 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)</code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Neural network emulator not available: Unknown default emulator type: 'neural_network'. Available types: ['linear', 'glm', 'gpr', 'gaussian', 'bayes_linear']</code></pre>
@@ -966,9 +968,9 @@ Testing different emulator types on various synthetic problems</code></pre>
  Performance Summary (Linear Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          1.733    0.961    0.0178       1.000       
-gpr             2.016    0.947    1.4548       1.000       
-bayes_linear    0.834    0.991    0.0039       1.000       
+linear          1.733    0.961    0.0105       1.000       
+gpr             2.016    0.947    1.0729       1.000       
+bayes_linear    0.834    0.991    0.0028       1.000       
 
  Expected: Linear emulator should perform best with fastest training time</code></pre>
 </div>
@@ -1041,9 +1043,9 @@ bayes_linear    0.834    0.991    0.0039       1.000
  Performance Summary (Quadratic Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          1.420    0.857    0.0021       1.000       
-gpr             0.427    0.987    0.2823       1.000       
-bayes_linear    1.414    0.858    0.0037       1.000       
+linear          1.420    0.857    0.0016       1.000       
+gpr             0.427    0.987    0.2091       1.000       
+bayes_linear    1.414    0.858    0.0027       1.000       
 
  Expected: GPR should outperform linear emulator due to nonlinearity</code></pre>
 </div>
@@ -1098,9 +1100,9 @@ bayes_linear    1.414    0.858    0.0037       1.000
  Performance Summary (Sinusoidal Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          6.706    -0.003   0.0021       1.000       
-gpr             0.547    0.993    0.2983       1.000       
-bayes_linear    0.535    0.994    0.0109       1.000       
+linear          6.706    -0.003   0.0018       1.000       
+gpr             0.547    0.993    0.2207       1.000       
+bayes_linear    0.535    0.994    0.0055       1.000       
 
  Expected: GPR should significantly outperform linear emulator
  Linear emulator will struggle with sinusoidal patterns</code></pre>
@@ -1159,9 +1161,9 @@ bayes_linear    0.535    0.994    0.0109       1.000
  Performance Summary (Multimodal Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          2.966    0.448    0.0023       0.973       
-gpr             3.033    0.422    0.2814       1.000       
-bayes_linear    2.978    0.443    0.0040       0.913       
+linear          2.966    0.448    0.0022       0.973       
+gpr             3.033    0.422    0.2213       1.000       
+bayes_linear    2.978    0.443    0.0030       0.913       
 
  Expected: GPR should handle complexity better, but may need more training data
  Linear emulator will perform poorly on this complex function</code></pre>
@@ -1454,9 +1456,9 @@ Running HM with gpr emulator...</code></pre>
  History Matching Results Comparison:
 Emulator        Time(s)  Iterations   Final Samples  Param1 Error  Param2 Error  Accept Rate 
 ----------------------------------------------------------------------------------------------------
-linear          8.71     3            300            0.112         0.243         0.367       
-bayes_linear    9.26     3            300            0.017         0.044         0.066       
-gpr             11.68    3            300            0.016         0.041         0.069       </code></pre>
+linear          5.93     3            300            0.112         0.243         0.367       
+bayes_linear    6.69     3            300            0.019         0.043         0.066       
+gpr             8.60     3            300            0.016         0.041         0.069       </code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div>

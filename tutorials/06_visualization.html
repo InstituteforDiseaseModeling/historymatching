@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -519,11 +519,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793775157.278100    3281 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793775157.320800    3281 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1793777287.667182    3732 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777287.667639    3732 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777287.705074    3732 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX512_FP16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793775158.535068    3281 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777288.576783    3732 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777288.577090    3732 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 /home/runner/work/historymatching/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources</code></pre>
 </div>
@@ -589,8 +591,8 @@ I0000 00:00:1793775158.535068    3281 cudart_stub.cc:31] Could not find cuda dri
 <pre><code>=== History Matching Status ===
 State: completed
 Progress: 3/3 waves
-Acceptance rate: 8.3%
-Total samples generated: 18,007
+Acceptance rate: 7.6%
+Total samples generated: 19,671
 Total samples accepted: 1,800
 Emulators trained: 6
 [OK] Simulator function configured
@@ -604,13 +606,13 @@ Emulators trained: 6
 ------------------------------------------------
   waves run:     3
   NROY samples:  300
-  NROY fraction: 4.429%
+  NROY fraction: 4.151%
   parameter               median   95% interval
-  beta                     1.464   [1.024, 1.825]
-  gamma                   0.6415   [0.2249, 0.9786]</code></pre>
+  beta                     1.479   [1.105, 1.8]
+  gamma                   0.6481   [0.2863, 0.9636]</code></pre>
 </div>
 <div class="cell-output cell-output-display" data-execution_count="4">
-<pre><code>'NROY summary\n------------------------------------------------\n  waves run:     3\n  NROY samples:  300\n  NROY fraction: 4.429%\n  parameter               median   95% interval\n  beta                     1.464   [1.024, 1.825]\n  gamma                   0.6415   [0.2249, 0.9786]'</code></pre>
+<pre><code>'NROY summary\n------------------------------------------------\n  waves run:     3\n  NROY samples:  300\n  NROY fraction: 4.151%\n  parameter               median   95% interval\n  beta                     1.479   [1.105, 1.8]\n  gamma                   0.6481   [0.2863, 0.9636]'</code></pre>
 </div>
 </div>
 </section>
@@ -648,7 +650,7 @@ Emulators trained: 6
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="06_visualization_files/figure-html/cell-8-output-1.png" width="675" height="299" class="figure-img"></p>
+<p><img src="06_visualization_files/figure-html/cell-8-output-1.png" width="675" height="297" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -704,14 +706,14 @@ Emulators trained: 6
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">peak_incidence</th>
-<td>0.840611</td>
-<td>3921.053998</td>
+<td>0.783834</td>
+<td>4534.473859</td>
 <td>225.0</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">incidence_10</th>
-<td>0.762476</td>
-<td>2088.004039</td>
+<td>0.819556</td>
+<td>1545.006917</td>
 <td>225.0</td>
 </tr>
 </tbody>
@@ -735,7 +737,7 @@ Emulators trained: 6
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="06_visualization_files/figure-html/cell-13-output-1.png" width="456" height="472" class="figure-img"></p>
+<p><img src="06_visualization_files/figure-html/cell-13-output-1.png" width="451" height="472" class="figure-img"></p>
 </figure>
 </div>
 </div>

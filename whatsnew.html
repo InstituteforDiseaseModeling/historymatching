@@ -50,9 +50,9 @@ ul.task-list li input[type="checkbox"] {
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -435,6 +435,7 @@ ul.task-list li input[type="checkbox"] {
   <ul class="collapse">
   <li><a href="#new-features" id="toc-new-features" class="nav-link" data-scroll-target="#new-features">New features</a></li>
   <li><a href="#fixes" id="toc-fixes" class="nav-link" data-scroll-target="#fixes">Fixes</a></li>
+  <li><a href="#removed" id="toc-removed" class="nav-link" data-scroll-target="#removed">Removed</a></li>
   </ul></li>
   <li><a href="#v2.0.1-2026-06-07" id="toc-v2.0.1-2026-06-07" class="nav-link" data-scroll-target="#v2.0.1-2026-06-07">v2.0.1 (2026-06-07)</a>
   <ul class="collapse">
@@ -462,7 +463,7 @@ ul.task-list li input[type="checkbox"] {
   <ul class="collapse">
   <li><a href="#new-features-4" id="toc-new-features-4" class="nav-link" data-scroll-target="#new-features-4">New features</a></li>
   <li><a href="#improvements-1" id="toc-improvements-1" class="nav-link" data-scroll-target="#improvements-1">Improvements</a></li>
-  <li><a href="#removed" id="toc-removed" class="nav-link" data-scroll-target="#removed">Removed</a></li>
+  <li><a href="#removed-1" id="toc-removed-1" class="nav-link" data-scroll-target="#removed-1">Removed</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -492,12 +493,18 @@ ul.task-list li input[type="checkbox"] {
 <section id="fixes" class="level3">
 <h3 class="anchored" data-anchor-id="fixes">Fixes</h3>
 <ul>
-<li>In a bank that mixes GPR and other emulators, the engine’s internal rejection filter (<code>_filter_fast</code>) applied only the GPR emulators once any fast predictor existed; the others, such as Bayes linear, were skipped. Every emulator is now applied. That filter runs only when wave 1 starts with emulators already in the bank; each later wave’s design comes from <code>generate_nroy_design</code>, which was not affected.</li>
 <li><strong>The linear-model and GLM emulators report the std of a new simulator run, so their implausibility is right.</strong> Implausibility divides by the target’s data uncertainty plus the emulator’s variance, so that variance has to include the simulator’s run-to-run noise, as <code>BayesLinear</code> (<code>sigma_sq * nugget</code>) and <code>GPR</code> (<code>predict_y</code>) already do. <code>LinearModel</code> (<code>'linear'</code>) and <code>GLM</code> (<code>'glm'</code>) returned only the standard error of the fitted mean, which understates it and rules out too much; <code>LinearModelScipy</code> returned the spread of all training outputs, which overstates it. They now return the predictive std: residual variance plus the mean’s variance for <code>LinearModel</code> and <code>LinearModelScipy</code>, and the family’s variance at the mean (scale for Gaussian, the mean for Poisson) plus the mean’s variance for <code>GLM</code>. In a test with known noise, the standard deviation of (new run − predicted mean) / predicted std was 10.9 (<code>LinearModel</code>) and 0.44 (<code>LinearModelScipy</code>) before, and 0.99 for all of them now. Their interval columns follow the same definitions. (#273)</li>
 <li><strong><code>GLM.predict</code> works on statsmodels 0.15</strong>, which removed the <code>linear=</code> argument it used.</li>
 <li><strong><code>LinearModel</code> and <code>GLM</code> can predict a single point.</strong> <code>statsmodels.add_constant</code> skips the intercept when every column is constant, which a one-row frame always is, so one-point predictions failed with a shape error; in the NROY filter that happened whenever one candidate was left. The intercept is now always added, in training and prediction. <code>LinearModel</code>’s interval columns also no longer come back as NaN for frames with non-contiguous index labels.</li>
 <li><strong>Every wave draws a fresh design, and every run records its seed.</strong> Previously, each wave’s candidate generation restarted from <code>random_seed</code>, so consecutive waves re-drew the same plausible points. In a 21-parameter, 10-wave run, 34% of all design points repeated earlier ones. Each wave, wave 1 included, now draws from its own stream, derived from <code>(random_seed, wave)</code>.</li>
 <li><strong><code>random_seed=None</code> (the default) now draws a seed from OS entropy instead of running unseeded.</strong> The seed used, and whether it was user-supplied or drawn, is logged, written to <code>run_config.json</code> and stored in checkpoints, and resuming restores it. Passing that seed back reproduces the run under the same package version. This release changes which run a given seed produces, so seeded results differ from earlier versions.</li>
+<li><strong><code>FastGPRPredictor</code>’s numpy fallback (no numba) returns the predictive variance, not zero</strong>, matching the numba kernel and GPflow. Zero variance made every implausibility too large. (#272)</li>
+</ul>
+</section>
+<section id="removed" class="level3">
+<h3 class="anchored" data-anchor-id="removed">Removed</h3>
+<ul>
+<li><strong>The engine’s separate GPR filter</strong> (<code>_filter_fast</code>, <code>_filter_samples_slow</code>, <code>_build_fast_predictors</code>) and <code>historymatching.emulators.fast_predict.filter_nroy</code>. The engine’s wave 1 sampler, its only caller, now filters through <code>nroy_mask</code> like <code>generate_nroy_design</code> and <code>in_nroy</code>, so NROY membership has one implementation. Normal runs never reached the removed path: it ran only when wave 1 started with emulators already in the bank. <code>FastGPRPredictor</code> stays in <a href="./api/emulators.fast_predict.html#historymatching.emulators.fast_predict" title="0"><code>emulators.fast_predict</code></a>.</li>
 </ul>
 </section>
 </section>
@@ -631,8 +638,8 @@ ul.task-list li input[type="checkbox"] {
 <li>Six tutorial notebooks covering basic through advanced workflows</li>
 </ul>
 </section>
-<section id="removed" class="level3">
-<h3 class="anchored" data-anchor-id="removed">Removed</h3>
+<section id="removed-1" class="level3">
+<h3 class="anchored" data-anchor-id="removed-1">Removed</h3>
 <ul>
 <li>Legacy procedural API (<code>Config</code>, <code>do_step</code>, <code>reduce_space</code>)</li>
 <li>Old <code>hm2</code> package</li>

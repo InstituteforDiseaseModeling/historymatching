@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -556,11 +556,13 @@ window.Quarto = {
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>matplotlib inline</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793774977.933571    2748 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793774977.975201    2748 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1793777133.474994    3164 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777133.475472    3164 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777133.513230    3164 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX512_FP16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793774979.133426    2748 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777134.400031    3164 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777134.400331    3164 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 /home/runner/work/historymatching/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources</code></pre>
 </div>
@@ -674,7 +676,7 @@ HistoryMatching(
   outputs=3 ['peak_incidence', 'attack_rate', 'incidence_5'],
   emulator=bayes_linear, simulator=set,
   n_samples=500, implausibility_threshold=3.0,
-  state=completed, wave 5/5, acceptance_rate=0.139
+  state=completed, wave 5/5, acceptance_rate=0.142
 )</code></pre>
 </div>
 </div>
@@ -733,7 +735,7 @@ HistoryMatching(
 <span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  γ range:    [</span><span class="sc">{</span>nroy_samples[<span class="st">'gamma'</span>]<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.3f}</span><span class="ss">, </span><span class="sc">{</span>nroy_samples[<span class="st">'gamma'</span>]<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.3f}</span><span class="ss">]"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>NROY parameter pool: 10000 (β, γ, seed) triples
-  β range:    [0.324, 1.145]
+  β range:    [0.319, 1.150]
   γ range:    [0.100, 0.800]</code></pre>
 </div>
 <div class="cell-output cell-output-display">
@@ -904,7 +906,7 @@ HistoryMatching(
 <span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Tolerance ε = 7.1 cases/day
-Effective sample size: 358  (out of 10,000 total)</code></pre>
+Effective sample size: 294  (out of 10,000 total)</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div>
@@ -956,15 +958,15 @@ Effective sample size: 358  (out of 10,000 total)</code></pre>
 <span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"All checks passed — selected trajectories are reproducible."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Selected 15 trajectories
-β range in selected set:  0.642 – 0.922
-γ range in selected set:  0.353 – 0.584
+β range in selected set:  0.545 – 0.839
+γ range in selected set:  0.288 – 0.517
 
 Reproducibility check (re-running 5 selected trajectories):
-  idx=6296  β=0.733  γ=0.439  seed=6296  match=True
-  idx=2838  β=0.748  γ=0.480  seed=2838  match=True
-  idx= 379  β=0.704  γ=0.392  seed=379  match=True
-  idx=  84  β=0.688  γ=0.419  seed=84  match=True
-  idx=8104  β=0.690  γ=0.424  seed=8104  match=True
+  idx=6369  β=0.666  γ=0.422  seed=6369  match=True
+  idx=2353  β=0.545  γ=0.288  seed=2353  match=True
+  idx= 264  β=0.723  γ=0.440  seed=264  match=True
+  idx= 111  β=0.770  γ=0.459  seed=111  match=True
+  idx=7888  β=0.792  γ=0.467  seed=7888  match=True
 All checks passed — selected trajectories are reproducible.</code></pre>
 </div>
 </div>
@@ -1100,7 +1102,7 @@ All checks passed — selected trajectories are reproducible.</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="07_trajectory_selection_files/figure-html/cell-12-output-1.png" width="1048" height="381" class="figure-img"></p>
+<p><img src="07_trajectory_selection_files/figure-html/cell-12-output-1.png" width="1047" height="381" class="figure-img"></p>
 </figure>
 </div>
 </div>

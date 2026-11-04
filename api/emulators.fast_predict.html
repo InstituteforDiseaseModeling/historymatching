@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -516,10 +516,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#historymatching.emulators.fast_predict.FastGPRPredictor" id="toc-historymatching.emulators.fast_predict.FastGPRPredictor" class="nav-link" data-scroll-target="#historymatching.emulators.fast_predict.FastGPRPredictor">FastGPRPredictor</a></li>
   </ul></li>
-  <li><a href="#functions" id="toc-functions" class="nav-link" data-scroll-target="#functions">Functions</a>
-  <ul class="collapse">
-  <li><a href="#historymatching.emulators.fast_predict.filter_nroy" id="toc-historymatching.emulators.fast_predict.filter_nroy" class="nav-link" data-scroll-target="#historymatching.emulators.fast_predict.filter_nroy">filter_nroy</a></li>
-  </ul></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/InstituteforDiseaseModeling/historymatching/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -534,21 +530,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="historymatching.emulators.fast_predict" class="level1">
 <h1>emulators.fast_predict</h1>
 <p><a href="../api/emulators.fast_predict.html#historymatching.emulators.fast_predict" title="0"><code>emulators.fast_predict</code></a></p>
-<p>Fast GPR prediction using numba — no TensorFlow dependency at prediction time.</p>
-<p>Extracts kernel hyperparameters and precomputed alpha from a trained GPflow model, then performs SE kernel predictions using pure numpy/numba. This avoids TF’s Python→graph overhead and enables true parallel execution via numba’s thread pool.</p>
-<p>Typical speedup: 200–500× over GPflow predict_f for large batches.</p>
+<p>Fast GPR prediction using numba, with no TensorFlow call at prediction time.</p>
+<p>Extracts kernel hyperparameters from a trained GPflow model, precomputes alpha = (K + noise I)^-1 (y - c) and the inverse Cholesky factor once, then predicts the SE-kernel GP mean and variance in numpy/numba.</p>
+<p>Not currently used by the engine, which filters through <code>GPR.predict</code>. Measured against <code>GPR.predict</code> on 20,000 points (Apple M1 Max), it is 2.6x faster with 180 training points in 4 dimensions and 1.1x with 1,800 in 21, so it is kept for a future, faster <code>GPR.predict</code> rather than as a separate filter.</p>
 <p>Usage:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> historymatching.emulators.fast_predict <span class="im">import</span> FastGPRPredictor</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Build from a trained GPR emulator</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>fast <span class="op">=</span> FastGPRPredictor.from_emulator(emulator)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict (returns mean, var as numpy arrays)</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>mean, var <span class="op">=</span> fast.predict(X_test)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Or use the short-circuit NROY filter</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> historymatching.emulators.fast_predict <span class="im">import</span> filter_nroy</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> filter_nroy(candidates, predictors, obs_targets, threshold<span class="op">=</span><span class="fl">3.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fast <span class="op">=</span> FastGPRPredictor.from_emulator(emulator)   <span class="co"># a trained GPR emulator</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>mean, var <span class="op">=</span> fast.predict(X_test)                  <span class="co"># numpy arrays; var includes the noise</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="classes" class="level2">
 <h2 class="anchored" data-anchor-id="classes">Classes</h2>
 <table class="caption-top table">
@@ -711,85 +700,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-</section>
-</section>
-</section>
-</section>
-</section>
-<section id="functions" class="level2">
-<h2 class="anchored" data-anchor-id="functions">Functions</h2>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="#historymatching.emulators.fast_predict.filter_nroy">filter_nroy</a></td>
-<td>Short-circuit NROY filter through multiple emulators.</td>
-</tr>
-</tbody>
-</table>
-<section id="historymatching.emulators.fast_predict.filter_nroy" class="level3">
-<h3 class="anchored" data-anchor-id="historymatching.emulators.fast_predict.filter_nroy">filter_nroy</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>emulators.fast_predict.filter_nroy(candidates, predictors, threshold<span class="op">=</span><span class="fl">3.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Short-circuit NROY filter through multiple emulators.</p>
-<p>Tests candidates against each emulator in sequence. Points that fail one emulator are immediately dropped and never tested against the rest.</p>
-<section id="parameters-2" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>candidates</td>
-<td><a href="https://numpy.org/doc/stable/reference/index.html#module-numpy">np</a>.<a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray">ndarray</a></td>
-<td>(n, n_dims) array of parameter values.</td>
-<td><em>required</em></td>
-</tr>
-<tr class="even">
-<td>predictors</td>
-<td><a href="https://docs.python.org/3/library/typing.html#typing.List">List</a>[<a href="https://docs.python.org/3/library/typing.html#typing.Tuple">Tuple</a>[<a href="../api/emulators.fast_predict.html#historymatching.emulators.fast_predict.FastGPRPredictor">FastGPRPredictor</a>, <a href="https://docs.python.org/3/builtins/functions.html#float">float</a>, <a href="https://docs.python.org/3/builtins/functions.html#float">float</a>, <a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a>]]</td>
-<td>List of (FastGPRPredictor, obs_mean, obs_std, feature_name) tuples, one per emulated feature.</td>
-<td><em>required</em></td>
-</tr>
-<tr class="odd">
-<td>threshold</td>
-<td><a href="https://docs.python.org/3/builtins/functions.html#float">float</a></td>
-<td>Implausibility threshold (default 3.5).</td>
-<td><code>3.5</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="returns-2" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td></td>
-<td><a href="https://numpy.org/doc/stable/reference/index.html#module-numpy">np</a>.<a href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray">ndarray</a></td>
-<td>Boolean mask of shape (n,) — True for points that pass all emulators.</td>
-</tr>
-</tbody>
-</table>
 
 
+</section>
+</section>
 </section>
 </section>
 </section>

@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -539,11 +539,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>matplotlib inline</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793775056.795503    2932 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793775056.837417    2932 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1793777099.719987    3032 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777099.720414    3032 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777099.757647    3032 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX512_FP16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793775058.026306    2932 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777100.586578    3032 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777100.586848    3032 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 /home/runner/work/historymatching/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources</code></pre>
 </div>
@@ -740,12 +742,12 @@ Observations: 20 features (one per day)</code></pre>
 ... Emulator configuration:
       Bayes Linear Emulator
       Nugget:        1e-06
-      sigma^2:       521333448.452060
-      NLL:           -482.3533
+      sigma^2:       518842441.113927
+      NLL:           -482.3867
       Optimizer:     converged
       theta (correlation lengths):
-        beta: 0.1824
-        gamma: 1.2362
+        beta: 0.1830
+        gamma: 1.2205
       beta (regression coefficients):
         intercept: 334.434423
         beta: -324.712351
@@ -906,24 +908,24 @@ Running iteration 2...
 ... Emulator configuration:
       Bayes Linear Emulator
       Nugget:        1e-06
-      sigma^2:       6489739382.152506
-      NLL:           -473.4628
-      Optimizer:     converged
+      sigma^2:       5148355039.054719
+      NLL:           -513.2396
+      Optimizer:     did NOT converge
       theta (correlation lengths):
-        beta: 4.5951
-        gamma: 4.5934
+        beta: 4.0078
+        gamma: 7.6503
       beta (regression coefficients):
-        intercept: 143.491076
-        beta: 1035.200312
-        gamma: -500.480813
+        intercept: 134.405064
+        beta: 1023.997866
+        gamma: -481.546337
 
 ... Performance results:
-      MSE    = 3964.0993706204713
-      L-inf  = 250.4378608045563
-      L-1    = 44.835540795955346
-      R2     = 0.9588893198700468
-      AIC    = 1039.6292454256525
-      BIC    = 1045.2858729002571</code></pre>
+      MSE    = 5267.841886208501
+      L-inf  = 223.24437908357254
+      L-1    = 52.53841977688849
+      R2     = 0.950718772066898
+      AIC    = 1075.1720060506555
+      BIC    = 1080.82863352526</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div>
@@ -935,28 +937,28 @@ Running iteration 2...
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02_manual_workflow_files/figure-html/cell-15-output-3.png" width="757" height="334" class="figure-img"></p>
+<p><img src="02_manual_workflow_files/figure-html/cell-15-output-3.png" width="760" height="334" class="figure-img"></p>
 </figure>
 </div>
 </div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02_manual_workflow_files/figure-html/cell-15-output-4.png" width="942" height="470" class="figure-img"></p>
+<p><img src="02_manual_workflow_files/figure-html/cell-15-output-4.png" width="952" height="470" class="figure-img"></p>
 </figure>
 </div>
 </div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02_manual_workflow_files/figure-html/cell-15-output-5.png" width="951" height="470" class="figure-img"></p>
+<p><img src="02_manual_workflow_files/figure-html/cell-15-output-5.png" width="952" height="470" class="figure-img"></p>
 </figure>
 </div>
 </div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02_manual_workflow_files/figure-html/cell-15-output-6.png" width="951" height="470" class="figure-img"></p>
+<p><img src="02_manual_workflow_files/figure-html/cell-15-output-6.png" width="952" height="470" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1028,7 +1030,7 @@ Running iteration 2...
 <div class="cell-output cell-output-stdout">
 <pre><code>NROY samples after iteration 2: 500
   beta  range: [0.927, 1.706]
-  gamma range: [0.101, 0.999]
+  gamma range: [0.100, 0.999]
 True beta  in plausible region: Yes
 True gamma in plausible region: Yes</code></pre>
 </div>
@@ -1064,7 +1066,7 @@ True gamma in plausible region: Yes</code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Running iteration 3 with 3 simultaneous emulators...
   Samples generated: 500
-  NROY fraction:     2.6%
+  NROY fraction:     2.8%
   Outputs emulated:  ['incidence_3', 'incidence_6', 'incidence_11']
   Emulators trained: 3
 
@@ -1089,9 +1091,9 @@ Saved /tmp/wave3_samples.csv and /tmp/wave3_sim_results.csv</code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Output                   R²         MSE   n_train
 --------------------------------------------------
-incidence_3           0.551        8054       375  ← poor fit
-incidence_6           0.962        3759       375
-incidence_11          0.676       788.4       375  ← poor fit</code></pre>
+incidence_3           0.420        9683       375  ← poor fit
+incidence_6           0.947        4113       375
+incidence_11          0.661       913.7       375  ← poor fit</code></pre>
 </div>
 </div>
 <div id="lwgaxwnl3pb" class="cell" data-execution_count="19">
@@ -1103,11 +1105,11 @@ incidence_11          0.676       788.4       375  ← poor fit</code></pre>
 <span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>    em.plot_diagnostics()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
-── incidence_3 (R²=0.551) ──
+── incidence_3 (R²=0.420) ──
 
-── incidence_6 (R²=0.962) ──
+── incidence_6 (R²=0.947) ──
 
-── incidence_11 (R²=0.676) ──</code></pre>
+── incidence_11 (R²=0.661) ──</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div>
@@ -1126,7 +1128,7 @@ incidence_11          0.676       788.4       375  ← poor fit</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02_manual_workflow_files/figure-html/cell-20-output-4.png" width="963" height="470" class="figure-img"></p>
+<p><img src="02_manual_workflow_files/figure-html/cell-20-output-4.png" width="952" height="470" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1196,7 +1198,7 @@ incidence_11          0.676       788.4       375  ← poor fit</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02_manual_workflow_files/figure-html/cell-20-output-14.png" width="950" height="470" class="figure-img"></p>
+<p><img src="02_manual_workflow_files/figure-html/cell-20-output-14.png" width="951" height="470" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1243,8 +1245,8 @@ incidence_11          0.676       788.4       375  ← poor fit</code></pre>
 <span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Iteration 3 committed with </span><span class="sc">{</span><span class="bu">len</span>(result_3.emulated_outputs) <span class="op">-</span> <span class="bu">len</span>(dropped)<span class="sc">}</span><span class="ss"> emulators."</span>)</span>
 <span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total committed iterations: </span><span class="sc">{</span>engine<span class="sc">.</span>current_iteration<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Dropped 'incidence_3' (R²=0.551 &lt; 0.7)
-Dropped 'incidence_11' (R²=0.676 &lt; 0.7)
+<pre><code>Dropped 'incidence_3' (R²=0.420 &lt; 0.7)
+Dropped 'incidence_11' (R²=0.661 &lt; 0.7)
 
 Iteration 3 committed with 1 emulators.
 Total committed iterations: 3</code></pre>
@@ -1311,8 +1313,8 @@ Total committed iterations: 3</code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code>NROY samples after iteration 3: 500
-  beta  range: [1.108, 1.647]
-  gamma range: [0.320, 0.812]</code></pre>
+  beta  range: [1.065, 1.664]
+  gamma range: [0.272, 0.842]</code></pre>
 </div>
 </div>
 </section>
@@ -1358,24 +1360,24 @@ Total committed iterations: 3</code></pre>
 True parameters:  beta=1.3, gamma=0.5, R0=2.60
 
 Plausible ranges after 3 iterations:
-  beta:  [1.108, 1.647]
-  gamma: [0.320, 0.812]
-  R0:    [2.01, 3.50]
+  beta:  [1.065, 1.664]
+  gamma: [0.272, 0.842]
+  R0:    [1.98, 3.91]
 
 NROY fraction per wave:
   Wave 1: 10.9%
   Wave 2: 5.7%
-  Wave 3: 2.6%
+  Wave 3: 2.8%
 
 Engine statistics:
-  Total samples generated: 33344
+  Total samples generated: 31679
   Total samples accepted:  3000
-  Final acceptance rate:   0.075
+  Final acceptance rate:   0.079
   Emulators trained:       5
 
 Parameter space reduced:
-  beta  space reduced by factor of 5.0x
-  gamma space reduced by factor of 1.8x</code></pre>
+  beta  space reduced by factor of 4.5x
+  gamma space reduced by factor of 1.6x</code></pre>
 </div>
 </div>
 <div id="f9g807uhabq" class="cell" data-execution_count="23">
@@ -1390,7 +1392,7 @@ Parameter space reduced:
 <span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
-Diagnostics saved to /tmp/hm_diagnostics_g18c7y0k/
+Diagnostics saved to /tmp/hm_diagnostics_mdmb16wo/
   wave1
   wave2
   wave3</code></pre>

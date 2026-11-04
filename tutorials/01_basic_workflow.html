@@ -86,9 +86,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-5de16f5e46225c21e2daa90d340bf64f.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-6e5c08b05e695f661fc321dccb71b95c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-15e4a2c30a3cb6da4df4c9adc40acc1d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-2aad158119b660b9b0c69fb40c7ce305.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-354b8bccef5604f948c98f559aa4f833.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -526,11 +526,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793775304.475390    3757 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793775304.516638    3757 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1793777263.069748    3599 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777263.070176    3599 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777263.106863    3599 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX512_FP16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793775305.645859    3757 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1793777263.936646    3599 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1793777263.936915    3599 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 /home/runner/work/historymatching/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources</code></pre>
 </div>
@@ -709,16 +711,16 @@ Max iterations: 4</code></pre>
 
 History matching completed!
   Iterations run:          4
-  Final acceptance rate:   0.064
-  Total samples generated: 54729
+  Final acceptance rate:   0.061
+  Total samples generated: 57572
   Total samples accepted:  4000
   Emulators trained:       4
 
 Iteration Summary:
   Iteration 1: 500 samples, NROY fraction 10.7%, outputs ['peak_incidence']  beta=[0.50, 3.00]  gamma=[0.10, 1.00]
-  Iteration 2: 500 samples, NROY fraction 8.0%, outputs ['incidence_5']  beta=[0.64, 2.05]  gamma=[0.10, 1.00]
-  Iteration 3: 500 samples, NROY fraction 1.8%, outputs ['total_cases']  beta=[0.88, 2.06]  gamma=[0.11, 1.00]
-  Iteration 4: 500 samples, NROY fraction 3.2%, outputs ['incidence_5']  beta=[0.97, 1.87]  gamma=[0.22, 0.84]</code></pre>
+  Iteration 2: 500 samples, NROY fraction 7.9%, outputs ['incidence_5']  beta=[0.64, 2.05]  gamma=[0.10, 1.00]
+  Iteration 3: 500 samples, NROY fraction 1.7%, outputs ['total_cases']  beta=[0.85, 2.03]  gamma=[0.10, 1.00]
+  Iteration 4: 500 samples, NROY fraction 3.2%, outputs ['incidence_5']  beta=[0.97, 1.86]  gamma=[0.23, 0.84]</code></pre>
 </div>
 </div>
 </section>
@@ -739,10 +741,10 @@ Iteration Summary:
 <span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"True gamma in plausible region: </span><span class="sc">{</span><span class="st">'Yes'</span> <span class="cf">if</span> gamma_ok <span class="cf">else</span> <span class="st">'No'</span><span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Final plausible samples: 500
-  beta  range: [0.982, 1.885]  (true: 1.3)
-  gamma range: [0.227, 0.846]  (true: 0.5)
-  beta  median: 1.331
-  gamma median: 0.510
+  beta  range: [0.982, 1.865]  (true: 1.3)
+  gamma range: [0.227, 0.840]  (true: 0.5)
+  beta  median: 1.329
+  gamma median: 0.509
 
 True beta  in plausible region: Yes
 True gamma in plausible region: Yes</code></pre>
@@ -861,8 +863,8 @@ True gamma in plausible region: Yes</code></pre>
 </div>
 </div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Mean RMSE: 93.9 +/- 53.9
-Best RMSE: 19.9</code></pre>
+<pre><code>Mean RMSE: 88.3 +/- 44.0
+Best RMSE: 29.7</code></pre>
 </div>
 </div>
 </section>
@@ -903,10 +905,10 @@ Best RMSE: 19.9</code></pre>
 <pre><code>Per-feature emulator quality across all waves:
 Wave   Feature                  R²         MSE   n_train
 --------------------------------------------------------
-1      peak_incidence        0.992    1.48e+04       375
-2      incidence_5           0.906        7635       375
-3      total_cases           0.988        5524       375
-4      incidence_5           0.761        7229       375</code></pre>
+1      peak_incidence        0.993    1.42e+04       375
+2      incidence_5           0.913        7341       375
+3      total_cases           0.987        5655       375
+4      incidence_5           0.767        8096       375</code></pre>
 </div>
 </div>
 <p>In the automated workflow there is no opportunity to drop a poor emulator mid-wave — use the <strong>manual workflow</strong> (<a href="../tutorials/02_manual_workflow.html">Manual Workflow</a>) if you need to inspect diagnostics and selectively drop emulators before committing each wave.</p>
@@ -925,7 +927,7 @@ Wave   Feature                  R²         MSE   n_train
 <span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> <span class="bu">sorted</span>(os.listdir(diag_dir)):</span>
 <span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Diagnostics saved to /tmp/hm_diagnostics_uml7ritx/
+<pre><code>Diagnostics saved to /tmp/hm_diagnostics_ba7f48u_/
   wave1
   wave2
   wave3
