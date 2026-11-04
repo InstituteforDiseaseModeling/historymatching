@@ -45,3 +45,27 @@ VECLIB_MAXIMUM_THREADS=1 uv run python tests/benchmarks/benchmark_nroy_screening
 `--unscreened-only` runs only the baseline, which also works on package
 versions without screening. Point `PYTHONPATH` at another checkout's package to
 compare against it.
+
+## `benchmark_mle_nugget.py`
+
+Checks the Bayes-linear `nugget='mle'` fit against fixed nuggets. A fixed
+nugget inside `nugget_bounds` is a feasible point of the learned-nugget search,
+so a working learned fit never ends with a higher NLL than a fixed nugget on
+the same training data. The script fits a grid of synthetic scenarios (a smooth
+function of 5 active inputs plus Gaussian noise, the other inputs inactive)
+with `nugget='mle'` and with fixed nuggets of 0.01 and 0.03, on the same
+train/test split, and writes NLL, nugget, held-out R², iterations and wall time
+to a CSV. `--compare` counts, per CSV, the learned fits more than `--tol` NLL
+above a fixed-nugget fit or above the lowest NLL any fit reached on that
+scenario, and the learned nuggets on a bound.
+
+```bash
+uv run python tests/benchmarks/benchmark_mle_nugget.py --out new.csv
+PYTHONPATH=/path/to/other/checkout uv run python tests/benchmarks/benchmark_mle_nugget.py --out old.csv
+uv run python tests/benchmarks/benchmark_mle_nugget.py --compare old.csv new.csv
+```
+
+`--n`, `--d`, `--noise`, `--kind` and `--seeds` set the grid (by default 48
+scenarios: 300 and 1,000 points, 10 and 21 dimensions, noise sd 0.1, 0.3 and
+0.6, two functions, two seeds). `--fit-only mle` skips the fixed-nugget fits,
+for a version whose fixed-nugget fits are unchanged.
