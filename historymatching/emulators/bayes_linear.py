@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import sciris as sc
 from scipy.optimize import minimize
-from scipy.linalg import cho_factor, cho_solve
+from scipy.linalg import cho_factor, cho_solve, solve_triangular
 
 from .base import BaseEmulator
 from .results import EmulationResults
@@ -309,22 +309,33 @@ class BayesLinear(BaseEmulator):
         logger.info(f"    Training complete — sigma²={self._sigma2:.4f}, "
                      f"theta range=[{self._theta.min():.3f}, {self._theta.max():.3f}] [{t0.total:.1f}s total]")
 
-    def predict(self, x: pd.DataFrame) -> EmulationResults:
-        """Predict using the trained Bayes Linear emulator."""
+    def _mean_z(self, x):
+        """Standardized adjusted expectation at `x`, and the correlations it used.
 
+        Returns:
+            Tuple `(mean_z, c_new)`: the mean on the standardized output scale,
+            shape `(n_new,)`, and the correlations with the training points,
+            shape `(n_new, n_train)`.
+        """
         X_new = self._normalize_x(x)
-        n_new = X_new.shape[0]
         G_new = self._design_matrix(X_new)
-
-        # --- Adjusted expectation ---
         # E_D[f(x*)] = g(x*)^T beta + c(x*, X) @ alpha
         c_new = self._sq_exp_corr(X_new, self._X_train_norm, self._theta)  # (n_new, n_train)
         mean_z = G_new @ self._beta_hat + c_new @ self._alpha
+        return mean_z, c_new
+
+    def predict(self, x: pd.DataFrame) -> EmulationResults:
+        """Predict using the trained Bayes Linear emulator."""
+
+        mean_z, c_new = self._mean_z(x)
 
         # --- Adjusted variance ---
-        # Var_D[f(x*)] = sigma^2 * (1 - c(x*, X) @ C^{-1} @ c(X, x*))
-        v = cho_solve((self._L, self._lower), c_new.T)  # (n_train, n_new)
-        var_reduction = np.sum(c_new.T * v, axis=0)      # diagonal of c @ C^{-1} @ c^T
+        # Var_D[f(x*)] = sigma^2 * (1 - c(x*, X) @ C^{-1} @ c(X, x*)).
+        # With C = U^T U (or L L^T), c C^{-1} c^T = ||w||^2 for w = U^{-T} c^T,
+        # so one triangular solve gives the diagonal, as a sum of squares (>= 0).
+        w = solve_triangular(self._L, c_new.T, lower=self._lower,
+                             trans='N' if self._lower else 'T')  # (n_train, n_new)
+        var_reduction = np.einsum('ij,ij->j', w, w)
         pred_var_z = np.maximum(self._sigma2 * (1.0 - var_reduction), 0.0)
 
         # Observation variance adds sigma^2 * nugget (noise term)

@@ -106,3 +106,29 @@ def test_blocked_correlation_matches_one_shot_broadcast(block_elements):
     R = hm.BayesLinear._sq_exp_corr(X1, X2, theta, block_elements=block_elements)
 
     np.testing.assert_array_equal(R, expected)
+
+
+@pytest.fixture
+def trained_5d():
+    """A Bayes-linear emulator trained on 120 points of a smooth 5-D function."""
+    rng = np.random.default_rng(3)
+    X = pd.DataFrame(rng.uniform(size=(120, 5)), columns=[f'p{i}' for i in range(5)])
+    y = pd.DataFrame({'out': np.sin(X.to_numpy() @ np.linspace(1, 3, 5)) + rng.normal(0, 0.05, 120)})
+    emulator = hm.BayesLinear(X, y, test_fraction=0.1, nugget='mle')
+    emulator.train()
+    return emulator
+
+
+def test_predictive_variance_matches_two_solve_formula(trained_5d):
+    """One triangular solve gives the same variance as c C^{-1} c^T via cho_solve."""
+    from scipy.linalg import cho_solve
+
+    em = trained_5d
+    rng = np.random.default_rng(4)
+    x = pd.DataFrame(rng.uniform(-0.2, 1.2, size=(500, 5)), columns=[f'p{i}' for i in range(5)])
+    c = em._sq_exp_corr(em._normalize_x(x), em._X_train_norm, em._theta)
+    v = cho_solve((em._L, em._lower), c.T)
+    var_z = np.maximum(em._sigma2 * (1 - np.sum(c.T * v, axis=0)), 0) + em._sigma2 * em.nugget
+
+    np.testing.assert_allclose(em.predict(x).get_variance(), var_z * em._y_std ** 2,
+                               rtol=1e-10, atol=0)
