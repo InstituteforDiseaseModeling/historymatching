@@ -241,13 +241,14 @@ def test_mle_start_records(friedman_fits):
     json.dumps(hp)
 
 
-def test_single_midpoint_start_is_the_old_search(friedman_fits):
+def test_single_midpoint_start():
+    """One start is one free-nugget search from the old starting point."""
     X, y = _friedman_data()
     em = _train(X, y, nugget='mle', mle_starts=('midpoint',))
-    old_nll, old_nugget = _single_start_nll(em)
     hp = em.get_hyperparameters()
-    assert len(hp['mle_starts']) == 1
-    assert hp['nll'] == pytest.approx(old_nll, abs=1e-6)
+    assert [(r['start'], r['stage']) for r in hp['mle_starts']] == [('midpoint', 'free nugget')]
+    assert hp['mle_starts'][0]['start_nugget'] == pytest.approx(1e-4)
+    assert hp['mle_starts'][0]['selected'] is True
 
 
 def test_fixed_nugget_fit_is_unchanged():

@@ -308,16 +308,28 @@ class BayesLinear(BaseEmulator):
     def _fit_free(self, X_norm, residuals, x0, label):
         """Fit log(theta) and log(nugget) together from `x0`.
 
+        The search minimizes the NLL per training point, NLL / n. With every
+        variable bounded, L-BFGS-B's first trial step is the whole negative
+        gradient, projected onto the bounds. The raw NLL's gradient grows with
+        n, into the tens or hundreds, so that step used to put many log
+        correlation lengths on their lower bound at once. There the training
+        points are uncorrelated, the NLL no longer depends on theta or the
+        nugget, and the search stopped after one iteration with a zero
+        gradient, reporting success. Dividing by n keeps the first step
+        short. `ftol` is a relative tolerance, so it means the same either
+        way; `gtol` applies to the gradient of NLL / n.
+
         Returns:
             The `scipy.optimize.OptimizeResult`, with `fun` set to the NLL at `x`.
         """
         d = X_norm.shape[1]
+        n = len(residuals)
         bounds = [LOG_THETA_BOUNDS] * d + [self._get_nugget_log_bounds()]
 
         def objective(z, X, r):
-            return self._nll(z[:-1], float(np.exp(z[-1])), X, r)
+            return self._nll(z[:-1], float(np.exp(z[-1])), X, r) / n
 
-        result = self._lbfgsb(objective, x0, bounds, (X_norm, residuals), label=label)
+        result = self._lbfgsb(objective, x0, bounds, (X_norm, residuals), label=label, nll_scale=n)
         result.fun = float(self._nll(result.x[:-1], float(np.exp(result.x[-1])), X_norm, residuals))
         return result
 
