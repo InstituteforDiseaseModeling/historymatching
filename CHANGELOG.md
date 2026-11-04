@@ -14,7 +14,7 @@
 
 ### Fixes
 
-- In a bank that mixes GPR and other emulators (for example after switching emulator type mid-run), the engine's next-wave filter applied only the GPR emulators once any fast predictor existed; the others, such as Bayes linear, were skipped. Every emulator is now applied.
+- In a bank that mixes GPR and other emulators, the engine's internal rejection filter (`_filter_fast`) applied only the GPR emulators once any fast predictor existed; the others, such as Bayes linear, were skipped. Every emulator is now applied. That filter runs only when wave 1 starts with emulators already in the bank; each later wave's design comes from `generate_nroy_design`, which was not affected.
 
 ## v2.0.1 (2026-06-07)
 
