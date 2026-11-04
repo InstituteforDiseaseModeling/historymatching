@@ -477,6 +477,13 @@ def _maximin_thin(
 # Shared NROY filter
 # ---------------------------------------------------------------------------
 
+# Relative margin on the mean-only screening in `nroy_mask`. Rounding moves
+# an implausibility by a few parts in 1e16, so a point decided from the mean
+# is decided the same way by the full computation. Points within this margin
+# of a screening boundary get their exact variance.
+_SCREEN_RTOL = 1e-9
+
+
 def nroy_mask(
     candidates: pd.DataFrame,
     emulator_bank: EmulatorBank,
@@ -489,8 +496,18 @@ def nroy_mask(
 
     Emulators are applied newest wave first with short-circuit evaluation: a
     candidate that fails one emulator is not tested against the rest. This is
-    the single definition of NROY membership used by ``generate_nroy_design``
-    and by ``HistoryMatching.in_nroy``.
+    the single definition of NROY membership used by `generate_nroy_design`
+    and by `HistoryMatching.in_nroy`.
+
+    An emulator that implements `predict_bounds`, such as `BayesLinear`, is
+    screened first: a point is ruled out if it is implausible even with its
+    mean at the edge of the tolerance nearest the target and its variance at
+    the upper bound, and ruled in if it is plausible even with its mean at the
+    far edge and its variance at the lower bound. Only the points in between go
+    through `predict`. Because `predict`'s mean and variance always lie within
+    the bounds, and the screen keeps a relative margin of `1e-9` for rounding,
+    the mask is the same as calling `predict` on every point. Other emulators
+    go through `predict` for every point.
 
     Args:
         candidates: Parameter samples, one row per point.
@@ -501,8 +518,11 @@ def nroy_mask(
         mask: Optional starting mask; only rows already True are tested.
 
     Returns:
-        Array of shape ``(len(candidates),)``, True where a point is not ruled
+        Array of shape `(len(candidates),)`, True where a point is not ruled
         out.
+
+    Raises:
+        RuntimeError: An emulator failed to predict on the candidates.
     """
     mask = (np.ones(len(candidates), dtype=bool) if mask is None
             else np.asarray(mask, dtype=bool).copy())
@@ -517,19 +537,15 @@ def nroy_mask(
                 continue
             try:
                 active = candidates.loc[mask, param_cols]
-                predictions = emulator.predict(active)
-                pred_mean = predictions.get_mean()
-                pred_var = predictions.get_variance()
-                feature_impl = observations.calculate_implausibility(
-                    feature_name, pred_mean, pred_var
-                )
-                failures = np.asarray(feature_impl > threshold, dtype=bool).ravel()
+                failures, n_exact = _feature_failures(
+                    emulator, feature_name, active, observations, threshold)
                 n_rejected = int(failures.sum())
                 mask[mask] &= ~failures
                 n_emulators += 1
 
                 logger.debug(
-                    f"  {feature_name}: {len(active)} tested, "
+                    f"  {feature_name}: {len(active)} tested "
+                    f"({len(active) - n_exact} from the mean alone), "
                     f"{n_rejected} rejected, {mask.sum()} surviving"
                 )
             except Exception as e:
@@ -547,6 +563,45 @@ def nroy_mask(
     logger.debug(f"NROY filter: {int(mask.sum())} of {len(candidates)} candidates "
                  f"pass {n_emulators} emulators")
     return mask
+
+
+def _feature_failures(emulator, feature_name, active, observations, threshold):
+    """Which `active` points one emulator rules out.
+
+    Returns:
+        Tuple `(failures, n_exact)`: a boolean array, True where the point's
+        implausibility exceeds `threshold`, and the number of points whose
+        variance was computed.
+    """
+    screen = getattr(emulator, 'predict_bounds', None)
+    bounds = screen(active) if callable(screen) else None
+    if bounds is not None:
+        target, target_sd = observations.get_target_for_feature(feature_name)
+        mean, tol, lo, hi = (np.asarray(a, dtype=float).ravel() for a in bounds)
+        sd2 = target_sd ** 2
+        # Without a positive floor on the total variance the exact path may
+        # raise on a zero variance; keep that behaviour by not screening.
+        if not np.all(lo + sd2 > 0):
+            bounds = None
+    if bounds is None:
+        predictions = emulator.predict(active)
+        impl = observations.calculate_implausibility(
+            feature_name, predictions.get_mean(), predictions.get_variance())
+        return np.asarray(impl > threshold, dtype=bool).ravel(), len(active)
+
+    distance = np.abs(mean - target)
+    ruled_out = (distance - tol) > threshold * np.sqrt(hi + sd2) * (1 + _SCREEN_RTOL)
+    ruled_in = (distance + tol) <= threshold * np.sqrt(lo + sd2) * (1 - _SCREEN_RTOL)
+    # NaN means or bounds fail both tests and go to the exact computation.
+    undecided = np.flatnonzero(~(ruled_out | ruled_in))
+
+    failures = ruled_out
+    if len(undecided):
+        predictions = emulator.predict(active.iloc[undecided])
+        impl = observations.calculate_implausibility(
+            feature_name, predictions.get_mean(), predictions.get_variance())
+        failures[undecided] = np.asarray(impl > threshold, dtype=bool).ravel()
+    return failures, len(undecided)
 
 
 def _filter_nroy(

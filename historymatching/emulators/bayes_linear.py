@@ -18,7 +18,7 @@ from scipy.optimize import minimize
 from scipy.linalg import cho_factor, cho_solve, solve_triangular
 
 from .base import BaseEmulator
-from .results import EmulationResults
+from .results import EmulationResults, PredictionBounds
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 # [exp(-4), exp(4)] ~= [0.018, 55], a deliberately wide range that spans
 # near-independent inputs (short lengths) to nearly-flat ones (long lengths).
 LOG_THETA_BOUNDS = (-4.0, 4.0)
+
+# Number of leading training points whose solve bounds the variance in
+# `BayesLinear.predict_bounds`. At 3,750 training points the
+# prefix costs about 2% of the full variance.
+SCREENING_PREFIX = 500
 
 
 class BayesLinear(BaseEmulator):
@@ -364,6 +369,119 @@ class BayesLinear(BaseEmulator):
             additional_data=additional,
             index=x.index,
         )
+
+    def _screening_slack(self):
+        """Absolute slack on the variance reduction in the screening bound.
+
+        Bounds the rounding error in a computed variance reduction `r`: about
+        `2 * kappa * n * eps` for a triangular solve, where `kappa`, the
+        condition number of the Cholesky factor, is at most
+        `sqrt(n * (1 + nugget) / nugget)` because the correlation matrix's
+        eigenvalues lie in `[nugget, n * (1 + nugget)]`. Doubled again to cover
+        both the screening and the full computation. Pessimistic by design;
+        with `nugget=1e-6` and 3,750 training points it is about `2e-7`.
+        """
+        n, nugget = len(self._X_train_norm), float(self.nugget)
+        if nugget <= 0:
+            return np.inf
+        kappa = np.sqrt(n * (1.0 + nugget) / nugget)
+        return max(4.0 * kappa * n * np.finfo(float).eps, 1e-12)
+
+    def predict_bounds(self, x: pd.DataFrame) -> PredictionBounds:
+        """Cheap bounds on the mean and observation variance `predict` returns.
+
+        `predict` forms the correlations with the training points from exact
+        coordinate differences, and the variance needs a triangular solve
+        against all `n_train` points. Here both are replaced by cheaper steps
+        whose error is bounded, so `historymatching.nroy_sampling.nroy_mask`
+        can decide most points without calling `predict`:
+
+        - The correlations come from the expansion
+          `|a - b|^2 = |a|^2 + |b|^2 - 2 a.b` of the scaled coordinates, one
+          matrix product. Rounding moves each squared distance by at most
+          about `(4d + 16) * eps/2 * (|a|^2 + |b|^2)`, and so each correlation
+          by that much relative to itself. Summed over the training points,
+          this bounds the error in the mean (`mean_tol`, with a safety factor
+          of 4) and in the correlations used below.
+        - Variance, lower bound: `sigma2 * nugget`, since the predictive
+          variance is never negative.
+        - Variance, upper bound: the variance given only the first `m`
+          training points. Conditioning on fewer points never reduces the
+          variance more. With the Cholesky factor of the training correlations,
+          that variance reduction is the partial sum over the first `m` rows
+          of the solve `predict` does, so it costs about `(m / n_train)^2` of
+          the full variance. `m` is `SCREENING_PREFIX` (500), or a quarter of
+          the training points if that is fewer. The bound is widened for the
+          correlation error and for rounding in the solve
+          (`_screening_slack`), and is never above `sigma2 * (1 + nugget)`,
+          the variance far from all training points.
+
+        All bounds are on the output scale.
+
+        Args:
+            x: Input data, with the training parameter columns.
+
+        Returns:
+            A `PredictionBounds` with arrays of shape `(len(x),)`.
+        """
+        u = np.finfo(float).eps / 2
+        X_new = self._normalize_x(x)
+        n_new, d = X_new.shape
+        n_train = len(self._X_train_norm)
+        A = X_new / self._theta
+        B = self._X_train_norm / self._theta
+        a2 = np.einsum('ij,ij->i', A, A)
+        b2 = np.einsum('ij,ij->i', B, B)
+        c = A @ B.T
+        c *= -2.0
+        c += a2[:, np.newaxis]
+        c += b2[np.newaxis, :]
+        np.maximum(c, 0.0, out=c)
+        np.negative(c, out=c)
+        np.exp(c, out=c)  # (n_new, n_train)
+
+        G_new = self._design_matrix(X_new)
+        mean_z = G_new @ self._beta_hat + c @ self._alpha
+
+        # Error bound on each correlation. The two ways of forming the scaled
+        # squared distance differ by at most E_ij = k u (|a_i|^2 + |b_j|^2),
+        # so the correlations differ by at most c_ij (h_i E_ij + 3u), with
+        # h_i >= expm1(E)/E for every E in row i, and 3u for rounding in exp.
+        k = 4 * d + 16
+        e_max = k * u * (a2 + b2.max())
+        h = 1.001 * np.expm1(e_max) / np.where(e_max > 0, e_max, 1.0)
+        h = np.maximum(h, 1.001)
+        abs_alpha = np.abs(self._alpha)
+        c_alpha = c @ abs_alpha
+        corr_err = h * k * u * (a2 * c_alpha + c @ (b2 * abs_alpha)) + 3 * u * c_alpha
+        # Rounding in the two mean computations themselves.
+        gemv_err = 2 * (n_train + d + 2) * u * (
+            np.abs(G_new) @ np.abs(self._beta_hat) + c_alpha + corr_err)
+        ys, ym = self._y_std, self._y_mean
+        mean = mean_z * ys + ym
+        mean_tol = 4.0 * ((corr_err + gemv_err) * ys + 4 * u * (np.abs(mean_z) * ys + abs(ym)))
+
+        s2, ys2 = self._sigma2, ys ** 2
+        noise = s2 * self.nugget
+        hi_z = np.full(n_new, s2 + noise)
+        m = min(SCREENING_PREFIX, n_train // 4)
+        if m > 0 and self.nugget > 0:
+            c_m = c[:, :m]
+            w = solve_triangular(self._L[:m, :m], c_m.T, lower=self._lower,
+                                 trans='N' if self._lower else 'T')
+            r_m = np.einsum('ij,ij->j', w, w)
+            slack = self._screening_slack()
+            # The correlation error moves sqrt(r_m) by at most
+            # ||dc||_2 / sqrt(lambda_min) <= ||dc||_2 / sqrt(nugget).
+            dc = (np.sqrt(np.einsum('ij,ij->i', c_m, c_m))
+                  * (h * k * u * (a2 + b2[:m].max()) + 3 * u))
+            shift = 4.0 * dc / np.sqrt(self.nugget)
+            root = np.maximum(np.sqrt(np.maximum(r_m - slack, 0.0)) - shift, 0.0)
+            prefix_z = s2 * np.maximum(1.0 - (root ** 2 - slack), 0.0) + noise
+            hi_z = np.minimum(hi_z, prefix_z)
+
+        return PredictionBounds(mean=mean, mean_tol=mean_tol,
+                                var_lo=np.full(n_new, noise * ys2), var_hi=hi_z * ys2)
 
     def get_hyperparameters(self) -> dict:
         """Return Bayes Linear hyperparameters as a JSON-serializable dict."""
