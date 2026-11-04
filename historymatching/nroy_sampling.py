@@ -470,15 +470,38 @@ def _maximin_thin(
 # Shared NROY filter
 # ---------------------------------------------------------------------------
 
-def _filter_nroy(
+def nroy_mask(
     candidates: pd.DataFrame,
     emulator_bank: EmulatorBank,
     observations: ObservationData,
     threshold: float,
     param_cols: list,
-) -> pd.DataFrame:
-    """Filter candidates through all emulators with short-circuit evaluation."""
-    mask = np.ones(len(candidates), dtype=bool)
+    mask: Optional[np.ndarray] = None,
+    skip=None,
+) -> np.ndarray:
+    """Boolean mask of candidates that pass every emulator in the bank.
+
+    Emulators are applied newest wave first with short-circuit evaluation: a
+    candidate that fails one emulator is not tested against the rest. This is
+    the single definition of NROY membership used by ``generate_nroy_design``
+    and by ``HistoryMatching.in_nroy``.
+
+    Args:
+        candidates: Parameter samples, one row per point.
+        emulator_bank: Trained emulators, by iteration and feature.
+        observations: Targets the emulators are compared against.
+        threshold: Implausibility cut-off.
+        param_cols: Parameter columns passed to the emulators.
+        mask: Optional starting mask; only rows already True are tested.
+        skip: Optional ``callable(emulator) -> bool`` for emulators already
+            applied elsewhere (for example, by the numba fast path).
+
+    Returns:
+        Array of shape ``(len(candidates),)``, True where a point is not ruled
+        out.
+    """
+    mask = (np.ones(len(candidates), dtype=bool) if mask is None
+            else np.asarray(mask, dtype=bool).copy())
 
     for iteration in reversed(emulator_bank.get_all_iterations()):
         emulators = emulator_bank.get_emulators_for_iteration(iteration)
@@ -486,6 +509,8 @@ def _filter_nroy(
             if mask.sum() == 0:
                 break
             if not observations.has_feature(feature_name):
+                continue
+            if skip is not None and skip(emulator):
                 continue
             try:
                 active = candidates.loc[mask, param_cols]
@@ -501,7 +526,19 @@ def _filter_nroy(
                 logger.warning(f"Filter failed for '{feature_name}': {e}")
                 continue
 
-    return candidates[mask]
+    return mask
+
+
+def _filter_nroy(
+    candidates: pd.DataFrame,
+    emulator_bank: EmulatorBank,
+    observations: ObservationData,
+    threshold: float,
+    param_cols: list,
+) -> pd.DataFrame:
+    """Filter candidates through all emulators with short-circuit evaluation."""
+    return candidates[nroy_mask(candidates, emulator_bank, observations,
+                                threshold, param_cols)]
 
 
 # ---------------------------------------------------------------------------
