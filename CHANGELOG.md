@@ -14,12 +14,16 @@
 
 ### Fixes
 
-- In a bank that mixes GPR and other emulators, the engine's internal rejection filter (`_filter_fast`) applied only the GPR emulators once any fast predictor existed; the others, such as Bayes linear, were skipped. Every emulator is now applied. That filter runs only when wave 1 starts with emulators already in the bank; each later wave's design comes from `generate_nroy_design`, which was not affected.
 - **The linear-model and GLM emulators report the std of a new simulator run, so their implausibility is right.** Implausibility divides by the target's data uncertainty plus the emulator's variance, so that variance has to include the simulator's run-to-run noise, as `BayesLinear` (`sigma_sq * nugget`) and `GPR` (`predict_y`) already do. `LinearModel` (`'linear'`) and `GLM` (`'glm'`) returned only the standard error of the fitted mean, which understates it and rules out too much; `LinearModelScipy` returned the spread of all training outputs, which overstates it. They now return the predictive std: residual variance plus the mean's variance for `LinearModel` and `LinearModelScipy`, and the family's variance at the mean (scale for Gaussian, the mean for Poisson) plus the mean's variance for `GLM`. In a test with known noise, the standard deviation of (new run − predicted mean) / predicted std was 10.9 (`LinearModel`) and 0.44 (`LinearModelScipy`) before, and 0.99 for all of them now. Their interval columns follow the same definitions. (#273)
 - **`GLM.predict` works on statsmodels 0.15**, which removed the `linear=` argument it used.
 - **`LinearModel` and `GLM` can predict a single point.** `statsmodels.add_constant` skips the intercept when every column is constant, which a one-row frame always is, so one-point predictions failed with a shape error; in the NROY filter that happened whenever one candidate was left. The intercept is now always added, in training and prediction. `LinearModel`'s interval columns also no longer come back as NaN for frames with non-contiguous index labels.
 - **Every wave draws a fresh design, and every run records its seed.** Previously, each wave's candidate generation restarted from `random_seed`, so consecutive waves re-drew the same plausible points. In a 21-parameter, 10-wave run, 34% of all design points repeated earlier ones. Each wave, wave 1 included, now draws from its own stream, derived from `(random_seed, wave)`.
 - **`random_seed=None` (the default) now draws a seed from OS entropy instead of running unseeded.** The seed used, and whether it was user-supplied or drawn, is logged, written to `run_config.json` and stored in checkpoints, and resuming restores it. Passing that seed back reproduces the run under the same package version. This release changes which run a given seed produces, so seeded results differ from earlier versions.
+- **`FastGPRPredictor`'s numpy fallback (no numba) returns the predictive variance, not zero**, matching the numba kernel and GPflow. Zero variance made every implausibility too large. (#272)
+
+### Removed
+
+- **The engine's separate GPR filter** (`_filter_fast`, `_filter_samples_slow`, `_build_fast_predictors`) and `historymatching.emulators.fast_predict.filter_nroy`. The engine's wave 1 sampler, its only caller, now filters through `nroy_mask` like `generate_nroy_design` and `in_nroy`, so NROY membership has one implementation. Normal runs never reached the removed path: it ran only when wave 1 started with emulators already in the bank. `FastGPRPredictor` stays in `emulators.fast_predict`.
 
 ## v2.0.1 (2026-06-07)
 

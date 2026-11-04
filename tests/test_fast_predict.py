@@ -2,8 +2,8 @@
 Regression test for the numba/numpy fast-predict path.
 
 History matching spends most of its time calling `emulator.predict` on large
-batches inside the NROY rejection loop, so the GPR emulator extracts a
-`FastGPRPredictor` that bypasses TensorFlow. This test is the in-suite
+batches inside the NROY rejection loop, and `FastGPRPredictor` is a
+candidate replacement for GPflow prediction (not used by the engine yet). This test is the in-suite
 guard (a fast counterpart to `tests/benchmarks/benchmark_predict.py`) that the
 fast path stays numerically in sync with the GPflow model — if the numba kernel
 drifts out of sync with the trained GPR, the fast path would silently return
@@ -54,3 +54,27 @@ def test_fast_predictor_matches_gpflow_mean():
         f"fast path disagrees with GPflow (relative diff {rel_diff:.3e}); "
         f"the numba kernel may be out of sync with the GPflow model"
     )
+
+
+@pytest.mark.parametrize("use_numba", [True, False])
+def test_fast_predictor_variance_matches_gpflow(use_numba, monkeypatch):
+    """Both the numba kernel and the numpy fallback return GPflow's predictive
+    variance (noise included). The fallback used to return zero (#272)."""
+    from historymatching.emulators import fast_predict
+
+    if use_numba and not fast_predict._HAS_NUMBA:
+        pytest.skip("numba not installed")
+    monkeypatch.setattr(fast_predict, "_HAS_NUMBA", use_numba)
+
+    n_dims = 3
+    x_df, y_df = _make_training_data(n_train=120, n_dims=n_dims, seed=0)
+    emulator = GPR(x_df, y_df, test_fraction=0.1)
+    emulator.train()
+    fast = FastGPRPredictor.from_emulator(emulator)
+
+    x_test = np.random.default_rng(2).uniform(0.0, 1.0, size=(500, n_dims))
+    gpflow_var = emulator.predict(pd.DataFrame(x_test, columns=x_df.columns)).get_variance().to_numpy()
+    _, fast_var = fast.predict(x_test)
+
+    assert np.all(fast_var > 0)
+    np.testing.assert_allclose(fast_var, gpflow_var, rtol=1e-6, atol=1e-10)
