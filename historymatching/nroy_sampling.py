@@ -477,10 +477,10 @@ def _maximin_thin(
 # Shared NROY filter
 # ---------------------------------------------------------------------------
 
-# Relative margin on the mean-only screening in `nroy_mask`. Rounding moves
-# an implausibility by a few parts in 1e16, so a point decided from the mean
-# is decided the same way by the full computation. Points within this margin
-# of a screening boundary get their exact variance.
+# Relative margin on the screening in `nroy_mask`. Rounding moves an
+# implausibility by a few parts in 1e16, so a point the screen decides is
+# decided the same way by `predict`. Points within this margin of a screening
+# boundary go through `predict`.
 _SCREEN_RTOL = 1e-9
 
 
@@ -506,8 +506,11 @@ def nroy_mask(
     far edge and its variance at the lower bound. Only the points in between go
     through `predict`. Because `predict`'s mean and variance always lie within
     the bounds, and the screen keeps a relative margin of `1e-9` for rounding,
-    the mask is the same as calling `predict` on every point. Other emulators
-    go through `predict` for every point.
+    the mask is the same as calling `predict` on every point. (That mask can
+    itself depend, at the level of rounding, on how candidates are batched,
+    since BLAS results for one row can depend on the other rows; screening
+    adds nothing beyond that.) Other emulators go through `predict` for every
+    point.
 
     Args:
         candidates: Parameter samples, one row per point.
@@ -545,7 +548,7 @@ def nroy_mask(
 
                 logger.debug(
                     f"  {feature_name}: {len(active)} tested "
-                    f"({len(active) - n_exact} from the mean alone), "
+                    f"({len(active) - n_exact} decided by bounds), "
                     f"{n_rejected} rejected, {mask.sum()} surviving"
                 )
             except Exception as e:
