@@ -251,6 +251,23 @@ def test_single_midpoint_start():
     assert hp['mle_starts'][0]['selected'] is True
 
 
+@pytest.mark.parametrize('nugget', [1e-7, 1e-3, 0.05, 0.9])
+def test_nll_gradient_matches_central_differences(nugget):
+    X, y = _friedman_data(n=150, d=6, noise_sd=0.1, seed=3)
+    em = _train(X, y, split_seed=3, nugget='mle', mle_starts=('midpoint',))
+    Xn, r = em._X_train_norm, em._residuals
+    z = np.append(np.random.default_rng(5).uniform(-1.5, 1.5, 6), np.log(nugget))
+
+    def f(z):
+        return em._nll(z[:-1], float(np.exp(z[-1])), Xn, r)
+
+    nll, grad = em._nll_and_grad(z[:-1], float(np.exp(z[-1])), Xn, r)
+    h = 1e-5
+    central = np.array([(f(z + h * e) - f(z - h * e)) / (2 * h) for e in np.eye(len(z))])
+    assert nll == f(z)
+    np.testing.assert_allclose(grad, central, rtol=1e-6, atol=1e-6 * np.abs(central).max())
+
+
 def test_fixed_nugget_fit_is_unchanged():
     """A numeric nugget runs the same single L-BFGS-B search as before multistart:
     theta = 1 start, finite differences, the NLL written out independently here."""

@@ -16,6 +16,7 @@ import pandas as pd
 import sciris as sc
 from scipy.optimize import minimize
 from scipy.linalg import cho_factor, cho_solve, solve_triangular
+from scipy.linalg.lapack import dpotri
 
 from .base import BaseEmulator
 from .results import EmulationResults, PredictionBounds
@@ -268,10 +269,62 @@ class BayesLinear(BaseEmulator):
         nll = 0.5 * (n * np.log(sigma2_hat) + log_det)
         return nll
 
-    def _lbfgsb(self, objective, x0, bounds, args, label, nll_scale=1.0):
+    def _nll_and_grad(self, log_theta, nugget, X_norm, residuals):
+        """Concentrated NLL and its gradient with respect to `log(theta)` and `log(nugget)`.
+
+        With `K = R + nugget * I`, `alpha = K^{-1} r` and `sigma^2_hat` profiled
+        out, `dNLL/dp = 0.5 * tr(W dK/dp)` for `W = K^{-1} - alpha alpha^T / sigma^2_hat`.
+        `dK/dlog(nugget) = nugget * I`, so that component is `0.5 * nugget * tr(W)`.
+        `dR_ij/dlog(theta_k) = 2 R_ij (x_ik - x_jk)^2 / theta_k^2`, so with
+        `M = W * R` (elementwise) that component is
+        `sum_ij M_ij (x_ik - x_jk)^2 / theta_k^2`, which expands into two
+        matrix products. `K^{-1}` comes from the Cholesky factor (LAPACK
+        `potri`), about twice the cost of the factorization, so the gradient
+        costs about three NLL evaluations instead of `d + 1`.
+
+        Returns:
+            Tuple `(nll, grad)`, `grad` of shape `(d + 1,)`. Where the
+            Cholesky fails, `(1e10, zeros)`, as `_nll` rejects the point.
+        """
+        theta = np.exp(log_theta)
+        n, d = X_norm.shape
+        if hasattr(self, '_nll_eval_count'):
+            self._nll_eval_count += 1
+        K = self._correlation_with_noise(X_norm, theta, nugget)
+        try:
+            U, lower = cho_factor(K)
+        except np.linalg.LinAlgError:
+            return 1e10, np.zeros(d + 1)
+        alpha = cho_solve((U, lower), residuals)
+        sigma2_hat = float(residuals @ alpha) / n
+        if sigma2_hat <= 0:
+            return 1e10, np.zeros(d + 1)
+        nll = 0.5 * (n * np.log(sigma2_hat) + 2.0 * np.sum(np.log(np.diag(U))))
+
+        # W = K^{-1} - alpha alpha^T / sigma^2_hat, from one triangle of potri's inverse.
+        Kinv, info = dpotri(U, lower=int(lower), overwrite_c=1)  # U is not needed again
+        if info != 0:
+            return 1e10, np.zeros(d + 1)
+        W = np.triu(Kinv) if not lower else np.tril(Kinv)
+        W += W.T
+        W[np.diag_indices(n)] *= 0.5
+        W -= np.outer(alpha, alpha / sigma2_hat)
+
+        grad = np.empty(d + 1)
+        grad[-1] = 0.5 * nugget * np.trace(W)
+        M = W
+        M *= K  # off-diagonal K is R; the diagonal does not enter (x_ik - x_ik = 0)
+        np.fill_diagonal(M, 0.0)
+        Xc = X_norm - 0.5
+        m = M.sum(axis=1)
+        grad[:-1] = 2.0 * ((Xc ** 2).T @ m - np.einsum('ik,ik->k', Xc, M @ Xc)) / theta ** 2
+        return nll, grad
+
+    def _lbfgsb(self, objective, x0, bounds, args, label, nll_scale=1.0, jac=None):
         """One L-BFGS-B search, logging progress per iteration.
 
-        `nll_scale` converts the objective back to the NLL for logging.
+        `nll_scale` converts the objective back to the NLL for logging. With
+        `jac=True`, `objective` returns `(value, gradient)`.
         """
         t0 = sc.timer()
 
@@ -284,6 +337,7 @@ class BayesLinear(BaseEmulator):
             x0,
             args=args,
             method='L-BFGS-B',
+            jac=jac,
             bounds=bounds,
             options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
             callback=_callback,
@@ -317,7 +371,8 @@ class BayesLinear(BaseEmulator):
         nugget, and the search stopped after one iteration with a zero
         gradient, reporting success. Dividing by n keeps the first step
         short. `ftol` is a relative tolerance, so it means the same either
-        way; `gtol` applies to the gradient of NLL / n.
+        way; `gtol` applies to the gradient of NLL / n. The gradient is
+        analytic (`_nll_and_grad`), not finite differences.
 
         Returns:
             The `scipy.optimize.OptimizeResult`, with `fun` set to the NLL at `x`.
@@ -327,9 +382,11 @@ class BayesLinear(BaseEmulator):
         bounds = [LOG_THETA_BOUNDS] * d + [self._get_nugget_log_bounds()]
 
         def objective(z, X, r):
-            return self._nll(z[:-1], float(np.exp(z[-1])), X, r) / n
+            nll, grad = self._nll_and_grad(z[:-1], float(np.exp(z[-1])), X, r)
+            return nll / n, grad / n
 
-        result = self._lbfgsb(objective, x0, bounds, (X_norm, residuals), label=label, nll_scale=n)
+        result = self._lbfgsb(objective, x0, bounds, (X_norm, residuals), label=label,
+                              nll_scale=n, jac=True)
         result.fun = float(self._nll(result.x[:-1], float(np.exp(result.x[-1])), X_norm, residuals))
         return result
 
