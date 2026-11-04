@@ -33,6 +33,12 @@ LOG_THETA_BOUNDS = (-4.0, 4.0)
 # prefix costs about 2% of the full variance.
 SCREENING_PREFIX = 500
 
+# Starts for the `nugget='mle'` search; see `BayesLinear`.
+DEFAULT_MLE_STARTS = ('warm', 'midpoint', 1e-2)
+
+# Nugget at which the 'warm' start first fits the correlation lengths.
+DEFAULT_WARM_NUGGET = 1e-2
+
 
 class BayesLinear(BaseEmulator):
     """Bayes Linear emulator with OLS trend and squared-exponential residual correlation.
@@ -66,6 +72,30 @@ class BayesLinear(BaseEmulator):
         ftol: Function-value tolerance for the L-BFGS-B correlation-length
             optimization (convergence criterion).
         gtol: Gradient tolerance for the same optimization.
+        mle_starts: Starting points for the `nugget='mle'` search; ignored
+            otherwise. The likelihood often has more than one optimum, so
+            each start runs its own L-BFGS-B search and the lowest NLL wins.
+            Each entry is one of:
+
+            - `'warm'`: fit the correlation lengths with the nugget fixed at
+              `warm_nugget` (the same fit as `nugget=warm_nugget`), then free
+              the nugget from that solution. The fixed-nugget solution is also
+              a candidate, so the learned fit's NLL is never above the NLL of
+              `nugget=warm_nugget` on the same training data.
+            - `'midpoint'`: correlation lengths 1 and the nugget at the
+              geometric middle of `nugget_bounds` (the only start before
+              multistart was added).
+            - A number: correlation lengths 1 and that nugget, clipped to
+              `nugget_bounds`.
+
+            The default, `('warm', 'midpoint', 1e-2)`, costs about three
+            single fits. Every start's result is in
+            `get_hyperparameters()['mle_starts']`.
+        warm_nugget: Fixed nugget for the `'warm'` start, clipped to
+            `nugget_bounds`. The default, `1e-2`, is run-to-run noise of 1% of
+            the residual variance: inside the default bounds, large enough to
+            keep the correlation matrix well conditioned, and small enough not
+            to hide signal.
 
     Example:
         ```python
@@ -82,15 +112,22 @@ class BayesLinear(BaseEmulator):
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
                  test_fraction=0.25, nugget=1e-6, nugget_bounds=(1e-8, 1.0),
-                 ftol=1e-6, gtol=1e-4):
+                 ftol=1e-6, gtol=1e-4, mle_starts=DEFAULT_MLE_STARTS,
+                 warm_nugget=DEFAULT_WARM_NUGGET):
         self._learn_nugget = nugget == 'mle'
         self._validate_nugget(nugget)
+        mle_starts = self._validate_mle_starts(mle_starts)
+        if not warm_nugget > 0:
+            raise ValueError("warm_nugget must be positive")
 
         super().__init__(x, y, test_fraction)
         self.nugget = nugget
         self.nugget_bounds = nugget_bounds
         self.ftol = ftol
         self.gtol = gtol
+        self.mle_starts = mle_starts
+        self.warm_nugget = warm_nugget
+        self.mle_start_results = []
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -106,6 +143,25 @@ class BayesLinear(BaseEmulator):
 
         if nugget < 0:
             raise ValueError("nugget must be non-negative")
+
+    @staticmethod
+    def _validate_mle_starts(mle_starts):
+        """Validate the `nugget='mle'` start list and return it as a tuple."""
+        if isinstance(mle_starts, (str, int, float)):
+            mle_starts = (mle_starts,)
+        mle_starts = tuple(mle_starts)
+        if not mle_starts:
+            raise ValueError("mle_starts must name at least one start")
+        for start in mle_starts:
+            if isinstance(start, str):
+                if start not in ('warm', 'midpoint'):
+                    raise ValueError(f"unknown mle_starts entry {start!r}: use 'warm', "
+                                     "'midpoint' or a positive number")
+            elif isinstance(start, bool) or not isinstance(start, (int, float, np.number)) \
+                    or not start > 0:
+                raise ValueError(f"mle_starts entry {start!r} must be 'warm', 'midpoint' "
+                                 "or a positive number")
+        return mle_starts
 
     def _normalize_x(self, x):
         """Normalize inputs to [0, 1] using training-set min/range."""
@@ -180,14 +236,17 @@ class BayesLinear(BaseEmulator):
         With sigma^2 profiled out analytically, the NLL reduces to:
             NLL(theta) = 0.5 * (n * log(sigma^2_hat) + log|R + nug*I|)
         where sigma^2_hat = r^T (R + nug*I)^{-1} r / n.
+
+        `log_hyperparameters` is `log(theta)`, followed by `log(nugget)` when
+        the nugget is learned.
         """
         if self._learn_nugget:
-            log_theta = log_hyperparameters[:-1]
-            nugget = float(np.exp(log_hyperparameters[-1]))
-        else:
-            log_theta = log_hyperparameters
-            nugget = self.nugget
+            return self._nll(log_hyperparameters[:-1], float(np.exp(log_hyperparameters[-1])),
+                             X_norm, residuals)
+        return self._nll(log_hyperparameters, self.nugget, X_norm, residuals)
 
+    def _nll(self, log_theta, nugget, X_norm, residuals):
+        """Concentrated NLL at `log(theta)` and a given nugget (see `_concentrated_nll`)."""
         theta = np.exp(log_theta)
         n = len(residuals)
         if hasattr(self, '_nll_eval_count'):
@@ -208,6 +267,122 @@ class BayesLinear(BaseEmulator):
         log_det = 2.0 * np.sum(np.log(np.diag(L)))
         nll = 0.5 * (n * np.log(sigma2_hat) + log_det)
         return nll
+
+    def _lbfgsb(self, objective, x0, bounds, args, label, nll_scale=1.0):
+        """One L-BFGS-B search, logging progress per iteration.
+
+        `nll_scale` converts the objective back to the NLL for logging.
+        """
+        t0 = sc.timer()
+
+        def _callback(intermediate_result):
+            logger.debug(f"    L-BFGS-B ({label}) iter: NLL={intermediate_result.fun * nll_scale:.4f} "
+                         f"[{t0.total:.0f}s]")
+
+        result = minimize(
+            objective,
+            x0,
+            args=args,
+            method='L-BFGS-B',
+            bounds=bounds,
+            options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
+            callback=_callback,
+        )
+        result.seconds = t0.total
+        return result
+
+    def _fit_theta(self, X_norm, residuals, nugget):
+        """Fit the correlation lengths with the nugget fixed: one start at theta = 1.
+
+        This is the whole optimization for a numeric `nugget`, and the first
+        stage of the `'warm'` start for `nugget='mle'`.
+
+        Returns:
+            The `scipy.optimize.OptimizeResult`; `fun` is the NLL.
+        """
+        d = X_norm.shape[1]
+        return self._lbfgsb(lambda log_theta, X, r: self._nll(log_theta, nugget, X, r),
+                            np.zeros(d), [LOG_THETA_BOUNDS] * d, (X_norm, residuals),
+                            label=f'nugget fixed at {nugget:.3g}')
+
+    def _fit_free(self, X_norm, residuals, x0, label):
+        """Fit log(theta) and log(nugget) together from `x0`.
+
+        Returns:
+            The `scipy.optimize.OptimizeResult`, with `fun` set to the NLL at `x`.
+        """
+        d = X_norm.shape[1]
+        bounds = [LOG_THETA_BOUNDS] * d + [self._get_nugget_log_bounds()]
+
+        def objective(z, X, r):
+            return self._nll(z[:-1], float(np.exp(z[-1])), X, r)
+
+        result = self._lbfgsb(objective, x0, bounds, (X_norm, residuals), label=label)
+        result.fun = float(self._nll(result.x[:-1], float(np.exp(result.x[-1])), X_norm, residuals))
+        return result
+
+    @staticmethod
+    def _start_record(start, stage, start_nugget, result, nugget):
+        """JSON-serializable summary of one optimizer run."""
+        return {
+            'start': start,
+            'stage': stage,
+            'start_nugget': float(start_nugget),
+            'nll': float(result.fun),
+            'nugget': float(nugget),
+            'nit': int(result.nit),
+            'nfev': int(result.nfev),
+            'success': bool(result.success),
+            'message': str(result.message),
+            'seconds': float(result.seconds),
+        }
+
+    def _fit_mle(self, X_norm, residuals):
+        """Learn theta and the nugget from every start in `mle_starts`; keep the lowest NLL.
+
+        Every candidate is a feasible point, so the chosen NLL is at most the
+        NLL of every recorded run. In particular, the `'warm'` start's
+        fixed-nugget stage is a candidate with the nugget exactly
+        `warm_nugget`, so the chosen NLL is never above that of
+        `BayesLinear(nugget=warm_nugget)` on the same training data.
+
+        Returns:
+            Tuple `(log_theta, nugget, result, records)`: the chosen
+            hyperparameters, its `OptimizeResult` (with `fun` the NLL) and one
+            record per optimizer run, the chosen one marked `'selected'`.
+        """
+        d = X_norm.shape[1]
+        log_lo, log_hi = self._get_nugget_log_bounds()
+        lo, hi = self.nugget_bounds
+        records, candidates = [], []
+        for start in self.mle_starts:
+            if start == 'warm':
+                w = float(np.clip(self.warm_nugget, lo, hi))
+                fixed = self._fit_theta(X_norm, residuals, w)
+                records.append(self._start_record('warm', 'nugget fixed', w, fixed, w))
+                candidates.append((fixed.fun, fixed.x, w, fixed, records[-1]))
+                x0 = np.append(fixed.x, np.clip(np.log(w), log_lo, log_hi))
+                start_label = 'warm'
+            elif start == 'midpoint':
+                x0 = np.append(np.zeros(d), 0.5 * (log_lo + log_hi))
+                start_label = 'midpoint'
+            else:
+                x0 = np.append(np.zeros(d), np.clip(np.log(float(start)), log_lo, log_hi))
+                start_label = f'nugget={float(start):g}'
+            start_nugget = float(np.exp(x0[-1]))
+            free = self._fit_free(X_norm, residuals, x0, label=f'{start_label} start')
+            nugget = float(np.exp(free.x[-1]))
+            records.append(self._start_record(start_label, 'free nugget', start_nugget, free, nugget))
+            candidates.append((free.fun, free.x[:-1], nugget, free, records[-1]))
+            logger.info(f"    nugget='mle' start {start_label}: NLL={free.fun:.4f}, nugget={nugget:.3g}, "
+                        f"{free.nit} iters, {free.message} [{free.seconds:.1f}s]")
+
+        # The first of equal NLLs wins, so the outcome does not depend on rounding ties.
+        best = min(range(len(candidates)), key=lambda i: (candidates[i][0], i))
+        nll, log_theta, nugget, result, record = candidates[best]
+        for r in records:
+            r['selected'] = r is record
+        return log_theta, nugget, result, records
 
     # ------------------------------------------------------------------
     # BaseEmulator interface
@@ -255,46 +430,16 @@ class BayesLinear(BaseEmulator):
         residuals = y_std - G @ self._beta_hat
 
         # --- Optimize theta (correlation lengths) and optionally nugget ---
+        self._nll_eval_count = 0
         if self._learn_nugget:
             logger.info(f"    Optimizing theta ({d} correlation lengths) and nugget "
-                        f"({n}x{n} Cholesky per eval)...")
+                        f"from {len(self.mle_starts)} starts ({n}x{n} Cholesky per eval)...")
+            log_theta, self.nugget, result, self.mle_start_results = self._fit_mle(X_norm, residuals)
         else:
             logger.info(f"    Optimizing theta ({d} correlation lengths, {n}x{n} Cholesky per eval)...")
-        self._nll_eval_count = 0
-        self._nll_best = np.inf
-        self._opt_t0 = sc.timer()
-
-        def _opt_callback(xk):
-            nll = objective(xk, X_norm, residuals)
-            self._nll_best = min(self._nll_best, nll)
-            elapsed = self._opt_t0.total
-            logger.info(f"    L-BFGS-B iter {self._nll_eval_count}: NLL={self._nll_best:.4f} [{elapsed:.0f}s]")
-
-        log_theta0 = np.zeros(d)  # initial guess: theta=1 in normalised space
-        initial_guess = log_theta0
-        bounds = [LOG_THETA_BOUNDS] * d
-
-        if self._learn_nugget:
-            log_nugget_bounds = self._get_nugget_log_bounds()
-            initial_guess = np.append(initial_guess, np.mean(log_nugget_bounds))
-            bounds.append(log_nugget_bounds)
-
-        objective = self._concentrated_nll
-
-        result = minimize(
-            objective,
-            initial_guess,
-            args=(X_norm, residuals),
-            method='L-BFGS-B',
-            bounds=bounds,
-            options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
-            callback=_opt_callback,
-        )
-        if self._learn_nugget:
-            log_theta = result.x[:-1]
-            self.nugget = float(np.exp(result.x[-1]))
-        else:
+            result = self._fit_theta(X_norm, residuals, self.nugget)
             log_theta = result.x
+            self.mle_start_results = []
 
         self._theta = np.exp(log_theta)
         self._opt_result = result
@@ -512,6 +657,7 @@ class BayesLinear(BaseEmulator):
             'nll': float(self._opt_result.fun),
             'n_train': int(len(self.X_train)),
             'n_dims': int(len(self._theta)),
+            'mle_starts': [dict(r) for r in self.mle_start_results],
         }
 
     def print_emulator_description(self):
@@ -526,6 +672,10 @@ class BayesLinear(BaseEmulator):
         print(f"      sigma^2:       {hp['sigma_sq']:.6f}")
         print(f"      NLL:           {hp['nll']:.4f}")
         print(f"      Optimizer:     {'converged' if hp['optimizer_converged'] else 'did NOT converge'}")
+        for r in hp['mle_starts']:
+            mark = '*' if r['selected'] else ' '
+            print(f"      {mark} start {r['start']} ({r['stage']}): NLL={r['nll']:.4f}, "
+                  f"nugget={r['nugget']:.3g}, {r['nit']} iters")
         print(f"      theta (correlation lengths):")
         for name, val in hp['theta'].items():
             print(f"        {name}: {val:.4f}")
