@@ -2052,7 +2052,7 @@ class HistoryMatching:
         """Keep the candidates that pass every committed emulator.
 
         Uses the same test as `generate_nroy_design` and `in_nroy`
-        (`nroy_sampling.nroy_mask`): emulators are applied newest wave first,
+        (`nroy_sampling.nroy_mask`): emulators are applied oldest wave first,
         each to the points still in, and a failing emulator raises.
         """
         if not self.emulator_bank.has_emulators():
