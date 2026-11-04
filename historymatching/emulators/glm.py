@@ -9,7 +9,9 @@ when outputs are counts or otherwise not well modeled by plain OLS.
 from typing import Optional
 import logging
 
+import numpy as np
 import pandas as pd
+import scipy.stats
 import statsmodels.api as sm
 
 from .base import BaseEmulator
@@ -66,7 +68,7 @@ class GLM(BaseEmulator):
         """Fits a Generalised Linear Model."""
         logging.debug("... training emulator")
 
-        x = sm.add_constant( self.X_train )
+        x = sm.add_constant(self.X_train, has_constant='add')  # as in predict()
         self.model = sm.GLM( self.y_train, x, family=self.family )
         self.results = self.model.fit()
         
@@ -87,32 +89,34 @@ class GLM(BaseEmulator):
         """
         logging.debug("... predicting outputs using the trained emulator")
 
-        # Compute the prediction
-        x_pred = sm.add_constant( x )
-        prediction_results = self.results.get_prediction( x_pred )
-        predicted_mean = prediction_results.predicted_mean
+        # has_constant='add': a single row looks constant in every column, and the
+        # default ('skip') would then leave out the intercept column.
+        x_pred = sm.add_constant(x, has_constant='add')
+        prediction_results = self.results.get_prediction(x_pred)  # on the mean (response) scale
+        mean = np.asarray(prediction_results.predicted_mean).ravel()
+        se_mean = np.asarray(prediction_results.se_mean).ravel()
+        mean_ci = np.asarray(prediction_results.conf_int())
 
-        # Compute the confidence interval of the predicted mean
-        conf_int = prediction_results.conf_int()
-        low_mean = conf_int[:,0]
-        high_mean = conf_int[:,1]
+        # The std of a new simulator run at x: uncertainty in the fitted mean plus
+        # the family's variance at that mean (scale for Gaussian, the mean itself for
+        # Poisson), as BayesLinear's nugget term and GPR's predict_y include. The
+        # mean's standard error alone understates it, which over-prunes.
+        obs_var = self.results.scale * self.results.family.variance(mean)
+        std = np.sqrt(se_mean**2 + obs_var)
 
-        # Prediction intervals: statsmodels' GLM prediction results only expose
-        # intervals for the mean, so these match the confidence intervals above
-        low = low_mean
-        high = high_mean
-
-        # Create additional data for emulator-specific outputs
+        # Normal-approximation 95% interval for a new run (statsmodels gives GLM
+        # intervals for the mean only)
+        z = scipy.stats.norm.ppf(0.975)
         additional = pd.DataFrame({
-            'ci_obs_low': low,
-            'ci_obs_high': high,
-            'ci_pred_low': low_mean,
-            'ci_pred_high': high_mean
+            'ci_obs_low': mean - z * std,
+            'ci_obs_high': mean + z * std,
+            'ci_pred_low': mean_ci[:, 0],
+            'ci_pred_high': mean_ci[:, 1]
         }, index=x.index)
-        
+
         return EmulationResults(
-            mean=predicted_mean,
-            std=prediction_results.se_mean,  # Standard error is already std
+            mean=mean,
+            std=std,
             additional_data=additional,
             index=x.index,
         )

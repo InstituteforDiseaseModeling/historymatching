@@ -15,6 +15,9 @@
 ### Fixes
 
 - In a bank that mixes GPR and other emulators (for example after switching emulator type mid-run), the engine's next-wave filter applied only the GPR emulators once any fast predictor existed; the others, such as Bayes linear, were skipped. Every emulator is now applied.
+- **The linear-model and GLM emulators report the std of a new simulator run, so their implausibility is right.** Implausibility divides by the target's data uncertainty plus the emulator's variance, so that variance has to include the simulator's run-to-run noise, as `BayesLinear` (`sigma_sq * nugget`) and `GPR` (`predict_y`) already do. `LinearModel` (`'linear'`) and `GLM` (`'glm'`) returned only the standard error of the fitted mean, which understates it and rules out too much; `LinearModelScipy` returned the spread of all training outputs, which overstates it. They now return the predictive std: residual variance plus the mean's variance for `LinearModel` and `LinearModelScipy`, and the family's variance at the mean (scale for Gaussian, the mean for Poisson) plus the mean's variance for `GLM`. In a test with known noise, the standard deviation of (new run − predicted mean) / predicted std was 10.9 (`LinearModel`) and 0.44 (`LinearModelScipy`) before, and 0.99 for all of them now. Their interval columns follow the same definitions. (#273)
+- **`GLM.predict` works on statsmodels 0.15**, which removed the `linear=` argument it used.
+- **`LinearModel` and `GLM` can predict a single point.** `statsmodels.add_constant` skips the intercept when every column is constant, which a one-row frame always is, so one-point predictions failed with a shape error; in the NROY filter that happened whenever one candidate was left. The intercept is now always added, in training and prediction. `LinearModel`'s interval columns also no longer come back as NaN for frames with non-contiguous index labels.
 
 ## v2.0.1 (2026-06-07)
 
