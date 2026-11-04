@@ -832,6 +832,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v201-2026-06-07" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -866,7 +894,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes" class="md-nav__link">
+  <a href="#fixes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -1094,6 +1122,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v201-2026-06-07" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1128,7 +1184,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixes" class="md-nav__link">
+  <a href="#fixes_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixes
@@ -1348,6 +1404,13 @@ The "later/earlier additions" groupings below were informal, <em>untagged</em> d
 milestones (previously labelled "1.1.0" and "1.2.0"). None shipped as a separate
 release — they are all part of the <code>v1.0.0</code> tag.</p>
 </blockquote>
+<h2 id="unreleased">Unreleased</h2>
+<h3 id="fixes">Fixes</h3>
+<ul>
+<li><strong>The linear-model and GLM emulators report the std of a new simulator run, so their implausibility is right.</strong> Implausibility divides by the target's data uncertainty plus the emulator's variance, so that variance has to include the simulator's run-to-run noise, as <code>BayesLinear</code> (<code>sigma_sq * nugget</code>) and <code>GPR</code> (<code>predict_y</code>) already do. <code>LinearModel</code> (<code>'linear'</code>) and <code>GLM</code> (<code>'glm'</code>) returned only the standard error of the fitted mean, which understates it and rules out too much; <code>LinearModelScipy</code> returned the spread of all training outputs, which overstates it. They now return the predictive std: residual variance plus the mean's variance for <code>LinearModel</code> and <code>LinearModelScipy</code>, and the family's variance at the mean (scale for Gaussian, the mean for Poisson) plus the mean's variance for <code>GLM</code>. In a test with known noise, the standard deviation of (new run − predicted mean) / predicted std was 10.9 (<code>LinearModel</code>) and 0.44 (<code>LinearModelScipy</code>) before, and 0.99 for all of them now. Their interval columns follow the same definitions. (#273)</li>
+<li><strong><code>GLM.predict</code> works on statsmodels 0.15</strong>, which removed the <code>linear=</code> argument it used.</li>
+<li><strong><code>LinearModel</code> and <code>GLM</code> can predict a single point.</strong> <code>statsmodels.add_constant</code> skips the intercept when every column is constant, which a one-row frame always is, so one-point predictions failed with a shape error; in the NROY filter that happened whenever one candidate was left. The intercept is now always added, in training and prediction. <code>LinearModel</code>'s interval columns also no longer come back as NaN for frames with non-contiguous index labels.</li>
+</ul>
 <h2 id="v201-2026-06-07">v2.0.1 (2026-06-07)</h2>
 <h3 id="new-features">New features</h3>
 <ul>
@@ -1359,7 +1422,7 @@ release — they are all part of the <code>v1.0.0</code> tag.</p>
 <ul>
 <li><code>HistoryMatching.plot_nroy_parameters()</code> → use <strong><code>plot_nroy()</code></strong> (pass known values via <code>truth=</code> instead of <code>true_parameters=</code>). The old name still works with a <code>DeprecationWarning</code> and returns <code>(fig, axes)</code>.</li>
 </ul>
-<h3 id="fixes">Fixes</h3>
+<h3 id="fixes_1">Fixes</h3>
 <ul>
 <li><code>plot_emulator_quality</code> reads the <code>r2</code> metric key produced by <code>get_emulator_quality_metrics()</code> (previously <code>r2_score</code>, which silently produced empty charts).</li>
 <li><code>BaseEmulator.get_implausibility</code> now adds <code>model_discrepancy</code> in quadrature (i.e. squared), consistent with the production path <code>ObservationData.calculate_implausibility</code>. This diagnostic helper previously added it un-squared; the main implausibility filtering was already correct and is unaffected.</li>
