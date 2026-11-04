@@ -1,31 +1,25 @@
 """
-Fast GPR prediction using numba — no TensorFlow dependency at prediction time.
+Fast GPR prediction using numba, with no TensorFlow call at prediction time.
 
-Extracts kernel hyperparameters and precomputed alpha from a trained GPflow
-model, then performs SE kernel predictions using pure numpy/numba.  This
-avoids TF's Python→graph overhead and enables true parallel execution via
-numba's thread pool.
+Extracts kernel hyperparameters from a trained GPflow model, precomputes
+alpha = (K + noise I)^-1 (y - c) and the inverse Cholesky factor once, then
+predicts the SE-kernel GP mean and variance in numpy/numba.
 
-Typical speedup: 200–500× over GPflow predict_f for large batches.
+Not currently used by the engine, which filters through `GPR.predict`. Measured
+against `GPR.predict` on 20,000 points (Apple M1 Max), it is 2.6x faster with
+180 training points in 4 dimensions and 1.1x with 1,800 in 21, so it is kept
+for a future, faster `GPR.predict` rather than as a separate filter.
 
 Usage:
 
 ```python
 from historymatching.emulators.fast_predict import FastGPRPredictor
 
-# Build from a trained GPR emulator
-fast = FastGPRPredictor.from_emulator(emulator)
-
-# Predict (returns mean, var as numpy arrays)
-mean, var = fast.predict(X_test)
-
-# Or use the short-circuit NROY filter
-from historymatching.emulators.fast_predict import filter_nroy
-mask = filter_nroy(candidates, predictors, obs_targets, threshold=3.5)
+fast = FastGPRPredictor.from_emulator(emulator)   # a trained GPR emulator
+mean, var = fast.predict(X_test)                  # numpy arrays; var includes the noise
 ```
 """
 
-from typing import List, Tuple
 import logging
 
 import numpy as np
@@ -215,58 +209,13 @@ class FastGPRPredictor:
                 self.noise_var, self.L_inv,
             )
         else:
-            # Numpy fallback — mean only, variance = 0 (conservative)
-            mean_z = _se_kernel_predict_numpy(
-                X_norm, self.X_train, self.kernel_ls,
-                self.kernel_var, self.alpha, self.mean_c,
-            )
-            var_z = np.zeros_like(mean_z)
+            # Numpy fallback, same quantities as the numba kernel:
+            # var = kernel_var + noise_var - ||L_inv @ k_star||^2
+            diffs = (X_norm[:, None, :] - self.X_train[None, :, :]) / self.kernel_ls
+            K_star = self.kernel_var * np.exp(-0.5 * np.sum(diffs ** 2, axis=-1))
+            mean_z = K_star @ self.alpha + self.mean_c
+            v = self.L_inv @ K_star.T
+            var_z = np.maximum(self.kernel_var + self.noise_var - np.sum(v ** 2, axis=0), 0.0)
         mean = mean_z * self.y_std + self.y_mean
         var = var_z * self.y_std ** 2
         return mean, var
-
-
-def filter_nroy(
-    candidates: np.ndarray,
-    predictors: List[Tuple['FastGPRPredictor', float, float, str]],
-    threshold: float = 3.5,
-) -> np.ndarray:
-    """Short-circuit NROY filter through multiple emulators.
-
-    Tests candidates against each emulator in sequence.  Points that fail
-    one emulator are immediately dropped and never tested against the rest.
-
-    Args:
-        candidates: (n, n_dims) array of parameter values.
-        predictors: List of (FastGPRPredictor, obs_mean, obs_std, feature_name)
-                    tuples, one per emulated feature.
-        threshold: Implausibility threshold (default 3.5).
-
-    Returns:
-        Boolean mask of shape (n,) — True for points that pass all emulators.
-    """
-    mask = np.ones(len(candidates), dtype=bool)
-    n_original = len(candidates)
-
-    for predictor, obs_mean, obs_std, feature_name in predictors:
-        if mask.sum() == 0:
-            break
-
-        active_idx = np.where(mask)[0]
-        active_X = candidates[active_idx]
-
-        mean, var = predictor.predict(active_X)
-
-        # Implausibility: |mean - obs| / sqrt(var + obs_std²)
-        obs_var = obs_std ** 2
-        impl = np.abs(mean - obs_mean) / np.sqrt(var + obs_var)
-
-        failures = impl > threshold
-        mask[active_idx[failures]] = False
-
-        logger.debug(
-            f"  {feature_name}: {len(active_idx)} tested, "
-            f"{failures.sum()} rejected, {mask.sum()} surviving"
-        )
-
-    return mask

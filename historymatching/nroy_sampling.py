@@ -484,7 +484,6 @@ def nroy_mask(
     threshold: float,
     param_cols: list,
     mask: Optional[np.ndarray] = None,
-    skip=None,
 ) -> np.ndarray:
     """Boolean mask of candidates that pass every emulator in the bank.
 
@@ -500,8 +499,6 @@ def nroy_mask(
         threshold: Implausibility cut-off.
         param_cols: Parameter columns passed to the emulators.
         mask: Optional starting mask; only rows already True are tested.
-        skip: Optional ``callable(emulator) -> bool`` for emulators already
-            applied elsewhere (for example, by the numba fast path).
 
     Returns:
         Array of shape ``(len(candidates),)``, True where a point is not ruled
@@ -517,8 +514,6 @@ def nroy_mask(
             if mask.sum() == 0:
                 break
             if not observations.has_feature(feature_name):
-                continue
-            if skip is not None and skip(emulator):
                 continue
             try:
                 active = candidates.loc[mask, param_cols]

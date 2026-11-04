@@ -1,6 +1,5 @@
 """Tests for the public NROY membership test: in_nroy() and implausibility()."""
 
-from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -171,31 +170,16 @@ class TestImplausibility:
         assert table.shape == (1, 0)
 
 
-class TestMixedEmulatorBank:
-    def test_fast_path_still_applies_non_gpr_emulators(self, engine):
-        """A bank mixing GPR and other emulators must apply all of them.
-
-        Previously, once any GPR fast predictor existed, non-GPR emulators in
-        the same bank were skipped by the engine's filter.
-        """
-        stand_in_gpr = LinearInOneParam("param1", 10.0)   # rules on param1
-        other = LinearInOneParam("param2", 10.0)          # rules on param2, non-GPR
-        engine.emulator_bank.add_emulator(1, "output1", stand_in_gpr)
-        engine.emulator_bank.add_emulator(2, "output2", other)
-
-        class FastStandIn:
-            def predict(self, X):
-                return 10.0 * X[:, 0], np.zeros(len(X))
-
-        def fake_build(bank=None, covered=None):
-            if covered is not None:
-                covered.add(id(stand_in_gpr))
-            return [(FastStandIn(), 5.0, 1.0, "output1")]
+class TestEveryEmulatorApplied:
+    def test_engine_filter_applies_every_emulator(self, engine):
+        """Each emulator in the bank constrains the engine's filter, whatever its type."""
+        first = LinearInOneParam("param1", 10.0)    # rules on param1
+        second = LinearInOneParam("param2", 10.0)   # rules on param2
+        engine.emulator_bank.add_emulator(1, "output1", first)
+        engine.emulator_bank.add_emulator(2, "output2", second)
 
         samples = grid()
-        with patch.object(engine, "_build_fast_predictors", side_effect=fake_build):
-            filtered = engine._filter_samples_by_implausibility(samples)
+        filtered = engine._filter_samples_by_implausibility(samples)
 
         assert filtered.index.tolist() == samples.index[expected(samples)].tolist()
-        assert stand_in_gpr.calls == 0   # covered by the fast path, not re-applied
-        assert other.calls == 1          # applied on the standard path
+        assert first.calls >= 1 and second.calls >= 1

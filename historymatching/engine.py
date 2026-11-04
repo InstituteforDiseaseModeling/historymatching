@@ -2048,101 +2048,21 @@ class HistoryMatching:
         # Return exactly the requested number of samples
         return plausible_samples.head(self.n_samples)
 
-    def _build_fast_predictors(self, emulator_bank=None, covered=None):
-        """Build FastGPRPredictor objects for all GPR emulators in the bank.
-
-        Returns a list of (FastGPRPredictor, obs_mean, obs_std, feature_name)
-        tuples suitable for filter_nroy().  Non-GPR emulators, and GPR
-        emulators whose fast predictor can't be built, are left out; pass a
-        set as ``covered`` to receive the ``id()`` of each emulator that was
-        included, so the caller can apply the rest on the slow path.
-        """
-        from .emulators.fast_predict import FastGPRPredictor
-
-        bank = emulator_bank or self.emulator_bank
-        predictors = []
-
-        for iteration in bank.get_all_iterations():
-            emulators = bank.get_emulators_for_iteration(iteration)
-            for feature_name, emulator in emulators.items():
-                if not self.observations.has_feature(feature_name):
-                    continue
-                # Only works for GPR emulators (SE kernel with normalization)
-                from .emulators.gpr import GPR
-                if not isinstance(emulator, GPR):
-                    continue
-                try:
-                    fast = FastGPRPredictor.from_emulator(emulator)
-                    obs_mean, obs_std = self.observations.get_target_for_feature(feature_name)
-                    predictors.append((fast, obs_mean, obs_std, feature_name))
-                    if covered is not None:
-                        covered.add(id(emulator))
-                except Exception as e:
-                    logger.warning(f"Could not build fast predictor for '{feature_name}': {e}")
-
-        return predictors
-
     def _filter_samples_by_implausibility(self, candidates: pd.DataFrame) -> pd.DataFrame:
-        """Filter candidate samples based on implausibility from existing emulators.
+        """Keep the candidates that pass every committed emulator.
 
-        Uses numba-accelerated short-circuit filtering when GPR emulators are
-        available: points that fail one emulator are immediately dropped and
-        never tested against the rest.  Falls back to the GPflow path for
-        non-GPR emulators.
+        Uses the same test as `generate_nroy_design` and `in_nroy`
+        (`nroy_sampling.nroy_mask`): emulators are applied newest wave first,
+        each to the points still in, and a failing emulator raises.
         """
         if not self.emulator_bank.has_emulators():
             return candidates
 
-        return self._filter_fast(candidates, self.emulator_bank)
-
-    def _filter_fast(self, candidates: pd.DataFrame, emulator_bank) -> pd.DataFrame:
-        """Fast NROY filter using numba predictors with short-circuit evaluation.
-
-        GPR emulators go through the numba fast path; every other emulator
-        (for example Bayes linear, in a bank that mixes emulator types) is then
-        applied to the survivors on the standard path.
-        """
-        import numpy as np
-
-        from .emulators.fast_predict import filter_nroy
-        from .nroy_sampling import nroy_mask
-
-        covered: set = set()
-        fast_predictors = self._build_fast_predictors(emulator_bank, covered=covered)
-
-        if not fast_predictors:
-            # No GPR emulators — fall back to standard (slow) path
-            return self._filter_samples_slow(candidates, emulator_bank)
-
-        # Fast path: numba short-circuit filter
-        param_cols = self.parameter_space.get_parameter_names()
-        X = candidates[param_cols].values.astype(np.float64)
-
-        mask = filter_nroy(X, fast_predictors, threshold=self.implausibility_threshold)
-
-        # Emulators the fast path didn't cover still have to be applied
-        mask = nroy_mask(candidates, emulator_bank, self.observations,
-                         self.implausibility_threshold, param_cols,
-                         mask=mask, skip=lambda em: id(em) in covered)
-
-        plausible = candidates[mask]
-        logger.debug(
-            f"Fast filter: {len(candidates)} → {len(plausible)} "
-            f"({len(plausible)/len(candidates):.2%}) through {len(fast_predictors)} emulators"
-        )
-        return plausible
-
-    def _filter_samples_slow(self, candidates: pd.DataFrame, emulator_bank) -> pd.DataFrame:
-        """Implausibility filter with short-circuit evaluation for non-GPR emulators.
-
-        Delegates to the canonical implementation in `historymatching.nroy_sampling`
-        so the engine and the public `generate_nroy_design` path cannot drift apart.
-        """
         from .nroy_sampling import _filter_nroy
 
         return _filter_nroy(
             candidates,
-            emulator_bank,
+            self.emulator_bank,
             self.observations,
             self.implausibility_threshold,
             self.parameter_space.get_parameter_names(),

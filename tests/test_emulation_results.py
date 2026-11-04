@@ -148,7 +148,7 @@ class TestFilterConsistency:
         return bank
 
     def test_engine_delegates_to_canonical_filter(self, monkeypatch):
-        """_filter_samples_slow must call _filter_nroy, not a private copy."""
+        """The engine's filter must call _filter_nroy, not a private copy."""
         from historymatching import nroy_sampling
 
         calls = []
@@ -162,7 +162,8 @@ class TestFilterConsistency:
 
         engine = self._engine()
         candidates = pd.DataFrame({'beta': [0.1, 0.2], 'gamma': [0.3, 0.4]})
-        engine._filter_samples_slow(candidates, self._bank_with(_ConstantEmulator()))
+        engine.emulator_bank = self._bank_with(_ConstantEmulator())
+        engine._filter_samples_by_implausibility(candidates)
 
         assert len(calls) == 1, "engine should delegate to nroy_sampling._filter_nroy"
 
@@ -171,8 +172,9 @@ class TestFilterConsistency:
         engine = self._engine()
         candidates = pd.DataFrame({'beta': [0.1, 0.2], 'gamma': [0.3, 0.4]})
 
+        engine.emulator_bank = self._bank_with(_BrokenEmulator())
         with pytest.raises(RuntimeError, match="NROY filtering failed"):
-            engine._filter_samples_slow(candidates, self._bank_with(_BrokenEmulator()))
+            engine._filter_samples_by_implausibility(candidates)
 
 
 class _ConstantEmulator(hm.BaseEmulator):
