@@ -540,13 +540,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Testing different emulator types on various synthetic problems"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793829289.962398    2902 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1793829289.962999    2902 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1793829289.998152    2902 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+I0000 00:00:1794250796.371640    2839 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1794250796.372262    2839 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1794250796.407387    2839 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
 To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1793829290.890940    2902 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1793829290.891312    2902 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.</code></pre>
+I0000 00:00:1794250797.316948    2839 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1794250797.317326    2839 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.</code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code> Emulator Showcase and Comparison
@@ -951,7 +951,7 @@ Testing different emulator types on various synthetic problems</code></pre>
 ==================================================</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>E0000 00:00:1793829292.475911    2902 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)</code></pre>
+<pre><code>E0000 00:00:1794250798.894149    2839 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)</code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Neural network emulator not available: Unknown default emulator type: 'neural_network'. Available types: ['linear', 'glm', 'gpr', 'gaussian', 'bayes_linear']</code></pre>
@@ -968,8 +968,8 @@ Testing different emulator types on various synthetic problems</code></pre>
  Performance Summary (Linear Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          1.733    0.961    0.0106       1.000       
-gpr             2.016    0.947    1.1959       1.000       
+linear          1.733    0.961    0.0103       1.000       
+gpr             2.016    0.947    1.1514       1.000       
 bayes_linear    0.834    0.991    0.0029       1.000       
 
  Expected: Linear emulator should perform best with fastest training time</code></pre>
@@ -1043,8 +1043,8 @@ bayes_linear    0.834    0.991    0.0029       1.000
  Performance Summary (Quadratic Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          1.420    0.857    0.0016       1.000       
-gpr             0.427    0.987    0.2034       1.000       
+linear          1.420    0.857    0.0017       1.000       
+gpr             0.427    0.987    0.2120       1.000       
 bayes_linear    1.414    0.858    0.0027       1.000       
 
  Expected: GPR should outperform linear emulator due to nonlinearity</code></pre>
@@ -1100,9 +1100,9 @@ bayes_linear    1.414    0.858    0.0027       1.000
  Performance Summary (Sinusoidal Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          6.706    -0.003   0.0017       1.000       
-gpr             0.547    0.993    0.2098       1.000       
-bayes_linear    0.535    0.994    0.0087       1.000       
+linear          6.706    -0.003   0.0019       1.000       
+gpr             0.547    0.993    0.2070       1.000       
+bayes_linear    0.535    0.994    0.0088       1.000       
 
  Expected: GPR should significantly outperform linear emulator
  Linear emulator will struggle with sinusoidal patterns</code></pre>
@@ -1162,8 +1162,8 @@ bayes_linear    0.535    0.994    0.0087       1.000
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
 linear          2.966    0.448    0.0017       0.973       
-gpr             3.033    0.422    0.2016       1.000       
-bayes_linear    2.978    0.443    0.0029       0.913       
+gpr             3.033    0.422    0.2084       1.000       
+bayes_linear    2.978    0.443    0.0033       0.913       
 
  Expected: GPR should handle complexity better, but may need more training data
  Linear emulator will perform poorly on this complex function</code></pre>
@@ -1456,9 +1456,9 @@ Running HM with gpr emulator...</code></pre>
  History Matching Results Comparison:
 Emulator        Time(s)  Iterations   Final Samples  Param1 Error  Param2 Error  Accept Rate 
 ----------------------------------------------------------------------------------------------------
-linear          6.13     3            300            0.112         0.243         0.367       
-bayes_linear    6.12     3            300            0.017         0.038         0.066       
-gpr             8.16     3            300            0.016         0.041         0.069       </code></pre>
+linear          6.29     3            300            0.112         0.243         0.367       
+bayes_linear    6.50     3            300            0.017         0.038         0.066       
+gpr             8.56     3            300            0.016         0.041         0.069       </code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div>
@@ -2416,7 +2416,7 @@ Learned nugget? True</code></pre>
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Docs built for History Matching v2.0.1 (2026-06-07).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
+<p>Docs built for History Matching v2.1.0 (2026-11-04).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
 <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/InstituteforDiseaseModeling/historymatching/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
