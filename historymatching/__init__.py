@@ -21,8 +21,8 @@ All the public building blocks are available at the top level (e.g.
 import from submodules.
 """
 
-__version__ = "2.0.1"
-__versiondate__ = "2026-06-07"
+__version__ = "2.1.0"
+__versiondate__ = "2026-11-04"
 
 from .iteration_result import IterationResult  # noqa: F401 isort: skip
 from .parameter_space import ParameterSpace  # noqa: F401 isort: skip

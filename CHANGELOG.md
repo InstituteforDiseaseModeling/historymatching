@@ -1,11 +1,6 @@
 # What's new
 
-> **A note on versioning.** Only `v1.0.0` and `v2.0.0` were ever tagged and released.
-> The "later/earlier additions" groupings below were informal, *untagged* development
-> milestones (previously labelled "1.1.0" and "1.2.0"). None shipped as a separate
-> release — they are all part of the `v1.0.0` tag.
-
-## Unreleased
+## Version 2.1.0 (2026-11-04)
 
 ### New features
 
@@ -28,7 +23,9 @@
 
 - **The engine's separate GPR filter** (`_filter_fast`, `_filter_samples_slow`, `_build_fast_predictors`) and `historymatching.emulators.fast_predict.filter_nroy`. The engine's wave 1 sampler, its only caller, now filters through `nroy_mask` like `generate_nroy_design` and `in_nroy`, so NROY membership has one implementation. Normal runs never reached the removed path: it ran only when wave 1 started with emulators already in the bank. `FastGPRPredictor` stays in `emulators.fast_predict`.
 
-## v2.0.1 (2026-06-07)
+---
+
+## Version 2.0.1 (2026-06-07)
 
 ### New features
 
@@ -57,7 +54,7 @@
 
 ---
 
-## v2.0.0 (2026)
+## Version 2.0.0 (2026-06-05)
 
 ### Breaking changes
 
@@ -75,7 +72,7 @@ The last release with the builder API is tagged **`v1.0.0`**.
 
 ---
 
-## v1.0.0 development — later additions (untagged)
+## Version 1.0.0 development (untagged; all part of the `v1.0.0` tag)
 
 ### New features
 
@@ -83,13 +80,6 @@ The last release with the builder API is tagged **`v1.0.0`**.
 - **Ray-resample NROY sampling**: New 4-stage pipeline for finding NROY samples, inspired by hmer's `generate_new_design()`. Stages: (1) LHS rejection, (2) ray sampling along pairs of distant NROY points, (3) PCA-oriented importance sampling, (4) maximin thinning for space-filling coverage. Much faster than pure rejection at low acceptance rates (<1%). Was the default in v1 (changed to `'auto'` in v2.0.0); pass `nroy_method='lhs'` for pure rejection or `'ray_resample'` to always use this pipeline. Tune via `nroy_options=dict(n_lines=20, points_per_line=50, ...)`.
 - **Detailed run logging**: Engine writes `log.txt` to the output directory with per-phase timing, per-emulator training progress, and NROY sampling progress at 10% intervals. Hyperparameters (ARD lengthscales, etc.) saved to `metrics.json`.
 - **Improved diagnostics**: Residuals/predictions wrap to 5-column grid for high-dimensional problems. Pred-vs-true split into train/test panels with error bars. Error scatter and histogram also split train/test. Convergence plot uses log y-axis.
-
----
-
-## v1.0.0 development — earlier additions (untagged)
-
-### New features
-
 - **Auto-checkpointing**: Engine saves emulators, diagnostics, and checkpoint after each wave by default. Configure with the `output_dir=` and `run_name=` arguments. Disable with `output_dir=None`
 - **Resume from checkpoint**: `engine.run(resume=True)` loads the latest checkpoint and continues from where it left off
 - **Parallel rejection sampling**: the `n_jobs=n` argument parallelizes NROY candidate filtering across CPU cores. Workers load emulators from disk — no GPU required. Also available per-call: `engine.get_nroy_samples(10000, n_jobs=4)`
@@ -114,7 +104,7 @@ The last release with the builder API is tagged **`v1.0.0`**.
 
 ---
 
-## v1.0.0 (2025) — tagged release (the complete v1)
+## Version 1.0.0 (2025) — tagged release (the complete v1)
 
 ### New features
 
