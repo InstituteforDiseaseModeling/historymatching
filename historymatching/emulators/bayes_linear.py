@@ -16,6 +16,7 @@ import pandas as pd
 import sciris as sc
 from scipy.optimize import minimize
 from scipy.linalg import cho_factor, cho_solve, solve_triangular
+from scipy.linalg.lapack import dpotri
 
 from .base import BaseEmulator
 from .results import EmulationResults, PredictionBounds
@@ -32,6 +33,12 @@ LOG_THETA_BOUNDS = (-4.0, 4.0)
 # `BayesLinear.predict_bounds`. At 3,750 training points the
 # prefix costs about 2% of the full variance.
 SCREENING_PREFIX = 500
+
+# Starts for the hyperparameter search; see `BayesLinear`.
+DEFAULT_STARTS = ('warm', 'midpoint', 1e-2)
+
+# Nugget at which the 'warm' start first fits the correlation lengths.
+DEFAULT_WARM_NUGGET = 1e-2
 
 
 class BayesLinear(BaseEmulator):
@@ -57,15 +64,55 @@ class BayesLinear(BaseEmulator):
             training correlation matrix, and `sigma_sq * nugget` is added to
             every predictive variance, so implausibility already counts
             run-to-run noise through the emulator: give the targets their data
-            uncertainty only. A number fixes the nugget; the default `1e-6` is
-            a small jitter suited to deterministic simulators. `'mle'` learns
-            one value, shared across the input space, by maximum likelihood;
-            use it for stochastic simulators.
-        nugget_bounds: Lower and upper bounds on the learned nugget when
-            `nugget='mle'`; ignored otherwise.
+            uncertainty only. The default, `'mle'`, learns one value, shared
+            across the input space, by maximum likelihood, within
+            `nugget_bounds`; for a deterministic simulator it goes to the
+            lower bound. A number fixes the nugget, for example `1e-6`, a
+            small jitter (the default before version 2.2.0), when the
+            simulator is known to be deterministic.
+        nugget_bounds: Lower and upper bounds on the nugget in the searches
+            that learn it. The default lower bound, `1e-6`, keeps a jitter
+            that keeps the correlation matrix well conditioned. With a fixed
+            nugget, those searches only supply starting correlation lengths
+            (see `starts`).
         ftol: Function-value tolerance for the L-BFGS-B correlation-length
-            optimization (convergence criterion).
-        gtol: Gradient tolerance for the same optimization.
+            optimization (convergence criterion). It is relative, so it means
+            the same at any number of training points.
+        gtol: Gradient tolerance for the same optimization. The search
+            minimizes NLL / n (n training points) with an analytic gradient,
+            so `gtol` applies to the gradient of NLL / n.
+        starts: Starting points for the hyperparameter search. The
+            likelihood often has more than one optimum, so each start runs its
+            own L-BFGS-B search over the correlation lengths and the nugget,
+            within `nugget_bounds`. Each entry is one of:
+
+            - `'warm'`: first fit the correlation lengths from 1 with the
+              nugget fixed at `warm_nugget` (the warm-up), then search from
+              that solution and `warm_nugget`.
+            - `'midpoint'`: correlation lengths 1 and the nugget at the
+              geometric middle of `nugget_bounds`.
+            - A number: correlation lengths 1 and that starting nugget,
+              clipped to `nugget_bounds`.
+
+            With `nugget='mle'`, the lowest NLL among those solutions, the
+            warm-up included, wins. The warm-up is a candidate, so the learned
+            fit's NLL is never above that of the theta = 1 search at
+            `warm_nugget`. With a fixed nugget, the same searches run, and then
+            the correlation lengths are refitted with the nugget held at its
+            value: from each of those solutions and from correlation lengths
+            1. The lowest NLL among the refits wins, so it is never above the
+            search from correlation lengths 1 alone. A search with the nugget
+            free can move around barriers between optima in the correlation
+            lengths, which a search over the correlation lengths alone cannot,
+            but no one start wins everywhere. The default is
+            `('warm', 'midpoint', 1e-2)`. Every run's NLL, nugget, iterations
+            and message is in `get_hyperparameters()['starts']`, the
+            candidates marked `'candidate'` and the chosen one `'selected'`.
+        warm_nugget: Nugget for the `'warm'` start's warm-up, clipped to
+            `nugget_bounds`. The default, `1e-2`, is run-to-run noise of 1% of
+            the residual process variance: inside the default bounds, large
+            enough to keep the correlation matrix well conditioned, and small
+            enough not to hide signal.
 
     Example:
         ```python
@@ -81,16 +128,23 @@ class BayesLinear(BaseEmulator):
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
-                 test_fraction=0.25, nugget=1e-6, nugget_bounds=(1e-8, 1.0),
-                 ftol=1e-6, gtol=1e-4):
+                 test_fraction=0.25, nugget='mle', nugget_bounds=(1e-6, 1.0),
+                 ftol=1e-6, gtol=1e-4, starts=DEFAULT_STARTS,
+                 warm_nugget=DEFAULT_WARM_NUGGET):
         self._learn_nugget = nugget == 'mle'
         self._validate_nugget(nugget)
+        starts = self._validate_starts(starts)
+        if not warm_nugget > 0:
+            raise ValueError("warm_nugget must be positive")
 
         super().__init__(x, y, test_fraction)
         self.nugget = nugget
         self.nugget_bounds = nugget_bounds
         self.ftol = ftol
         self.gtol = gtol
+        self.starts = starts
+        self.warm_nugget = warm_nugget
+        self.start_results = []
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -106,6 +160,25 @@ class BayesLinear(BaseEmulator):
 
         if nugget < 0:
             raise ValueError("nugget must be non-negative")
+
+    @staticmethod
+    def _validate_starts(starts):
+        """Validate the start list and return it as a tuple."""
+        if isinstance(starts, (str, int, float)):
+            starts = (starts,)
+        starts = tuple(starts)
+        if not starts:
+            raise ValueError("starts must name at least one start")
+        for start in starts:
+            if isinstance(start, str):
+                if start not in ('warm', 'midpoint'):
+                    raise ValueError(f"unknown starts entry {start!r}: use 'warm', "
+                                     "'midpoint' or a positive number")
+            elif isinstance(start, bool) or not isinstance(start, (int, float, np.number)) \
+                    or not start > 0:
+                raise ValueError(f"starts entry {start!r} must be 'warm', 'midpoint' "
+                                 "or a positive number")
+        return starts
 
     def _normalize_x(self, x):
         """Normalize inputs to [0, 1] using training-set min/range."""
@@ -174,20 +247,13 @@ class BayesLinear(BaseEmulator):
         R = self._sq_exp_corr(X_norm, X_norm, theta)
         return R + nugget * np.eye(len(X_norm))
 
-    def _concentrated_nll(self, log_hyperparameters, X_norm, residuals):
-        """Concentrated negative log-likelihood for theta optimisation.
+    def _nll(self, log_theta, nugget, X_norm, residuals):
+        """Concentrated negative log-likelihood at `log(theta)` and a given nugget.
 
         With sigma^2 profiled out analytically, the NLL reduces to:
             NLL(theta) = 0.5 * (n * log(sigma^2_hat) + log|R + nug*I|)
         where sigma^2_hat = r^T (R + nug*I)^{-1} r / n.
         """
-        if self._learn_nugget:
-            log_theta = log_hyperparameters[:-1]
-            nugget = float(np.exp(log_hyperparameters[-1]))
-        else:
-            log_theta = log_hyperparameters
-            nugget = self.nugget
-
         theta = np.exp(log_theta)
         n = len(residuals)
         if hasattr(self, '_nll_eval_count'):
@@ -208,6 +274,223 @@ class BayesLinear(BaseEmulator):
         log_det = 2.0 * np.sum(np.log(np.diag(L)))
         nll = 0.5 * (n * np.log(sigma2_hat) + log_det)
         return nll
+
+    def _nll_and_grad(self, log_theta, nugget, X_norm, residuals):
+        """Concentrated NLL and its gradient with respect to `log(theta)` and `log(nugget)`.
+
+        With `K = R + nugget * I`, `alpha = K^{-1} r` and `sigma^2_hat` profiled
+        out, `dNLL/dp = 0.5 * tr(W dK/dp)` for `W = K^{-1} - alpha alpha^T / sigma^2_hat`.
+        `dK/dlog(nugget) = nugget * I`, so that component is `0.5 * nugget * tr(W)`.
+        `dR_ij/dlog(theta_k) = 2 R_ij (x_ik - x_jk)^2 / theta_k^2`, so with
+        `M = W * R` (elementwise) that component is
+        `sum_ij M_ij (x_ik - x_jk)^2 / theta_k^2`, which expands into two
+        matrix products. `K^{-1}` comes from the Cholesky factor (LAPACK
+        `potri`), about twice the cost of the factorization, so the gradient
+        costs about three NLL evaluations instead of `d + 1`.
+
+        Returns:
+            Tuple `(nll, grad)`, `grad` of shape `(d + 1,)`. Where the
+            Cholesky fails, `(1e10, zeros)`, as `_nll` rejects the point.
+        """
+        theta = np.exp(log_theta)
+        n, d = X_norm.shape
+        if hasattr(self, '_nll_eval_count'):
+            self._nll_eval_count += 1
+        K = self._correlation_with_noise(X_norm, theta, nugget)
+        try:
+            U, lower = cho_factor(K)
+        except np.linalg.LinAlgError:
+            return 1e10, np.zeros(d + 1)
+        alpha = cho_solve((U, lower), residuals)
+        sigma2_hat = float(residuals @ alpha) / n
+        if sigma2_hat <= 0:
+            return 1e10, np.zeros(d + 1)
+        nll = 0.5 * (n * np.log(sigma2_hat) + 2.0 * np.sum(np.log(np.diag(U))))
+
+        # W = K^{-1} - alpha alpha^T / sigma^2_hat, from one triangle of potri's inverse.
+        Kinv, info = dpotri(U, lower=int(lower), overwrite_c=1)  # U is not needed again
+        if info != 0:
+            return 1e10, np.zeros(d + 1)
+        W = np.triu(Kinv) if not lower else np.tril(Kinv)
+        W += W.T
+        W[np.diag_indices(n)] *= 0.5
+        W -= np.outer(alpha, alpha / sigma2_hat)
+
+        grad = np.empty(d + 1)
+        grad[-1] = 0.5 * nugget * np.trace(W)
+        M = W
+        M *= K  # off-diagonal K is R; the diagonal does not enter (x_ik - x_ik = 0)
+        np.fill_diagonal(M, 0.0)
+        Xc = X_norm - 0.5
+        m = M.sum(axis=1)
+        grad[:-1] = 2.0 * ((Xc ** 2).T @ m - np.einsum('ik,ik->k', Xc, M @ Xc)) / theta ** 2
+        return nll, grad
+
+    def _lbfgsb(self, objective, x0, bounds, args, label, nll_scale=1.0, jac=None):
+        """One L-BFGS-B search, logging progress per iteration.
+
+        `nll_scale` converts the objective back to the NLL for logging. With
+        `jac=True`, `objective` returns `(value, gradient)`.
+        """
+        t0 = sc.timer()
+
+        def _callback(intermediate_result):
+            logger.debug(f"    L-BFGS-B ({label}) iter: NLL={intermediate_result.fun * nll_scale:.4f} "
+                         f"[{t0.total:.0f}s]")
+
+        result = minimize(
+            objective,
+            x0,
+            args=args,
+            method='L-BFGS-B',
+            jac=jac,
+            bounds=bounds,
+            options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
+            callback=_callback,
+        )
+        result.seconds = t0.total
+        return result
+
+    def _fit(self, X_norm, residuals, x0, nugget=None, label=''):
+        """One L-BFGS-B search over log(theta), and log(nugget) unless it is fixed.
+
+        Fixed and learned nuggets share this search; the only difference is
+        whether log(nugget) is a variable. With `nugget` a number, `x0` is
+        log(theta) and the nugget stays at that value. With `nugget=None`,
+        `x0` is log(theta) followed by log(nugget), searched within
+        `nugget_bounds`.
+
+        The search minimizes the NLL per training point, NLL / n. With every
+        variable bounded, L-BFGS-B's first trial step is the whole negative
+        gradient, projected onto the bounds. The raw NLL's gradient grows with
+        n, into the tens or hundreds, so that step used to put many log
+        correlation lengths on their lower bound at once. There the training
+        points are uncorrelated, the NLL no longer depends on theta or the
+        nugget, and the search stopped after one iteration with a zero
+        gradient, reporting success. Dividing by n keeps the first step
+        short. `ftol` is a relative tolerance, so it means the same either
+        way; `gtol` applies to the gradient of NLL / n. The gradient is
+        analytic (`_nll_and_grad`), not finite differences.
+
+        Returns:
+            The `scipy.optimize.OptimizeResult`, with `fun` set to the NLL at `x`.
+        """
+        d = X_norm.shape[1]
+        n = len(residuals)
+        bounds = [LOG_THETA_BOUNDS] * d
+        if nugget is None:
+            bounds.append(self._get_nugget_log_bounds())
+
+            def split(z):
+                return z[:-1], float(np.exp(z[-1]))
+        else:
+            def split(z):
+                return z, nugget
+
+        def objective(z, X, r):
+            nll, grad = self._nll_and_grad(*split(z), X, r)
+            if nugget is not None:
+                grad = grad[:-1]
+            return nll / n, grad / n
+
+        result = self._lbfgsb(objective, np.asarray(x0, dtype=np.float64), bounds,
+                              (X_norm, residuals), label=label, nll_scale=n, jac=True)
+        result.fun = float(self._nll(*split(result.x), X_norm, residuals))
+        return result
+
+    @staticmethod
+    def _start_record(start, stage, start_nugget, result, nugget):
+        """JSON-serializable summary of one optimizer run."""
+        return {
+            'start': start,
+            'stage': stage,
+            'start_nugget': float(start_nugget),
+            'nll': float(result.fun),
+            'nugget': float(nugget),
+            'nit': int(result.nit),
+            'nfev': int(result.nfev),
+            'success': bool(result.success),
+            'message': str(result.message),
+            'seconds': float(result.seconds),
+        }
+
+    def _fit_hyperparameters(self, X_norm, residuals):
+        """Fit theta, and the nugget if it is learned, from every start in `starts`.
+
+        Fixed and learned nuggets run the same procedure. First, every start
+        in `starts` runs its search over theta and the nugget within
+        `nugget_bounds` (after the `'warm'` start's warm-up at
+        `warm_nugget`). With `nugget='mle'`, those solutions, the warm-up
+        included, are the candidates. With a fixed nugget, they supply
+        starting correlation lengths: theta is refitted with the nugget held
+        at its fixed value from each of them, and from theta = 1, and those
+        refits are the candidates. A free search from correlation lengths far
+        from the optimum can move around barriers in theta through the nugget,
+        which a search over theta alone cannot; a search over theta alone from
+        theta = 1 is kept because no one path wins everywhere.
+
+        The lowest NLL wins. Every candidate is a feasible point, so the
+        chosen NLL is at most the NLL of every candidate. A fixed nugget's
+        chosen NLL is at most that of the search from theta = 1 at that
+        nugget. With `nugget='mle'`, the `'warm'` start's warm-up is a
+        candidate with the nugget exactly `warm_nugget`: the same search, from
+        the same start, as the theta = 1 refit of `BayesLinear(nugget=warm_nugget)`.
+
+        Returns:
+            Tuple `(log_theta, nugget, result, records)`: the chosen
+            hyperparameters, its `OptimizeResult` (with `fun` the NLL) and one
+            record per optimizer run, the candidates marked `'candidate'` and
+            the chosen one `'selected'`.
+        """
+        d = X_norm.shape[1]
+        log_lo, log_hi = self._get_nugget_log_bounds()
+        lo, hi = self.nugget_bounds
+        records = []
+
+        def search(x0, start_label, stage, start_nugget, nugget=None):
+            """One `_fit`; returns `(result, log_theta, nugget, record)`."""
+            result = self._fit(X_norm, residuals, x0, nugget=nugget,
+                               label=f'{start_label} start, {stage}')
+            log_theta, fitted = (result.x[:-1], float(np.exp(result.x[-1]))) if nugget is None \
+                else (result.x, nugget)
+            records.append(self._start_record(start_label, stage, start_nugget, result, fitted))
+            logger.info(f"    Start {start_label} ({stage}): NLL={result.fun:.4f}, nugget={fitted:.3g}, "
+                        f"{result.nit} iters, {result.message} [{result.seconds:.1f}s]")
+            return result, log_theta, fitted, records[-1]
+
+        # Phase 1, for every nugget: each start's search with the nugget free.
+        runs = []
+        for start in self.starts:
+            if start == 'warm':
+                w = float(np.clip(self.warm_nugget, lo, hi))
+                runs.append(search(np.zeros(d), 'warm', 'warm-up', w, nugget=w))
+                x0, label = np.append(runs[-1][1], np.log(w)), 'warm'
+            elif start == 'midpoint':
+                x0, label = np.append(np.zeros(d), 0.5 * (log_lo + log_hi)), 'midpoint'
+            else:
+                x0 = np.append(np.zeros(d), np.clip(np.log(float(start)), log_lo, log_hi))
+                label = f'nugget={float(start):g}'
+            runs.append(search(x0, label, 'search', float(np.exp(x0[-1]))))
+
+        # Phase 2, for a fixed nugget: refit theta at that nugget from theta = 1
+        # and from every phase-1 solution.
+        if self._learn_nugget:
+            candidates = runs
+        else:
+            v = float(self.nugget)
+            candidates = [search(np.zeros(d), 'theta=1', 'refit', v, nugget=v)]
+            for _, log_theta, nugget, record in runs:
+                candidates.append(search(log_theta, record['start'], f"refit of {record['stage']}",
+                                         nugget, nugget=v))
+
+        # The first of equal NLLs wins, so the outcome does not depend on rounding ties.
+        best = min(range(len(candidates)), key=lambda i: (candidates[i][0].fun, i))
+        result, log_theta, nugget, record = candidates[best]
+        chosen = {id(c[3]) for c in candidates}
+        for r in records:
+            r['candidate'] = id(r) in chosen
+            r['selected'] = r is record
+        return log_theta, nugget, result, records
 
     # ------------------------------------------------------------------
     # BaseEmulator interface
@@ -255,46 +538,12 @@ class BayesLinear(BaseEmulator):
         residuals = y_std - G @ self._beta_hat
 
         # --- Optimize theta (correlation lengths) and optionally nugget ---
-        if self._learn_nugget:
-            logger.info(f"    Optimizing theta ({d} correlation lengths) and nugget "
-                        f"({n}x{n} Cholesky per eval)...")
-        else:
-            logger.info(f"    Optimizing theta ({d} correlation lengths, {n}x{n} Cholesky per eval)...")
         self._nll_eval_count = 0
-        self._nll_best = np.inf
-        self._opt_t0 = sc.timer()
-
-        def _opt_callback(xk):
-            nll = objective(xk, X_norm, residuals)
-            self._nll_best = min(self._nll_best, nll)
-            elapsed = self._opt_t0.total
-            logger.info(f"    L-BFGS-B iter {self._nll_eval_count}: NLL={self._nll_best:.4f} [{elapsed:.0f}s]")
-
-        log_theta0 = np.zeros(d)  # initial guess: theta=1 in normalised space
-        initial_guess = log_theta0
-        bounds = [LOG_THETA_BOUNDS] * d
-
-        if self._learn_nugget:
-            log_nugget_bounds = self._get_nugget_log_bounds()
-            initial_guess = np.append(initial_guess, np.mean(log_nugget_bounds))
-            bounds.append(log_nugget_bounds)
-
-        objective = self._concentrated_nll
-
-        result = minimize(
-            objective,
-            initial_guess,
-            args=(X_norm, residuals),
-            method='L-BFGS-B',
-            bounds=bounds,
-            options={'maxiter': 200, 'ftol': self.ftol, 'gtol': self.gtol},
-            callback=_opt_callback,
-        )
-        if self._learn_nugget:
-            log_theta = result.x[:-1]
-            self.nugget = float(np.exp(result.x[-1]))
-        else:
-            log_theta = result.x
+        what = 'and the nugget' if self._learn_nugget else f'at nugget {float(self.nugget):.3g}'
+        logger.info(f"    Optimizing theta ({d} correlation lengths) {what} from starts "
+                    f"{list(self.starts)} ({n}x{n} Cholesky per eval)...")
+        log_theta, nugget, result, self.start_results = self._fit_hyperparameters(X_norm, residuals)
+        self.nugget = nugget
 
         self._theta = np.exp(log_theta)
         self._opt_result = result
@@ -512,6 +761,7 @@ class BayesLinear(BaseEmulator):
             'nll': float(self._opt_result.fun),
             'n_train': int(len(self.X_train)),
             'n_dims': int(len(self._theta)),
+            'starts': [dict(r) for r in self.start_results],
         }
 
     def print_emulator_description(self):
@@ -526,6 +776,10 @@ class BayesLinear(BaseEmulator):
         print(f"      sigma^2:       {hp['sigma_sq']:.6f}")
         print(f"      NLL:           {hp['nll']:.4f}")
         print(f"      Optimizer:     {'converged' if hp['optimizer_converged'] else 'did NOT converge'}")
+        for r in hp['starts']:
+            mark = '*' if r['selected'] else ' '
+            print(f"      {mark} start {r['start']} ({r['stage']}): NLL={r['nll']:.4f}, "
+                  f"nugget={r['nugget']:.3g}, {r['nit']} iters")
         print(f"      theta (correlation lengths):")
         for name, val in hp['theta'].items():
             print(f"        {name}: {val:.4f}")

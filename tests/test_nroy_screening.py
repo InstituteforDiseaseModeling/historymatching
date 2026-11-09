@@ -81,7 +81,8 @@ def train_wave(nugget, seed, lo=0.0, hi=1.0, n=80):
     emulators = {}
     for feature in FEATURES:
         y = pd.DataFrame({feature: simulate(x, feature, rng, noise=0.05)})
-        emulator = hm.BayesLinear(X, y, test_fraction=0.1, nugget=nugget)
+        # The bounds the fixture was built with; the screening tests depend on these emulators.
+        emulator = hm.BayesLinear(X, y, test_fraction=0.1, nugget=nugget, nugget_bounds=(1e-8, 1.0))
         emulator.train()
         emulators[feature] = emulator
     return emulators
