@@ -123,3 +123,4 @@ Docstrings are **Google-style with Markdown bodies** — this is what quartodoc'
 - Do not add literal `\n` characters in notebook metadata sections — they cause JSON formatting errors
 - The `examples/` directory contains Jupyter notebooks; `04_emulator_showcase.ipynb.bak` is intentionally kept (in use by another agent)
 - The GPR emulator uses `compile=False` in the Scipy optimizer — removing it causes a hang on TF 2.20
+- Every PR that changes the package bumps `__version__` / `__versiondate__` in `historymatching/__init__.py` and adds its CHANGELOG entries under a new `## Version X.Y.Z (YYYY-MM-DD)` heading — no "Unreleased" section. See `CONTRIBUTING.md` for which number to bump.
