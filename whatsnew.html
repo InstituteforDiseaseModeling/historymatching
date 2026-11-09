@@ -431,23 +431,28 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#whats-new" id="toc-whats-new" class="nav-link active" data-scroll-target="#whats-new">What’s new</a>
   <ul class="collapse">
+  <li><a href="#version-2.2.0-2026-11-09" id="toc-version-2.2.0-2026-11-09" class="nav-link" data-scroll-target="#version-2.2.0-2026-11-09">Version 2.2.0 (2026-11-09)</a>
+  <ul class="collapse">
+  <li><a href="#changed-defaults" id="toc-changed-defaults" class="nav-link" data-scroll-target="#changed-defaults">Changed defaults</a></li>
+  <li><a href="#fixes" id="toc-fixes" class="nav-link" data-scroll-target="#fixes">Fixes</a></li>
+  </ul></li>
   <li><a href="#version-2.1.0-2026-11-04" id="toc-version-2.1.0-2026-11-04" class="nav-link" data-scroll-target="#version-2.1.0-2026-11-04">Version 2.1.0 (2026-11-04)</a>
   <ul class="collapse">
   <li><a href="#new-features" id="toc-new-features" class="nav-link" data-scroll-target="#new-features">New features</a></li>
-  <li><a href="#fixes" id="toc-fixes" class="nav-link" data-scroll-target="#fixes">Fixes</a></li>
+  <li><a href="#fixes-1" id="toc-fixes-1" class="nav-link" data-scroll-target="#fixes-1">Fixes</a></li>
   <li><a href="#removed" id="toc-removed" class="nav-link" data-scroll-target="#removed">Removed</a></li>
   </ul></li>
   <li><a href="#version-2.0.1-2026-06-07" id="toc-version-2.0.1-2026-06-07" class="nav-link" data-scroll-target="#version-2.0.1-2026-06-07">Version 2.0.1 (2026-06-07)</a>
   <ul class="collapse">
   <li><a href="#new-features-1" id="toc-new-features-1" class="nav-link" data-scroll-target="#new-features-1">New features</a></li>
   <li><a href="#deprecations" id="toc-deprecations" class="nav-link" data-scroll-target="#deprecations">Deprecations</a></li>
-  <li><a href="#fixes-1" id="toc-fixes-1" class="nav-link" data-scroll-target="#fixes-1">Fixes</a></li>
+  <li><a href="#fixes-2" id="toc-fixes-2" class="nav-link" data-scroll-target="#fixes-2">Fixes</a></li>
   <li><a href="#internal" id="toc-internal" class="nav-link" data-scroll-target="#internal">Internal</a></li>
   </ul></li>
   <li><a href="#version-2.0.0-2026-06-05" id="toc-version-2.0.0-2026-06-05" class="nav-link" data-scroll-target="#version-2.0.0-2026-06-05">Version 2.0.0 (2026-06-05)</a>
   <ul class="collapse">
   <li><a href="#breaking-changes" id="toc-breaking-changes" class="nav-link" data-scroll-target="#breaking-changes">Breaking changes</a></li>
-  <li><a href="#changed-defaults" id="toc-changed-defaults" class="nav-link" data-scroll-target="#changed-defaults">Changed defaults</a></li>
+  <li><a href="#changed-defaults-1" id="toc-changed-defaults-1" class="nav-link" data-scroll-target="#changed-defaults-1">Changed defaults</a></li>
   </ul></li>
   <li><a href="#version-1.0.0-development-untagged-all-part-of-the-v1.0.0-tag" id="toc-version-1.0.0-development-untagged-all-part-of-the-v1.0.0-tag" class="nav-link" data-scroll-target="#version-1.0.0-development-untagged-all-part-of-the-v1.0.0-tag">Version 1.0.0 development (untagged; all part of the <code>v1.0.0</code> tag)</a>
   <ul class="collapse">
@@ -474,6 +479,27 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="whats-new" class="level1">
 <h1>What’s new</h1>
+<section id="version-2.2.0-2026-11-09" class="level2">
+<h2 class="anchored" data-anchor-id="version-2.2.0-2026-11-09">Version 2.2.0 (2026-11-09)</h2>
+<section id="changed-defaults" class="level3">
+<h3 class="anchored" data-anchor-id="changed-defaults">Changed defaults</h3>
+<ul>
+<li><strong><code>BayesLinear</code> learns its nugget by default: <code>nugget='mle'</code>, was a fixed <code>1e-6</code>.</strong> A fixed jitter of 1e-6 treats every simulator as deterministic, so the emulator fits a stochastic simulator’s run-to-run noise as signal. On the 48 benchmark scenarios below, all with run-to-run noise, the learned nugget’s median held-out R² is 0.733, against 0.543 for the old default and 0.654 for a fixed 1e-6 with this release’s search; it is at least as high in all 48. The default lower bound on the learned nugget, <code>nugget_bounds[0]</code>, rises from 1e-8 to 1e-6, the old fixed value. For a deterministic simulator the learned nugget goes to that bound, which keeps the correlation matrix well conditioned and keeps <code>predict_bounds</code>’s variance screening as tight as before. The <code>'midpoint'</code> start therefore begins at a nugget of 1e-3 instead of 1e-4. Pass <code>nugget=1e-6</code> (or <code>nugget_bounds=(1e-8, 1.0)</code>) for the old behaviour. Results change for every Bayes-linear emulator built with the defaults, including the engine’s. Training is no slower than the old default: 36 s against 46 s for the benchmark’s 48 fits, and 49 s against 51 s at 3,000 points × 21 parameters.</li>
+</ul>
+</section>
+<section id="fixes" class="level3">
+<h3 class="anchored" data-anchor-id="fixes">Fixes</h3>
+<ul>
+<li><strong>Bayes-linear hyperparameter fits no longer stop after one step, with fixed or learned nuggets, and both run one procedure.</strong> Before, the fixed-nugget fit (the default is <code>nugget=1e-6</code>) and <code>nugget='mle'</code> each made one L-BFGS-B start from correlation lengths 1, in separate code, and both failed the same way. With every variable bounded, L-BFGS-B’s first trial step is the whole negative gradient, and the raw NLL’s gradient grows with the number of training points, so that step put many log correlation lengths on their lower bound at once. There the NLL is flat, so the search stopped with a zero gradient and reported success, leaving the trend plus white noise. Both could also stop at a poor local optimum. Now:
+<ul>
+<li><strong>One search, used for every fit.</strong> It minimizes NLL / n, which keeps the first step short, with an analytic gradient of the concentrated NLL with respect to the log correlation lengths and log nugget, from the existing Cholesky factor, in place of d + 1 finite-difference evaluations. A fixed nugget only leaves log(nugget) out of the variables. <code>ftol</code> is relative, so its meaning is unchanged; <code>gtol</code> now applies to the gradient of NLL / n.&nbsp;At 3,000 training points × 21 parameters, one NLL-and-gradient evaluation takes 0.38 s; finite differences need 22 NLL evaluations of 0.175 s each, about 3.9 s.</li>
+<li><strong>Several starts, for every fit.</strong> The new <code>starts</code> option lists them, default <code>('warm', 'midpoint', 1e-2)</code>. Each runs a search over the correlation lengths and the nugget within <code>nugget_bounds</code>. <code>'warm'</code> first fits the correlation lengths with the nugget fixed at <code>warm_nugget</code> (new option, default <code>1e-2</code>), then searches from there. <code>'midpoint'</code> starts from correlation lengths 1 and the geometric middle of <code>nugget_bounds</code> (the old <code>'mle'</code> start). A number is a starting nugget with correlation lengths 1. With <code>nugget='mle'</code>, the lowest NLL among these solutions, the warm start’s first stage included, wins. With a fixed nugget, the correlation lengths are then refitted at the fixed nugget from each solution and from correlation lengths 1, and the lowest refit wins. Letting the nugget move takes the search around barriers between optima in the correlation lengths: at 3,000 points × 21 parameters and a fixed nugget of 0.03, both searches over the correlation lengths alone stop at NLL −2,465, and the refit from the learned-nugget solution reaches −2,795. No one start wins everywhere, so the search from correlation lengths 1 stays a candidate. Every run’s NLL, nugget, iterations, evaluations, message and time is in <code>get_hyperparameters()['starts']</code>.</li>
+</ul>
+On 48 synthetic scenarios (<code>tests/benchmarks/benchmark_mle_nugget.py</code>: 300 and 1,000 points, 10 and 21 parameters, noise sd 0.1–0.6; with the new default <code>nugget_bounds</code>), fixed-nugget fits at 1e-6, 0.01 and 0.03 stopped after at most one iteration, with correlation lengths on their lower bound, in 27, 25 and 19 scenarios, and 28, 33 and 26 ended more than 1 NLL above the best fit found at the same nugget, by up to 228. Now every fixed-nugget fit is within 0.05 NLL of that best, and the median held-out R² rose from 0.543, 0.567 and 0.599 to 0.654, 0.714 and 0.728. The fixed-nugget fits took 184 s in all, against 166 s. The <code>nugget='mle'</code> fit used to end more than 1 NLL above a fixed nugget of 0.01 or 0.03 in 18 scenarios, by up to 338; its median held-out R² rose from 0.543 to 0.733, and its fits took 36 s against 73 s. In 2 of the 48 (noise sd 0.6), it still ends 2.2 and 4.7 NLL above a fixed nugget of 0.03, a local optimum. At 3,000 points × 21 parameters (noise sd 0.2) on macOS, fits took 66 s at nugget 1e-6 (51 s before), 68 s at 0.03 (88 s, NLL −2,794.9 both), and 49 s with <code>'mle'</code> (68 s, NLL −2,797.0 against −2,455.8). Results change for every Bayes-linear emulator, fixed nugget or learned. (#281)</li>
+</ul>
+<hr>
+</section>
+</section>
 <section id="version-2.1.0-2026-11-04" class="level2">
 <h2 class="anchored" data-anchor-id="version-2.1.0-2026-11-04">Version 2.1.0 (2026-11-04)</h2>
 <section id="new-features" class="level3">
@@ -486,8 +512,8 @@ ul.task-list li input[type="checkbox"] {
 <li><strong><code>nroy_mask</code> applies emulators oldest wave first, so it evaluates fewer points.</strong> The mask is the same. Each emulator sees only the points still in. The early waves’ emulators were trained over the whole box and reject most far-away points, while the newest one was trained in a small region and rejects few. On a 10-wave, 21-parameter Bayes-linear bank, uniform candidates over the box needed 1.21 emulator evaluations each oldest first, against 2.17 newest first, which is 1.8× less work. The greedy optimum was 1.205. Candidates jittered around NROY points, like the ray and importance-sampling proposals, were also as cheap or cheaper oldest first: 1.82 against 3.20, 4.74 against 5.34, and 8.69 against 8.88 as the jitter shrank. (#279)</li>
 </ul>
 </section>
-<section id="fixes" class="level3">
-<h3 class="anchored" data-anchor-id="fixes">Fixes</h3>
+<section id="fixes-1" class="level3">
+<h3 class="anchored" data-anchor-id="fixes-1">Fixes</h3>
 <ul>
 <li><strong>The linear-model and GLM emulators report the std of a new simulator run, so their implausibility is right.</strong> Implausibility divides by the target’s data uncertainty plus the emulator’s variance, so that variance has to include the simulator’s run-to-run noise, as <code>BayesLinear</code> (<code>sigma_sq * nugget</code>) and <code>GPR</code> (<code>predict_y</code>) already do. <code>LinearModel</code> (<code>'linear'</code>) and <code>GLM</code> (<code>'glm'</code>) returned only the standard error of the fitted mean, which understates it and rules out too much; <code>LinearModelScipy</code> returned the spread of all training outputs, which overstates it. They now return the predictive std: residual variance plus the mean’s variance for <code>LinearModel</code> and <code>LinearModelScipy</code>, and the family’s variance at the mean (scale for Gaussian, the mean for Poisson) plus the mean’s variance for <code>GLM</code>. In a test with known noise, the standard deviation of (new run − predicted mean) / predicted std was 10.9 (<code>LinearModel</code>) and 0.44 (<code>LinearModelScipy</code>) before, and 0.99 for all of them now. Their interval columns follow the same definitions. (#273)</li>
 <li><strong><code>GLM.predict</code> works on statsmodels 0.15</strong>, which removed the <code>linear=</code> argument it used.</li>
@@ -521,8 +547,8 @@ ul.task-list li input[type="checkbox"] {
 <li><code>HistoryMatching.plot_nroy_parameters()</code> → use <strong><code>plot_nroy()</code></strong> (pass known values via <code>truth=</code> instead of <code>true_parameters=</code>). The old name still works with a <a href="https://docs.python.org/3/builtins/exceptions.html#DeprecationWarning" title="1"><code>DeprecationWarning</code></a> and returns <code>(fig, axes)</code>.</li>
 </ul>
 </section>
-<section id="fixes-1" class="level3">
-<h3 class="anchored" data-anchor-id="fixes-1">Fixes</h3>
+<section id="fixes-2" class="level3">
+<h3 class="anchored" data-anchor-id="fixes-2">Fixes</h3>
 <ul>
 <li><strong>Emulator predictions are now consistently indexed, fixing a crash in the NROY filter.</strong> <code>EmulationResults</code> built its mean from whatever the emulator passed — a numpy array (getting a fresh <code>RangeIndex</code>) or a pandas Series (carrying the caller’s labels) — and its std independently. When the two disagreed, downstream arithmetic like <code>abs(mean - target) / np.sqrt(variance)</code> aligned them <em>by label</em> rather than elementwise, returning the union of both indexes. Since the NROY filter predicts on <code>candidates.loc[mask]</code>, whose labels are non-contiguous after the first wave, this surfaced as <code>operands could not be broadcast together with shapes (15,) (29,) (15,)</code> from <code>_filter_nroy</code>. <code>LinearModel</code> was the emulator that actually tripped it (statsmodels returns an ndarray mean but a labelled Series for <code>mean_se</code>). All emulators now label mean, std, and additional data with the index of the DataFrame they predicted on, and <code>EmulationResults</code> forces the three onto a single shared index so the failure mode cannot recur.</li>
 <li><strong>The engine’s implausibility filter no longer silently drops constraints.</strong> <code>HistoryMatching._filter_samples_slow</code> was a near-verbatim copy of <code>_filter_nroy</code> in <a href="./api/nroy_sampling.html#historymatching.nroy_sampling" title="0"><code>historymatching.nroy_sampling</code></a>, but with one consequential difference: it caught emulator failures, logged a warning, and continued. Skipping a feature drops its constraint entirely, so points that should have been ruled implausible survived and the NROY region came out too wide — the exact failure mode the canonical implementation documents and deliberately guards against. The engine now delegates to <code>_filter_nroy</code>, so the two paths cannot drift apart and a failing emulator raises instead. Per-feature debug logging moved into the shared implementation and is unchanged.</li>
@@ -553,8 +579,8 @@ ul.task-list li input[type="checkbox"] {
 <li><strong><code>IterationResult</code> methods renamed/removed</strong>: <code>summary_statistics()</code> → <code>summary()</code>, <code>get_emulator_for_feature()</code> → <code>get_emulator()</code>, <code>export_*()</code> → <code>save()</code>; <code>get_implausibility_scores()</code> removed.</li>
 </ul>
 </section>
-<section id="changed-defaults" class="level3">
-<h3 class="anchored" data-anchor-id="changed-defaults">Changed defaults</h3>
+<section id="changed-defaults-1" class="level3">
+<h3 class="anchored" data-anchor-id="changed-defaults-1">Changed defaults</h3>
 <ul>
 <li><strong>Default emulator is now <code>bayes_linear</code></strong> (pure NumPy/SciPy, no TensorFlow dependency) — previously <code>gpr</code>. Pass <code>emulator_type='gpr'</code> for Gaussian Process emulation.</li>
 <li><strong>Default NROY method is now <code>'auto'</code></strong> (LHS first, escalating to <code>ray_resample</code> only when LHS acceptance is too low) — in v1, <code>get_nroy_samples()</code> defaulted to <code>ray_resample</code>.</li>
@@ -1181,7 +1207,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Docs built for History Matching v2.1.0 (2026-11-04).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
+<p>Docs built for History Matching v2.2.0 (2026-11-09).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
 <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/InstituteforDiseaseModeling/historymatching/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">

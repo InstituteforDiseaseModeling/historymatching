@@ -526,13 +526,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1794250847.920137    3095 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1794250847.920760    3095 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1794250847.955948    3095 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1794256773.457746    3513 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1794256773.498580    3513 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1794250848.801235    3095 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1794250848.801580    3095 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1794256774.647837    3513 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
 /home/runner/work/historymatching/historymatching/.venv/lib/python3.13/site-packages/gpflow/versions.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
   import pkg_resources</code></pre>
 </div>
@@ -820,7 +818,7 @@ Initial parameter ranges:
     gamma: [0.101, 0.999]
  Emulators trained: 3
  Accepting iteration 1...
-  Progress update: Iteration 1, Acceptance rate: 0.013, Total emulators: 3</code></pre>
+  Progress update: Iteration 1, Acceptance rate: 0.010, Total emulators: 3</code></pre>
 </div>
 </div>
 <div id="cell-13" class="cell" data-execution_count="9">
@@ -850,13 +848,13 @@ Initial parameter ranges:
  Updated to manual feature selection: ['peak_incidence', 'attack_rate']
  Iteration 2 results:
  Samples generated: 800
- Acceptance rate: 0.017
+ Acceptance rate: 0.015
  Features selected: ['peak_incidence', 'attack_rate']
  Parameter ranges:
-    beta: [0.983, 1.570]
-    gamma: [0.102, 0.793]
+    beta: [1.016, 1.569]
+    gamma: [0.131, 0.793]
  Accepting iteration 2...
-  Progress update: Iteration 2, Acceptance rate: 0.017, Total emulators: 5</code></pre>
+  Progress update: Iteration 2, Acceptance rate: 0.015, Total emulators: 5</code></pre>
 </div>
 </div>
 <div id="cell-14" class="cell" data-execution_count="10">
@@ -901,16 +899,16 @@ Initial parameter ranges:
  Updated to time series features: ['incidence_day_4', 'incidence_day_8']
  Iteration 3 results:
  Samples generated: 800
- Acceptance rate: 0.020
+ Acceptance rate: 0.019
  Features selected: ['incidence_day_4', 'incidence_day_8']
    Low acceptance rate with linear emulator - reverting to bayes_linear
-   Retried with bayes_linear: 800 samples, rate: 0.016
+   Retried with bayes_linear: 800 samples, rate: 0.015
  Accepting iteration 3...
-  Progress update: Iteration 3, Acceptance rate: 0.016, Total emulators: 7
+  Progress update: Iteration 3, Acceptance rate: 0.015, Total emulators: 7
 
  Interactive workflow completed!
  Total iterations: 3
- Final acceptance rate: 0.016</code></pre>
+ Final acceptance rate: 0.015</code></pre>
 </div>
 </div>
 </section>
@@ -958,18 +956,18 @@ Initial parameter ranges:
  Total iterations completed: 3
  Final plausible samples: 800
  Total emulators trained: 7
- Total samples evaluated: 205081
+ Total samples evaluated: 216150
 
  Parameter Recovery Assessment:
-  beta: Estimated 1.325 (95% CI: [1.187, 1.482])
+  beta: Estimated 1.334 (95% CI: [1.187, 1.484])
        True value: 1.3  (in CI)
-       Relative error: 1.9%
-  gamma: Estimated 0.508 (95% CI: [0.358, 0.638])
+       Relative error: 2.6%
+  gamma: Estimated 0.513 (95% CI: [0.352, 0.644])
        True value: 0.5  (in CI)
-       Relative error: 1.5%
+       Relative error: 2.7%
 
  Derived Parameter (R₀):
- Estimated: 2.626 (95% CI: [2.289, 3.341])
+ Estimated: 2.620 (95% CI: [2.283, 3.397])
  True value: 2.600 </code></pre>
 </div>
 </div>
@@ -1134,28 +1132,28 @@ Initial parameter ranges:
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Testing LHS + BL (baseline)...
-  Runtime: 4.1s
+  Runtime: 5.9s
   Final samples: 200
-  beta error: 7.0%, gamma error: 10.2%
-  Final acceptance rate: 0.111
+  beta error: 6.3%, gamma error: 8.5%
+  Final acceptance rate: 0.113
 
 Testing LHS + Linear...
-  Runtime: 3.6s
+  Runtime: 5.2s
   Final samples: 200
-  beta error: 5.9%, gamma error: 19.6%
-  Final acceptance rate: 0.307
+  beta error: 3.6%, gamma error: 22.4%
+  Final acceptance rate: 0.300
 
 Testing Random + BL...
-  Runtime: 4.2s
+  Runtime: 6.0s
   Final samples: 200
-  beta error: 2.0%, gamma error: 9.5%
-  Final acceptance rate: 0.125
+  beta error: 6.6%, gamma error: 13.1%
+  Final acceptance rate: 0.110
 
 Testing LHS + BL (conservative)...
-  Runtime: 3.9s
+  Runtime: 5.5s
   Final samples: 200
-  beta error: 6.4%, gamma error: 12.4%
-  Final acceptance rate: 0.066</code></pre>
+  beta error: 3.8%, gamma error: 10.9%
+  Final acceptance rate: 0.067</code></pre>
 </div>
 </div>
 <div id="cell-20" class="cell" data-execution_count="14">
@@ -1216,21 +1214,21 @@ Testing LHS + BL (conservative)...
 ================================================================================
 Configuration             Runtime(s)   Samples    β Error    γ Error    Acc. Rate 
 ================================================================================
-LHS + BL (baseline)       4.1          200        7.0%       10.2%      0.111     
-LHS + Linear              3.6          200        5.9%       19.6%      0.307     
-Random + BL               4.2          200        2.0%       9.5%       0.125     
-LHS + BL (conservative)   3.9          200        6.4%       12.4%      0.066     
+LHS + BL (baseline)       5.9          200        6.3%       8.5%       0.113     
+LHS + Linear              5.2          200        3.6%       22.4%      0.300     
+Random + BL               6.0          200        6.6%       13.1%      0.110     
+LHS + BL (conservative)   5.5          200        3.8%       10.9%      0.067     
 
  Best performing configurations:
  Fastest: LHS + Linear
  Most samples: LHS + BL (baseline)
- Lowest β error: Random + BL
- Lowest γ error: Random + BL</code></pre>
+ Lowest β error: LHS + Linear
+ Lowest γ error: LHS + BL (baseline)</code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="03_advanced_configuration_files/figure-html/cell-15-output-2.png" width="1428" height="476" class="figure-img"></p>
+<p><img src="03_advanced_configuration_files/figure-html/cell-15-output-2.png" width="1426" height="476" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1279,10 +1277,10 @@ LHS + BL (conservative)   3.9          200        6.4%       12.4%      0.066
 <div class="cell-output cell-output-stdout">
 <pre><code>Iteration | Acceptance | Features selected
 -------------------------------------------------------
-    1     |   0.091    | ['peak_incidence']
-    2     |   0.113    | ['total_cases']
-    3     |   0.099    | ['peak_incidence']
-    4     |   0.092    | ['total_cases']</code></pre>
+    1     |   0.093    | ['peak_incidence']
+    2     |   0.114    | ['total_cases']
+    3     |   0.096    | ['peak_incidence']
+    4     |   0.089    | ['total_cases']</code></pre>
 </div>
 </div>
 <div id="cell-23" class="cell" data-execution_count="16">
@@ -1387,7 +1385,7 @@ Engine loaded successfully!
 
 Continuing workflow from checkpoint...
   Additional iteration completed: 800 samples
-  Updated progress: Iteration 4, Rate: 0.016
+  Updated progress: Iteration 4, Rate: 0.015
 
 Checkpoint file cleaned up</code></pre>
 </div>
@@ -1990,7 +1988,7 @@ Checkpoint file cleaned up</code></pre>
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Docs built for History Matching v2.1.0 (2026-11-04).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
+<p>Docs built for History Matching v2.2.0 (2026-11-09).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
 <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/InstituteforDiseaseModeling/historymatching/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">

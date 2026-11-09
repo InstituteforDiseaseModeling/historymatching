@@ -470,6 +470,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#development-setup" id="toc-development-setup" class="nav-link" data-scroll-target="#development-setup">Development setup</a></li>
   <li><a href="#running-tests" id="toc-running-tests" class="nav-link" data-scroll-target="#running-tests">Running tests</a></li>
   <li><a href="#pull-requests" id="toc-pull-requests" class="nav-link" data-scroll-target="#pull-requests">Pull requests</a></li>
+  <li><a href="#versions-and-the-changelog" id="toc-versions-and-the-changelog" class="nav-link" data-scroll-target="#versions-and-the-changelog">Versions and the changelog</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/InstituteforDiseaseModeling/historymatching/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -507,8 +508,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Create a feature branch from <code>main</code>.</li>
 <li>Make your changes, adding or updating tests as appropriate.</li>
 <li>Ensure <code>uv run pytest tests/</code> passes and, if you touched the tutorials, that <code>docs/tutorials/run_tutorials.sh</code> passes.</li>
+<li>Bump the version and update the changelog in the same pull request, so <code>main</code> always says which version it is (see below).</li>
 <li>Submit a pull request describing the change and its motivation.</li>
 </ol>
+</section>
+<section id="versions-and-the-changelog" class="level2">
+<h2 class="anchored" data-anchor-id="versions-and-the-changelog">Versions and the changelog</h2>
+<p>Every pull request that changes the package, its behavior or its results bumps <code>__version__</code> and sets <code>__versiondate__</code> in <code>historymatching/__init__.py</code>, and adds its entries under a heading for that version at the top of <code>CHANGELOG.md</code> (<code>## Version X.Y.Z (YYYY-MM-DD)</code>). There is no “Unreleased” section. Bump the patch number for fixes that leave results unchanged, the minor number for new features or changed results, and the major number for breaking API changes. Pull requests that touch only tests, docs or CI don’t bump the version. If another open pull request already takes the next version number, take the one after it, and rebase if that pull request changes.</p>
 <p>Questions or bug reports are welcome on the <a href="https://github.com/InstituteforDiseaseModeling/historymatching/issues">issue tracker</a>.</p>
 
 
@@ -1059,7 +1065,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Docs built for History Matching v2.1.0 (2026-11-04).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
+<p>Docs built for History Matching v2.2.0 (2026-11-09).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
 <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/InstituteforDiseaseModeling/historymatching/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">

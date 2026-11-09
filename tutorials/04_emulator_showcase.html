@@ -540,13 +540,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Testing different emulator types on various synthetic problems"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1794250796.371640    2839 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1794250796.372262    2839 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-I0000 00:00:1794250796.407387    2839 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+I0000 00:00:1794256705.416649    3153 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1794256705.457401    3153 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1794250797.316948    2839 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-I0000 00:00:1794250797.317326    2839 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.</code></pre>
+I0000 00:00:1794256706.640245    3153 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.</code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code> Emulator Showcase and Comparison
@@ -951,7 +949,7 @@ Testing different emulator types on various synthetic problems</code></pre>
 ==================================================</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>E0000 00:00:1794250798.894149    2839 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)</code></pre>
+<pre><code>E0000 00:00:1794256708.724649    3153 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)</code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Neural network emulator not available: Unknown default emulator type: 'neural_network'. Available types: ['linear', 'glm', 'gpr', 'gaussian', 'bayes_linear']</code></pre>
@@ -968,9 +966,9 @@ Testing different emulator types on various synthetic problems</code></pre>
  Performance Summary (Linear Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          1.733    0.961    0.0103       1.000       
-gpr             2.016    0.947    1.1514       1.000       
-bayes_linear    0.834    0.991    0.0029       1.000       
+linear          1.733    0.961    0.0173       1.000       
+gpr             2.016    0.947    1.3733       1.000       
+bayes_linear    0.829    0.991    0.0128       1.000       
 
  Expected: Linear emulator should perform best with fastest training time</code></pre>
 </div>
@@ -1043,9 +1041,9 @@ bayes_linear    0.834    0.991    0.0029       1.000
  Performance Summary (Quadratic Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          1.420    0.857    0.0017       1.000       
-gpr             0.427    0.987    0.2120       1.000       
-bayes_linear    1.414    0.858    0.0027       1.000       
+linear          1.420    0.857    0.0022       1.000       
+gpr             0.427    0.987    0.2636       1.000       
+bayes_linear    1.445    0.852    0.0147       1.000       
 
  Expected: GPR should outperform linear emulator due to nonlinearity</code></pre>
 </div>
@@ -1100,9 +1098,9 @@ bayes_linear    1.414    0.858    0.0027       1.000
  Performance Summary (Sinusoidal Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          6.706    -0.003   0.0019       1.000       
-gpr             0.547    0.993    0.2070       1.000       
-bayes_linear    0.535    0.994    0.0088       1.000       
+linear          6.706    -0.003   0.0022       1.000       
+gpr             0.547    0.993    0.2787       1.000       
+bayes_linear    0.792    0.986    0.0320       1.000       
 
  Expected: GPR should significantly outperform linear emulator
  Linear emulator will struggle with sinusoidal patterns</code></pre>
@@ -1161,9 +1159,9 @@ bayes_linear    0.535    0.994    0.0088       1.000
  Performance Summary (Multimodal Function):
 Emulator        RMSE     R²       Train Time   Coverage 95%
 -----------------------------------------------------------------
-linear          2.966    0.448    0.0017       0.973       
-gpr             3.033    0.422    0.2084       1.000       
-bayes_linear    2.978    0.443    0.0033       0.913       
+linear          2.966    0.448    0.0020       0.973       
+gpr             3.033    0.422    0.2711       1.000       
+bayes_linear    2.979    0.443    0.0159       0.913       
 
  Expected: GPR should handle complexity better, but may need more training data
  Linear emulator will perform poorly on this complex function</code></pre>
@@ -1456,9 +1454,9 @@ Running HM with gpr emulator...</code></pre>
  History Matching Results Comparison:
 Emulator        Time(s)  Iterations   Final Samples  Param1 Error  Param2 Error  Accept Rate 
 ----------------------------------------------------------------------------------------------------
-linear          6.29     3            300            0.112         0.243         0.367       
-bayes_linear    6.50     3            300            0.017         0.038         0.066       
-gpr             8.56     3            300            0.016         0.041         0.069       </code></pre>
+linear          8.51     3            300            0.112         0.243         0.367       
+bayes_linear    8.83     3            300            0.021         0.038         0.069       
+gpr             11.70    3            300            0.016         0.041         0.069       </code></pre>
 </div>
 <div class="cell-output cell-output-display">
 <div>
@@ -1798,7 +1796,7 @@ Typical use cases:
 </section>
 <section id="scalar-bayes-linear-nuggets" class="level2">
 <h2 class="anchored" data-anchor-id="scalar-bayes-linear-nuggets">Scalar Bayes Linear Nuggets</h2>
-<p>For stochastic simulators with roughly constant run-to-run noise, Bayes Linear emulators can learn one scalar nugget term from repeated runs.</p>
+<p>For stochastic simulators with roughly constant run-to-run noise, Bayes Linear emulators learn one scalar nugget term, the run-to-run noise variance as a fraction of the residual process variance, by maximum likelihood. Since version 2.2.0 this is the default (<code>nugget='mle'</code>, within <code>nugget_bounds=(1e-6, 1.0)</code>); for a deterministic simulator the learned nugget goes to the lower bound. Pass a number, such as <code>nugget=1e-6</code>, to fix it instead. Below, the factory passes the options explicitly, with a lower bound of <code>1e-8</code>.</p>
 <div id="cell-22" class="cell" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
@@ -2416,7 +2414,7 @@ Learned nugget? True</code></pre>
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Docs built for History Matching v2.1.0 (2026-11-04).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
+<p>Docs built for History Matching v2.2.0 (2026-11-09).<br>© 2026, Gates Foundation. All rights reserved. <a href="https://www.gatesfoundation.org/Privacy-and-Cookies-Notice">Privacy and Cookies Notice</a> | <a href="https://www.gatesfoundation.org/Terms-of-Use">Terms of Use</a></p>
 <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/InstituteforDiseaseModeling/historymatching/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
