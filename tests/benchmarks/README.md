@@ -48,16 +48,20 @@ compare against it.
 
 ## `benchmark_mle_nugget.py`
 
-Checks the Bayes-linear `nugget='mle'` fit against fixed nuggets. A fixed
+Checks the Bayes-linear hyperparameter fit, with fixed and learned nuggets. A fixed
 nugget inside `nugget_bounds` is a feasible point of the learned-nugget search,
 so a working learned fit never ends with a higher NLL than a fixed nugget on
 the same training data. The script fits a grid of synthetic scenarios (a smooth
 function of 5 active inputs plus Gaussian noise, the other inputs inactive)
-with `nugget='mle'` and with fixed nuggets of 0.01 and 0.03, on the same
-train/test split, and writes NLL, nugget, held-out R², iterations and wall time
-to a CSV. `--compare` counts, per CSV, the learned fits more than `--tol` NLL
-above a fixed-nugget fit or above the lowest NLL any fit reached on that
-scenario, and the learned nuggets on a bound.
+with `nugget='mle'` and with fixed nuggets of 1e-6 (the default), 0.01 and
+0.03, on the same train/test split, and writes NLL, nugget, held-out R²,
+iterations, log correlation lengths on their lower bound and wall time to a
+CSV. `--compare` counts, per CSV, the learned fits more than `--tol` NLL above
+a fixed-nugget fit or above the lowest NLL any fit reached on that scenario,
+and the learned nuggets on a bound. For each fixed nugget, it counts the fits
+more than `--tol` above the lowest NLL any CSV reached at that nugget, and the
+fits that stopped after at most one iteration with a log correlation length on
+its lower bound.
 
 ```bash
 uv run python tests/benchmarks/benchmark_mle_nugget.py --out new.csv
@@ -67,5 +71,4 @@ uv run python tests/benchmarks/benchmark_mle_nugget.py --compare old.csv new.csv
 
 `--n`, `--d`, `--noise`, `--kind` and `--seeds` set the grid (by default 48
 scenarios: 300 and 1,000 points, 10 and 21 dimensions, noise sd 0.1, 0.3 and
-0.6, two functions, two seeds). `--fit-only mle` skips the fixed-nugget fits,
-for a version whose fixed-nugget fits are unchanged.
+0.6, two functions, two seeds). `--fit-only mle` skips the fixed-nugget fits.

@@ -209,32 +209,34 @@ def test_mle_nugget_is_interior_and_near_the_truth(friedman_fits):
 
 
 @pytest.mark.parametrize('noise_sd, warm_nugget', [(0.1, 1e-2), (0.6, 1e-2), (0.3, 0.2), (0.1, 1e-9)])
-def test_mle_nll_never_above_fixed_warm_nugget(noise_sd, warm_nugget):
-    """Guaranteed by construction: the warm start's fixed-nugget stage is a candidate."""
+def test_mle_nll_never_above_theta1_search_at_warm_nugget(noise_sd, warm_nugget):
+    """Guaranteed by construction: the warm start's warm-up is a candidate, and it is the
+    same search as a fixed-nugget fit's theta = 1 refit at the warm nugget."""
     X, y = _friedman_data(n=200, d=8, noise_sd=noise_sd, seed=1)
     mle = _train(X, y, split_seed=1, nugget='mle', warm_nugget=warm_nugget)
     w = float(np.clip(warm_nugget, *mle.nugget_bounds))
     fixed = _train(X, y, split_seed=1, nugget=w)
+    theta1 = [r for r in fixed.start_results if r['start'] == 'theta=1']
+    warm = [r for r in mle.start_results if r['stage'] == 'warm-up']
+    assert len(theta1) == 1 and len(warm) == 1 and warm[0]['nugget'] == w
+    assert warm[0]['nll'] == theta1[0]['nll']
+    assert mle.get_hyperparameters()['nll'] <= warm[0]['nll']
 
-    assert mle.get_hyperparameters()['nll'] <= fixed.get_hyperparameters()['nll']
-    warm = [r for r in mle.mle_start_results if r['stage'] == 'nugget fixed']
-    assert len(warm) == 1 and warm[0]['nugget'] == w
-    assert warm[0]['nll'] == fixed.get_hyperparameters()['nll']
 
-
-def test_mle_start_records(friedman_fits):
+def test_start_records(friedman_fits):
     hp = friedman_fits['mle'].get_hyperparameters()
-    records = hp['mle_starts']
-    # 'warm' is two runs (nugget fixed, then free); 'midpoint' and 1e-2 are one each.
+    records = hp['starts']
+    # 'warm' is two runs (warm-up, then the search); 'midpoint' and 1e-2 are one each.
     assert [(r['start'], r['stage']) for r in records] == [
-        ('warm', 'nugget fixed'), ('warm', 'free nugget'),
-        ('midpoint', 'free nugget'), ('nugget=0.01', 'free nugget')]
+        ('warm', 'warm-up'), ('warm', 'search'),
+        ('midpoint', 'search'), ('nugget=0.01', 'search')]
     for r in records:
         assert set(r) >= {'start', 'stage', 'start_nugget', 'nll', 'nugget', 'nit', 'nfev',
                           'success', 'message', 'seconds', 'selected'}
     selected = [r for r in records if r['selected']]
     assert len(selected) == 1
     assert selected[0]['nll'] == hp['nll'] and selected[0]['nugget'] == hp['nugget']
+    assert all(r['candidate'] for r in records)  # with 'mle', every run is a candidate
     assert all(r['nll'] >= hp['nll'] for r in records)
     assert records[2]['start_nugget'] == pytest.approx(1e-4)  # middle of (1e-8, 1)
     import json
@@ -244,17 +246,17 @@ def test_mle_start_records(friedman_fits):
 def test_single_midpoint_start():
     """One start is one free-nugget search from the old starting point."""
     X, y = _friedman_data()
-    em = _train(X, y, nugget='mle', mle_starts=('midpoint',))
+    em = _train(X, y, nugget='mle', starts=('midpoint',))
     hp = em.get_hyperparameters()
-    assert [(r['start'], r['stage']) for r in hp['mle_starts']] == [('midpoint', 'free nugget')]
-    assert hp['mle_starts'][0]['start_nugget'] == pytest.approx(1e-4)
-    assert hp['mle_starts'][0]['selected'] is True
+    assert [(r['start'], r['stage']) for r in hp['starts']] == [('midpoint', 'search')]
+    assert hp['starts'][0]['start_nugget'] == pytest.approx(1e-4)
+    assert hp['starts'][0]['selected'] is True
 
 
 @pytest.mark.parametrize('nugget', [1e-7, 1e-3, 0.05, 0.9])
 def test_nll_gradient_matches_central_differences(nugget):
     X, y = _friedman_data(n=150, d=6, noise_sd=0.1, seed=3)
-    em = _train(X, y, split_seed=3, nugget='mle', mle_starts=('midpoint',))
+    em = _train(X, y, split_seed=3, nugget='mle', starts=('midpoint',))
     Xn, r = em._X_train_norm, em._residuals
     z = np.append(np.random.default_rng(5).uniform(-1.5, 1.5, 6), np.log(nugget))
 
@@ -268,45 +270,86 @@ def test_nll_gradient_matches_central_differences(nugget):
     np.testing.assert_allclose(grad, central, rtol=1e-6, atol=1e-6 * np.abs(central).max())
 
 
-def test_fixed_nugget_fit_is_unchanged():
-    """A numeric nugget runs the same single L-BFGS-B search as before multistart:
-    theta = 1 start, finite differences, the NLL written out independently here."""
+def _independent_nll(Xn, r, log_theta, nugget):
+    """The concentrated NLL, written out independently of the emulator."""
     from scipy.linalg import cho_factor, cho_solve
+
+    n = len(r)
+    R = hm.BayesLinear._sq_exp_corr(Xn, Xn, np.exp(log_theta)) + nugget * np.eye(n)
+    try:
+        L, lower = cho_factor(R)
+    except np.linalg.LinAlgError:
+        return 1e10
+    s2 = float(r @ cho_solve((L, lower), r)) / n
+    return 0.5 * (n * np.log(s2) + 2.0 * np.sum(np.log(np.diag(L))))
+
+
+def test_fixed_nugget_runs_the_same_starts_then_refits():
+    """A fixed nugget runs the learned-nugget searches, then refits theta at the fixed
+    nugget from each of their solutions and from theta = 1, and keeps the nugget."""
+    X, y = _friedman_data(n=200, d=6, noise_sd=0.1, seed=2)
+    em = _train(X, y, split_seed=2, nugget=1e-6)
+    mle = _train(X, y, split_seed=2, nugget='mle')
+    hp = em.get_hyperparameters()
+    assert em.nugget == 1e-6 and hp['nugget'] == 1e-6 and hp['nugget_learned'] is False
+    records = hp['starts']
+    phase1 = [('warm', 'warm-up'), ('warm', 'search'), ('midpoint', 'search'), ('nugget=0.01', 'search')]
+    assert [(r['start'], r['stage']) for r in records] == phase1 + [
+        ('theta=1', 'refit'), ('warm', 'refit of warm-up'), ('warm', 'refit of search'),
+        ('midpoint', 'refit of search'), ('nugget=0.01', 'refit of search')]
+    # The first phase is the learned-nugget fit, run for run.
+    for r, m in zip(records[:4], mle.get_hyperparameters()['starts']):
+        assert (r['nll'], r['nugget']) == (m['nll'], m['nugget'])
+    assert not any(r['candidate'] for r in records[:4])
+    assert all(r['candidate'] and r['nugget'] == 1e-6 for r in records[4:])
+    selected = [r for r in records if r['selected']]
+    assert len(selected) == 1 and selected[0]['nll'] == min(r['nll'] for r in records[4:])
+    assert hp['nll'] <= records[4]['nll']  # never above the theta = 1 search alone
+    assert hp['nll'] == pytest.approx(
+        _independent_nll(em._X_train_norm, em._residuals, np.log(em._theta), 1e-6), rel=1e-10)
+
+
+def test_fixed_nugget_fit_no_longer_collapses():
+    """The old fixed-nugget search (theta = 1 start, raw NLL, finite differences) took
+    one step that put log correlation lengths on their lower bound, where the NLL is
+    flat, and stopped there. The shared search does not."""
     from scipy.optimize import minimize
     from historymatching.emulators.bayes_linear import LOG_THETA_BOUNDS
 
-    X, y = _friedman_data(n=200, d=6, noise_sd=0.1, seed=2)
-    em = _train(X, y, split_seed=2, nugget=1e-6)
+    X, y = _friedman_data(n=300, d=21, noise_sd=0.1, seed=0)
+    em = _train(X, y, nugget=1e-6)
     Xn, r = em._X_train_norm, em._residuals
-    n = len(r)
+    old = minimize(lambda z: _independent_nll(Xn, r, z, 1e-6), np.zeros(21), method='L-BFGS-B',
+                   bounds=[LOG_THETA_BOUNDS] * 21,
+                   options={'maxiter': 200, 'ftol': 1e-6, 'gtol': 1e-4})
 
-    def nll(log_theta):
-        R = hm.BayesLinear._sq_exp_corr(Xn, Xn, np.exp(log_theta)) + 1e-6 * np.eye(n)
-        try:
-            L, lower = cho_factor(R)
-        except np.linalg.LinAlgError:
-            return 1e10
-        s2 = float(r @ cho_solve((L, lower), r)) / n
-        return 0.5 * (n * np.log(s2) + 2.0 * np.sum(np.log(np.diag(L))))
-
-    expected = minimize(nll, np.zeros(6), method='L-BFGS-B', bounds=[LOG_THETA_BOUNDS] * 6,
-                        options={'maxiter': 200, 'ftol': 1e-6, 'gtol': 1e-4})
-
+    assert old.nit <= 1 and np.sum(old.x <= LOG_THETA_BOUNDS[0] + 1e-9) >= 3  # the defect
     hp = em.get_hyperparameters()
-    assert em.nugget == 1e-6 and hp['nugget_learned'] is False
-    assert hp['mle_starts'] == []
-    np.testing.assert_allclose(em._theta, np.exp(expected.x), rtol=1e-12)
-    assert hp['nll'] == pytest.approx(expected.fun, rel=1e-12)
+    assert hp['nll'] <= old.fun - 50
+    assert np.all(np.log(em._theta) > LOG_THETA_BOUNDS[0] + 1e-6)
+    em.test()
+    assert em.emulator_metrics['R2'] > 0.9
+
+
+def test_starts_help_a_fixed_nugget():
+    """From theta = 1 at nugget 1e-6, the search ends on the near-white-noise plateau;
+    a refit from the learned-nugget searches' solutions does not."""
+    X, y = _friedman_data(n=300, d=10, noise_sd=0.3, seed=0)
+    hp = _train(X, y, nugget=1e-6).get_hyperparameters()
+    theta1 = next(r for r in hp['starts'] if r['start'] == 'theta=1')
+    assert hp['nll'] <= theta1['nll'] - 10
+    assert not theta1['selected']
 
 
 @pytest.mark.parametrize('bad', [(), ('cold',), (0.0,), (-1e-3,), (True,)])
-def test_mle_starts_validation(bad):
+@pytest.mark.parametrize('nugget', ['mle', 1e-6])
+def test_starts_validation(bad, nugget):
     with pytest.raises(ValueError):
-        hm.BayesLinear(nugget='mle', mle_starts=bad)
+        hm.BayesLinear(nugget=nugget, starts=bad)
 
 
-def test_mle_starts_accepts_a_single_entry_and_numbers():
-    assert hm.BayesLinear(mle_starts='warm').mle_starts == ('warm',)
-    assert hm.BayesLinear(mle_starts=[1e-3, 'midpoint']).mle_starts == (1e-3, 'midpoint')
+def test_starts_accepts_a_single_entry_and_numbers():
+    assert hm.BayesLinear(starts='warm').starts == ('warm',)
+    assert hm.BayesLinear(starts=[1e-3, 'midpoint']).starts == (1e-3, 'midpoint')
     with pytest.raises(ValueError):
         hm.BayesLinear(warm_nugget=0)
