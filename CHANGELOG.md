@@ -1,11 +1,6 @@
 # What's new
 
-> **A note on versioning.** Only `v1.0.0` and `v2.0.0` were ever tagged and released.
-> The "later/earlier additions" groupings below were informal, *untagged* development
-> milestones (previously labelled "1.1.0" and "1.2.0"). None shipped as a separate
-> release — they are all part of the `v1.0.0` tag.
-
-## Unreleased
+## Version 2.1.0
 
 ### New features
 
@@ -33,6 +28,8 @@
 ### Removed
 
 - **The engine's separate GPR filter** (`_filter_fast`, `_filter_samples_slow`, `_build_fast_predictors`) and `historymatching.emulators.fast_predict.filter_nroy`. The engine's wave 1 sampler, its only caller, now filters through `nroy_mask` like `generate_nroy_design` and `in_nroy`, so NROY membership has one implementation. Normal runs never reached the removed path: it ran only when wave 1 started with emulators already in the bank. `FastGPRPredictor` stays in `emulators.fast_predict`.
+
+---
 
 ## v2.0.1 (2026-06-07)
 
@@ -63,7 +60,7 @@
 
 ---
 
-## v2.0.0 (2026)
+## Version 2.0.0 (2026)
 
 ### Breaking changes
 
@@ -81,7 +78,7 @@ The last release with the builder API is tagged **`v1.0.0`**.
 
 ---
 
-## v1.0.0 development — later additions (untagged)
+## Version 1.0.0 development — later additions (untagged)
 
 ### New features
 
@@ -90,11 +87,7 @@ The last release with the builder API is tagged **`v1.0.0`**.
 - **Detailed run logging**: Engine writes `log.txt` to the output directory with per-phase timing, per-emulator training progress, and NROY sampling progress at 10% intervals. Hyperparameters (ARD lengthscales, etc.) saved to `metrics.json`.
 - **Improved diagnostics**: Residuals/predictions wrap to 5-column grid for high-dimensional problems. Pred-vs-true split into train/test panels with error bars. Error scatter and histogram also split train/test. Convergence plot uses log y-axis.
 
----
-
-## v1.0.0 development — earlier additions (untagged)
-
-### New features
+### Slightly less new features
 
 - **Auto-checkpointing**: Engine saves emulators, diagnostics, and checkpoint after each wave by default. Configure with the `output_dir=` and `run_name=` arguments. Disable with `output_dir=None`
 - **Resume from checkpoint**: `engine.run(resume=True)` loads the latest checkpoint and continues from where it left off
@@ -120,7 +113,7 @@ The last release with the builder API is tagged **`v1.0.0`**.
 
 ---
 
-## v1.0.0 (2025) — tagged release (the complete v1)
+## Version 1.0.0 (2025) — tagged release (the complete v1)
 
 ### New features
 
