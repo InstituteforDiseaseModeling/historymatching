@@ -181,9 +181,11 @@ def _single_start_nll(em):
 
 @pytest.fixture(scope='module')
 def friedman_fits():
-    """The synthetic reproduction: the single start stops near its starting nugget."""
+    """The synthetic reproduction: the single start stops near its starting nugget.
+    It uses #281's nugget bounds, (1e-8, 1), the default before version 2.2.0."""
     X, y = _friedman_data()
-    return {nugget: _train(X, y, nugget=nugget) for nugget in ('mle', 0.01, 0.03)}
+    return {nugget: _train(X, y, nugget=nugget, nugget_bounds=(1e-8, 1.0))
+            for nugget in ('mle', 0.01, 0.03)}
 
 
 def test_mle_fit_beats_single_start_and_fixed_nuggets(friedman_fits):
@@ -249,7 +251,7 @@ def test_single_midpoint_start():
     em = _train(X, y, nugget='mle', starts=('midpoint',))
     hp = em.get_hyperparameters()
     assert [(r['start'], r['stage']) for r in hp['starts']] == [('midpoint', 'search')]
-    assert hp['starts'][0]['start_nugget'] == pytest.approx(1e-4)
+    assert hp['starts'][0]['start_nugget'] == pytest.approx(1e-3)  # middle of (1e-6, 1)
     assert hp['starts'][0]['selected'] is True
 
 
@@ -339,6 +341,18 @@ def test_starts_help_a_fixed_nugget():
     theta1 = next(r for r in hp['starts'] if r['start'] == 'theta=1')
     assert hp['nll'] <= theta1['nll'] - 10
     assert not theta1['selected']
+
+
+def test_default_learns_the_nugget():
+    """The default is `nugget='mle'`, with the learned nugget at least 1e-6."""
+    X, y = _friedman_data(n=200, d=6, noise_sd=0.1, seed=2)
+    em = _train(X, y, split_seed=2)
+    hp = em.get_hyperparameters()
+    assert hp['nugget_learned'] is True and em.nugget_bounds == (1e-6, 1.0)
+    assert 1e-6 <= hp['nugget'] <= 1.0 and hp['nugget'] != 1e-6
+    # A deterministic function: the learned nugget goes to the lower bound.
+    X, y = _friedman_data(n=200, d=6, noise_sd=0.0, seed=2)
+    assert _train(X, y, split_seed=2).get_hyperparameters()['nugget'] == pytest.approx(1e-6)
 
 
 @pytest.mark.parametrize('bad', [(), ('cold',), (0.0,), (-1e-3,), (True,)])

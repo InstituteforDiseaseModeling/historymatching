@@ -64,13 +64,17 @@ class BayesLinear(BaseEmulator):
             training correlation matrix, and `sigma_sq * nugget` is added to
             every predictive variance, so implausibility already counts
             run-to-run noise through the emulator: give the targets their data
-            uncertainty only. A number fixes the nugget; the default `1e-6` is
-            a small jitter suited to deterministic simulators. `'mle'` learns
-            one value, shared across the input space, by maximum likelihood;
-            use it for stochastic simulators.
+            uncertainty only. The default, `'mle'`, learns one value, shared
+            across the input space, by maximum likelihood, within
+            `nugget_bounds`; for a deterministic simulator it goes to the
+            lower bound. A number fixes the nugget, for example `1e-6`, a
+            small jitter (the default before version 2.2.0), when the
+            simulator is known to be deterministic.
         nugget_bounds: Lower and upper bounds on the nugget in the searches
-            that learn it. With a fixed nugget, those searches only supply
-            starting correlation lengths (see `starts`).
+            that learn it. The default lower bound, `1e-6`, keeps a jitter
+            that keeps the correlation matrix well conditioned. With a fixed
+            nugget, those searches only supply starting correlation lengths
+            (see `starts`).
         ftol: Function-value tolerance for the L-BFGS-B correlation-length
             optimization (convergence criterion). It is relative, so it means
             the same at any number of training points.
@@ -124,7 +128,7 @@ class BayesLinear(BaseEmulator):
     """
 
     def __init__(self, x: Optional[pd.DataFrame] = None, y: Optional[pd.DataFrame] = None,
-                 test_fraction=0.25, nugget=1e-6, nugget_bounds=(1e-8, 1.0),
+                 test_fraction=0.25, nugget='mle', nugget_bounds=(1e-6, 1.0),
                  ftol=1e-6, gtol=1e-4, starts=DEFAULT_STARTS,
                  warm_nugget=DEFAULT_WARM_NUGGET):
         self._learn_nugget = nugget == 'mle'
